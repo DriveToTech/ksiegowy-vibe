@@ -2,6 +2,10 @@
 
 A self-hosted, multi-company Polish VAT accounting platform with KSeF (Krajowy System e-Faktur) integration.
 
+## Disclaimer
+
+This software is provided as-is and does not constitute legal, tax, accounting, or compliance advice. The project creator and maintainer do not accept responsibility for financial loss, tax, accounting, legal, reporting, or formal/compliance consequences, including penalties, interest, or filing mistakes, caused by software defects, misuse, or incorrect output, especially where Polish law or regulatory obligations apply. Users must verify all results independently and consult qualified legal, tax, or accounting professionals before relying on the software for decisions, filings, or statutory compliance.
+
 ## Documentation
 
 | Document | Description |
