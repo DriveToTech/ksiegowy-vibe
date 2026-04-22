@@ -1,0 +1,228 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: |
+          pnpm --filter @ksiegowy/types \
+               --filter @ksiegowy/shared-utils \
+               --filter @ksiegowy/fa3-xml \
+               --filter @ksiegowy/ksef-client \
+               --filter @ksiegowy/pdf-templates \
+               build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Run typecheck
+        run: pnpm typecheck
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        run: pnpm lint
+
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y libxml2-utils
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: |
+          pnpm --filter @ksiegowy/types \
+               --filter @ksiegowy/shared-utils \
+               --filter @ksiegowy/fa3-xml \
+               --filter @ksiegowy/ksef-client \
+               --filter @ksiegowy/pdf-templates \
+               build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Run unit tests
+        run: pnpm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [typecheck, lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Build all packages and apps
+        run: pnpm build
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ksiegowy_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_test
+
+      - name: Run database migrations
+        run: pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_test
+
+      - name: Run integration tests
+        # TODO: replace with actual integration test command once tests are added
+        run: echo "No integration tests yet — add test:integration script to run here"
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_test
+
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: |
+          pnpm --filter @ksiegowy/types \
+               --filter @ksiegowy/shared-utils \
+               --filter @ksiegowy/fa3-xml \
+               --filter @ksiegowy/ksef-client \
+               --filter @ksiegowy/pdf-templates \
+               build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Build web app
+        run: pnpm --filter @ksiegowy/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @ksiegowy/e2e exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/e2e/playwright-report/
+          retention-days: 7

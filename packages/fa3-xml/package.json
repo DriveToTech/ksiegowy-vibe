@@ -1,0 +1,21 @@
+{
+  "name": "@ksiegowy/fa3-xml",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/schema && cp -R src/schema/. dist/schema/",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@ksiegowy/types": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

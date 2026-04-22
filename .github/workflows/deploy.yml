@@ -1,0 +1,50 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  deploy-api:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Build API Docker image
+        # TODO: configure container registry (e.g. DOCKER_REGISTRY, IMAGE_NAME secrets)
+        run: echo "TODO: docker build -t <registry>/<image>:${{ github.event.workflow_run.head_sha }} -f apps/api/Dockerfile ."
+
+      - name: Push API Docker image
+        # TODO: configure docker login and push
+        run: echo "TODO: docker push <registry>/<image>:${{ github.event.workflow_run.head_sha }}"
+
+      - name: Deploy API to production
+        # TODO: configure deployment (e.g. kubectl, docker-compose, Fly.io, Render, etc.)
+        run: echo "TODO: deploy API to production"
+
+  deploy-web:
+    name: Deploy Web
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Build Web Docker image
+        # TODO: configure container registry and NEXT_PUBLIC_API_URL build arg
+        run: echo "TODO: docker build -t <registry>/<image>:${{ github.event.workflow_run.head_sha }} --build-arg NEXT_PUBLIC_API_URL=<url> -f apps/web/Dockerfile ."
+
+      - name: Push Web Docker image
+        # TODO: configure docker login and push
+        run: echo "TODO: docker push <registry>/<image>:${{ github.event.workflow_run.head_sha }}"
+
+      - name: Deploy Web to production
+        # TODO: configure deployment
+        run: echo "TODO: deploy Web to production"

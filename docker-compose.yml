@@ -1,0 +1,152 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ksiegowy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-ksiegowy_dev}
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-ksiegowy} -d ${POSTGRES_DB:-ksiegowy_dev}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    depends_on:
+      - postgres
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ksiegowy}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-ksiegowy_dev}
+      CORS_ORIGIN: http://localhost:3000
+      STORAGE_BASE_PATH: /app/storage
+      POSTGRESQL_BACKUP_ARTIFACTS_PATH: /app/backups/postgresql
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    volumes:
+      - ./storage:/app/storage
+      - ./backups/postgresql:/app/backups/postgresql:ro
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      API_URL: http://api:3001
+      APP_URL: http://localhost:3000
+
+  backup-postgres:
+    build:
+      context: .
+      dockerfile: ops/backup/Dockerfile
+    restart: 'no'
+    profiles:
+      - backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-ksiegowy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-ksiegowy_dev}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      DB_BACKUP_ENABLED: ${DB_BACKUP_ENABLED:-false}
+      DB_BACKUP_ENVIRONMENT_NAME: ${DB_BACKUP_ENVIRONMENT_NAME:-local}
+      DB_BACKUP_RETENTION_DAYS: ${DB_BACKUP_RETENTION_DAYS:-14}
+      DB_BACKUP_LOCAL_RETENTION_DAYS: ${DB_BACKUP_LOCAL_RETENTION_DAYS:-14}
+      DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS: ${DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS:-120}
+      DB_BACKUP_REMOTE_BASE_PATH: ${DB_BACKUP_REMOTE_BASE_PATH:-ksiegowy-vibe/backups/postgresql}
+      DB_BACKUP_REMOTE_PRIMARY_NAME: ${DB_BACKUP_REMOTE_PRIMARY_NAME:-}
+      DB_BACKUP_REMOTE_SECONDARY_NAME: ${DB_BACKUP_REMOTE_SECONDARY_NAME:-}
+      DB_BACKUP_RCLONE_CONFIG_PATH: /tmp/rclone-runtime/rclone.conf
+      DB_BACKUP_RCLONE_SOURCE_CONFIG_PATH: /tmp/rclone-source/rclone.conf
+    volumes:
+      - ./backups/postgresql:/backup-output
+      - ${DB_BACKUP_RCLONE_CONFIG_PATH:-./ops/backup/rclone/rclone.conf}:/tmp/rclone-source/rclone.conf:ro
+      - backup_postgres_rclone_runtime:/tmp/rclone-runtime
+
+  backup-gdrive-scheduled:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: 'no'
+    profiles:
+      - backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ksiegowy}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-ksiegowy_dev}
+      STORAGE_BASE_PATH: /app/storage
+    command: ['node', 'dist/scheduled-company-google-drive-backup-runner.js']
+    volumes:
+      - ./storage:/app/storage:ro
+
+  verify-backups:
+    build:
+      context: .
+      dockerfile: ops/backup/Dockerfile
+    restart: 'no'
+    profiles:
+      - backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-ksiegowy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-ksiegowy_dev}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      DB_BACKUP_ENABLED: ${DB_BACKUP_ENABLED:-false}
+      DB_BACKUP_ENVIRONMENT_NAME: ${DB_BACKUP_ENVIRONMENT_NAME:-local}
+      DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS: ${DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS:-120}
+      BACKUP_FRESHNESS_ENABLED: ${BACKUP_FRESHNESS_ENABLED:-true}
+      BACKUP_FRESHNESS_REQUIRE_POSTGRESQL_BACKUP: ${BACKUP_FRESHNESS_REQUIRE_POSTGRESQL_BACKUP:-auto}
+      BACKUP_FRESHNESS_REQUIRE_GDRIVE_BACKUP: ${BACKUP_FRESHNESS_REQUIRE_GDRIVE_BACKUP:-auto}
+      BACKUP_FRESHNESS_REQUIRE_ICLOUD_BACKUP: ${BACKUP_FRESHNESS_REQUIRE_ICLOUD_BACKUP:-auto}
+      BACKUP_FRESHNESS_POSTGRESQL_MAX_AGE_HOURS: ${BACKUP_FRESHNESS_POSTGRESQL_MAX_AGE_HOURS:-30}
+      BACKUP_FRESHNESS_GDRIVE_MAX_AGE_HOURS: ${BACKUP_FRESHNESS_GDRIVE_MAX_AGE_HOURS:-30}
+      BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS: ${BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS:-30}
+    entrypoint: ["/usr/local/bin/check-backup-freshness.sh"]
+    volumes:
+      - ./backups/postgresql:/backup-output
+
+volumes:
+  postgres_data:
+  storage:
+  backup_postgres_rclone_runtime:

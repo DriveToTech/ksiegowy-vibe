@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@ksiegowy/types": ["packages/types/src/index.ts"],
+      "@ksiegowy/shared-utils": ["packages/shared-utils/src/index.ts"],
+      "@ksiegowy/fa3-xml": ["packages/fa3-xml/src/index.ts"],
+      "@ksiegowy/ksef-client": ["packages/ksef-client/src/index.ts"],
+      "@ksiegowy/pdf-templates": ["packages/pdf-templates/src/index.ts"]
+    },
+    "lib": ["ES2022"],
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "ksiegowy-vibe",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Monorepo scaffold for ksiegowy-vibe.pl",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "sh -c 'set -a && . ./.env && set +a && pnpm -r --parallel --filter @ksiegowy/api --filter @ksiegowy/web dev'",
+    "dev:web": "sh -c 'set -a && . ./.env && set +a && pnpm -r --parallel --filter @ksiegowy/web dev'",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present --filter '!@ksiegowy/e2e' test",
+    "test:e2e": "pnpm --filter @ksiegowy/e2e test",
+    "clean": "pnpm -r --if-present clean",
+    "db:seed": "sh -c 'set -a && . ./.env && set +a && pnpm tsx scripts/seed.ts'",
+    "ksef:seed-incoming": "sh -c 'set -a && . ./.env && set +a && pnpm tsx scripts/ksef-seed-incoming.ts \"$@\"' --",
+    "db:migrate": "sh -c 'set -a && . ./.env && set +a && pnpm --filter @ksiegowy/api exec prisma migrate dev'",
+    "db:studio": "sh -c 'set -a && . ./.env && set +a && pnpm --filter @ksiegowy/api exec prisma studio'"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@types/node": "^22.14.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.58.0"
+  }
+}

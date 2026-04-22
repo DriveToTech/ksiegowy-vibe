@@ -1,0 +1,529 @@
+export const t = {
+  nav: {
+    overview: "Przegląd",
+    outgoingInvoices: "Faktury wychodzące",
+    incomingInvoices: "Faktury przychodzące",
+    contractors: "Kontrahenci",
+    settings: "Ustawienia",
+  },
+
+  dashboard: {
+    pageEyebrow: "Przegląd",
+    pageTitle: "Panel operacyjny",
+    pageDescription:
+      "Najważniejsze wskaźniki, ostatnie dokumenty i aktywność operacyjna firmy.",
+    noCompanyTitle: "Brak skonfigurowanej firmy",
+    noCompanyDescription:
+      "Dodaj firmę w ustawieniach, aby rozpocząć pracę z kontrahentami, fakturami i OCR.",
+    goToSettings: "Przejdź do ustawień",
+    goToIncoming: "Przejdź do OCR",
+    createInvoice: "+ Nowa faktura",
+    metrics: {
+      invoicesThisMonthLabel: "Faktury w tym miesiącu",
+      invoicesThisMonthHint: "Dokumenty wystawione w bieżącym miesiącu.",
+      pendingKsefLabel: "Oczekuje na KSeF",
+      pendingKsefHint: "Faktury wymagające dalszej synchronizacji lub potwierdzenia.",
+      totalGrossLabel: "Łączna sprzedaż",
+      totalGrossHint: "Suma brutto wszystkich pobranych faktur sprzedażowych.",
+    },
+    recentInvoices: "Ostatnie faktury",
+    seeAll: "Zobacz wszystkie",
+    emptyInvoicesTitle: "Brak faktur do wyświetlenia",
+    emptyInvoicesDescription:
+      "Zacznij od dodania kontrahenta i utworzenia pierwszej faktury sprzedażowej.",
+    addContractor: "Dodaj kontrahenta",
+    lastActivityLabel: "Ostatnia aktywność",
+    lastActivityDescription: (invoiceNumber: string, issueDate: string) =>
+      `Ostatnio zaktualizowano fakturę ${invoiceNumber} z dnia ${issueDate}.`,
+    quickActions: {
+      title: "Szybkie działania",
+      subtitle: "Najczęstsze skróty robocze",
+      newInvoiceTitle: "Nowa faktura",
+      newInvoiceDescription: "Utwórz dokument sprzedaży.",
+      incomingInvoiceTitle: "Prześlij do OCR",
+      incomingInvoiceDescription: "Dodaj fakturę od kontrahenta.",
+      manageCompanySettings: "Zarządzaj ustawieniami firmy",
+    },
+  },
+
+  incoming: {
+    pageEyebrow: "OCR",
+    pageTitle: "Faktury przychodzące",
+    pageDescription:
+      "Monitoruj status rozpoznania, dodawaj nowe dokumenty i importuj faktury zakupowe z KSeF.",
+    uploadButton: "Prześlij fakturę",
+    uploading: "Przesyłanie...",
+    emptyTitle: "Brak faktur przychodzących",
+    empty: "Brak faktur przychodzących. Dodaj pierwszy dokument przez upload lub import z KSeF.",
+    total: (n: number) => `Łącznie: ${n}`,
+    metrics: {
+      allLabel: "Łącznie",
+      allHint: "Wszystkie przesłane dokumenty w aktywnej firmie.",
+      processingLabel: "OCR w toku",
+      processingHint: "Dokumenty aktualnie analizowane przez proces OCR.",
+      confirmedLabel: "Potwierdzone",
+      confirmedHint: "Dokumenty zakończone i potwierdzone przez użytkownika.",
+    },
+    uploadCard: {
+      eyebrow: "Dodaj dokument",
+      title: "Prześlij fakturę do OCR",
+      description:
+        "Przeciągnij plik PDF lub obraz albo wybierz dokument z dysku. Po wysłaniu przejdziesz od razu do weryfikacji.",
+      dropzoneTitle: "Upuść plik tutaj lub wybierz dokument",
+      formats: "Obsługiwane formaty: PDF, JPG, PNG, WEBP, TIFF.",
+      helpText:
+        "Wybierz plik PDF lub obraz faktury przychodzącej, aby uruchomić proces OCR.",
+    },
+    columns: {
+      seller: "Sprzedawca",
+      nip: "NIP",
+      invoiceNumber: "Nr faktury",
+      date: "Data",
+      grossAmount: "Kwota brutto",
+      status: "Status",
+    },
+    status: {
+      UPLOADED: "Przesłano",
+      OCR_PROCESSING: "OCR w toku",
+      OCR_DONE: "OCR gotowy",
+      OCR_FAILED: "Błąd OCR",
+      CONFIRMED: "Potwierdzona",
+      REJECTED: "Odrzucona",
+      KSEF_SYNCED: "Z KSeF",
+    } as Record<string, string>,
+    review: "Przeglądaj",
+    backToList: "← Faktury przychodzące",
+    notFound: "Faktura nie znaleziona.",
+    noCompany: "Brak firmy. Skonfiguruj firmę w ustawieniach.",
+    ksefSync: {
+      eyebrow: "Import z KSeF",
+      title: "Pobierz faktury zakupowe",
+      description:
+        "Zaimportuj dokumenty wystawione na Twoją firmę bezpośrednio z KSeF w wybranym zakresie dat.",
+      helperLabel: "KSeF",
+      helperDescription:
+        "Wybierz zakres dat i pobierz dokumenty bez wychodzenia z widoku faktur przychodzących.",
+      button: "Importuj z KSeF",
+      syncing: "Synchronizowanie...",
+      success: (created: number, linked: number, skipped: number) =>
+        `Synchronizacja zakończona: ${created} nowych, ${linked} powiązanych, ${skipped} pominiętych.`,
+      error: "Synchronizacja nie powiodła się.",
+      dateFrom: "Data od",
+      dateTo: "Data do",
+      confirm: "Importuj",
+      cancel: "Anuluj",
+      modalTitle: "Import z KSeF",
+      modalDescription: "Pobierz faktury wystawione na Twoją firmę w KSeF w podanym zakresie dat i dodaj je do listy przychodzących.",
+    },
+  },
+
+  review: {
+    documentPanel: "Dokument",
+    ocrPanel: "Dane OCR",
+    noFile: "Brak pliku",
+    ksefReferenceLabel: "Nr ref. KSeF",
+    sellerSection: "Sprzedawca",
+    buyerSection: "Nabywca",
+    invoiceSection: "Dane faktury",
+    fields: {
+      invoiceNumber: "Nr faktury",
+      issueDate: "Data wystawienia",
+      totalNet: "Wartość netto",
+      totalVat: "Wartość VAT",
+      totalGross: "Wartość brutto",
+      currency: "Waluta",
+      notes: "Uwagi",
+      nip: "NIP",
+    },
+    confirm: "Potwierdź",
+    reject: "Odrzuć",
+    rejectPrompt: "Odrzucić tę fakturę?",
+    confirmed: "Faktura potwierdzona",
+    rejected: "Faktura odrzucona",
+    confirmFailed: "Potwierdzenie nie powiodło się",
+    rejectFailed: "Odrzucenie nie powiodło się",
+    ocrProcessing: "OCR w toku…",
+    ocrFailed: (err: string | null) => `Błąd OCR: ${err ?? ""}`,
+    ocrDone: (model: string | null, confidence: number | null) =>
+      `OCR ukończony${model ? ` (${model})` : ""}${confidence != null ? ` ${Math.round(confidence * 100)}%` : ""}`,
+  },
+
+  backup: {
+    gdriveConnected: "Google Drive połączony",
+  },
+
+  errors: {
+    uploadFailed: (status: number, text: string) =>
+      `Upload failed: ${status} ${text}`,
+  },
+
+  companySwitcher: {
+    selectCompany: "Wybierz firmę",
+  },
+
+  settings: {
+    title: "Ustawienia",
+    noCompany: "Brak firmy. Skonfiguruj firmę aby zobaczyć ustawienia.",
+    goToSettings: "Przejdź do ustawień",
+    serviceCatalogLink: "Katalog usług",
+  },
+
+  members: {
+    title: (n: number) => `Członkowie (${n})`,
+    pendingInvites: "Oczekujące zaproszenia",
+    inviteSection: "Zaproś nowego członka",
+    columns: {
+      email: "Email",
+      name: "Imię",
+      role: "Rola",
+      expires: "Wygasa",
+    },
+    roles: {
+      ADMIN: "Administrator",
+      ACCOUNTANT: "Księgowy",
+      VIEWER: "Podgląd",
+    } as Record<string, string>,
+    remove: "Usuń",
+    sendInvite: "Wyślij zaproszenie",
+    sending: "Wysyłanie…",
+    emailLabel: "Email *",
+    emailPlaceholder: "jan@example.com",
+    roleLabel: "Rola",
+    roleUpdated: "Rola zaktualizowana",
+    memberRemoved: "Członek usunięty",
+    removeConfirm: (email: string) => `Usunąć ${email} z firmy?`,
+    inviteSent: (email: string, token: string) =>
+      `Zaproszenie wysłane na ${email}. Token: ${token}`,
+  },
+
+  contractors: {
+    pageEyebrow: "Relacje",
+    pageTitle: "Kontrahenci",
+    pageDescription:
+      "Baza kontrahentów dostępnych dla wystawiania i rozliczania dokumentów.",
+    addButton: "Dodaj kontrahenta",
+    searchPlaceholder: "Szukaj po nazwie lub NIP…",
+    filterAll: "Wszyscy",
+    filterActive: "Aktywni",
+    filterInactive: "Nieaktywni",
+    columns: {
+      name: "Nazwa",
+      nip: "NIP",
+      email: "Email",
+      address: "Adres",
+      status: "Status",
+    },
+    status: {
+      active: "Aktywny",
+      inactive: "Nieaktywny",
+    },
+    emptyFiltered: "Brak wyników dla podanego filtra.",
+    emptyList:
+      "Brak kontrahentów. Dodaj pierwszego kontrahenta, aby móc wystawiać faktury.",
+    noCompany: "Brak aktywnej firmy. Skonfiguruj firmę w ustawieniach.",
+    readonlyWarning:
+      "Masz rolę podglądową — edytowanie kontrahentów jest niedostępne.",
+    newPageTitle: "Nowy kontrahent",
+    newPageDescription:
+      "Uzupełnij dane kontrahenta, aby móc wystawiać mu faktury.",
+    editPageTitle: (name: string) => `Edytuj: ${name}`,
+    editPageDescription: "Aktualizuj dane kontrahenta oraz stawki usług.",
+    breadcrumb: "Kontrahenci",
+    fields: {
+      name: "Nazwa",
+      nip: "NIP",
+      pesel: "PESEL",
+      addressLine1: "Adres",
+      addressLine2: "Adres dodatkowy",
+      countryCode: "Kod kraju",
+      email: "Email",
+      phone: "Telefon",
+      bankAccount: "Rachunek bankowy",
+      notes: "Notatki",
+      isActive: "Aktywny",
+    },
+    actions: {
+      save: "Zapisz zmiany",
+      saving: "Zapisywanie…",
+      add: "Dodaj kontrahenta",
+      adding: "Dodawanie…",
+      cancel: "Anuluj",
+      edit: "Edytuj",
+    },
+    errors: {
+      nameRequired: "Nazwa jest wymagana.",
+      saveFailed: "Błąd zapisu.",
+      loadFailed: "Nie udało się pobrać danych kontrahenta.",
+    },
+    success: {
+      created: "Kontrahent został dodany.",
+      updated: "Dane kontrahenta zostały zapisane.",
+    },
+    summary: {
+      total: "Łącznie",
+      active: "Aktywni",
+      inactive: "Nieaktywni",
+    },
+  },
+
+  outgoingInvoices: {
+    pageEyebrow: "Dokumenty",
+    pageTitle: "Faktury sprzedażowe",
+    pageDescription:
+      "Zestawienie wszystkich dokumentów wychodzących wraz ze statusem operacyjnym i synchronizacją KSeF.",
+    noCompanyTitle: "Brak aktywnej firmy",
+    noCompanyDescription:
+      "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na dokumentach sprzedażowych.",
+    addButton: "+ Nowa faktura",
+    metricCards: {
+      totalLabel: "Wszystkie faktury",
+      totalHint: "Łączna liczba dokumentów sprzedażowych.",
+      draftsLabel: "Szkice",
+      draftsHint: "Dokumenty wymagające dokończenia lub wystawienia.",
+      acceptedLabel: "Przyjęte w KSeF",
+      acceptedHintPrefix: "Łączna wartość brutto:",
+    },
+    emptyState: {
+      title: "Brak faktur sprzedażowych",
+      withContractorsDescription:
+        "Utwórz pierwszy dokument, aby rozpocząć pracę z fakturami sprzedażowymi.",
+      withoutContractorsDescription:
+        "Najpierw dodaj kontrahenta, a następnie wróć tutaj, aby utworzyć pierwszą fakturę.",
+      createFirstInvoice: "Utwórz pierwszą fakturę",
+      addContractor: "Dodaj kontrahenta",
+    },
+  },
+
+  serviceCatalog: {
+    pageEyebrow: "Ustawienia",
+    pageTitle: "Katalog usług",
+    pageDescription:
+      "Predefiniowane pozycje do szybkiego dodawania na faktury. Możesz też ustawić dedykowane stawki dla każdego kontrahenta.",
+    addButton: "+ Dodaj usługę",
+    showInactive: "Pokaż nieaktywne",
+    emptyState:
+      "Brak zdefiniowanych usług. Dodaj pierwszą pozycję, aby korzystać z katalogu podczas wystawiania faktur.",
+    noCompanyDescription:
+      "Skonfiguruj firmę w ustawieniach, aby móc zarządzać katalogiem usług.",
+    inactive: "Nieaktywna",
+    fields: {
+      name: "Nazwa usługi / towaru",
+      namePlaceholder: "np. Usługa programistyczna",
+      unit: "Jednostka miary",
+      vatRate: "Stawka VAT",
+      description: "Opis (opcjonalny)",
+      descriptionPlaceholder: "Dodatkowy opis widoczny w katalogu",
+    },
+    actions: {
+      add: "Dodaj",
+      edit: "Edytuj",
+      deactivate: "Dezaktywuj",
+      restore: "Przywróć",
+      save: "Zapisz",
+      cancel: "Anuluj",
+      saving: "Zapisywanie…",
+    },
+    errors: {
+      nameRequired: "Nazwa jest wymagana.",
+      saveFailed: "Błąd zapisu.",
+      deleteFailed: "Błąd usuwania.",
+      updateFailed: "Błąd aktualizacji.",
+    },
+  },
+
+  contractorRates: {
+    sectionTitle: "Stawki usług",
+    sectionDescription:
+      "Dedykowane ceny dla tego kontrahenta. Wypełniane automatycznie przy wyborze usługi z katalogu na fakturze.",
+    emptyState: "Brak zdefiniowanych stawek dla tego kontrahenta.",
+    noTemplatesHint: "Najpierw dodaj usługi w katalogu usług w ustawieniach.",
+    addButton: "+ Dodaj stawkę",
+    columns: {
+      service: "Usługa",
+      unit: "J.m.",
+      vatRate: "VAT",
+      price: "Cena netto",
+      currency: "Waluta",
+    },
+    fields: {
+      service: "Usługa",
+      serviceDefault: "— wybierz usługę —",
+      price: "Cena netto",
+      pricePlaceholder: "0.00",
+      currency: "Waluta",
+    },
+    actions: {
+      add: "Dodaj",
+      delete: "Usuń",
+      save: "Zapisz",
+      cancel: "Anuluj",
+      saving: "Zapisywanie…",
+    },
+    errors: {
+      serviceRequired: "Wybierz usługę.",
+      priceRequired: "Podaj cenę netto.",
+      saveFailed: "Błąd zapisu.",
+      deleteFailed: "Błąd usuwania.",
+    },
+  },
+
+  newInvoice: {
+    pageEyebrow: "Dokumenty",
+    pageTitle: "Nowa faktura",
+    pageDescription:
+      "Utwórz szkic faktury sprzedażowej i przejdź do dalszych operacji po zapisaniu.",
+    noCompanyTitle: "Najpierw skonfiguruj firmę",
+    noCompanyDescription:
+      "Nie masz jeszcze aktywnej firmy. Dodaj ją w ustawieniach, aby odblokować wystawianie dokumentów.",
+    noContractorsTitle: "Dodaj kontrahenta przed wystawieniem faktury",
+    noContractorsDescription:
+      "Ta forma wymaga wskazania kontrahenta. Dodaj go najpierw w module kontrahentów, a potem wróć do faktury.",
+    addContractor: "Dodaj kontrahenta",
+    catalogPickerButton: "Wybierz z katalogu",
+    catalogPickerDefault: "— wybierz usługę —",
+    saleDateLabel: "Data sprzedaży",
+    issueDateLabel: "Data wystawienia",
+    noContractorSelected:
+      "Najpierw wybierz kontrahenta, aby zobaczyć jego stawki.",
+  },
+
+  home: {
+    tagline: "Księgowy Vibe",
+    headline: "Interfejs do faktur, OCR i KSeF bez legacy chaosu.",
+    description:
+      "Nowoczesny pulpit księgowy dla pracy na fakturach wychodzących i przychodzących, z naciskiem na czytelność danych i szybkie operacje.",
+    loginButton: "Zaloguj się",
+  },
+
+  header: {
+    subtitle: "Cyfrowa przestrzeń księgowa",
+    navAriaLabel: "Nawigacja główna",
+    nav: {
+      dashboard: "Pulpit",
+      login: "Logowanie",
+    },
+  },
+
+  login: {
+    tagline: "Dostęp do platformy",
+    headline: "Logowanie",
+    description:
+      "Zaloguj się przez Google OAuth2, aby przejść do pulpitu firmy.",
+    googleButton: "Kontynuuj z Google",
+  },
+
+  invoiceActions: {
+    issue: "Wystaw fakturę",
+    issueCorrection: "Wystaw korektę",
+    issuing: "Wystawianie…",
+    submitKsef: "Wyślij do KSeF",
+    submitCorrectionKsef: "Wyślij korektę do KSeF",
+    submittingKsef: "Wysyłanie…",
+    recordPayment: "Zarejestruj płatność",
+    paid: "Opłacona",
+    downloadPdf: "Pobierz PDF",
+    paymentAmountLabel: "Kwota zapłacona (PLN)",
+    save: "Zapisz",
+    saving: "Zapisywanie…",
+    cancel: "Anuluj",
+    correctInvoice: "Wystaw korektę (KOR)",
+    correcting: "Tworzenie korekty…",
+    correctConfirm: "Wystawić fakturę korygującą (KOR) dla tej faktury?",
+    sendEmail: "Wyślij emailem",
+    sendingEmail: "Wysyłanie emaila…",
+    emailSent: "Email wysłany",
+    genericError: "Wystąpił błąd",
+    ksefSubmissionError: "Nie udało się wysłać faktury do KSeF",
+    ksefNetworkError: "Środowisko KSeF jest chwilowo niedostępne. Spróbuj ponownie za kilka minut.",
+    ksefNoTokenError: "Brak tokenu KSeF",
+    ksefNoTokenDetail: "Przejdź do Ustawień firmy i skonfiguruj token API KSeF.",
+    ksefTotalsError: "Błąd weryfikacji kwot faktury",
+    ksefTotalsDetail: "Kwoty faktury nie zgadzają się z sumą pozycji. Sprawdź dane i spróbuj ponownie.",
+    ksefXmlError: "Błąd walidacji XML FA(3)",
+    checkKsefStatus: "Sprawdź status KSeF",
+    checkingKsefStatus: "Sprawdzanie…",
+    ksefSentPending: "Faktura wysłana do KSeF. Oczekiwanie na potwierdzenie.",
+    ksefSentAccepted: "Faktura przyjęta przez KSeF. Nr ref.:",
+    ksefStatusAccepted: "KSeF przyjął fakturę. Nr ref.:",
+    ksefStatusPending: "Faktura oczekuje na przetworzenie przez KSeF.",
+    ksefStatusRejected: "Faktura została odrzucona przez KSeF.",
+    editInvoice: "Edytuj fakturę",
+    editing: "Cofanie do szkicu…",
+    correctionModalTitle: "Wystaw fakturę korygującą (KOR)",
+    correctionReasonLabel: "Przyczyna korekty (opcjonalnie)",
+    correctionImpactTypeLabel: "Typ korekty (TypKorekty)",
+    correctionImpactTypePlaceholder: "Wybierz typ (opcjonalnie)",
+    correctionImpactType1: "1 – korekta in minus na dzień faktury pierwotnej",
+    correctionImpactType2: "2 – korekta in plus na dzień wystawienia korekty",
+    correctionImpactType3: "3 – inny termin rozliczenia",
+    correctionConfirm: "Wystaw korektę",
+  },
+
+  invoiceDetail: {
+    errors: {
+      companyLoadFailed: "Błąd pobierania danych firmy",
+      companyNotFound: "Nie znaleziono firmy.",
+      invoiceLoadFailed: "Błąd pobierania faktury",
+    },
+    backToListButton: "← Powrót do listy faktur",
+    backToInvoices: "← Faktury",
+    draftTitle: "Szkic faktury",
+    issuedOn: (date: string) => `Wystawiona ${date}`,
+    correctionBannerPrefix: "Korekta faktury:",
+    correctionBannerViewOriginal: "Zobacz oryginał",
+    metrics: {
+      net: "Netto",
+      vat: "VAT",
+      gross: "Brutto",
+      paid: "Zapłacono",
+      paymentMethodPrefix: "Metoda:",
+    },
+    paymentMethods: {
+      BANK_TRANSFER: "Przelew",
+      CASH: "Gotówka",
+      CARD: "Karta",
+      OTHER: "Inna",
+    } as Record<string, string>,
+    sections: {
+      seller: "Sprzedawca",
+      buyer: "Nabywca",
+      documentDetails: "Szczegóły dokumentu",
+      lineItemsTitle: "Pozycje faktury",
+      lineItemsDescription: "Zestawienie pozycji wraz z wyliczeniem kwot netto, VAT i brutto.",
+      vatBreakdownTitle: "Zestawienie VAT",
+      vatBreakdownDescription: "Podział podstawy opodatkowania i podatku według zastosowanych stawek.",
+      notes: "Uwagi",
+    },
+    fields: {
+      name: "Nazwa",
+      nip: "NIP",
+      issueDate: "Data wystawienia",
+      saleDate: "Data sprzedaży",
+      paymentMethod: "Forma płatności",
+      paymentDueDate: "Termin płatności",
+      currency: "Waluta",
+      ksefReference: "Nr ref. KSeF",
+    },
+    emptyLineItems: {
+      title: "Brak pozycji",
+      description: "Ta faktura nie zawiera jeszcze żadnych pozycji.",
+    },
+    table: {
+      position: "#",
+      name: "Nazwa",
+      unit: "Jm.",
+      quantity: "Ilość",
+      unitNetPrice: "Cena netto",
+      vatRate: "VAT",
+      netValue: "Netto",
+      vatValue: "VAT",
+      grossValue: "Brutto",
+    },
+    mobile: {
+      lineItem: (position: string | number) => `Pozycja ${position}`,
+      vatRate: "Stawka VAT",
+    },
+    vatBreakdownRate: (rate: string | number) => `Stawka ${rate}%`,
+    notAvailable: "—",
+  },
+} as const;

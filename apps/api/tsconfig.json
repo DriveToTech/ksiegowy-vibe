@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/shared-utils"
+    },
+    {
+      "path": "../../packages/fa3-xml"
+    },
+    {
+      "path": "../../packages/ksef-client"
+    },
+    {
+      "path": "../../packages/pdf-templates"
+    }
+  ]
+}

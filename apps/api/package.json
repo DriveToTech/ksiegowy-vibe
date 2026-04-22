@@ -1,0 +1,50 @@
+{
+  "name": "@ksiegowy/api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/jwt": "^10.0.0",
+    "@fastify/multipart": "^9.4.0",
+    "@fastify/oauth2": "^8.2.0",
+    "@fastify/sensible": "^6.0.4",
+    "@ksiegowy/fa3-xml": "workspace:*",
+    "@ksiegowy/ksef-client": "workspace:*",
+    "@ksiegowy/pdf-templates": "workspace:*",
+    "@ksiegowy/shared-utils": "workspace:*",
+    "@ksiegowy/types": "workspace:*",
+    "@prisma/client": "^6.6.0",
+    "fastify": "^5.3.3",
+    "fastify-plugin": "^5.0.1",
+    "googleapis": "^171.4.0",
+    "node-cron": "^4.2.1",
+    "node-tesseract-ocr": "^2.2.1",
+    "openai": "^6.33.0",
+    "pdf-parse": "^2.4.5",
+    "pdf2pic": "^3.2.0",
+    "resend": "^6.10.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.6.0",
+    "@swc/core": "^1.11.0",
+    "@types/node": "^22.14.1",
+    "@types/node-cron": "^3.0.11",
+    "@types/pdf-parse": "^1.1.5",
+    "prisma": "^6.6.0",
+    "vitest": "^3.1.1"
+  }
+}
