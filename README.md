@@ -11,6 +11,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | C4 diagrams (context, containers, components) and flow diagrams for key workflows |
+| [Desktop Architecture](docs/desktop-architecture.md) | Target Electron desktop architecture, security boundaries, and runtime model |
 | [Development Run Modes](docs/development-run-modes.md) | Supported development setups, exact startup commands, env expectations, and PostgreSQL backup artifact-path caveat |
 | [Infrastructure](docs/infrastructure.md) | Docker setup, CI/CD pipelines, environment variables, data persistence, and deployment checklist |
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
@@ -18,6 +19,8 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
 | [Backup Restore Drill](docs/backup-restore-drill.md) | Repeatable restore drill steps with evidence capture |
+
+Planning specs live under [`spec/`](spec/), including the [Desktop Implementation Plan](spec/desktop-implementation-plan.md).
 
 ## Features
 
