@@ -1,0 +1,24 @@
+{
+  "name": "@ksiegowy/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal Electron desktop workspace for ksiegowy-vibe",
+  "type": "commonjs",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "pnpm run build && electron .",
+    "start": "electron .",
+    "watch": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@fastify/http-proxy": "^11.0.0",
+    "fastify": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "electron": "^41.3.0"
+  }
+}

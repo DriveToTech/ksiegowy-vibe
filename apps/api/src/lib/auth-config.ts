@@ -50,6 +50,9 @@ export interface AuthConfig {
     clientSecret?: string | undefined;
     redirectUri?: string | undefined;
   };
+  desktop: {
+    authCallbackUrl?: string | undefined;
+  };
 }
 
 const ACCESS_TOKEN_TTL = '15m';
@@ -71,6 +74,18 @@ const parseOptionalUrl = (name: string, value: string | undefined): string | und
   return urlSchema.parse(value, {
     error: () => `Environment variable ${name} must be a valid URL`
   });
+};
+
+const parseOptionalAbsoluteUrl = (name: string, value: string | undefined): string | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    throw new Error(`Environment variable ${name} must be a valid absolute URL`);
+  }
 };
 
 export const loadAuthConfig = (env: NodeJS.ProcessEnv): AuthConfig => {
@@ -98,6 +113,10 @@ export const loadAuthConfig = (env: NodeJS.ProcessEnv): AuthConfig => {
   const providedEnv = REQUIRED_GOOGLE_ENV_VARS.filter((name) => googleValues[name] !== undefined);
   const googleEnabled = missingEnv.length === 0;
   const appUrl = parseOptionalUrl('APP_URL', readOptionalEnv(env.APP_URL));
+  const desktopAuthCallbackUrl = parseOptionalAbsoluteUrl(
+    'DESKTOP_AUTH_CALLBACK_URL',
+    readOptionalEnv(env.DESKTOP_AUTH_CALLBACK_URL)
+  );
 
   const googleConfig: AuthConfig['google'] = googleEnabled
     ? {
@@ -132,6 +151,9 @@ export const loadAuthConfig = (env: NodeJS.ProcessEnv): AuthConfig => {
       sameSite: 'lax',
       path: '/'
     },
-    google: googleConfig
+    google: googleConfig,
+    desktop: {
+      ...(desktopAuthCallbackUrl ? { authCallbackUrl: desktopAuthCallbackUrl } : {})
+    }
   };
 };

@@ -8,6 +8,7 @@ This document describes the target architecture for adding a cross-platform desk
 
 - Overall: `accepted target direction`
 - Delivery approach: `phased`
+- Current implemented slice: `localhost gateway bootstrap + initial auth/api proxying + desktop-safe OAuth handoff` — Electron starts a localhost-only Fastify gateway with a health endpoint, proxies `/auth/*` and `/_desktop/api/*` to the configured API origin, reverse-proxies UI traffic to a local web runtime URL, and completes Google OAuth through a custom-protocol redirect plus short-lived one-time handoff exchange
 
 ---
 
@@ -153,6 +154,19 @@ flowchart LR
 - desktop main starts the local gateway and points the renderer at one localhost origin
 - local gateway may proxy UI requests to the web dev server during development
 - business API calls continue to target the existing API runtime
+- current minimal gateway contract:
+  - `GET /_desktop/health` returns local gateway health and upstream origins
+  - `/auth/*` is proxied to `DESKTOP_API_URL` or `API_URL` fallback
+  - `/_desktop/api/*` is proxied to `DESKTOP_API_URL` with the prefix stripped before forwarding
+  - all other UI requests are proxied to `DESKTOP_WEB_RUNTIME_URL`
+  - browser-side desktop requests use same-origin prefixes while server-side Next requests may still call `API_URL` directly
+  - desktop Google sign-in starts from the renderer through a preload-triggered system-browser handoff
+  - API callback redirects to `DESKTOP_AUTH_CALLBACK_URL` with a short-lived one-time handoff code and transaction id
+  - desktop completes session establishment through `POST /auth/desktop/exchange`
+
+Current first-slice limitation:
+
+- desktop OAuth handoff records are stored in API process memory, so this implementation assumes a single API process until handoff storage is moved to shared persistence
 
 ### Production
 

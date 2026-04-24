@@ -1,9 +1,16 @@
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify';
 import type { AccessTokenPayload, AuthCompanyClaim, RefreshTokenPayload } from '../../lib/auth-config.js';
 
 type AppPrisma = FastifyInstance['prisma'];
 type MembershipRole = AuthCompanyClaim['role'];
+
+const desktopAuthRequestCookieName = 'desktop_auth_request';
+const desktopAuthRequestCookiePath = '/auth/google';
+const desktopAuthRequestMaxAgeSeconds = 10 * 60;
+const desktopAuthHandoffLifetimeMilliseconds = 60 * 1000;
+const desktopAuthCallbackMissingEnv = ['DESKTOP_AUTH_CALLBACK_URL'] as const;
 
 const googleOAuthUnavailableSchema = {
   type: 'object',
@@ -21,6 +28,15 @@ const googleOAuthUnavailableSchema = {
 
 const redirectResponseSchema = {
   type: 'null'
+} as const;
+
+const googleAuthStartQuerySchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    desktopTransactionId: { type: 'string' },
+    desktopCodeChallenge: { type: 'string' }
+  }
 } as const;
 
 const googleCallbackQuerySchema = {
@@ -111,6 +127,17 @@ const authCallbackSuccessResponseSchema = {
   required: ['status', 'user', 'companies', 'redirectTo']
 } as const;
 
+const desktopAuthExchangeBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    handoffCode: { type: 'string' },
+    desktopTransactionId: { type: 'string' },
+    desktopCodeVerifier: { type: 'string' }
+  },
+  required: ['handoffCode', 'desktopTransactionId', 'desktopCodeVerifier']
+} as const;
+
 const googleProfileSchema = z.object({
   sub: z.string().trim().min(1),
   email: z.string().email(),
@@ -119,6 +146,46 @@ const googleProfileSchema = z.object({
   picture: z.string().trim().min(1).optional()
 });
 
+const desktopTransactionIdSchema = z.string().trim().min(1).max(200).regex(/^[A-Za-z0-9._-]+$/);
+const desktopCodeChallengeSchema = z.string().trim().min(43).max(128).regex(/^[A-Za-z0-9_-]+$/);
+const desktopCodeVerifierSchema = z.string().trim().min(43).max(128).regex(/^[A-Za-z0-9._~-]+$/);
+const handoffCodeSchema = z.string().trim().min(32).max(256).regex(/^[A-Za-z0-9_-]+$/);
+
+const desktopAuthStartQueryValueSchema = z
+  .object({
+    desktopTransactionId: desktopTransactionIdSchema.optional(),
+    desktopCodeChallenge: desktopCodeChallengeSchema.optional()
+  })
+  .superRefine((value, context) => {
+    const hasTransactionId = value.desktopTransactionId !== undefined;
+    const hasCodeChallenge = value.desktopCodeChallenge !== undefined;
+
+    if (hasTransactionId === hasCodeChallenge) {
+      return;
+    }
+
+    context.addIssue({
+      code: 'custom',
+      message: 'desktopTransactionId and desktopCodeChallenge must be provided together'
+    });
+  });
+
+const desktopAuthRequestStateSchema = z.object({
+  desktopTransactionId: desktopTransactionIdSchema,
+  desktopCodeChallenge: desktopCodeChallengeSchema
+});
+
+const desktopAuthExchangeValueSchema = z.object({
+  handoffCode: handoffCodeSchema,
+  desktopTransactionId: desktopTransactionIdSchema,
+  desktopCodeVerifier: desktopCodeVerifierSchema
+});
+
+interface GoogleAuthStartQuery {
+  desktopTransactionId?: string;
+  desktopCodeChallenge?: string;
+}
+
 interface GoogleCallbackQuery {
   code?: string;
   state?: string;
@@ -126,10 +193,36 @@ interface GoogleCallbackQuery {
   error_description?: string;
 }
 
+interface DesktopAuthExchangeBody {
+  handoffCode: string;
+  desktopTransactionId: string;
+  desktopCodeVerifier: string;
+}
+
+interface DesktopAuthRequestState {
+  desktopTransactionId: string;
+  desktopCodeChallenge: string;
+}
+
+interface DesktopAuthHandoffRecord {
+  userId: string;
+  desktopTransactionId: string;
+  desktopCodeChallenge: string;
+  expiresAt: number;
+}
+
+const desktopAuthHandoffStore = new Map<string, DesktopAuthHandoffRecord>();
+
 const buildGoogleUnavailablePayload = (missingEnv: readonly string[]) => ({
   error: 'google_oauth_not_configured',
   message: 'Google OAuth is not configured for this environment.',
   missingEnv: [...missingEnv]
+});
+
+const buildDesktopAuthUnavailablePayload = () => ({
+  error: 'desktop_auth_not_configured',
+  message: 'Desktop OAuth handoff is not configured for this environment.',
+  missingEnv: [...desktopAuthCallbackMissingEnv]
 });
 
 const toAuthCompanyClaims = (
@@ -162,6 +255,117 @@ const toRefreshTokenPayload = (payload: AccessTokenPayload): RefreshTokenPayload
 
 const buildPostLoginRedirectUrl = (appUrl: string): string => {
   return new URL('/dashboard', appUrl).toString();
+};
+
+const createDesktopCodeChallenge = (desktopCodeVerifier: string): string => {
+  return createHash('sha256').update(desktopCodeVerifier).digest('base64url');
+};
+
+const createHandoffCodeHash = (handoffCode: string): string => {
+  return createHash('sha256').update(handoffCode).digest('hex');
+};
+
+const compareValuesSafely = (left: string, right: string): boolean => {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+};
+
+const encodeDesktopAuthRequestCookie = (value: DesktopAuthRequestState): string => {
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+};
+
+const decodeDesktopAuthRequestCookie = (value: string): DesktopAuthRequestState => {
+  const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as unknown;
+  return desktopAuthRequestStateSchema.parse(parsed);
+};
+
+const setDesktopAuthRequestCookie = (
+  fastify: FastifyInstance,
+  reply: FastifyReply,
+  value: DesktopAuthRequestState
+): void => {
+  reply.setCookie(desktopAuthRequestCookieName, encodeDesktopAuthRequestCookie(value), {
+    path: desktopAuthRequestCookiePath,
+    httpOnly: true,
+    sameSite: fastify.authConfig.cookies.sameSite,
+    secure: fastify.authConfig.cookies.secure,
+    maxAge: desktopAuthRequestMaxAgeSeconds
+  });
+};
+
+const clearDesktopAuthRequestCookie = (fastify: FastifyInstance, reply: FastifyReply): void => {
+  reply.clearCookie(desktopAuthRequestCookieName, {
+    path: desktopAuthRequestCookiePath,
+    httpOnly: true,
+    sameSite: fastify.authConfig.cookies.sameSite,
+    secure: fastify.authConfig.cookies.secure
+  });
+};
+
+const removeExpiredDesktopAuthHandoffs = (): void => {
+  const currentTimestamp = Date.now();
+
+  for (const [handoffCodeHash, record] of desktopAuthHandoffStore.entries()) {
+    if (record.expiresAt <= currentTimestamp) {
+      desktopAuthHandoffStore.delete(handoffCodeHash);
+    }
+  }
+};
+
+const createDesktopAuthHandoff = (userId: string, desktopAuthRequestState: DesktopAuthRequestState): string => {
+  removeExpiredDesktopAuthHandoffs();
+
+  const handoffCode = randomBytes(32).toString('base64url');
+  const handoffCodeHash = createHandoffCodeHash(handoffCode);
+
+  desktopAuthHandoffStore.set(handoffCodeHash, {
+    userId,
+    desktopTransactionId: desktopAuthRequestState.desktopTransactionId,
+    desktopCodeChallenge: desktopAuthRequestState.desktopCodeChallenge,
+    expiresAt: Date.now() + desktopAuthHandoffLifetimeMilliseconds
+  });
+
+  return handoffCode;
+};
+
+const buildDesktopAuthSuccessCallbackUrl = (
+  desktopAuthCallbackUrl: string,
+  handoffCode: string,
+  desktopTransactionId: string
+): string => {
+  const callbackUrl = new URL(desktopAuthCallbackUrl);
+
+  callbackUrl.searchParams.set('handoffCode', handoffCode);
+  callbackUrl.searchParams.set('transactionId', desktopTransactionId);
+
+  return callbackUrl.toString();
+};
+
+const buildDesktopAuthErrorCallbackUrl = (
+  desktopAuthCallbackUrl: string,
+  desktopTransactionId: string | null,
+  error: string,
+  errorDescription: string | null
+): string => {
+  const callbackUrl = new URL(desktopAuthCallbackUrl);
+
+  callbackUrl.searchParams.set('error', error);
+
+  if (desktopTransactionId) {
+    callbackUrl.searchParams.set('transactionId', desktopTransactionId);
+  }
+
+  if (errorDescription) {
+    callbackUrl.searchParams.set('errorDescription', errorDescription);
+  }
+
+  return callbackUrl.toString();
 };
 
 const loadUserSession = async (
@@ -276,8 +480,9 @@ const upsertUserFromGoogleProfile = async (
 };
 
 export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
-  fastify.get('/auth/google', {
+  fastify.get<{ Querystring: GoogleAuthStartQuery }>('/auth/google', {
     schema: {
+      querystring: googleAuthStartQuerySchema,
       response: {
         302: redirectResponseSchema,
         503: googleOAuthUnavailableSchema
@@ -286,6 +491,25 @@ export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
   }, async (request, reply) => {
     if (!fastify.authConfig.google.enabled) {
       return reply.code(503).send(buildGoogleUnavailablePayload(fastify.authConfig.google.missingEnv));
+    }
+
+    const googleAuthStartQuery = desktopAuthStartQueryValueSchema.safeParse(request.query);
+
+    if (!googleAuthStartQuery.success) {
+      throw fastify.httpErrors.badRequest('Desktop auth start query is invalid');
+    }
+
+    if (googleAuthStartQuery.data.desktopTransactionId && googleAuthStartQuery.data.desktopCodeChallenge) {
+      if (!fastify.authConfig.desktop.authCallbackUrl) {
+        return reply.code(503).send(buildDesktopAuthUnavailablePayload());
+      }
+
+      setDesktopAuthRequestCookie(fastify, reply, {
+        desktopTransactionId: googleAuthStartQuery.data.desktopTransactionId,
+        desktopCodeChallenge: googleAuthStartQuery.data.desktopCodeChallenge
+      });
+    } else {
+      clearDesktopAuthRequestCookie(fastify, reply);
     }
 
     const authorizationUri = await fastify.oauth2GoogleOAuth2!.generateAuthorizationUri(request, reply);
@@ -307,7 +531,41 @@ export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
       return reply.code(503).send(buildGoogleUnavailablePayload(fastify.authConfig.google.missingEnv));
     }
 
+    let desktopAuthRequestState: DesktopAuthRequestState | null = null;
+    const desktopAuthRequestCookie = request.cookies[desktopAuthRequestCookieName];
+
+    if (desktopAuthRequestCookie) {
+      const parsedDesktopAuthRequestState = (() => {
+        try {
+          return decodeDesktopAuthRequestCookie(desktopAuthRequestCookie);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (!parsedDesktopAuthRequestState) {
+        clearDesktopAuthRequestCookie(fastify, reply);
+        throw fastify.httpErrors.unauthorized('Desktop auth request is invalid or expired');
+      }
+
+      desktopAuthRequestState = parsedDesktopAuthRequestState;
+    }
+
     if (request.query.error) {
+      if (desktopAuthRequestState && fastify.authConfig.desktop.authCallbackUrl) {
+        clearDesktopAuthRequestCookie(fastify, reply);
+        reply.code(302);
+
+        return reply.redirect(
+          buildDesktopAuthErrorCallbackUrl(
+            fastify.authConfig.desktop.authCallbackUrl,
+            desktopAuthRequestState.desktopTransactionId,
+            request.query.error,
+            request.query.error_description ?? null
+          )
+        );
+      }
+
       throw fastify.httpErrors.badRequest(request.query.error_description ?? request.query.error);
     }
 
@@ -329,6 +587,20 @@ export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
 
       session = await upsertUserFromGoogleProfile(fastify.prisma, profile);
     } catch (error: unknown) {
+      if (desktopAuthRequestState && fastify.authConfig.desktop.authCallbackUrl) {
+        clearDesktopAuthRequestCookie(fastify, reply);
+        reply.code(302);
+
+        return reply.redirect(
+          buildDesktopAuthErrorCallbackUrl(
+            fastify.authConfig.desktop.authCallbackUrl,
+            desktopAuthRequestState.desktopTransactionId,
+            'desktop_auth_callback_failed',
+            error instanceof Error ? error.message : 'Desktop Google authentication failed'
+          )
+        );
+      }
+
       if (error instanceof z.ZodError) {
         throw fastify.httpErrors.badGateway('Google OAuth returned an invalid profile payload');
       }
@@ -338,6 +610,25 @@ export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
       }
 
       throw error;
+    }
+
+    if (desktopAuthRequestState) {
+      clearDesktopAuthRequestCookie(fastify, reply);
+
+      if (!fastify.authConfig.desktop.authCallbackUrl) {
+        return reply.code(503).send(buildDesktopAuthUnavailablePayload());
+      }
+
+      const handoffCode = createDesktopAuthHandoff(session.user.id, desktopAuthRequestState);
+
+      reply.code(302);
+      return reply.redirect(
+        buildDesktopAuthSuccessCallbackUrl(
+          fastify.authConfig.desktop.authCallbackUrl,
+          handoffCode,
+          desktopAuthRequestState.desktopTransactionId
+        )
+      );
     }
 
     const accessPayload = toAccessTokenPayload(session);
@@ -358,6 +649,60 @@ export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
       companies: session.companies,
       redirectTo: null
     });
+  });
+
+  fastify.post<{ Body: DesktopAuthExchangeBody }>('/auth/desktop/exchange', {
+    schema: {
+      body: desktopAuthExchangeBodySchema,
+      response: {
+        200: authCallbackSuccessResponseSchema
+      }
+    }
+  }, async (request, reply) => {
+    const desktopAuthExchangeBody = desktopAuthExchangeValueSchema.safeParse(request.body);
+
+    if (!desktopAuthExchangeBody.success) {
+      throw fastify.httpErrors.badRequest('Desktop auth exchange payload is invalid');
+    }
+
+    removeExpiredDesktopAuthHandoffs();
+
+    const handoffCodeHash = createHandoffCodeHash(desktopAuthExchangeBody.data.handoffCode);
+    const handoffRecord = desktopAuthHandoffStore.get(handoffCodeHash);
+
+    if (!handoffRecord) {
+      throw fastify.httpErrors.unauthorized('Desktop handoff code is invalid or expired');
+    }
+
+    const expectedDesktopCodeChallenge = createDesktopCodeChallenge(desktopAuthExchangeBody.data.desktopCodeVerifier);
+
+    if (
+      handoffRecord.desktopTransactionId !== desktopAuthExchangeBody.data.desktopTransactionId ||
+      !compareValuesSafely(handoffRecord.desktopCodeChallenge, expectedDesktopCodeChallenge)
+    ) {
+      throw fastify.httpErrors.unauthorized('Desktop handoff code is invalid or expired');
+    }
+
+    desktopAuthHandoffStore.delete(handoffCodeHash);
+
+    const session = await loadUserSession(fastify.prisma, handoffRecord.userId).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'User session could not be loaded';
+      throw fastify.httpErrors.unauthorized(message);
+    });
+
+    const accessPayload = toAccessTokenPayload(session);
+    const refreshPayload = toRefreshTokenPayload(accessPayload);
+    const accessToken = await reply.accessJwtSign(accessPayload);
+    const refreshToken = await reply.refreshJwtSign(refreshPayload);
+
+    fastify.setAuthCookies(reply, { accessToken, refreshToken });
+
+    return {
+      status: 'authenticated',
+      user: session.user,
+      companies: session.companies,
+      redirectTo: null
+    };
   });
 
   fastify.post('/auth/refresh', {
@@ -385,7 +730,6 @@ export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
     });
 
     const accessPayload = toAccessTokenPayload(session);
-
     const nextRefreshPayload = toRefreshTokenPayload(accessPayload);
     const accessToken = await reply.accessJwtSign(accessPayload);
     const refreshToken = await reply.refreshJwtSign(nextRefreshPayload);

@@ -54,6 +54,9 @@ Planning specs live under [`spec/`](spec/), including the [Desktop Implementatio
 - This repository is a `pnpm` workspace monorepo. Use `pnpm` for root-level and package-scoped commands.
 - Run commands for a single package with `pnpm --filter <package-name> ...`, for example `pnpm --filter @ksiegowy/api test`.
 - Package scripts are defined in each workspace package such as `apps/api/package.json`, `apps/web/package.json`, and `packages/*/package.json`.
+- Desktop workspace commands follow the same pattern, for example `pnpm --filter @ksiegowy/desktop build`.
+- Desktop now starts a local Fastify gateway inside Electron and loads that localhost origin instead of loading the web runtime directly. Use `DESKTOP_WEB_RUNTIME_URL` to point the gateway at the local web runtime during development (default: `http://127.0.0.1:3000`). Use `DESKTOP_API_URL` for proxied API and auth traffic (default: `API_URL`). Set `DESKTOP_GATEWAY_PORT` only when you need a fixed localhost port for smoke checks such as `/_desktop/health`.
+- Desktop Google sign-in now starts in the system browser and returns through a custom protocol deep link into Electron, after which the renderer completes a same-origin `/auth/desktop/exchange` call to establish localhost gateway cookies.
 
 ## Project Structure
 
@@ -62,6 +65,7 @@ ksiegowy-vibe/
 ├── apps/
 │   ├── api/              # Fastify REST API (port 3001)
 │   │   └── prisma/       # Schema & migrations
+│   ├── desktop/          # Electron desktop shell workspace
 │   └── web/              # Next.js frontend (port 3000)
 ├── packages/
 │   ├── types/            # Shared TypeScript types
@@ -121,6 +125,14 @@ cp .env.example .env
 ```
 
 Fill in the required variables in `.env` (see [Environment Variables](#environment-variables)). The `DATABASE_URL` is overridden automatically by Docker Compose to point at the postgres container.
+
+Root `pnpm` scripts load `.env` via `dotenv-cli`, not by shell-sourcing the file. If a value contains spaces or special characters such as `|`, quote it in `.env`, for example:
+
+```bash
+EXAMPLE_VALUE="text with spaces | pipe"
+```
+
+Use absolute paths in `.env`. `~` is not expanded automatically by dotenv loaders.
 
 #### 2. Build and start all services
 
@@ -195,14 +207,25 @@ cp .env.example .env
 
 Fill in the required variables (see [Environment Variables](#environment-variables)).
 
+Root `pnpm` scripts load `.env` via `dotenv-cli`, not by shell-sourcing the file. If a value contains spaces or special characters such as `|`, quote it in `.env`, for example:
+
+```bash
+EXAMPLE_VALUE="text with spaces | pipe"
+```
+
+Use absolute paths in `.env`. `~` is not expanded automatically by dotenv loaders.
+
 If you run the API locally, set `POSTGRESQL_BACKUP_ARTIFACTS_PATH` to an absolute path pointing at repo `backups/postgresql` (see [Development Run Modes](docs/development-run-modes.md)). Using the default relative path can make PostgreSQL backup status appear unavailable.
 
 #### 4. Run migrations and seed
 
 ```bash
+pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
 ```
+
+If you approve previously blocked dependency build scripts or refresh Prisma dependencies, rerun `pnpm db:generate` before `pnpm typecheck`.
 
 See [Seed Scripts](#seed-scripts) for available options including KSeF test data.
 
@@ -241,6 +264,12 @@ pnpm dev
 | `RESEND_API_KEY` | Email PDF delivery |
 | `GUS_API_KEY` | NIP lookup via GUS API |
 | `STORAGE_BASE_PATH` | File storage path (default: `./storage`) |
+| `DESKTOP_WEB_RUNTIME_URL` | Localhost-only upstream for desktop UI proxying (default: `http://127.0.0.1:3000`) |
+| `DESKTOP_API_URL` | Upstream API origin used by the desktop gateway (defaults to `API_URL`) |
+| `DESKTOP_AUTH_CALLBACK_URL` | Custom protocol callback used for desktop OAuth handoff (example: `ksiegowy-vibe://auth/desktop/callback`) |
+| `DESKTOP_GATEWAY_PORT` | Optional fixed localhost port for the desktop gateway (`0` = ephemeral) |
+| `NEXT_PUBLIC_BROWSER_API_URL` | Browser-side business API base; use `/_desktop/api` in desktop web mode |
+| `NEXT_PUBLIC_BROWSER_AUTH_URL` | Browser-side auth base; use `/auth` in desktop web mode |
 | `ICLOUD_BACKUP_PATH` | iCloud backup (macOS only) |
 | `ICLOUD_RCLONE_REMOTE` | rclone remote name used for iCloud backup on Linux/VPS |
 | `ICLOUD_RCLONE_DEST` | Destination path on `ICLOUD_RCLONE_REMOTE` for iCloud backups |

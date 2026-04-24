@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import cookie from '@fastify/cookie';
 import jwt from '@fastify/jwt';
 import oauth2 from '@fastify/oauth2';
@@ -33,6 +34,7 @@ declare module 'fastify' {
 }
 
 const oauth2Plugin = oauth2 as unknown as FastifyPluginAsync<fastifyOauth2.FastifyOAuth2Options>;
+const googleOAuthStateLifetimeMilliseconds = 10 * 60 * 1000;
 
 export interface AuthPluginOptions {
   config: AuthConfig;
@@ -114,6 +116,18 @@ const authPluginAsync: FastifyPluginAsync<AuthPluginOptions> = async (fastify, o
   });
 
   if (config.google.enabled) {
+    const googleOAuthStateStore = new Map<string, number>();
+
+    const removeExpiredGoogleOAuthStates = () => {
+      const currentTimestamp = Date.now();
+
+      for (const [state, expiresAt] of googleOAuthStateStore.entries()) {
+        if (expiresAt <= currentTimestamp) {
+          googleOAuthStateStore.delete(state);
+        }
+      }
+    };
+
     await fastify.register(oauth2Plugin, {
       name: 'googleOAuth2',
       credentials: {
@@ -126,6 +140,35 @@ const authPluginAsync: FastifyPluginAsync<AuthPluginOptions> = async (fastify, o
       scope: ['openid', 'email', 'profile'],
       discovery: {
         issuer: 'https://accounts.google.com'
+      },
+      generateStateFunction: () => {
+        removeExpiredGoogleOAuthStates();
+
+        const state = randomBytes(32).toString('base64url');
+        googleOAuthStateStore.set(state, Date.now() + googleOAuthStateLifetimeMilliseconds);
+
+        return state;
+      },
+      checkStateFunction: (request) => {
+        removeExpiredGoogleOAuthStates();
+
+        const state =
+          typeof request.query === 'object' && request.query !== null
+            ? Reflect.get(request.query, 'state')
+            : undefined;
+
+        if (typeof state !== 'string' || state.length === 0) {
+          return false;
+        }
+
+        const expiresAt = googleOAuthStateStore.get(state);
+
+        if (!expiresAt) {
+          return false;
+        }
+
+        googleOAuthStateStore.delete(state);
+        return expiresAt > Date.now();
       },
       cookie: {
         path: config.cookies.path,

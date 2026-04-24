@@ -2,7 +2,7 @@
 
 ## Status
 
-- Overall: `planned`
+- Overall: `partially implemented`
 - Scope:
   - add Electron desktop support in a dedicated `apps/desktop` workspace
   - keep the existing web and API product architecture intact
@@ -39,6 +39,10 @@ Deliver a cross-platform desktop application that:
    - OS secret store for secrets
    - encrypted local sensitive data
    - signed staged desktop releases
+7. Initial desktop workspace scaffolding now exists.
+   - `apps/desktop` is present as a dedicated Electron workspace.
+   - minimal Electron main and preload entrypoints are defined.
+   - the initial workspace enforces localhost-only renderer loading and a typed preload API.
 
 ## Scope
 
@@ -118,12 +122,14 @@ Goal: establish the minimum secure desktop shell around the existing product.
    - preload entrypoint
    - desktop-specific TypeScript config
    - root `pnpm` scripts for desktop development and build
+   - **Status in this slice:** implemented as initial workspace scaffold with local build and typecheck support
 
 2. Add the local desktop gateway
    - Fastify-based localhost entrypoint
    - health and readiness endpoints
    - reverse proxy to packaged Next.js standalone output
    - proxy `/api` and auth traffic to the configured self-hosted API
+   - **Status in this slice:** implemented as a localhost-only Fastify gateway with `/_desktop/health`, `/auth/*` proxying, `/_desktop/api/*` business API proxying, UI reverse proxying to `DESKTOP_WEB_RUNTIME_URL`, and desktop-safe OAuth callback handoff using a short-lived one-time exchange
 
 3. Harden the renderer boundary
    - `sandbox: true`
@@ -215,7 +221,7 @@ Goal: extend desktop value only where it is justified by product needs.
 - [ ] preload API is typed, minimal, and does not expose raw Node.js access
 - [ ] local Fastify gateway serves or proxies the packaged Next.js UI correctly
 - [ ] `/api` and auth proxying works against the configured deployed API
-- [ ] Google sign-in works through the desktop-safe system-browser flow
+- [x] Google sign-in works through the desktop-safe system-browser flow
 - [ ] secrets are stored in the OS secret store
 - [ ] sensitive local desktop state is encrypted at rest
 - [ ] update metadata and signed artifacts are generated in CI

@@ -20,7 +20,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: 'ksiegowy-vibe.pl',
+  title: 'Księgowy Vibe',
   description: 'Nowoczesny interfejs księgowy dla faktur, OCR i KSeF',
   icons: {
     icon: [{ url: brandLogo.src, type: 'image/png' }],
