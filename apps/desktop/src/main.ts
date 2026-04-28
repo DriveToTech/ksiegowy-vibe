@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import type { DesktopPendingAuthenticationCallback } from './desktop-api';
-import { getDesktopApiUrl, startDesktopGateway } from './desktop-gateway';
+import { getBundledApiUrl, startDesktopGateway } from './desktop-gateway';
+import { ApiSidecar } from './api-sidecar';
 
 const defaultDesktopAuthCallbackUrl = 'ksiegowy-vibe://auth/desktop/callback';
 const desktopGoogleAuthStartPath = '/auth/google';
@@ -24,6 +25,7 @@ type ParsedDesktopAuthenticationDeepLink =
 let mainWindow: BrowserWindow | null = null;
 let rendererUrl: URL | null = null;
 let pendingDesktopAuthenticationCallback: DesktopPendingAuthenticationCallback | null = null;
+let apiSidecar: ApiSidecar | null = null;
 
 const pendingCodeVerifiersByTransactionId = new Map<string, string>();
 const desktopAuthCallbackUrl = getDesktopAuthCallbackUrl();
@@ -74,11 +76,11 @@ function createCodeChallenge(codeVerifier: string): string {
   return toBase64Url(createHash('sha256').update(codeVerifier).digest());
 }
 
-function buildDesktopGoogleAuthenticationUrl(apiUrl: URL, transactionId: string, codeChallenge: string): URL {
-  const authenticationUrl = new URL(desktopGoogleAuthStartPath, apiUrl);
+function buildDesktopGoogleAuthenticationUrl(gatewayUrl: URL, transactionId: string, codeChallenge: string): URL {
+  const authenticationUrl = new URL(desktopGoogleAuthStartPath, gatewayUrl);
 
-  authenticationUrl.searchParams.set('desktopTransactionId', transactionId);
-  authenticationUrl.searchParams.set('desktopCodeChallenge', codeChallenge);
+  authenticationUrl.searchParams.set('clientTransactionId', transactionId);
+  authenticationUrl.searchParams.set('clientCodeChallenge', codeChallenge);
 
   return authenticationUrl;
 }
@@ -275,6 +277,16 @@ function createMainWindow(currentRendererUrl: URL): BrowserWindow {
     return { action: 'deny' };
   });
 
+  nextMainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    console.log(`[Renderer Console] level=${level} source=${sourceId}:${line} message=${message}`);
+  });
+
+  nextMainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedUrl) => {
+    console.error(
+      `[Renderer Load Failed] code=${errorCode} description=${errorDescription} url=${validatedUrl}`
+    );
+  });
+
   void nextMainWindow.loadURL(currentRendererUrl.toString());
 
   return nextMainWindow;
@@ -303,7 +315,7 @@ function registerDesktopHandlers(currentRendererUrl: URL): void {
     const transactionId = randomUUID();
     const codeVerifier = createCodeVerifier();
     const codeChallenge = createCodeChallenge(codeVerifier);
-    const authenticationUrl = buildDesktopGoogleAuthenticationUrl(getDesktopApiUrl(), transactionId, codeChallenge);
+    const authenticationUrl = buildDesktopGoogleAuthenticationUrl(currentRendererUrl, transactionId, codeChallenge);
 
     pendingCodeVerifiersByTransactionId.set(transactionId, codeVerifier);
 
@@ -313,7 +325,7 @@ function registerDesktopHandlers(currentRendererUrl: URL): void {
     });
   });
 
-  ipcMain.handle('desktop:consume-pending-desktop-authentication-callback', (event) => {
+  ipcMain.handle('desktop:consume-pending-authentication-callback', (event) => {
     assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
 
     const callback = pendingDesktopAuthenticationCallback;
@@ -328,13 +340,81 @@ async function startDesktopApplication(): Promise<void> {
 
   registerDesktopProtocolClient();
 
-  const desktopGateway = await startDesktopGateway();
+  // Start API sidecar before gateway to avoid infinite proxy loop
+  apiSidecar = new ApiSidecar();
+
+  apiSidecar.on('log', (entry) => {
+    console.log(`[API Sidecar] ${entry.message}`);
+  });
+
+  apiSidecar.on('unhealthy', () => {
+    console.error('[API Sidecar] Health check failed - API is unhealthy');
+  });
+
+  apiSidecar.on('failed', () => {
+    console.error('[API Sidecar] Max restart attempts reached - API failed');
+    app.quit();
+  });
+
+  const requiredEnvVars = [
+    'DATABASE_URL',
+    'JWT_SECRET',
+    'JWT_REFRESH_SECRET',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET'
+  ];
+
+  const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+
+  if (missingEnvVars.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  }
+
+  const sidecarOptions: {
+    databaseUrl: string;
+    jwtSecret: string;
+    jwtRefreshSecret: string;
+    googleClientId?: string;
+    googleClientSecret?: string;
+    googleRedirectUri?: string;
+    desktopAuthCallbackUrl?: string;
+  } = {
+    databaseUrl: process.env.DATABASE_URL!,
+    jwtSecret: process.env.JWT_SECRET!,
+    jwtRefreshSecret: process.env.JWT_REFRESH_SECRET!
+  };
+
+  if (process.env.GOOGLE_CLIENT_ID) {
+    sidecarOptions.googleClientId = process.env.GOOGLE_CLIENT_ID;
+  }
+
+  if (process.env.GOOGLE_CLIENT_SECRET) {
+    sidecarOptions.googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  }
+
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    sidecarOptions.googleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
+  }
+
+  sidecarOptions.desktopAuthCallbackUrl = process.env.DESKTOP_AUTH_CALLBACK_URL ?? defaultDesktopAuthCallbackUrl;
+
+  const sidecarResult = await apiSidecar.start(sidecarOptions);
+  const apiUrl = getBundledApiUrl(sidecarResult.port);
+  console.log(`[Desktop] API sidecar started on port ${sidecarResult.port}, using URL: ${apiUrl.origin}`);
+
+  const desktopGateway = await startDesktopGateway(apiUrl);
   rendererUrl = new URL(desktopGateway.origin);
 
-  app.on('before-quit', () => {
-    void desktopGateway.close().catch((error: unknown) => {
+  app.on('before-quit', async () => {
+    await desktopGateway.close().catch((error: unknown) => {
       console.error('Failed to close desktop gateway.', error);
     });
+
+    if (apiSidecar) {
+      await apiSidecar.stop().catch((error: unknown) => {
+        console.error('Failed to stop API sidecar.', error);
+      });
+    }
   });
 
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {

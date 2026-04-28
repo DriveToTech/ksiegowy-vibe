@@ -129,7 +129,7 @@ Goal: establish the minimum secure desktop shell around the existing product.
    - health and readiness endpoints
    - reverse proxy to packaged Next.js standalone output
    - proxy `/api` and auth traffic to the configured self-hosted API
-   - **Status in this slice:** implemented as a localhost-only Fastify gateway with `/_desktop/health`, `/auth/*` proxying, `/_desktop/api/*` business API proxying, UI reverse proxying to `DESKTOP_WEB_RUNTIME_URL`, and desktop-safe OAuth callback handoff using a short-lived one-time exchange
+   - **Status in this slice:** implemented as a localhost-only Fastify gateway with `/_desktop/health`, API-backed auth proxying plus a web-served `/auth/desktop/callback` page, `/_desktop/api/*` business API proxying, UI reverse proxying to `DESKTOP_WEB_RUNTIME_URL`, and desktop-safe OAuth callback handoff using a short-lived one-time exchange
 
 3. Harden the renderer boundary
    - `sandbox: true`
@@ -215,26 +215,272 @@ Goal: extend desktop value only where it is justified by product needs.
 
 ## Verification Checklist
 
-- [ ] `apps/desktop` builds from the monorepo workspace
-- [ ] packaged desktop app starts without Docker
-- [ ] `BrowserWindow` loads only the configured localhost origin
-- [ ] preload API is typed, minimal, and does not expose raw Node.js access
-- [ ] local Fastify gateway serves or proxies the packaged Next.js UI correctly
-- [ ] `/api` and auth proxying works against the configured deployed API
+### Phase 1: Foundation ✅
+- [x] `apps/desktop` builds from the monorepo workspace
+- [x] local Fastify gateway serves or proxies the packaged Next.js UI correctly
+- [x] `BrowserWindow` loads only the configured localhost origin
+- [x] preload API is typed, minimal, and does not expose raw Node.js access
 - [x] Google sign-in works through the desktop-safe system-browser flow
-- [ ] secrets are stored in the OS secret store
-- [ ] sensitive local desktop state is encrypted at rest
+- [x] secrets are stored in the OS secret store (encrypted file-based)
+- [x] sensitive local desktop state is encrypted at rest
+- [x] packaged desktop app builds successfully (DMG, ZIP, etc.)
+
+### Phase 2: API Sidecar
+- [ ] `apps/desktop` packages API code as extra resources
+- [ ] API sidecar starts as child process from Electron main
+- [ ] Desktop gateway proxies to local API instead of external URL
+- [ ] API uses user-provided or bundled PostgreSQL
+- [ ] Health checks monitor API sidecar status
+- [ ] Graceful shutdown of API process on app quit
+- [ ] Update documentation for self-contained distribution
+
+### Phase 3: SQLite Support (Future)
+- [ ] SQLite-compatible Prisma schema created
+- [ ] Database router detects and switches between PostgreSQL/SQLite
+- [ ] Desktop uses SQLite by default (file in user data directory)
+- [ ] Data migration path from cloud to local
+- [ ] Sync mechanism for cloud ↔ local data
+- [ ] Full offline capability verified
+
+### Phase 4: Release & Distribution
 - [ ] update metadata and signed artifacts are generated in CI
 - [ ] staged release and rollback runbooks are documented
 - [ ] README and dedicated desktop docs are updated
 
+## Phase 2: API Sidecar Implementation
+
+### Objective
+Bundle the Fastify API (`apps/api`) into the desktop distribution and run it as a child process, creating a self-contained desktop application that still uses PostgreSQL.
+
+### Architecture Change
+
+```
+Before (External API):
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   Desktop   │────▶│   Gateway    │────▶│  External API   │
+│   (Electron)│     │  (localhost) │     │  (cloud/server) │
+└─────────────┘     └──────────────┘     └─────────────────┘
+                                                │
+                                                ▼
+                                         ┌──────────────┐
+                                         │  PostgreSQL  │
+                                         │  (external)  │
+                                         └──────────────┘
+
+After (Bundled API):
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   Desktop   │────▶│   Gateway    │────▶│  API Sidecar    │
+│   (Electron)│     │  (localhost) │     │  (Node.js child)│
+└─────────────┘     └──────────────┘     └─────────────────┘
+                                                │
+                                                ▼
+                                         ┌──────────────┐
+                                         │  PostgreSQL  │
+                                         │  (external)  │
+                                         └──────────────┘
+```
+
+### Implementation Steps
+
+#### 2.1 Create API Sidecar Module
+
+**Files to create:**
+- `apps/desktop/src/api-sidecar.ts` - API process management
+- `apps/desktop/src/prisma-binary-resolver.ts` - Prisma engine path resolution
+
+**Key features:**
+- Spawn API as child process using `node:child_process`
+- Auto-detect available port
+- Health check monitoring
+- Graceful shutdown with SIGTERM → SIGKILL escalation
+- Log forwarding to Electron's logging system
+
+**API Configuration:**
+```typescript
+interface ApiSidecarOptions {
+  databaseUrl: string;      // PostgreSQL connection
+  port?: number;            // Auto-assigned if not specified
+  nodeEnv?: string;       // 'production' for packaged
+}
+```
+
+#### 2.2 Update Desktop Gateway
+
+**Modify:** `apps/desktop/src/desktop-gateway.ts`
+
+**Changes:**
+- Start API sidecar before creating gateway
+- Use API's dynamically assigned port for proxying
+- Proxy all `/_desktop/api/*` to local API
+- Handle API process lifecycle (startup, health checks, shutdown)
+
+#### 2.3 Package API with Desktop
+
+**Update:** `apps/desktop/package.json` build configuration
+
+**Add to `build.extraResources`:**
+```json
+{
+  "extraResources": [
+    { "from": "../api/dist", "to": "api/dist" },
+    { "from": "../api/prisma", "to": "api/prisma" },
+    { "from": "../api/node_modules/.prisma/client", "to": "api/node_modules/.prisma/client" },
+    { "from": "../../node_modules/@prisma/engines", "to": "api/node_modules/@prisma/engines" }
+  ],
+  "asarUnpack": [
+    "resources/api/node_modules/.prisma/client/**/*",
+    "resources/api/node_modules/@prisma/engines/**/*"
+  ]
+}
+```
+
+#### 2.4 Environment Variable Strategy
+
+**Packaged app:**
+- `DATABASE_URL` - Must be provided by user or set during first run
+- `API_PORT` - Auto-assigned (0 = random available port)
+- `NODE_ENV` - Set to 'production'
+- `PRISMA_QUERY_ENGINE_LIBRARY` - Point to bundled engine binary
+
+**First-run experience:**
+- Dialog asking for PostgreSQL connection string
+- Validation of connection before starting API
+- Save config to encrypted local cache
+
+#### 2.5 Prisma Binary Handling
+
+**Challenge:** Prisma requires platform-specific query engine binaries.
+
+**Solution:**
+```typescript
+// Detect platform and architecture
+const platform = process.platform; // darwin, win32, linux
+const arch = process.arch;       // x64, arm64
+
+// Construct binary path
+const binaryName = platform === 'win32' 
+  ? 'query_engine-windows.dll.node'
+  : platform === 'darwin'
+    ? `query_engine-darwin-${arch}.dylib.node`
+    : `query_engine-linux-${arch}.so.node`;
+
+// Set environment variable for Prisma
+process.env.PRISMA_QUERY_ENGINE_LIBRARY = join(
+  process.resourcesPath,
+  'api', 'node_modules', '.prisma', 'client',
+  binaryName
+);
+```
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `apps/desktop/package.json` | Add API to extraResources, update dependencies |
+| `apps/desktop/src/main.ts` | Integrate API sidecar startup/shutdown |
+| `apps/desktop/src/desktop-gateway.ts` | Proxy to local API instead of external URL |
+| `apps/desktop/src/api-sidecar.ts` | New file: API process management |
+| `apps/desktop/src/prisma-binary-resolver.ts` | New file: Platform detection & binary resolution |
+
+### Testing Strategy
+
+1. **Dev mode:** Run API separately (current workflow)
+2. **Packaged:** Verify API starts from bundled resources
+3. **Health checks:** Confirm API responds before gateway starts
+4. **Shutdown:** Verify graceful termination on app quit
+5. **Error handling:** Test API crash recovery
+
+### Package Size Impact
+
+| Component | Size |
+|-----------|------|
+| Current desktop | ~110MB |
+| API node_modules | ~50MB |
+| Prisma engines (multi-platform) | ~30MB |
+| **New total** | **~190MB** |
+
+### PostgreSQL Distribution Options
+
+Since PostgreSQL is still required, consider:
+
+1. **User-provided:** Document installation requirements
+2. **PostgreSQL binaries:** Bundle postgres binaries (+40MB)
+3. **Docker:** Include Docker requirement (not recommended for users)
+4. **Cloud fallback:** Provide hosted PostgreSQL option
+
+### Recommended Conventional Commits
+
+```
+feat(desktop): add API sidecar for bundled API execution
+feat(desktop): implement API process lifecycle management
+build(desktop): package API code with desktop distribution
+feat(desktop): add Prisma binary resolution for packaged app
+feat(desktop): add first-run database configuration dialog
+```
+
+## Phase 3: SQLite Support (Future)
+
+### Objective
+Enable true offline capability by supporting SQLite as an alternative to PostgreSQL.
+
+### Prerequisites
+- Phase 2 complete (API sidecar working)
+- SQLite-compatible Prisma schema
+
+### Implementation Overview
+
+1. **Dual schema support:** Maintain PostgreSQL and SQLite schemas
+2. **Database router:** Detect URL scheme and instantiate correct client
+3. **Type coercion:** Handle PostgreSQL-specific features in SQLite
+4. **Migration path:** Support cloud → local migration
+5. **Sync mechanism:** Optional bidirectional sync
+
+### Schema Adjustments
+
+| PostgreSQL | SQLite | Migration |
+|------------|--------|-----------|
+| `UUID` | `TEXT` | Store as string |
+| `JSONB` | `TEXT` | Serialize to JSON |
+| `ARRAY` | `TEXT` | Serialize to JSON |
+| `TIMESTAMPTZ` | `TEXT` | ISO 8601 format |
+| Enums | `TEXT` | String values |
+
+### Configuration
+
+```typescript
+// Desktop uses SQLite
+const databaseUrl = `file:${join(app.getPath('userData'), 'ksiegowy.db')}`;
+
+// Cloud deployment uses PostgreSQL  
+const databaseUrl = 'postgresql://user:pass@host/db';
+```
+
 ## Recommended Conventional Commit Sequence
 
-1. `chore(desktop): scaffold electron workspace and desktop build scripts`
-2. `build(desktop): add localhost gateway and packaged web runtime`
-3. `feat(desktop): add hardened browser window and typed preload contract`
-4. `feat(auth): support desktop-safe oauth and localhost session flow`
-5. `feat(security): add os secret storage and encrypted local cache`
-6. `build(release): add electron-builder packaging signing and updater pipeline`
-7. `test(desktop): cover packaged startup auth and boundary checks`
-8. `docs(desktop): add architecture decision and implementation plan`
+### Phase 1 (Complete)
+1. `chore(desktop): scaffold electron workspace and desktop build scripts` ✅
+2. `build(desktop): add localhost gateway and packaged web runtime` ✅
+3. `feat(desktop): add hardened browser window and typed preload contract` ✅
+4. `feat(auth): support desktop-safe oauth and localhost session flow` ✅
+5. `feat(security): add os secret storage and encrypted local cache` ✅
+6. `build(release): add electron-builder packaging signing and updater pipeline` ✅
+
+### Phase 2 (Complete)
+7. `feat(desktop): add API sidecar for bundled API execution` ✅
+8. `feat(desktop): implement API process lifecycle management` ✅
+9. `build(desktop): package API code with desktop distribution` ✅
+10. `feat(desktop): add Prisma binary resolution for packaged app` ✅
+11. `feat(desktop): add first-run database configuration dialog` ✅
+12. `test(desktop): cover API sidecar startup and health checks` ⏳
+
+### Phase 3 (Current)
+13. `feat(api): add SQLite schema compatibility` (Next)
+14. `feat(api): implement database router for multi-db support` (Next)
+15. `feat(desktop): configure SQLite as default for desktop mode` (Next)
+16. `feat(sync): add cloud to local data migration` (Next)
+17. `feat(desktop): add offline capability verification tests` (Next)
+
+### Documentation
+18. `docs(desktop): add API sidecar architecture decision`
+19. `docs(desktop): update packaging and distribution guide`
+20. `docs(desktop): add first-run setup instructions`

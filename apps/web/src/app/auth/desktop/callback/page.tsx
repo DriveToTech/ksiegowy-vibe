@@ -12,14 +12,23 @@ export default function DesktopAuthCallbackPage() {
   useEffect(() => {
     let isActive = true;
 
-    if (!window.desktop?.consumePendingDesktopAuthenticationCallback) {
-      setErrorMessage('Desktop sign-in callback is unavailable in this runtime.');
+    console.log('[DesktopAuthCallbackPage] mounted', {
+      hasDesktopApi: Boolean(window.desktop),
+      hasConsumePendingAuthenticationCallback: Boolean(window.desktop?.consumePendingAuthenticationCallback)
+    });
+
+    if (!window.desktop?.consumePendingAuthenticationCallback) {
+      queueMicrotask(() => {
+        setErrorMessage('Desktop sign-in callback is unavailable in this runtime.');
+      });
       return;
     }
 
     window.desktop
-      .consumePendingDesktopAuthenticationCallback()
+      .consumePendingAuthenticationCallback()
       .then(async (callback) => {
+        console.log('[DesktopAuthCallbackPage] consumed callback', callback);
+
         if (!isActive) {
           return;
         }
@@ -34,7 +43,7 @@ export default function DesktopAuthCallbackPage() {
 
         setStatusMessage('Exchanging desktop sign-in for gateway cookies…');
 
-        const response = await fetch('/auth/desktop/exchange', {
+        const response = await fetch('/auth/client/exchange', {
           method: 'POST',
           headers: {
             'content-type': 'application/json'
@@ -42,8 +51,8 @@ export default function DesktopAuthCallbackPage() {
           credentials: 'include',
           body: JSON.stringify({
             handoffCode: callback.handoffCode,
-            desktopTransactionId: callback.transactionId,
-            desktopCodeVerifier: callback.codeVerifier
+            clientTransactionId: callback.transactionId,
+            clientCodeVerifier: callback.codeVerifier
           })
         });
 
@@ -54,9 +63,13 @@ export default function DesktopAuthCallbackPage() {
           );
         }
 
+        console.log('[DesktopAuthCallbackPage] exchange completed');
+
         window.location.replace('/dashboard');
       })
       .catch((error: unknown) => {
+        console.error('[DesktopAuthCallbackPage] failed', error);
+
         if (!isActive) {
           return;
         }

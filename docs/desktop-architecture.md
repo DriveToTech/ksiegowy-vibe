@@ -8,7 +8,7 @@ This document describes the target architecture for adding a cross-platform desk
 
 - Overall: `accepted target direction`
 - Delivery approach: `phased`
-- Current implemented slice: `localhost gateway bootstrap + initial auth/api proxying + desktop-safe OAuth handoff` — Electron starts a localhost-only Fastify gateway with a health endpoint, proxies `/auth/*` and `/_desktop/api/*` to the configured API origin, reverse-proxies UI traffic to a local web runtime URL, and completes Google OAuth through a custom-protocol redirect plus short-lived one-time handoff exchange
+- Current implemented slice: `localhost gateway bootstrap + initial auth/api proxying + desktop-safe OAuth handoff` — Electron starts a localhost-only Fastify gateway with a health endpoint, proxies API-backed auth routes and `/_desktop/api/*` to the configured API origin, reverse-proxies UI traffic to a local web runtime URL, and completes Google OAuth through a custom-protocol redirect plus short-lived one-time handoff exchange
 
 ---
 
@@ -156,17 +156,20 @@ flowchart LR
 - business API calls continue to target the existing API runtime
 - current minimal gateway contract:
   - `GET /_desktop/health` returns local gateway health and upstream origins
-  - `/auth/*` is proxied to `DESKTOP_API_URL` or `API_URL` fallback
+  - `/auth/desktop/callback` is served by the web runtime callback page
+  - remaining `/auth/*` routes are proxied to `DESKTOP_API_URL` or `API_URL` fallback
   - `/_desktop/api/*` is proxied to `DESKTOP_API_URL` with the prefix stripped before forwarding
   - all other UI requests are proxied to `DESKTOP_WEB_RUNTIME_URL`
-  - browser-side desktop requests use same-origin prefixes while server-side Next requests may still call `API_URL` directly
+  - browser-side desktop requests use same-origin prefixes while server-side Next requests detect the desktop gateway origin and use gateway-backed auth and business API paths
   - desktop Google sign-in starts from the renderer through a preload-triggered system-browser handoff
   - API callback redirects to `DESKTOP_AUTH_CALLBACK_URL` with a short-lived one-time handoff code and transaction id
-  - desktop completes session establishment through `POST /auth/desktop/exchange`
+  - desktop completes session establishment through `POST /auth/client/exchange`
 
-Current first-slice limitation:
+Current auth handoff characteristics:
 
-- desktop OAuth handoff records are stored in API process memory, so this implementation assumes a single API process until handoff storage is moved to shared persistence
+- desktop OAuth handoff records are persisted in PostgreSQL through Prisma
+- the API stores only a SHA-256 hash of the one-time handoff code, never the raw handoff code
+- handoff records remain short-lived and are consumed exactly once during `/auth/client/exchange`
 
 ### Production
 
@@ -178,12 +181,110 @@ Current first-slice limitation:
 
 ---
 
-## Open Issues
+## Packaging and Distribution Configuration
 
-- exact desktop OAuth callback shape: localhost callback, custom protocol, or both
-- cookie, CSRF, and session policy for the localhost desktop origin
-- desktop configuration model for self-hosted API endpoint discovery and validation
-- which bounded workflows, if any, justify later local-first or local sidecar support
+### macOS
+
+The desktop app is configured with hardened runtime and entitlements for macOS security:
+
+- `hardenedRuntime: true` — enables Hardened Runtime protection
+- `gatekeeperAssess: false` — disables Gatekeeper assessment during build
+- Entitlements file at `build/entitlements.mac.plist` defines required permissions:
+  - JIT compilation for Electron internals
+  - Unsigned executable memory
+  - Network client/server access
+  - File read/write for user-selected and downloads directories
+
+**Code Signing (macOS):**
+- Requires Apple Developer ID certificate
+- Set environment variables before running `electron-builder`:
+  ```bash
+  export CSC_NAME="Developer ID Application: Your Name (TEAM_ID)"
+  export CSC_KEY_PASSWORD="keychain-password"
+  ```
+- Or provide in `electron-builder.yml`:
+  ```yaml
+  mac:
+    identity: "Developer ID Application: Your Name (TEAM_ID)"
+  ```
+
+**Notarization (macOS):**
+- Required for macOS 10.15+ to distribute outside App Store
+- Configure in environment:
+  ```bash
+  export APPLE_ID="your-email@example.com"
+  export APPLE_APP_SPECIFIC_PASSWORD="app-specific-password"
+  export APPLE_TEAM_ID="YOUR_TEAM_ID"
+  ```
+- Or use `@electron/notarize` in `afterSign` hook
+
+### Windows
+
+- Uses NSIS installer for standard installations
+- Supports portable executable for single-file distribution
+- Requires code signing certificate from trusted CA
+- Set environment variable:
+  ```bash
+  set CSC_NAME="Your Certificate Name"
+  ```
+
+### Linux
+
+- Distributes as AppImage and DEB packages
+- No signing required for DEB/AppImage
+- For signed packages, use GPG signing:
+  ```yaml
+  linux:
+    category: Office
+    maintainer: "Your Name <email@example.com>"
+    vendor: "Your Organization"
+  ```
+
+### Auto-Update Configuration
+
+- Updates are hosted on GitHub releases
+- Configure in `package.json` under `build.publish`:
+  ```json
+  {
+    "provider": "github",
+    "owner": "ksiegowy-vibe",
+    "repo": "desktop-releases"
+  }
+  ```
+- Requires `GH_TOKEN` environment variable for publishing
+- Users receive automatic updates via `electron-updater`
+
+### Release Channels
+
+Staged release support via `electron-updater`:
+- **Stable**: Default channel for production releases
+- **Beta**: Pre-releases for early adopters
+- **Dev**: Development builds for testing
+
+Configure channel in app:
+```typescript
+autoUpdater.channel = 'beta'; // or 'dev', 'stable'
+```
+
+## Environment Variables for Signing
+
+| Variable | Description |
+|----------|-------------|
+| `CSC_NAME` | Certificate name for code signing |
+| `CSC_KEY_PASSWORD` | Keychain/certificate password |
+| `CSC_LINK` | URL to download certificate (CI/CD) |
+| `APPLE_ID` | Apple ID for notarization |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for notarization |
+| `APPLE_TEAM_ID` | Apple Developer Team ID |
+| `GH_TOKEN` | GitHub token for publishing releases |
+
+## Security Notes
+
+- Never commit certificates or passwords to version control
+- Use CI/CD secrets management for production signing
+- macOS notarization can take 5-15 minutes per build
+- Windows SmartScreen may flag unsigned builds temporarily
+- Linux packages can be signed with GPG for apt repository distribution
 
 ---
 

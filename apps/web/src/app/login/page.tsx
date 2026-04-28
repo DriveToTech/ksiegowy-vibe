@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Surface } from '../../components/atoms/Surface';
-import { DesktopGoogleLoginButton } from '../../components/auth/DesktopGoogleLoginButton';
+import { ClientGoogleLoginButton } from '../../components/auth/ClientGoogleLoginButton';
 import { PublicPageLayout } from '../../components/templates/PublicPageLayout';
 import { BROWSER_AUTH_BASE } from '../../lib/api-base';
 import { getAuthSession } from '../../lib/auth';
@@ -29,7 +29,7 @@ export default async function LoginPage({
             <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">{t.login.headline}</h1>
             <p className="text-sm text-muted">{t.login.description}</p>
           </div>
-          <DesktopGoogleLoginButton
+          <ClientGoogleLoginButton
             browserAuthUrl={`${BROWSER_AUTH_BASE}/auth/google`}
             label={t.login.googleButton}
           />

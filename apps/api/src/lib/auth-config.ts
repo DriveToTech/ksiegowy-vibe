@@ -5,6 +5,9 @@ const urlSchema = z.string().trim().url();
 const nodeEnvSchema = z.enum(['development', 'test', 'production']).catch('development');
 
 const REQUIRED_GOOGLE_ENV_VARS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI'] as const;
+const allowedDesktopAuthCallbackHostnames = new Set(['localhost', '127.0.0.1', '::1']);
+const allowedDesktopAuthCallbackPath = '/auth/desktop/callback';
+const allowedDesktopProtocolCallbackPath = '/desktop/callback';
 
 export type RequiredGoogleEnvVar = (typeof REQUIRED_GOOGLE_ENV_VARS)[number];
 
@@ -76,16 +79,48 @@ const parseOptionalUrl = (name: string, value: string | undefined): string | und
   });
 };
 
-const parseOptionalAbsoluteUrl = (name: string, value: string | undefined): string | undefined => {
+const parseOptionalDesktopAuthCallbackUrl = (value: string | undefined): string | undefined => {
   if (value === undefined) {
     return undefined;
   }
 
+  let parsedUrl: URL;
+
   try {
-    return new URL(value).toString();
+    parsedUrl = new URL(value);
   } catch {
-    throw new Error(`Environment variable ${name} must be a valid absolute URL`);
+    throw new Error('Environment variable DESKTOP_AUTH_CALLBACK_URL must be a valid absolute URL');
   }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error('Environment variable DESKTOP_AUTH_CALLBACK_URL must not include credentials');
+  }
+
+  if (parsedUrl.search || parsedUrl.hash) {
+    throw new Error(
+      'Environment variable DESKTOP_AUTH_CALLBACK_URL must use ksiegowy-vibe:// or localhost http/https callback URL'
+    );
+  }
+
+  if (
+    parsedUrl.protocol === 'ksiegowy-vibe:' &&
+    parsedUrl.host === 'auth' &&
+    parsedUrl.pathname === allowedDesktopProtocolCallbackPath
+  ) {
+    return parsedUrl.toString();
+  }
+
+  if (
+    (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
+    allowedDesktopAuthCallbackHostnames.has(parsedUrl.hostname) &&
+    parsedUrl.pathname === allowedDesktopAuthCallbackPath
+  ) {
+    return parsedUrl.toString();
+  }
+
+  throw new Error(
+    'Environment variable DESKTOP_AUTH_CALLBACK_URL must use ksiegowy-vibe:// or localhost http/https callback URL'
+  );
 };
 
 export const loadAuthConfig = (env: NodeJS.ProcessEnv): AuthConfig => {
@@ -113,10 +148,7 @@ export const loadAuthConfig = (env: NodeJS.ProcessEnv): AuthConfig => {
   const providedEnv = REQUIRED_GOOGLE_ENV_VARS.filter((name) => googleValues[name] !== undefined);
   const googleEnabled = missingEnv.length === 0;
   const appUrl = parseOptionalUrl('APP_URL', readOptionalEnv(env.APP_URL));
-  const desktopAuthCallbackUrl = parseOptionalAbsoluteUrl(
-    'DESKTOP_AUTH_CALLBACK_URL',
-    readOptionalEnv(env.DESKTOP_AUTH_CALLBACK_URL)
-  );
+  const desktopAuthCallbackUrl = parseOptionalDesktopAuthCallbackUrl(readOptionalEnv(env.DESKTOP_AUTH_CALLBACK_URL));
 
   const googleConfig: AuthConfig['google'] = googleEnabled
     ? {

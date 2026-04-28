@@ -20,6 +20,7 @@ declare module 'fastify' {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     setAuthCookies: (reply: FastifyReply, tokens: { accessToken: string; refreshToken: string }) => void;
     clearAuthCookies: (reply: FastifyReply) => void;
+    oauth2GoogleOAuth2?: fastifyOauth2.OAuth2Namespace;
   }
 
   interface FastifyRequest {

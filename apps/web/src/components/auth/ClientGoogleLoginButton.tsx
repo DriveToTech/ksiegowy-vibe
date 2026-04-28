@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import { Button } from '../atoms/Button';
 
-interface DesktopGoogleLoginButtonProps {
+interface ClientGoogleLoginButtonProps {
   browserAuthUrl: string;
   label: string;
 }
 
-export function DesktopGoogleLoginButton({
+export function ClientGoogleLoginButton({
   browserAuthUrl,
   label,
-}: DesktopGoogleLoginButtonProps) {
+}: ClientGoogleLoginButtonProps) {
   const [isStartingAuthentication, setIsStartingAuthentication] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 

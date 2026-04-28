@@ -174,18 +174,39 @@ This mode works because:
 | Desktop | Local Electron + Fastify gateway |
 | PostgreSQL | Docker |
 
-### Startup commands
+### Quick Start (Recommended for Desktop Development)
 
 ```bash
+# 1. Install and configure
 pnpm install
 cp .env.example .env
+
+# 2. Start PostgreSQL
 docker compose up -d postgres
+
+# 3. Run migrations and seed
 pnpm db:migrate
 pnpm db:seed
+
+# 4. Start API (Terminal 1)
 pnpm --filter @ksiegowy/api dev
+
+# 5. Start Web with desktop prefixes (Terminal 2)
 pnpm dev:web:desktop
-DESKTOP_GATEWAY_PORT=3180 pnpm dev:desktop
+
+# 6. Start Desktop (Terminal 3)
+pnpm dev:desktop
 ```
+
+### Individual Commands Reference
+
+| Command | Purpose |
+|---------|---------|
+| `pnpm --filter @ksiegowy/api dev` | Start Fastify API on port 3001 |
+| `pnpm dev:web:desktop` | Start Next.js web with desktop browser prefixes |
+| `pnpm dev:desktop` | Start Electron with the default desktop gateway port (`3001`) |
+| `pnpm --filter @ksiegowy/desktop build` | Compile TypeScript to dist/ |
+| `pnpm --filter @ksiegowy/desktop pack` | Create unpackaged app for testing |
 
 ### Environment expectations
 
@@ -197,23 +218,86 @@ DESKTOP_GATEWAY_PORT=3180 pnpm dev:desktop
 | `NEXT_PUBLIC_BROWSER_AUTH_URL` | `/auth` |
 | `DESKTOP_WEB_RUNTIME_URL` | `http://127.0.0.1:3000` |
 | `DESKTOP_API_URL` | Usually `http://localhost:3001` |
-| `DESKTOP_AUTH_CALLBACK_URL` | Custom protocol callback, for example `ksiegowy-vibe://auth/desktop/callback` |
-| `DESKTOP_GATEWAY_PORT` | Optional fixed localhost port for smoke checks |
+| `DESKTOP_AUTH_CALLBACK_URL` | `ksiegowy-vibe://auth/desktop/callback` or localhost-only `http/https` callback on `/auth/desktop/callback`; remote origins, credentials, query strings, and fragments are rejected |
+| `DESKTOP_GATEWAY_PORT` | Optional localhost port override; keep `GOOGLE_REDIRECT_URI` and Google OAuth config aligned if you change it |
 
 This mode works because:
 
 - browser-originated business API requests stay on the desktop gateway origin via `/_desktop/api`
 - browser auth entrypoints stay on the desktop gateway origin via `/auth`
-- server-side Next requests can still use `API_URL` directly
+- server-side Next requests coming through the desktop gateway are routed back through the gateway so auth and business API calls keep using the sidecar-backed localhost origin
 - Electron loads the local gateway origin instead of the web runtime origin directly
 
 Useful smoke check:
 
 ```bash
-curl http://127.0.0.1:3180/_desktop/health
+curl http://127.0.0.1:3001/_desktop/health
 ```
 
-## Troubleshooting
+## Desktop-Specific Troubleshooting
+
+### Desktop app won't start
+
+1. **Check prerequisites are running:**
+   ```bash
+   # Verify API is accessible
+   curl http://localhost:3001/health
+
+   # Verify web is accessible
+   curl http://localhost:3000
+
+   # Verify desktop gateway health (if running)
+    curl http://127.0.0.1:3001/_desktop/health
+   ```
+
+2. **Check environment variables:**
+   - `DESKTOP_WEB_RUNTIME_URL` must point to running web dev server (default: `http://127.0.0.1:3000`)
+   - `DESKTOP_API_URL` must point to running API (default: `http://localhost:3001`)
+
+3. **Common errors:**
+
+   | Error | Solution |
+   |-------|----------|
+   | `DESKTOP_WEB_RUNTIME_URL must point to a localhost origin` | Ensure web dev server is running on localhost |
+   | `API_URL must point to an origin without path, query, hash, or credentials` | Check API_URL has no path suffix like `/api` |
+    | Port already in use | Change `DESKTOP_GATEWAY_PORT`, then update `GOOGLE_REDIRECT_URI` and the Google OAuth app redirect URI to the same port |
+
+### Desktop OAuth sign-in not working
+
+1. **Verify Google OAuth configuration:**
+   - `GOOGLE_REDIRECT_URI` must point at the desktop gateway callback, for example `http://localhost:3001/auth/google/callback`
+   - `DESKTOP_AUTH_CALLBACK_URL` must be `ksiegowy-vibe://auth/desktop/callback` or localhost callback
+   - Google OAuth app must have this exact redirect URI configured
+
+2. **Check protocol registration:**
+   - First run may prompt to allow the app to handle `ksiegowy-vibe://` URLs
+   - On macOS: System Preferences → Security → Allow
+
+3. **Desktop-specific OAuth flow:**
+   - Click "Sign in with Google" in desktop app
+   - Browser opens with Google OAuth
+   - After authentication, redirect opens desktop app via protocol
+   - Desktop completes `/auth/client/exchange` automatically
+
+### Desktop build/packaging issues
+
+1. **Clean and rebuild:**
+   ```bash
+   pnpm --filter @ksiegowy/desktop clean
+   pnpm --filter @ksiegowy/desktop build
+   ```
+
+2. **Install native dependencies:**
+   ```bash
+   pnpm --filter @ksiegowy/desktop install-app-deps
+   ```
+
+3. **Check TypeScript errors:**
+   ```bash
+   pnpm --filter @ksiegowy/desktop typecheck
+   ```
+
+## General Troubleshooting
 
 ### `Platform PostgreSQL backup source is unavailable`
 

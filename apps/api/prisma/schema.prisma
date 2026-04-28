@@ -83,15 +83,30 @@ enum CompanyBackupScheduleMode {
 }
 
 model User {
-  id          String              @id @default(cuid())
-  email       String              @unique
-  name        String?
-  googleId    String?             @unique
-  avatarUrl   String?
-  lastLoginAt DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  memberships CompanyMembership[]
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  name               String?
+  googleId           String?             @unique
+  avatarUrl          String?
+  lastLoginAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  memberships        CompanyMembership[]
+  clientAuthHandoffs ClientAuthHandoff[]
+}
+
+model ClientAuthHandoff {
+  id              String   @id @default(cuid())
+  handoffCodeHash String   @unique
+  transactionId   String
+  codeChallenge   String
+  userId          String
+  expiresAt       DateTime
+  consumedAt      DateTime?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model Company {

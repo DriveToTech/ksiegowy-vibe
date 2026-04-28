@@ -2,7 +2,7 @@ import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { Company } from './api-types';
-import { API_BASE } from './api-base';
+import { getServerApiBase, getServerAuthBase } from './server-api-base';
 
 export interface AuthenticatedUser {
   id: string;
@@ -48,13 +48,14 @@ function buildCookieHeader(cookieStore: Awaited<ReturnType<typeof cookies>>): st
 }
 
 async function requestSession(path: string, cookieHeader: string | null): Promise<SessionRequestResult> {
+  const authBase = await getServerAuthBase();
   const headers = new Headers();
 
   if (cookieHeader) {
     headers.set('Cookie', cookieHeader);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${authBase}${path}`, {
     method: 'GET',
     headers,
     cache: 'no-store',
@@ -106,7 +107,8 @@ async function loadAuthSession({
   }
 
   const session = (await sessionResponse.response.json()) as AuthSessionResponse;
-  const companiesResponse = await fetch(`${API_BASE}/companies`, {
+  const apiBase = await getServerApiBase();
+  const companiesResponse = await fetch(`${apiBase}/companies`, {
     method: 'GET',
     headers: sessionResponse.headers,
     cache: 'no-store',

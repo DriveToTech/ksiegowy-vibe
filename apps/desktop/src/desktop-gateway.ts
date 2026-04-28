@@ -1,26 +1,24 @@
 import fastifyHttpProxy from '@fastify/http-proxy';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyRequest, type RequestGenericInterface, type RawServerBase } from 'fastify';
+import type { IncomingHttpHeaders } from 'node:http';
+import type { IncomingHttpHeaders as Http2IncomingHttpHeaders } from 'node:http2';
 
-const defaultDesktopGatewayHost = '127.0.0.1';
-const defaultDesktopGatewayPort = 0;
-const defaultDesktopWebRuntimeUrl = 'http://127.0.0.1:3000';
-const defaultDesktopApiUrl = 'http://127.0.0.1:3001';
+const defaultDesktopGatewayHost = '127.0.0.1'; // Use IPv4 loopback to match Google OAuth redirect URI
+const defaultDesktopGatewayPort = 3001; // Fixed port for Google OAuth compatibility
+const defaultDesktopWebRuntimeUrl = 'http://localhost:3000';
+const defaultDesktopApiUrl = 'http://localhost:3002';
 const allowedLocalHostnames = new Set(['127.0.0.1', 'localhost', '::1']);
 const desktopApiProxyPrefix = '/_desktop/api';
 const desktopAuthProxyPrefix = '/auth';
-const desktopAuthApiProxyRoutes = [
-  '/auth/google',
-  '/auth/google/callback',
-  '/auth/me',
-  '/auth/logout',
-  '/auth/refresh'
-] as const;
+const desktopAuthCallbackRoutePath = '/auth/desktop/callback';
+const desktopGatewayOriginHeader = 'x-desktop-gateway-origin';
 
 interface DesktopGatewayConfig {
   host: string;
   port: number;
   webRuntimeUrl: URL;
   apiUrl: URL;
+  useBundledApi: boolean;
 }
 
 export interface StartedDesktopGateway {
@@ -83,20 +81,51 @@ export function getDesktopApiUrl(): URL {
   return new URL(apiUrl.origin);
 }
 
-function getDesktopGatewayConfig(): DesktopGatewayConfig {
+function getDesktopGatewayConfig(apiUrlOverride?: URL): DesktopGatewayConfig {
   return {
     host: defaultDesktopGatewayHost,
     port: getDesktopGatewayPort(),
     webRuntimeUrl: getDesktopWebRuntimeUrl(),
-    apiUrl: getDesktopApiUrl()
+    apiUrl: apiUrlOverride ?? getDesktopApiUrl(),
+    useBundledApi: apiUrlOverride !== undefined
   };
 }
+
+export function getBundledApiUrl(apiPort: number): URL {
+  return new URL(`http://localhost:${apiPort}`);
+}
+
+const hopByHopResponseHeaders = new Set([
+  'connection',
+  'content-encoding',
+  'content-length',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade'
+]);
 
 export function createDesktopGatewayServer(config: DesktopGatewayConfig): FastifyInstance {
   const server = Fastify({
     logger: false,
     disableRequestLogging: true,
     trustProxy: false
+  });
+
+  // Add global request logging for debugging
+  server.addHook('onRequest', async (request) => {
+    console.log(`[Gateway Request] ${request.method} ${request.url} - Host: ${request.headers.host}`);
+  });
+
+  server.addHook('onResponse', async (request, reply) => {
+    console.log(`[Gateway Response] ${request.method} ${request.url} - Status: ${reply.statusCode}`);
+  });
+
+  server.addHook('onError', async (request, _reply, error) => {
+    console.error(`[Gateway Error] ${request.method} ${request.url} - Error:`, error);
   });
 
   server.get(
@@ -128,44 +157,90 @@ export function createDesktopGatewayServer(config: DesktopGatewayConfig): Fastif
     })
   );
 
+  server.get(desktopAuthCallbackRoutePath, async (request, reply) => {
+    const upstreamUrl = new URL(request.raw.url ?? desktopAuthCallbackRoutePath, config.webRuntimeUrl);
+    const upstreamResponse = await fetch(upstreamUrl, {
+      headers: {
+        accept: request.headers.accept ?? 'text/html',
+        [desktopGatewayOriginHeader]: `http://${config.host}:${config.port}`,
+        ...(request.headers.cookie ? { cookie: request.headers.cookie } : {})
+      }
+    });
+
+    upstreamResponse.headers.forEach((value, key) => {
+      if (!hopByHopResponseHeaders.has(key.toLowerCase())) {
+        reply.header(key, value);
+      }
+    });
+
+    const responseBody = Buffer.from(await upstreamResponse.arrayBuffer());
+    return reply.code(upstreamResponse.status).send(responseBody);
+  });
+
   return server;
 }
 
-export async function startDesktopGateway(): Promise<StartedDesktopGateway> {
-  const config = getDesktopGatewayConfig();
+export async function startDesktopGateway(
+  apiUrlOverride?: URL
+): Promise<StartedDesktopGateway> {
+  const config = getDesktopGatewayConfig(apiUrlOverride);
   const server = createDesktopGatewayServer(config);
 
-  for (const route of desktopAuthApiProxyRoutes) {
-    await server.register(fastifyHttpProxy, {
-      upstream: config.apiUrl.origin,
-      prefix: route,
-      rewritePrefix: route,
-      http2: false,
-      websocket: false
-    });
-  }
-
+  // Consolidated auth routes proxy - handles all /auth/* routes
+  // The OAuth2 plugin sets cookies for the gateway origin, so the API must see the gateway host
   await server.register(fastifyHttpProxy, {
     upstream: config.apiUrl.origin,
-    prefix: '/auth/desktop/exchange',
-    rewritePrefix: '/auth/desktop/exchange',
-    httpMethods: ['POST'],
+    prefix: desktopAuthProxyPrefix,
+    rewritePrefix: desktopAuthProxyPrefix,
     http2: false,
-    websocket: false
+    websocket: false,
+    replyOptions: {
+      // Preserve the original Host header so OAuth2 cookies are set for the gateway origin
+      rewriteRequestHeaders: (
+        _originalRequest: FastifyRequest<RequestGenericInterface, RawServerBase>,
+        headers: IncomingHttpHeaders | Http2IncomingHttpHeaders
+      ): IncomingHttpHeaders => ({
+          ...headers,
+          host: `${config.host}:${config.port}`
+        })
+    }
   });
 
+  // Desktop API proxy for internal routes
   await server.register(fastifyHttpProxy, {
     upstream: config.apiUrl.origin,
     prefix: desktopApiProxyPrefix,
     rewritePrefix: '',
     http2: false,
-    websocket: false
+    websocket: false,
+    replyOptions: {
+      rewriteRequestHeaders: (
+        originalRequest: FastifyRequest<RequestGenericInterface, RawServerBase>,
+        headers: IncomingHttpHeaders | Http2IncomingHttpHeaders
+      ) => ({
+        ...headers,
+        host: `${config.host}:${config.port}`
+      })
+    }
   });
 
+  // Default proxy for web runtime (must be last as catch-all)
   await server.register(fastifyHttpProxy, {
     upstream: config.webRuntimeUrl.origin,
     http2: false,
-    websocket: false
+    websocket: false,
+    replyOptions: {
+      rewriteRequestHeaders: (
+        _originalRequest: FastifyRequest<RequestGenericInterface, RawServerBase>,
+        headers: IncomingHttpHeaders | Http2IncomingHttpHeaders
+      ): IncomingHttpHeaders => ({
+        ...headers,
+        [desktopGatewayOriginHeader]: `http://${config.host}:${config.port}`
+      })
+    },
+    preHandler: async (request) => {
+      console.log(`[Gateway Web Runtime Proxy] Proxying to ${config.webRuntimeUrl.origin}: ${request.method} ${request.url}`);
+    }
   });
 
   const address = await server.listen({

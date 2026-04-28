@@ -44,10 +44,26 @@ const desktopAuthConfig: AuthConfig = {
   }
 };
 
-const createPrismaClient = (): NonNullable<BuildAppOptions['prismaClient']> => {
-  return {
+interface StoredClientAuthHandoff {
+  id: string;
+  handoffCodeHash: string;
+  transactionId: string;
+  codeChallenge: string;
+  userId: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  createdAt: Date;
+}
+
+const createPrismaClient = (
+  handoffStore: Map<string, StoredClientAuthHandoff> = new Map()
+): NonNullable<BuildAppOptions['prismaClient']> => {
+  const prismaClient = {
     $disconnect: vi.fn(async () => undefined),
     $queryRaw: vi.fn(async () => [{ ready: 1 }]),
+    $transaction: vi.fn(async (callback: (transactionPrisma: NonNullable<BuildAppOptions['prismaClient']>) => Promise<unknown>) => {
+      return callback(prismaClient as unknown as NonNullable<BuildAppOptions['prismaClient']>);
+    }),
     user: {
       findUnique: vi.fn(
         async ({
@@ -109,8 +125,128 @@ const createPrismaClient = (): NonNullable<BuildAppOptions['prismaClient']> => {
     },
     companyMembership: {
       findMany: vi.fn(async () => [{ companyId: 'company_1', role: 'ADMIN' }])
+    },
+    clientAuthHandoff: {
+      deleteMany: vi.fn(
+        async ({
+          where
+        }: {
+          where: {
+            expiresAt: {
+              lte: Date;
+            };
+          };
+        }) => {
+          let deletedRecordsCount = 0;
+
+          for (const [handoffCodeHash, record] of handoffStore.entries()) {
+            if (record.expiresAt <= where.expiresAt.lte) {
+              handoffStore.delete(handoffCodeHash);
+              deletedRecordsCount += 1;
+            }
+          }
+
+          return {
+            count: deletedRecordsCount
+          };
+        }
+      ),
+      create: vi.fn(
+        async ({
+          data
+        }: {
+          data: {
+            handoffCodeHash: string;
+            userId: string;
+            transactionId: string;
+            codeChallenge: string;
+            expiresAt: Date;
+          };
+        }) => {
+          const record: StoredClientAuthHandoff = {
+            id: `client_auth_handoff_${handoffStore.size + 1}`,
+            handoffCodeHash: data.handoffCodeHash,
+            userId: data.userId,
+            transactionId: data.transactionId,
+            codeChallenge: data.codeChallenge,
+            expiresAt: data.expiresAt,
+            consumedAt: null,
+            createdAt: new Date()
+          };
+
+          handoffStore.set(record.handoffCodeHash, record);
+
+          return record;
+        }
+      ),
+      updateMany: vi.fn(
+        async ({
+          where,
+          data
+        }: {
+          where: {
+            handoffCodeHash: string;
+            transactionId: string;
+            codeChallenge: string;
+            expiresAt: {
+              gt: Date;
+            };
+            consumedAt: null;
+          };
+          data: {
+            consumedAt: Date;
+          };
+        }) => {
+          const existingRecord = handoffStore.get(where.handoffCodeHash);
+
+          if (
+            !existingRecord ||
+            existingRecord.transactionId !== where.transactionId ||
+            existingRecord.codeChallenge !== where.codeChallenge ||
+            existingRecord.expiresAt <= where.expiresAt.gt ||
+            existingRecord.consumedAt !== where.consumedAt
+          ) {
+            return {
+              count: 0
+            };
+          }
+
+          handoffStore.set(where.handoffCodeHash, {
+            ...existingRecord,
+            consumedAt: data.consumedAt
+          });
+
+          return {
+            count: 1
+          };
+        }
+      ),
+      findUnique: vi.fn(
+        async ({
+          where
+        }: {
+          where: {
+            handoffCodeHash: string;
+          };
+          select: {
+            userId: true;
+          };
+        }) => {
+          const existingRecord = handoffStore.get(where.handoffCodeHash);
+
+          if (!existingRecord) {
+            return null;
+          }
+
+          return {
+            userId: existingRecord.userId
+          };
+        }
+      )
     }
-  } as unknown as NonNullable<BuildAppOptions['prismaClient']>;
+  };
+
+  return prismaClient as unknown as NonNullable<BuildAppOptions['prismaClient']>;
 };
 
 type App = Awaited<ReturnType<typeof buildApp>>;
@@ -144,6 +280,7 @@ const setGoogleOAuthMock = (app: App) => {
 describe('auth routes', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it('returns a safe shell response when Google OAuth is not configured', async () => {
@@ -168,7 +305,7 @@ describe('auth routes', () => {
     await app.close();
   });
 
-  it('starts desktop auth through the API and exchanges a one-time handoff', async () => {
+  it('starts client auth through the API and exchanges a one-time handoff', async () => {
     const app = await buildApp({
       logger: false,
       prismaClient: createPrismaClient(),
@@ -177,12 +314,12 @@ describe('auth routes', () => {
 
     const googleOAuth = setGoogleOAuthMock(app);
 
-    const desktopCodeVerifier = 'desktop-code-verifier-1234567890-desktop-code-verifier';
-    const desktopCodeChallenge = createHash('sha256').update(desktopCodeVerifier).digest('base64url');
+    const clientCodeVerifier = 'desktop-code-verifier-1234567890-desktop-code-verifier';
+    const clientCodeChallenge = createHash('sha256').update(clientCodeVerifier).digest('base64url');
 
     const startResponse = await app.inject({
       method: 'GET',
-      url: `/auth/google?desktopTransactionId=desktop_transaction_123&desktopCodeChallenge=${desktopCodeChallenge}`
+      url: `/auth/google?clientTransactionId=desktop_transaction_123&clientCodeChallenge=${clientCodeChallenge}`
     });
 
     expect(startResponse.statusCode).toBe(302);
@@ -238,11 +375,11 @@ describe('auth routes', () => {
 
     const exchangeResponse = await app.inject({
       method: 'POST',
-      url: '/auth/desktop/exchange',
+      url: '/auth/client/exchange',
       payload: {
         handoffCode,
-        desktopTransactionId: 'desktop_transaction_123',
-        desktopCodeVerifier
+        clientTransactionId: 'desktop_transaction_123',
+        clientCodeVerifier
       }
     });
 
@@ -275,18 +412,253 @@ describe('auth routes', () => {
 
     const repeatedExchangeResponse = await app.inject({
       method: 'POST',
-      url: '/auth/desktop/exchange',
+      url: '/auth/client/exchange',
       payload: {
         handoffCode,
-        desktopTransactionId: 'desktop_transaction_123',
-        desktopCodeVerifier
+        clientTransactionId: 'desktop_transaction_123',
+        clientCodeVerifier
       }
     });
 
     expect(repeatedExchangeResponse.statusCode).toBe(401);
     expect(repeatedExchangeResponse.json()).toEqual({
       error: 'Unauthorized',
-      message: 'Desktop handoff code is invalid or expired',
+      message: 'Client handoff code is invalid or expired',
+      statusCode: 401
+    });
+
+    await app.close();
+  });
+
+  it('rejects legacy desktop auth start query fields', async () => {
+    const app = await buildApp({
+      logger: false,
+      prismaClient: createPrismaClient(),
+      authConfig: desktopAuthConfig
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/auth/google?desktopTransactionId=desktop_transaction_compatibility&desktopCodeChallenge=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOQRSTUVWX0123456789_-'
+    });
+
+    expect(response.statusCode).toBe(400);
+
+    await app.close();
+  });
+
+  it('rejects legacy desktop auth exchange payload fields', async () => {
+    const app = await buildApp({
+      logger: false,
+      prismaClient: createPrismaClient(),
+      authConfig: desktopAuthConfig
+    });
+
+    setGoogleOAuthMock(app);
+
+    const clientCodeVerifier = 'desktop-code-verifier-compatibility-1234567890123456789';
+    const clientCodeChallenge = createHash('sha256').update(clientCodeVerifier).digest('base64url');
+
+    const startResponse = await app.inject({
+      method: 'GET',
+      url: `/auth/google?clientTransactionId=desktop_transaction_compatibility&clientCodeChallenge=${clientCodeChallenge}`
+    });
+
+    const desktopAuthRequestCookie = startResponse.cookies.find((cookie) => cookie.name === 'desktop_auth_request');
+
+    if (!desktopAuthRequestCookie) {
+      throw new Error('desktop_auth_request cookie was not set');
+    }
+
+    const callbackResponse = await app.inject({
+      method: 'GET',
+      url: '/auth/google/callback?code=test-google-code&state=test-google-state',
+      cookies: {
+        desktop_auth_request: desktopAuthRequestCookie.value
+      }
+    });
+
+    const handoffCode = new URL(callbackResponse.headers.location).searchParams.get('handoffCode');
+
+    if (!handoffCode) {
+      throw new Error('handoffCode was not returned');
+    }
+
+    const exchangeResponse = await app.inject({
+      method: 'POST',
+      url: '/auth/client/exchange',
+      payload: {
+        handoffCode,
+        desktopTransactionId: 'desktop_transaction_compatibility',
+        desktopCodeVerifier: clientCodeVerifier
+      }
+    });
+
+    expect(exchangeResponse.statusCode).toBe(400);
+
+    await app.close();
+  });
+
+  it('removes the legacy desktop exchange route', async () => {
+    const app = await buildApp({
+      logger: false,
+      prismaClient: createPrismaClient(),
+      authConfig: desktopAuthConfig
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/auth/desktop/exchange',
+      payload: {
+        handoffCode: 'test',
+        desktopTransactionId: 'desktop_transaction_compatibility',
+        desktopCodeVerifier: 'desktop-code-verifier-compatibility-1234567890123456789'
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it('exchanges a pending handoff after API restart when Prisma storage is shared', async () => {
+    const sharedHandoffStore = new Map<string, StoredClientAuthHandoff>();
+
+    const firstApp = await buildApp({
+      logger: false,
+      prismaClient: createPrismaClient(sharedHandoffStore),
+      authConfig: desktopAuthConfig
+    });
+
+    setGoogleOAuthMock(firstApp);
+
+    const clientCodeVerifier = 'desktop-code-verifier-restart-12345678901234567890123456789012';
+    const clientCodeChallenge = createHash('sha256').update(clientCodeVerifier).digest('base64url');
+
+    const startResponse = await firstApp.inject({
+      method: 'GET',
+      url: `/auth/google?clientTransactionId=desktop_transaction_restart&clientCodeChallenge=${clientCodeChallenge}`
+    });
+
+    const desktopAuthRequestCookie = startResponse.cookies.find((cookie) => cookie.name === 'desktop_auth_request');
+
+    if (!desktopAuthRequestCookie) {
+      throw new Error('desktop_auth_request cookie was not set');
+    }
+
+    const callbackResponse = await firstApp.inject({
+      method: 'GET',
+      url: '/auth/google/callback?code=test-google-code&state=test-google-state',
+      cookies: {
+        desktop_auth_request: desktopAuthRequestCookie.value
+      }
+    });
+
+    const handoffCode = new URL(callbackResponse.headers.location).searchParams.get('handoffCode');
+
+    if (!handoffCode) {
+      throw new Error('handoffCode was not returned');
+    }
+
+    await firstApp.close();
+
+    const secondApp = await buildApp({
+      logger: false,
+      prismaClient: createPrismaClient(sharedHandoffStore),
+      authConfig: desktopAuthConfig
+    });
+
+    const exchangeResponse = await secondApp.inject({
+      method: 'POST',
+      url: '/auth/client/exchange',
+      payload: {
+        handoffCode,
+        clientTransactionId: 'desktop_transaction_restart',
+        clientCodeVerifier
+      }
+    });
+
+    expect(exchangeResponse.statusCode).toBe(200);
+    expect(exchangeResponse.json()).toEqual({
+      status: 'authenticated',
+      user: {
+        id: 'user_123',
+        email: 'maciej@example.com',
+        name: 'Maciej',
+        avatarUrl: 'https://example.com/avatar.png'
+      },
+      companies: [{ id: 'company_1', role: 'ADMIN' }],
+      redirectTo: null
+    });
+
+    await secondApp.close();
+  });
+
+  it('rejects an expired client handoff code', async () => {
+    const sharedHandoffStore = new Map<string, StoredClientAuthHandoff>();
+
+    const app = await buildApp({
+      logger: false,
+      prismaClient: createPrismaClient(sharedHandoffStore),
+      authConfig: desktopAuthConfig
+    });
+
+    setGoogleOAuthMock(app);
+
+    const clientCodeVerifier = 'desktop-code-verifier-expired-123456789012345678901234567890';
+    const clientCodeChallenge = createHash('sha256').update(clientCodeVerifier).digest('base64url');
+
+    const startResponse = await app.inject({
+      method: 'GET',
+      url: `/auth/google?clientTransactionId=desktop_transaction_expired&clientCodeChallenge=${clientCodeChallenge}`
+    });
+
+    const desktopAuthRequestCookie = startResponse.cookies.find((cookie) => cookie.name === 'desktop_auth_request');
+
+    if (!desktopAuthRequestCookie) {
+      throw new Error('desktop_auth_request cookie was not set');
+    }
+
+    const callbackResponse = await app.inject({
+      method: 'GET',
+      url: '/auth/google/callback?code=test-google-code&state=test-google-state',
+      cookies: {
+        desktop_auth_request: desktopAuthRequestCookie.value
+      }
+    });
+
+    const handoffCode = new URL(callbackResponse.headers.location).searchParams.get('handoffCode');
+
+    if (!handoffCode) {
+      throw new Error('handoffCode was not returned');
+    }
+
+    const handoffCodeHash = createHash('sha256').update(handoffCode).digest('hex');
+    const storedHandoff = sharedHandoffStore.get(handoffCodeHash);
+
+    if (!storedHandoff) {
+      throw new Error('Stored client auth handoff was not created');
+    }
+
+    sharedHandoffStore.set(handoffCodeHash, {
+      ...storedHandoff,
+      expiresAt: new Date(Date.now() - 1_000)
+    });
+
+    const exchangeResponse = await app.inject({
+      method: 'POST',
+      url: '/auth/client/exchange',
+      payload: {
+        handoffCode,
+        clientTransactionId: 'desktop_transaction_expired',
+        clientCodeVerifier
+      }
+    });
+
+    expect(exchangeResponse.statusCode).toBe(401);
+    expect(exchangeResponse.json()).toEqual({
+      error: 'Unauthorized',
+      message: 'Client handoff code is invalid or expired',
       statusCode: 401
     });
 
@@ -302,7 +674,7 @@ describe('auth routes', () => {
 
     const startResponse = await app.inject({
       method: 'GET',
-      url: '/auth/google?desktopTransactionId=desktop_transaction_123&desktopCodeChallenge=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOQRSTUVWX0123456789_-'
+      url: '/auth/google?clientTransactionId=desktop_transaction_123&clientCodeChallenge=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOQRSTUVWX0123456789_-'
     });
 
     const desktopAuthRequestCookie = startResponse.cookies.find((cookie) => cookie.name === 'desktop_auth_request');
