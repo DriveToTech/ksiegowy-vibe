@@ -40,6 +40,16 @@ export class ApiSidecar extends EventEmitter {
 
     this.emit('log', { level: 'info', message: `Starting API sidecar from ${apiEntry}` });
 
+    // Verify the API entry file exists
+    try {
+      accessSync(apiEntry);
+      this.emit('log', { level: 'info', message: `API entry file exists: ${apiEntry}` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.emit('log', { level: 'error', message: `API entry file not found: ${apiEntry}. Error: ${message}` });
+      throw new Error(`API entry file not found: ${apiEntry}. Did you build the API app?`);
+    }
+
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       DATABASE_URL: options.databaseUrl,

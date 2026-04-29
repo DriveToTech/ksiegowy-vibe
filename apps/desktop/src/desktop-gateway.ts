@@ -184,6 +184,14 @@ export async function startDesktopGateway(
   apiUrlOverride?: URL
 ): Promise<StartedDesktopGateway> {
   const config = getDesktopGatewayConfig(apiUrlOverride);
+  console.log(`[Desktop Gateway] Starting with config:`, {
+    host: config.host,
+    port: config.port,
+    apiUrl: config.apiUrl.origin,
+    webRuntimeUrl: config.webRuntimeUrl.origin,
+    useBundledApi: config.useBundledApi
+  });
+
   const server = createDesktopGatewayServer(config);
 
   // Consolidated auth routes proxy - handles all /auth/* routes

@@ -4,6 +4,22 @@ import { join, resolve } from 'node:path';
 import type { DesktopPendingAuthenticationCallback } from './desktop-api';
 import { getBundledApiUrl, startDesktopGateway } from './desktop-gateway';
 import { ApiSidecar } from './api-sidecar';
+import {
+  setSecret,
+  getSecret,
+  deleteSecret,
+  findCredentials
+} from './secret-store';
+import {
+  setCacheEntry,
+  getCacheEntry,
+  deleteCacheEntry,
+  hasCacheEntry,
+  listCacheKeys,
+  clearCache,
+  getCacheSize,
+  cleanupExpiredEntries
+} from './encrypted-cache';
 
 const defaultDesktopAuthCallbackUrl = 'ksiegowy-vibe://auth/desktop/callback';
 const desktopGoogleAuthStartPath = '/auth/google';
@@ -333,12 +349,101 @@ function registerDesktopHandlers(currentRendererUrl: URL): void {
 
     return callback;
   });
+
+  // Secret store handlers
+  ipcMain.handle('desktop:set-secret', (event, service: string, account: string, secret: string) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return setSecret(service, account, secret);
+  });
+
+  ipcMain.handle('desktop:get-secret', (event, service: string, account: string) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return getSecret(service, account);
+  });
+
+  ipcMain.handle('desktop:delete-secret', (event, service: string, account: string) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return deleteSecret(service, account);
+  });
+
+  ipcMain.handle('desktop:find-credentials', (event, service: string) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return findCredentials(service);
+  });
+
+  // Encrypted cache handlers
+  ipcMain.handle('desktop:set-cache-entry', (event, key: string, data: unknown, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return setCacheEntry(key, data, options);
+  });
+
+  ipcMain.handle('desktop:get-cache-entry', (event, key: string, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return getCacheEntry(key, options);
+  });
+
+  ipcMain.handle('desktop:delete-cache-entry', (event, key: string, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return deleteCacheEntry(key, options);
+  });
+
+  ipcMain.handle('desktop:has-cache-entry', (event, key: string, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return hasCacheEntry(key, options);
+  });
+
+  ipcMain.handle('desktop:list-cache-keys', (event, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return listCacheKeys(options);
+  });
+
+  ipcMain.handle('desktop:clear-cache', (event, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return clearCache(options);
+  });
+
+  ipcMain.handle('desktop:get-cache-size', (event, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return getCacheSize(options);
+  });
+
+  ipcMain.handle('desktop:cleanup-expired-entries', (event, maxAgeMs: number, options?: { subdirectory?: string }) => {
+    assertAllowedRendererSender(event.senderFrame?.url ?? '', currentRendererUrl.origin);
+
+    return cleanupExpiredEntries(maxAgeMs, options);
+  });
+
+  // Auto-updater handlers
+  ipcMain.handle('desktop:check-for-updates', () => {
+    // Auto-updater not yet implemented
+    return { available: false, message: 'Auto-updater not implemented' };
+  });
+
+  ipcMain.handle('desktop:install-update', () => {
+    // Auto-updater not yet implemented
+    throw new Error('Auto-updater not implemented');
+  });
 }
 
 async function startDesktopApplication(): Promise<void> {
+  console.log('[Desktop] Starting desktop application...');
+
   await app.whenReady();
+  console.log('[Desktop] App is ready');
 
   registerDesktopProtocolClient();
+  console.log('[Desktop] Desktop protocol registered');
 
   // Start API sidecar before gateway to avoid infinite proxy loop
   apiSidecar = new ApiSidecar();
@@ -370,6 +475,8 @@ async function startDesktopApplication(): Promise<void> {
     throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
   }
 
+  console.log('[Desktop] All required environment variables present');
+
   const sidecarOptions: {
     databaseUrl: string;
     jwtSecret: string;
@@ -398,12 +505,15 @@ async function startDesktopApplication(): Promise<void> {
 
   sidecarOptions.desktopAuthCallbackUrl = process.env.DESKTOP_AUTH_CALLBACK_URL ?? defaultDesktopAuthCallbackUrl;
 
+  console.log('[Desktop] Starting API sidecar...');
   const sidecarResult = await apiSidecar.start(sidecarOptions);
   const apiUrl = getBundledApiUrl(sidecarResult.port);
   console.log(`[Desktop] API sidecar started on port ${sidecarResult.port}, using URL: ${apiUrl.origin}`);
 
+  console.log('[Desktop] Starting desktop gateway...');
   const desktopGateway = await startDesktopGateway(apiUrl);
   rendererUrl = new URL(desktopGateway.origin);
+  console.log(`[Desktop] Desktop gateway started at ${rendererUrl.origin}`);
 
   app.on('before-quit', async () => {
     await desktopGateway.close().catch((error: unknown) => {
@@ -466,14 +576,29 @@ if (!hasSingleInstanceLock) {
     handleDesktopAuthenticationDeepLink(initialDesktopAuthenticationUrl);
   }
 
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
-
-  startDesktopApplication().catch((error: unknown) => {
-    console.error('Failed to start desktop application.', error);
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
     app.quit();
-  });
+  }
+});
+
+// Handle uncaught errors to prevent silent crashes
+process.on('uncaughtException', (error: Error) => {
+  console.error('[Desktop] Uncaught Exception:', error);
+  console.error('[Desktop] Stack trace:', error.stack);
+  app.quit();
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  console.error('[Desktop] Unhandled Rejection:', reason);
+  app.quit();
+});
+
+startDesktopApplication().catch((error: unknown) => {
+  console.error('[Desktop] Failed to start desktop application:', error);
+  if (error instanceof Error && error.stack) {
+    console.error('[Desktop] Stack trace:', error.stack);
+  }
+  app.quit();
+});
 }

@@ -11,5 +11,5 @@ test('login page loads', async ({ page }) => {
   await page.goto('/login');
 
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  await expect(page.getByRole('link', { name: /google/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /google/i })).toBeVisible();
 });
