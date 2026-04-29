@@ -1,9 +1,29 @@
 import { z } from 'zod';
-import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import type { AccessTokenPayload, AuthCompanyClaim, RefreshTokenPayload } from '../../lib/auth-config.js';
-
-type AppPrisma = FastifyInstance['prisma'];
-type MembershipRole = AuthCompanyClaim['role'];
+import type { FastifyPluginAsync, FastifyReply } from 'fastify';
+import type { AccessTokenPayload } from '../../lib/auth-config.js';
+import {
+  buildAuthenticatedResponse,
+  googleProfileSchema,
+  loadUserSession,
+  setAuthenticatedSessionCookies,
+  upsertUserFromGoogleProfile
+} from '../../services/auth/google-auth-session.service.js';
+import {
+  buildClientAuthErrorCallbackUrl,
+  buildClientAuthSuccessCallbackUrl,
+  buildClientAuthUnavailablePayload,
+  clearClientAuthRequestCookie,
+  clientAuthExchangeBodySchema,
+  createClientAuthHandoff,
+  exchangeClientAuthHandoff,
+  getClientAuthRequestState,
+  googleAuthStartQuerySchema,
+  parseClientAuthExchangeBody,
+  parseGoogleAuthStartQuery,
+  setClientAuthRequestCookie,
+  type ClientAuthExchangeBody,
+  type GoogleAuthStartQuery
+} from '../../services/auth/google-client-handoff.service.js';
 
 const googleOAuthUnavailableSchema = {
   type: 'object',
@@ -111,14 +131,6 @@ const authCallbackSuccessResponseSchema = {
   required: ['status', 'user', 'companies', 'redirectTo']
 } as const;
 
-const googleProfileSchema = z.object({
-  sub: z.string().trim().min(1),
-  email: z.string().email(),
-  email_verified: z.boolean().optional(),
-  name: z.string().trim().min(1).optional(),
-  picture: z.string().trim().min(1).optional()
-});
-
 interface GoogleCallbackQuery {
   code?: string;
   state?: string;
@@ -132,303 +144,330 @@ const buildGoogleUnavailablePayload = (missingEnv: readonly string[]) => ({
   missingEnv: [...missingEnv]
 });
 
-const toAuthCompanyClaims = (
-  memberships: Array<{ companyId: string; role: MembershipRole }>
-): AuthCompanyClaim[] => {
-  return memberships.map((membership) => ({
-    id: membership.companyId,
-    role: membership.role
-  }));
-};
-
-const toAccessTokenPayload = (session: {
-  user: { id: string; email: string; name: string | null; avatarUrl: string | null };
-  companies: AuthCompanyClaim[];
-}): AccessTokenPayload => {
-  return {
-    sub: session.user.id,
-    email: session.user.email,
-    ...(session.user.name ? { name: session.user.name } : {}),
-    companies: session.companies
-  };
-};
-
-const toRefreshTokenPayload = (payload: AccessTokenPayload): RefreshTokenPayload => {
-  return {
-    ...payload,
-    tokenType: 'refresh'
-  };
-};
-
 const buildPostLoginRedirectUrl = (appUrl: string): string => {
   return new URL('/dashboard', appUrl).toString();
 };
 
-const loadUserSession = async (
-  prisma: AppPrisma,
-  userId: string
-): Promise<{
-  user: { id: string; email: string; name: string | null; avatarUrl: string | null };
-  companies: AuthCompanyClaim[];
-}> => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      memberships: {
-        select: {
-          companyId: true,
-          role: true
-        }
-      }
-    }
-  });
-
-  if (!user) {
-    throw new Error(`User ${userId} not found`);
+const hasLegacyClientAuthStartQueryParameters = (rawUrl: string | undefined): boolean => {
+  if (!rawUrl) {
+    return false;
   }
 
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatarUrl: user.avatarUrl
-    },
-    companies: toAuthCompanyClaims(user.memberships)
-  };
-};
+  const searchParams = new URL(rawUrl, 'http://localhost').searchParams;
 
-const upsertUserFromGoogleProfile = async (
-  prisma: AppPrisma,
-  profile: z.infer<typeof googleProfileSchema>
-): Promise<{
-  user: { id: string; email: string; name: string | null; avatarUrl: string | null };
-  companies: AuthCompanyClaim[];
-}> => {
-  const userData = {
-    email: profile.email,
-    googleId: profile.sub,
-    ...(profile.name !== undefined ? { name: profile.name } : {}),
-    ...(profile.picture !== undefined ? { avatarUrl: profile.picture } : {}),
-    lastLoginAt: new Date()
-  };
-
-  const existingByGoogleId = await prisma.user.findUnique({
-    where: { googleId: profile.sub },
-    include: {
-      memberships: {
-        select: {
-          companyId: true,
-          role: true
-        }
-      }
-    }
-  });
-
-  const existingByEmail = await prisma.user.findUnique({
-    where: { email: profile.email },
-    include: {
-      memberships: {
-        select: {
-          companyId: true,
-          role: true
-        }
-      }
-    }
-  });
-
-  if (
-    existingByGoogleId !== null &&
-    existingByEmail !== null &&
-    existingByGoogleId.id !== existingByEmail.id
-  ) {
-    throw new Error('Google account conflicts with an existing user record');
-  }
-
-  const targetUserId = existingByGoogleId?.id ?? existingByEmail?.id;
-
-  const user = targetUserId
-    ? await prisma.user.update({
-        where: { id: targetUserId },
-        data: userData
-      })
-    : await prisma.user.create({
-        data: userData
-      });
-
-  const memberships = await prisma.companyMembership.findMany({
-    where: { userId: user.id },
-    select: {
-      companyId: true,
-      role: true
-    }
-  });
-
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatarUrl: user.avatarUrl
-    },
-    companies: toAuthCompanyClaims(memberships)
-  };
+  return searchParams.has('desktopTransactionId') || searchParams.has('desktopCodeChallenge');
 };
 
 export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
-  fastify.get('/auth/google', {
-    schema: {
-      response: {
-        302: redirectResponseSchema,
-        503: googleOAuthUnavailableSchema
+  fastify.get<{ Querystring: GoogleAuthStartQuery }>(
+    '/auth/google',
+    {
+      schema: {
+        querystring: googleAuthStartQuerySchema,
+        response: {
+          302: redirectResponseSchema,
+          503: googleOAuthUnavailableSchema
+        }
       }
-    }
-  }, async (request, reply) => {
-    if (!fastify.authConfig.google.enabled) {
+    },
+    async (request, reply) => {
+      if (!fastify.authConfig.google.enabled) {
+        return reply.code(503).send(buildGoogleUnavailablePayload(fastify.authConfig.google.missingEnv));
+      }
+
+      if (hasLegacyClientAuthStartQueryParameters(request.raw.url)) {
+        throw fastify.httpErrors.badRequest('Client auth start query is invalid');
+      }
+
+      const googleAuthStartQuery = parseGoogleAuthStartQuery(request.query);
+
+      if (!googleAuthStartQuery.success) {
+        throw fastify.httpErrors.badRequest('Client auth start query is invalid');
+      }
+
+      if (googleAuthStartQuery.data) {
+        if (!fastify.authConfig.desktop.authCallbackUrl) {
+          return reply.code(503).send(buildClientAuthUnavailablePayload());
+        }
+
+        setClientAuthRequestCookie(fastify, reply, googleAuthStartQuery.data);
+      } else {
+        clearClientAuthRequestCookie(fastify, reply);
+      }
+
+    fastify.log.info({
+      cookiesToBeSet: reply.getHeader('set-cookie'),
+      host: request.headers.host,
+      url: request.url
+    }, '[OAuth Start] About to generate authorization URI');
+
+    if (!fastify.oauth2GoogleOAuth2) {
       return reply.code(503).send(buildGoogleUnavailablePayload(fastify.authConfig.google.missingEnv));
     }
 
-    const authorizationUri = await fastify.oauth2GoogleOAuth2!.generateAuthorizationUri(request, reply);
-    reply.code(302);
-    return reply.redirect(authorizationUri);
-  });
+    const authorizationUri = await fastify.oauth2GoogleOAuth2.generateAuthorizationUri(request, reply);
 
-  fastify.get<{ Querystring: GoogleCallbackQuery }>('/auth/google/callback', {
-    schema: {
-      querystring: googleCallbackQuerySchema,
-      response: {
-        302: redirectResponseSchema,
-        200: authCallbackSuccessResponseSchema,
-        503: googleOAuthUnavailableSchema
-      }
-    }
-  }, async (request, reply) => {
-    if (!fastify.authConfig.google.enabled) {
-      return reply.code(503).send(buildGoogleUnavailablePayload(fastify.authConfig.google.missingEnv));
-    }
+      fastify.log.info({
+        authorizationUri,
+        cookiesAfterGeneration: reply.getHeader('set-cookie'),
+        host: request.headers.host
+      }, '[OAuth Start] Generated authorization URI with PKCE');
 
-    if (request.query.error) {
-      throw fastify.httpErrors.badRequest(request.query.error_description ?? request.query.error);
-    }
-
-    const googleOAuth = fastify.oauth2GoogleOAuth2;
-
-    if (!googleOAuth) {
-      throw fastify.httpErrors.serviceUnavailable('Google OAuth is unavailable');
-    }
-
-    let session;
-
-    try {
-      const { token } = await googleOAuth.getAccessTokenFromAuthorizationCodeFlow(request, reply);
-      const profile = googleProfileSchema.parse(await googleOAuth.userinfo(token));
-
-      if (profile.email_verified === false) {
-        throw fastify.httpErrors.forbidden('Google account email is not verified');
-      }
-
-      session = await upsertUserFromGoogleProfile(fastify.prisma, profile);
-    } catch (error: unknown) {
-      if (error instanceof z.ZodError) {
-        throw fastify.httpErrors.badGateway('Google OAuth returned an invalid profile payload');
-      }
-
-      if (error instanceof Error && error.message === 'Google account conflicts with an existing user record') {
-        throw fastify.httpErrors.conflict(error.message);
-      }
-
-      throw error;
-    }
-
-    const accessPayload = toAccessTokenPayload(session);
-    const refreshPayload = toRefreshTokenPayload(accessPayload);
-    const accessToken = await reply.accessJwtSign(accessPayload);
-    const refreshToken = await reply.refreshJwtSign(refreshPayload);
-
-    fastify.setAuthCookies(reply, { accessToken, refreshToken });
-
-    if (fastify.authConfig.appUrl) {
       reply.code(302);
-      return reply.redirect(buildPostLoginRedirectUrl(fastify.authConfig.appUrl));
+      return reply.redirect(authorizationUri);
     }
+  );
 
-    return reply.code(200).send({
-      status: 'authenticated',
-      user: session.user,
-      companies: session.companies,
-      redirectTo: null
-    });
-  });
-
-  fastify.post('/auth/refresh', {
-    schema: {
-      response: {
-        200: authRefreshResponseSchema
+  fastify.get<{ Querystring: GoogleCallbackQuery }>(
+    '/auth/google/callback',
+    {
+      schema: {
+        querystring: googleCallbackQuerySchema,
+        response: {
+          302: redirectResponseSchema,
+          200: authCallbackSuccessResponseSchema,
+          503: googleOAuthUnavailableSchema
+        }
       }
-    }
-  }, async (request, reply) => {
-    try {
-      await request.refreshJwtVerify();
-    } catch {
-      throw fastify.httpErrors.unauthorized('Refresh token required');
+    },
+    async (request, reply) => {
+      // Enhanced debug logging to trace cookie issues
+      fastify.log.info({
+        cookies: Object.keys(request.cookies || {}),
+        rawCookieHeader: request.headers.cookie,
+        host: request.headers.host,
+        forwardedHost: request.headers['x-forwarded-host'],
+        url: request.url,
+        query: request.query
+      }, '[OAuth Callback] Incoming request');
+
+      // Check for OAuth2 PKCE code_verifier cookie (named based on plugin name: googleOAuth2)
+      const oauth2CookieNames = Object.keys(request.cookies || {}).filter(name => 
+        name.includes('oauth') || name.includes('OAuth') || name.includes('verifier') || name.includes('state')
+      );
+      fastify.log.info({
+        oauth2RelatedCookies: oauth2CookieNames,
+        allCookies: request.cookies,
+        codeVerifierCookie: request.cookies?.googleOAuth2CodeVerifier || request.cookies?.['googleOAuth2-code-verifier']
+      }, '[OAuth Callback] OAuth2 related cookies');
+
+      if (!fastify.authConfig.google.enabled) {
+      return reply.code(503).send(buildGoogleUnavailablePayload(fastify.authConfig.google.missingEnv));
     }
 
-    const refreshPayload = request.user;
+    const clientAuthRequest = getClientAuthRequestState(request);
+    const clientAuthRequestState = clientAuthRequest.clientAuthRequestState;
 
-    if (!('tokenType' in refreshPayload) || refreshPayload.tokenType !== 'refresh') {
-      throw fastify.httpErrors.unauthorized('Invalid refresh token');
+      if (clientAuthRequest.hasClientAuthRequestCookie && !clientAuthRequestState) {
+        clearClientAuthRequestCookie(fastify, reply);
+        throw fastify.httpErrors.unauthorized('Client auth request is invalid or expired');
+      }
+
+      if (request.query.error) {
+        if (clientAuthRequestState && fastify.authConfig.desktop.authCallbackUrl) {
+          clearClientAuthRequestCookie(fastify, reply);
+          reply.code(302);
+
+          return reply.redirect(
+            buildClientAuthErrorCallbackUrl(
+              fastify.authConfig.desktop.authCallbackUrl,
+              clientAuthRequestState.transactionId,
+              request.query.error,
+              request.query.error_description ?? null
+            )
+          );
+        }
+
+        throw fastify.httpErrors.badRequest(request.query.error_description ?? request.query.error);
+      }
+
+      const googleOAuth = fastify.oauth2GoogleOAuth2;
+
+      if (!googleOAuth) {
+        throw fastify.httpErrors.serviceUnavailable('Google OAuth is unavailable');
+      }
+
+      let session;
+
+      try {
+        const { token } = await googleOAuth.getAccessTokenFromAuthorizationCodeFlow(request, reply);
+        const profile = googleProfileSchema.parse(await googleOAuth.userinfo(token));
+
+        if (profile.email_verified === false) {
+          throw fastify.httpErrors.forbidden('Google account email is not verified');
+        }
+
+        session = await upsertUserFromGoogleProfile(fastify.prisma, profile);
+      } catch (error: unknown) {
+        if (clientAuthRequestState && fastify.authConfig.desktop.authCallbackUrl) {
+          clearClientAuthRequestCookie(fastify, reply);
+          reply.code(302);
+
+          return reply.redirect(
+            buildClientAuthErrorCallbackUrl(
+              fastify.authConfig.desktop.authCallbackUrl,
+              clientAuthRequestState.transactionId,
+              'desktop_auth_callback_failed',
+              error instanceof Error ? error.message : 'Desktop Google authentication failed'
+            )
+          );
+        }
+
+        if (error instanceof z.ZodError) {
+          throw fastify.httpErrors.badGateway('Google OAuth returned an invalid profile payload');
+        }
+
+        if (error instanceof Error && error.message === 'Google account conflicts with an existing user record') {
+          throw fastify.httpErrors.conflict(error.message);
+        }
+
+        throw error;
+      }
+
+      if (clientAuthRequestState) {
+        clearClientAuthRequestCookie(fastify, reply);
+
+        if (!fastify.authConfig.desktop.authCallbackUrl) {
+          return reply.code(503).send(buildClientAuthUnavailablePayload());
+        }
+
+        const handoffCode = await createClientAuthHandoff(fastify.prisma, session.user.id, clientAuthRequestState);
+
+        reply.code(302);
+        return reply.redirect(
+          buildClientAuthSuccessCallbackUrl(
+            fastify.authConfig.desktop.authCallbackUrl,
+            handoffCode,
+            clientAuthRequestState.transactionId
+          )
+        );
+      }
+
+      await setAuthenticatedSessionCookies(fastify, reply, session);
+
+      if (fastify.authConfig.appUrl) {
+        reply.code(302);
+        return reply.redirect(buildPostLoginRedirectUrl(fastify.authConfig.appUrl));
+      }
+
+      return reply.code(200).send(buildAuthenticatedResponse(session));
+    }
+  );
+
+  const exchangeClientAuthSession = async (
+    request: { body: ClientAuthExchangeBody },
+    reply: FastifyReply
+  ) => {
+    const clientAuthExchangeBody = parseClientAuthExchangeBody(request.body);
+
+    if (!clientAuthExchangeBody.success) {
+      throw fastify.httpErrors.badRequest('Client auth exchange payload is invalid');
     }
 
-    const session = await loadUserSession(fastify.prisma, refreshPayload.sub).catch((error: unknown) => {
+    const userId = await exchangeClientAuthHandoff(fastify.prisma, clientAuthExchangeBody.data);
+
+    if (!userId) {
+      throw fastify.httpErrors.unauthorized('Client handoff code is invalid or expired');
+    }
+
+    const session = await loadUserSession(fastify.prisma, userId).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'User session could not be loaded';
       throw fastify.httpErrors.unauthorized(message);
     });
 
-    const accessPayload = toAccessTokenPayload(session);
+    await setAuthenticatedSessionCookies(fastify, reply, session);
 
-    const nextRefreshPayload = toRefreshTokenPayload(accessPayload);
-    const accessToken = await reply.accessJwtSign(accessPayload);
-    const refreshToken = await reply.refreshJwtSign(nextRefreshPayload);
+    return buildAuthenticatedResponse(session);
+  };
 
-    fastify.setAuthCookies(reply, { accessToken, refreshToken });
-
-    return {
-      status: 'refreshed'
-    };
-  });
-
-  fastify.post('/auth/logout', {
-    schema: {
-      response: {
-        200: authRefreshResponseSchema
+  fastify.post<{ Body: ClientAuthExchangeBody }>(
+    '/auth/client/exchange',
+    {
+      schema: {
+        body: clientAuthExchangeBodySchema,
+        response: {
+          200: authCallbackSuccessResponseSchema
+        }
       }
-    }
-  }, async (_request, reply) => {
-    fastify.clearAuthCookies(reply);
+    },
+    exchangeClientAuthSession
+  );
 
-    return {
-      status: 'logged_out'
-    };
-  });
-
-  fastify.get('/auth/me', {
-    onRequest: [fastify.authenticate],
-    schema: {
-      response: {
-        200: authMeResponseSchema
+  fastify.post(
+    '/auth/refresh',
+    {
+      schema: {
+        response: {
+          200: authRefreshResponseSchema
+        }
       }
-    }
-  }, async (request) => {
-    const user = request.user as AccessTokenPayload;
-    const session = await loadUserSession(fastify.prisma, user.sub).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : 'User session could not be loaded';
-      throw fastify.httpErrors.unauthorized(message);
-    });
+    },
+    async (request, reply) => {
+      try {
+        await request.refreshJwtVerify();
+      } catch {
+        throw fastify.httpErrors.unauthorized('Refresh token required');
+      }
 
-    return {
-      authenticated: true,
-      user: session.user,
-      companies: session.companies
-    };
-  });
+      const refreshPayload = request.user;
+
+      if (!('tokenType' in refreshPayload) || refreshPayload.tokenType !== 'refresh') {
+        throw fastify.httpErrors.unauthorized('Invalid refresh token');
+      }
+
+      const session = await loadUserSession(fastify.prisma, refreshPayload.sub).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'User session could not be loaded';
+        throw fastify.httpErrors.unauthorized(message);
+      });
+
+      await setAuthenticatedSessionCookies(fastify, reply, session);
+
+      return {
+        status: 'refreshed'
+      };
+    }
+  );
+
+  fastify.post(
+    '/auth/logout',
+    {
+      schema: {
+        response: {
+          200: authRefreshResponseSchema
+        }
+      }
+    },
+    async (_request, reply) => {
+      fastify.clearAuthCookies(reply);
+
+      return {
+        status: 'logged_out'
+      };
+    }
+  );
+
+  fastify.get(
+    '/auth/me',
+    {
+      onRequest: [fastify.authenticate],
+      schema: {
+        response: {
+          200: authMeResponseSchema
+        }
+      }
+    },
+    async (request) => {
+      const user = request.user as AccessTokenPayload;
+      const session = await loadUserSession(fastify.prisma, user.sub).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'User session could not be loaded';
+        throw fastify.httpErrors.unauthorized(message);
+      });
+
+      return {
+        authenticated: true,
+        user: session.user,
+        companies: session.companies
+      };
+    }
+  );
 };

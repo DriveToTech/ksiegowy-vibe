@@ -22,6 +22,17 @@ erDiagram
         datetime updatedAt
     }
 
+    ClientAuthHandoff {
+        string id PK
+        string handoffCodeHash UK
+        string transactionId
+        string codeChallenge
+        string userId FK
+        datetime expiresAt
+        datetime consumedAt
+        datetime createdAt
+    }
+
     Company {
         string id PK
         string nip UK
@@ -280,6 +291,7 @@ erDiagram
     }
 
     User ||--o{ CompanyMembership : "has"
+    User ||--o{ ClientAuthHandoff : "issues"
     Company ||--o{ CompanyMembership : "has"
     Company ||--o{ Contractor : "owns"
     Company ||--o{ Invoice : "issues"
@@ -321,6 +333,24 @@ Represents an authenticated user. Authentication is via Google OAuth2 — `googl
 | `lastLoginAt` | `datetime?` | Updated on every successful login |
 
 A user gains access to companies via `CompanyMembership` records — they have no direct relationship to company data.
+
+---
+
+### ClientAuthHandoff
+
+Short-lived persisted auth handoff used by the desktop-compatible client exchange flow. The database stores only a SHA-256 hash of the one-time handoff code.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `handoffCodeHash` | `string` | Unique SHA-256 hash of the raw handoff code |
+| `transactionId` | `string` | Client-provided transaction binding |
+| `codeChallenge` | `string` | PKCE-style challenge matched against the exchange verifier |
+| `userId` | `string` | Authenticated user that completed Google login |
+| `expiresAt` | `datetime` | Hard TTL for exchange |
+| `consumedAt` | `datetime?` | Set once when the handoff is exchanged |
+| `createdAt` | `datetime` | Persistence timestamp |
+
+This model makes the auth handoff safe across API restarts and multi-instance deployments while preserving one-time semantics.
 
 ---
 

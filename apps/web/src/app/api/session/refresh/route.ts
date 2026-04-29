@@ -1,8 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { API_BASE } from '../../../../lib/api-base';
+import { getServerAuthBase } from '../../../../lib/server-api-base';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const authBase = await getServerAuthBase();
   const authToken = request.cookies.get('auth_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
   const next = request.nextUrl.searchParams.get('next') ?? '/dashboard';
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     refreshToken ? `refresh_token=${refreshToken}` : null,
   ].filter((value): value is string => value !== null).join('; ');
 
-  const response = await fetch(`${API_BASE}/auth/refresh`, {
+  const response = await fetch(`${authBase}/auth/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

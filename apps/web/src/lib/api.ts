@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { API_BASE } from './api-base';
+import { getServerApiBase } from './server-api-base';
 import type {
   AuthUser,
   BackupRunStatus,
@@ -51,6 +51,7 @@ export type {
 // ─── Core fetch helper ───────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const apiBase = await getServerApiBase();
   const cookieStore = await cookies();
   const authToken = cookieStore.get('auth_token')?.value;
   const refreshToken = cookieStore.get('refresh_token')?.value;
@@ -69,7 +70,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers['Cookie'] = cookieHeader;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${apiBase}${path}`, {
     ...options,
     headers,
     cache: 'no-store',

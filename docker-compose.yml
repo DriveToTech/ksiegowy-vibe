@@ -43,6 +43,7 @@ services:
       STORAGE_BASE_PATH: /app/storage
       POSTGRESQL_BACKUP_ARTIFACTS_PATH: /app/backups/postgresql
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      DESKTOP_AUTH_CALLBACK_URL: ksiegowy-vibe://auth/desktop/callback
     volumes:
       - ./storage:/app/storage
       - ./backups/postgresql:/app/backups/postgresql:ro

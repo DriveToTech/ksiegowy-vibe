@@ -17,5 +17,69 @@ describe('loadAuthConfig', () => {
     expect(config.google.enabled).toBe(false);
     expect(config.google.providedEnv).toEqual(['GOOGLE_CLIENT_ID']);
     expect(config.google.missingEnv).toEqual(['GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI']);
+    expect(config.desktop).toEqual({});
+  });
+
+  it('accepts ksiegowy-vibe desktop auth callback url', () => {
+    const config = loadAuthConfig({
+      NODE_ENV: 'test',
+      JWT_SECRET: 'test-access-secret',
+      JWT_REFRESH_SECRET: 'test-refresh-secret',
+      DESKTOP_AUTH_CALLBACK_URL: 'ksiegowy-vibe://auth/desktop/callback'
+    });
+
+    expect(config.desktop).toEqual({
+      authCallbackUrl: 'ksiegowy-vibe://auth/desktop/callback'
+    });
+  });
+
+  it('accepts localhost desktop auth callback url', () => {
+    const config = loadAuthConfig({
+      NODE_ENV: 'test',
+      JWT_SECRET: 'test-access-secret',
+      JWT_REFRESH_SECRET: 'test-refresh-secret',
+      DESKTOP_AUTH_CALLBACK_URL: 'https://localhost:42813/auth/desktop/callback'
+    });
+
+    expect(config.desktop).toEqual({
+      authCallbackUrl: 'https://localhost:42813/auth/desktop/callback'
+    });
+  });
+
+  it('rejects remote https origin for desktop auth callback url', () => {
+    expect(() =>
+      loadAuthConfig({
+        NODE_ENV: 'test',
+        JWT_SECRET: 'test-access-secret',
+        JWT_REFRESH_SECRET: 'test-refresh-secret',
+        DESKTOP_AUTH_CALLBACK_URL: 'https://example.com/auth/desktop/callback'
+      })
+    ).toThrow(
+      'Environment variable DESKTOP_AUTH_CALLBACK_URL must use ksiegowy-vibe:// or localhost http/https callback URL'
+    );
+  });
+
+  it('rejects credentials in desktop auth callback url', () => {
+    expect(() =>
+      loadAuthConfig({
+        NODE_ENV: 'test',
+        JWT_SECRET: 'test-access-secret',
+        JWT_REFRESH_SECRET: 'test-refresh-secret',
+        DESKTOP_AUTH_CALLBACK_URL: 'https://user:pass@localhost:3000/auth/desktop/callback'
+      })
+    ).toThrow('Environment variable DESKTOP_AUTH_CALLBACK_URL must not include credentials');
+  });
+
+  it('rejects unexpected protocol for desktop auth callback url', () => {
+    expect(() =>
+      loadAuthConfig({
+        NODE_ENV: 'test',
+        JWT_SECRET: 'test-access-secret',
+        JWT_REFRESH_SECRET: 'test-refresh-secret',
+        DESKTOP_AUTH_CALLBACK_URL: 'file:///tmp/callback'
+      })
+    ).toThrow(
+      'Environment variable DESKTOP_AUTH_CALLBACK_URL must use ksiegowy-vibe:// or localhost http/https callback URL'
+    );
   });
 });

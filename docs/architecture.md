@@ -1,6 +1,10 @@
 # Architecture
 
-This document describes the architecture of `ksiegowy-vibe` using C4 model diagrams and key flow diagrams.
+This document describes the architecture of `ksiegowy-vibe` across the self-hosted web platform and the planned desktop runtime using C4 model diagrams and key flow diagrams.
+
+## Desktop Support
+
+The accepted target direction for desktop support is documented in [Desktop Architecture](./desktop-architecture.md). This document keeps the shared system view concise, while the dedicated desktop document covers the Electron shell, local desktop gateway, local security boundaries, and desktop release model.
 
 ---
 
@@ -12,17 +16,21 @@ Shows how the system fits into the world and who/what interacts with it.
 C4Context
   title System Context — ksiegowy-vibe
 
-  Person(user, "Accountant / Admin", "Manages invoices, contractors and company settings via browser")
+  Person(user, "Accountant / Admin", "Manages invoices, contractors and company settings via browser or desktop app")
 
-  System(ksiegowy, "ksiegowy-vibe", "Self-hosted Polish VAT accounting platform with KSeF integration")
+  System(ksiegowy, "ksiegowy-vibe", "Self-hosted Polish VAT accounting platform with web and desktop access")
 
+  System_Ext(secret_store, "OS Secret Store", "Secure local storage for refresh tokens and encryption key material")
+  System_Ext(update_provider, "Desktop Update Provider", "Hosts signed staged desktop releases")
   System_Ext(google_oauth, "Google OAuth2", "User authentication via Google accounts")
   System_Ext(ksef, "KSeF (MF)", "Poland's National e-Invoice System — FA(3) XML submission and incoming invoice sync")
   System_Ext(gus, "GUS API", "Polish business registry — NIP/company lookup")
   System_Ext(openrouter, "OpenRouter API", "Vision LLM fallback for OCR of uploaded invoices")
   System_Ext(gdrive, "Google Drive", "Cloud backup for uploaded files and generated PDFs/XMLs")
 
-  Rel(user, ksiegowy, "Uses", "HTTPS")
+  Rel(user, ksiegowy, "Uses", "HTTPS / Desktop app")
+  Rel(ksiegowy, secret_store, "Stores desktop secrets", "OS secure storage API")
+  Rel(ksiegowy, update_provider, "Downloads signed staged updates", "HTTPS")
   Rel(ksiegowy, google_oauth, "Authenticates via", "HTTPS / OAuth2")
   Rel(ksiegowy, ksef, "Submits outgoing invoices, syncs incoming invoices", "HTTPS / REST")
   Rel(ksiegowy, gus, "Looks up company data by NIP", "HTTPS / REST")
@@ -40,22 +48,34 @@ Shows the deployable units inside the system and how they communicate.
 C4Container
   title Container Diagram — ksiegowy-vibe
 
-  Person(user, "User", "Browser")
+  Person(user, "User", "Uses browser or desktop app")
 
   System_Boundary(ksiegowy, "ksiegowy-vibe") {
-    Container(web, "Web", "Next.js 15 / React 19", "Server-side rendered frontend. App Router with React Server Components. Port 3000.")
-    Container(api, "API", "Fastify 5 / TypeScript / Node.js 22", "REST API. Handles business logic, auth, KSeF integration, OCR, PDF/XML generation. Port 3001.")
+    Container(web, "Web", "Next.js 15 / React 19", "Shared frontend. Browser-served in web deployment and packaged for desktop via standalone output. App Router with React Server Components. Port 3000.")
+    Container(api, "API", "Fastify 5 / TypeScript / Node.js 22", "REST API and current system of record. Handles business logic, auth, KSeF integration, OCR, PDF/XML generation. Port 3001.")
+    Container(desktop, "Desktop Shell", "Electron / TypeScript", "Thin desktop shell. Owns BrowserWindow, typed preload bridge, desktop lifecycle, OS integrations and signed staged updates.")
+    Container(desktop_gateway, "Desktop Gateway", "Fastify 5 / TypeScript / Node.js 22", "Local localhost gateway. Serves or proxies the packaged Next.js standalone UI, proxies auth and API traffic to the self-hosted API, and manages encrypted desktop cache.")
     ContainerDb(db, "Database", "PostgreSQL 17", "Stores all application data: companies, invoices, contractors, KSeF audit trails, backup records.")
     ContainerDb(storage, "File Storage", "Local filesystem (./storage)", "Stores uploaded PDFs/images, generated FA(3) XML files, and invoice PDFs.")
+    ContainerDb(desktop_cache, "Desktop Cache", "Encrypted local app data", "Stores encrypted desktop cache and staged local desktop files.")
   }
 
+  System_Ext(secret_store, "OS Secret Store", "Stores refresh tokens and encryption key material")
+  System_Ext(update_provider, "Desktop Update Provider", "Hosts signed staged desktop updates")
   System_Ext(google_oauth, "Google OAuth2")
   System_Ext(ksef, "KSeF API")
   System_Ext(gus, "GUS API")
   System_Ext(openrouter, "OpenRouter API")
   System_Ext(gdrive, "Google Drive")
 
-  Rel(user, web, "Navigates", "HTTPS :3000")
+  Rel(user, web, "Navigates in browser", "HTTPS :3000")
+  Rel(user, desktop, "Uses desktop app", "Native window")
+  Rel(desktop, desktop_gateway, "Loads a single localhost origin", "HTTP")
+  Rel(desktop, secret_store, "Stores and reads secrets", "OS secure storage API")
+  Rel(desktop, update_provider, "Downloads signed staged updates", "HTTPS")
+  Rel(desktop_gateway, web, "Serves packaged UI or proxies dev UI", "HTTP")
+  Rel(desktop_gateway, api, "Proxies auth and business API traffic", "HTTPS / REST")
+  Rel(desktop_gateway, desktop_cache, "Reads/writes encrypted cache", "Filesystem")
   Rel(web, api, "Calls REST endpoints", "HTTP :3001 / JWT cookie")
   Rel(api, db, "Reads/writes", "Prisma ORM / TCP")
   Rel(api, storage, "Reads/writes files", "Filesystem")
@@ -248,6 +268,7 @@ flowchart LR
     subgraph apps["Apps"]
         API["apps/api\nFastify REST API"]
         WEB["apps/web\nNext.js Frontend"]
+        DESKTOP["apps/desktop\nElectron shell + local Fastify gateway"]
         E2E["apps/e2e\nPlaywright Tests"]
     end
 
@@ -266,6 +287,9 @@ flowchart LR
     API --> PDF
 
     WEB --> TYPES
+
+    DESKTOP --> TYPES
+    DESKTOP --> UTILS
 
     KSEF --> TYPES
     FA3 --> TYPES

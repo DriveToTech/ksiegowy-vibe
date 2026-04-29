@@ -1,8 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { API_BASE } from '../../../../lib/api-base';
+import { getServerAuthBase } from '../../../../lib/server-api-base';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const authBase = await getServerAuthBase();
   const authToken = request.cookies.get('auth_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
   const cookieHeader = [
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     refreshToken ? `refresh_token=${refreshToken}` : null,
   ].filter((value): value is string => value !== null).join('; ');
 
-  await fetch(`${API_BASE}/auth/logout`, {
+  await fetch(`${authBase}/auth/logout`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

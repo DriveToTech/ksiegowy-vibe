@@ -11,6 +11,8 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | C4 diagrams (context, containers, components) and flow diagrams for key workflows |
+| [Desktop Architecture](docs/desktop-architecture.md) | Target Electron desktop architecture, security boundaries, and runtime model |
+| [Desktop Auth Decoupling ADR](docs/desktop-auth-decoupling.md) | Decision record for removing desktop-specific auth coupling from the shared API |
 | [Development Run Modes](docs/development-run-modes.md) | Supported development setups, exact startup commands, env expectations, and PostgreSQL backup artifact-path caveat |
 | [Infrastructure](docs/infrastructure.md) | Docker setup, CI/CD pipelines, environment variables, data persistence, and deployment checklist |
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
@@ -18,6 +20,8 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
 | [Backup Restore Drill](docs/backup-restore-drill.md) | Repeatable restore drill steps with evidence capture |
+
+Planning specs live under [`spec/`](spec/), including the [Desktop Implementation Plan](spec/desktop-implementation-plan.md) and the [Desktop Auth Decoupling Plan](spec/desktop-auth-decoupling-plan.md).
 
 ## Features
 
@@ -51,6 +55,40 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 - This repository is a `pnpm` workspace monorepo. Use `pnpm` for root-level and package-scoped commands.
 - Run commands for a single package with `pnpm --filter <package-name> ...`, for example `pnpm --filter @ksiegowy/api test`.
 - Package scripts are defined in each workspace package such as `apps/api/package.json`, `apps/web/package.json`, and `packages/*/package.json`.
+- Desktop workspace commands follow the same pattern, for example `pnpm --filter @ksiegowy/desktop build`.
+- Desktop now starts a local Fastify gateway inside Electron and loads that localhost origin instead of loading the web runtime directly. Use `DESKTOP_WEB_RUNTIME_URL` to point the gateway at the local web runtime during development (default: `http://127.0.0.1:3000`). Use `DESKTOP_API_URL` for proxied API and auth traffic (default: `API_URL`). The gateway defaults to `http://127.0.0.1:3001` so Google OAuth can return to `/auth/google/callback`; only change `DESKTOP_GATEWAY_PORT` when you also update `GOOGLE_REDIRECT_URI` and the Google OAuth app configuration to match.
+- Desktop Google sign-in now starts in the system browser and returns through a custom protocol deep link into Electron, after which the renderer completes a same-origin `/auth/client/exchange` call to establish localhost gateway cookies. The API stores only hashed client handoff codes in PostgreSQL via Prisma, and handoff records remain short-lived and single-use.
+
+## Desktop Application
+
+A cross-platform desktop app is available in `apps/desktop/`. See the [Desktop README](apps/desktop/README.md) for detailed setup instructions.
+
+**Quick start:**
+
+```bash
+# 1. Install dependencies and configure
+pnpm install
+cp .env.example .env
+
+# 2. Start PostgreSQL and run migrations
+pnpm db:up
+pnpm db:migrate
+
+# 3. Start API and Web (in separate terminals)
+pnpm --filter @ksiegowy/api dev
+pnpm --filter @ksiegowy/web dev
+
+# 4. Start desktop app
+pnpm --filter @ksiegowy/desktop dev
+```
+
+**Package for distribution:**
+
+```bash
+pnpm --filter @ksiegowy/desktop dist
+```
+
+See [apps/desktop/README.md](apps/desktop/README.md) for complete documentation.
 
 ## Project Structure
 
@@ -59,6 +97,7 @@ ksiegowy-vibe/
 ├── apps/
 │   ├── api/              # Fastify REST API (port 3001)
 │   │   └── prisma/       # Schema & migrations
+│   ├── desktop/          # Electron desktop shell workspace
 │   └── web/              # Next.js frontend (port 3000)
 ├── packages/
 │   ├── types/            # Shared TypeScript types
@@ -118,6 +157,14 @@ cp .env.example .env
 ```
 
 Fill in the required variables in `.env` (see [Environment Variables](#environment-variables)). The `DATABASE_URL` is overridden automatically by Docker Compose to point at the postgres container.
+
+Root `pnpm` scripts load `.env` via `dotenv-cli`, not by shell-sourcing the file. If a value contains spaces or special characters such as `|`, quote it in `.env`, for example:
+
+```bash
+EXAMPLE_VALUE="text with spaces | pipe"
+```
+
+Use absolute paths in `.env`. `~` is not expanded automatically by dotenv loaders.
 
 #### 2. Build and start all services
 
@@ -192,14 +239,25 @@ cp .env.example .env
 
 Fill in the required variables (see [Environment Variables](#environment-variables)).
 
+Root `pnpm` scripts load `.env` via `dotenv-cli`, not by shell-sourcing the file. If a value contains spaces or special characters such as `|`, quote it in `.env`, for example:
+
+```bash
+EXAMPLE_VALUE="text with spaces | pipe"
+```
+
+Use absolute paths in `.env`. `~` is not expanded automatically by dotenv loaders.
+
 If you run the API locally, set `POSTGRESQL_BACKUP_ARTIFACTS_PATH` to an absolute path pointing at repo `backups/postgresql` (see [Development Run Modes](docs/development-run-modes.md)). Using the default relative path can make PostgreSQL backup status appear unavailable.
 
 #### 4. Run migrations and seed
 
 ```bash
+pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
 ```
+
+If you approve previously blocked dependency build scripts or refresh Prisma dependencies, rerun `pnpm db:generate` before `pnpm typecheck`.
 
 See [Seed Scripts](#seed-scripts) for available options including KSeF test data.
 
@@ -222,7 +280,7 @@ pnpm dev
 | `DATABASE_URL` | PostgreSQL connection string |
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
-| `GOOGLE_REDIRECT_URI` | Google OAuth2 redirect URI (e.g. `http://localhost:3001/auth/google/callback`) |
+| `GOOGLE_REDIRECT_URI` | Google OAuth2 redirect URI for the desktop gateway auth callback (for the default setup: `http://localhost:3001/auth/google/callback`) |
 | `JWT_SECRET` | Access token signing secret |
 | `JWT_REFRESH_SECRET` | Refresh token signing secret |
 | `ENCRYPTION_KEY` | AES encryption key for KSeF tokens and backup credentials |
@@ -238,6 +296,12 @@ pnpm dev
 | `RESEND_API_KEY` | Email PDF delivery |
 | `GUS_API_KEY` | NIP lookup via GUS API |
 | `STORAGE_BASE_PATH` | File storage path (default: `./storage`) |
+| `DESKTOP_WEB_RUNTIME_URL` | Localhost-only upstream for desktop UI proxying (default: `http://127.0.0.1:3000`) |
+| `DESKTOP_API_URL` | Upstream API origin used by the desktop gateway (defaults to `API_URL`) |
+| `DESKTOP_AUTH_CALLBACK_URL` | Custom protocol callback used for desktop OAuth handoff (example: `ksiegowy-vibe://auth/desktop/callback`) |
+| `DESKTOP_GATEWAY_PORT` | Optional localhost port for the desktop gateway (defaults to `3001`; keep `GOOGLE_REDIRECT_URI` aligned if you change it) |
+| `NEXT_PUBLIC_BROWSER_API_URL` | Browser-side business API base; use `/_desktop/api` in desktop web mode |
+| `NEXT_PUBLIC_BROWSER_AUTH_URL` | Browser-side auth base; use `/auth` in desktop web mode |
 | `ICLOUD_BACKUP_PATH` | iCloud backup (macOS only) |
 | `ICLOUD_RCLONE_REMOTE` | rclone remote name used for iCloud backup on Linux/VPS |
 | `ICLOUD_RCLONE_DEST` | Destination path on `ICLOUD_RCLONE_REMOTE` for iCloud backups |
@@ -511,6 +575,16 @@ pnpm --filter @ksiegowy/e2e test:debug
 pnpm --filter @ksiegowy/e2e report
 ```
 
+### Opt-in PostgreSQL integration tests for API auth handoff
+
+The API also has an opt-in Prisma/PostgreSQL integration test for concurrent client auth handoff exchange.
+
+```bash
+RUN_POSTGRES_INTEGRATION_TESTS=1 API_INTEGRATION_DATABASE_URL="postgresql://..." pnpm --filter @ksiegowy/api test:integration
+```
+
+Use a migrated database schema before running this test.
+
 ### First run setup
 
 Playwright browsers must be installed once before running tests:
@@ -654,6 +728,7 @@ All company-scoped routes require a valid JWT and active company membership.
 | GET | `/health` | Health check |
 | GET | `/ready` | Readiness check |
 | GET/POST | `/auth/google` | Google OAuth2 login |
+| POST | `/auth/client/exchange` | Exchange one-time client auth handoff for auth cookies |
 | GET/POST/PATCH/DELETE | `/companies` | Company management |
 | GET/POST/PATCH/DELETE | `/companies/:companyId/invoices` | Outgoing invoices |
 | POST | `/companies/:companyId/invoices/:id/issue` | Issue invoice + generate PDF/XML |
