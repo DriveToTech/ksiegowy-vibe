@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { AccessTokenPayload } from '../lib/auth-config.js';
+import { resolveEffectiveKsefEnvironment } from '../lib/ksef-environment.js';
 
 const companyParamsSchema = {
   type: 'object',
@@ -48,6 +49,8 @@ export const ksefRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
       if (!user.companies.find((c) => c.id === companyId)) {
         throw fastify.httpErrors.forbidden('Access denied');
       }
+
+      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const invoices = await fastify.prisma.invoice.findMany({
         where: { companyId, ksefStatus: 'OFFLINE_QUEUED' },

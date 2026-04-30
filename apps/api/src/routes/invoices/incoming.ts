@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { IncomingInvoiceStatus } from '@prisma/client';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
+import { resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
 import { saveFile } from '../../services/storage/local-fs.js';
 import { startOcrPipeline } from '../../services/ocr/process.js';
 import { isValidNip } from '@ksiegowy/shared-utils';
@@ -578,6 +579,8 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
+
+      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const from = new Date(dateFrom);
       const to = new Date(dateTo);

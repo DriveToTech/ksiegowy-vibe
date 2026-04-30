@@ -1,5 +1,8 @@
 # Ticket 03: Add Effective KSeF Environment Resolver In The API
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 1`
 

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { Resend } from 'resend';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
+import { resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
 import {
   createInvoiceDraft,
   issueInvoice,
@@ -943,6 +944,8 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot submit to KSeF');
       }
 
+      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+
       const encryptionKey = process.env['ENCRYPTION_KEY'];
       if (!encryptionKey) {
         throw fastify.httpErrors.internalServerError('ENCRYPTION_KEY is not configured');
@@ -1008,6 +1011,8 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       assertCompanyAccess(user, companyId, fastify);
+
+      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const encryptionKey = process.env['ENCRYPTION_KEY'];
       if (!encryptionKey) {
@@ -1240,6 +1245,8 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot create correction invoices');
       }
+
+      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const original = await fastify.prisma.invoice.findUnique({
         where: { id },
