@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { Resend } from 'resend';
+import type { KsefEnvironment } from '@prisma/client';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
 import { resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
 import {
@@ -310,6 +311,32 @@ const assertCompanyAccess = (
   return membership;
 };
 
+const buildInvoiceKsefStateInclude = (selectedEnvironment: KsefEnvironment) => ({
+  where: { environment: selectedEnvironment },
+  select: {
+    status: true,
+    ksefReference: true,
+  },
+});
+
+const resolveInvoiceKsefState = (invoice: {
+  ksefStates?: Array<{ status: string; ksefReference: string | null }>;
+}): { status: string; ksefReference: string | null } => {
+  const invoiceKsefState = invoice.ksefStates?.[0];
+
+  return {
+    status: invoiceKsefState?.status ?? 'NOT_SENT',
+    ksefReference: invoiceKsefState?.ksefReference ?? null,
+  };
+};
+
+const buildInvoiceDetailInclude = (selectedEnvironment: KsefEnvironment) => ({
+  lines: { orderBy: { position: 'asc' as const } },
+  vatBreakdown: true,
+  correctedInvoice: { select: { id: true, invoiceNumber: true, issueDate: true, ksefReference: true } },
+  ksefStates: buildInvoiceKsefStateInclude(selectedEnvironment),
+});
+
 const serializeInvoice = (invoice: {
   id: string;
   companyId: string;
@@ -335,8 +362,7 @@ const serializeInvoice = (invoice: {
   correctionReason: string | null;
   correctionImpactType: string | null;
   correctedInvoice?: { id: string; invoiceNumber: string | null; issueDate: Date; ksefReference: string | null } | null;
-  ksefStatus: string;
-  ksefReference: string | null;
+  ksefStates?: Array<{ status: string; ksefReference: string | null }>;
   issuedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -358,62 +384,66 @@ const serializeInvoice = (invoice: {
     netAmount: { toString(): string };
     vatAmount: { toString(): string };
   }>;
-}) => ({
-  id: invoice.id,
-  companyId: invoice.companyId,
-  contractorId: invoice.contractorId,
-  invoiceNumber: invoice.invoiceNumber,
-  status: invoice.status,
-  invoiceType: invoice.invoiceType,
-  issueDate: invoice.issueDate.toISOString().slice(0, 10),
-  saleDate: invoice.saleDate ? invoice.saleDate.toISOString().slice(0, 10) : null,
-  placeOfIssue: invoice.placeOfIssue,
-  sellerName: invoice.sellerName,
-  sellerNip: invoice.sellerNip,
-  buyerName: invoice.buyerName,
-  buyerNip: invoice.buyerNip,
-  totalNet: invoice.totalNet.toString(),
-  totalVat: invoice.totalVat.toString(),
-  totalGross: invoice.totalGross.toString(),
-  paymentReceived: invoice.paymentReceived.toString(),
-  paymentMethod: invoice.paymentMethod,
-  paymentDueDate: invoice.paymentDueDate ? invoice.paymentDueDate.toISOString().slice(0, 10) : null,
-  currency: invoice.currency,
-  notes: invoice.notes,
-  correctionReason: invoice.correctionReason,
-  correctionImpactType: invoice.correctionImpactType,
-  correctedInvoice: invoice.correctedInvoice
-    ? {
-        id: invoice.correctedInvoice.id,
-        invoiceNumber: invoice.correctedInvoice.invoiceNumber,
-        issueDate: invoice.correctedInvoice.issueDate.toISOString().slice(0, 10),
-        ksefReference: invoice.correctedInvoice.ksefReference
-      }
-    : null,
-  ksefStatus: toKsefStatusApi(invoice.ksefStatus),
-  ksefReference: invoice.ksefReference,
-  issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
-  createdAt: invoice.createdAt.toISOString(),
-  updatedAt: invoice.updatedAt.toISOString(),
-  lines: invoice.lines.map((l) => ({
-    id: l.id,
-    position: l.position,
-    name: l.name,
-    unit: l.unit,
-    quantity: l.quantity.toString(),
-    unitNetPrice: l.unitNetPrice.toString(),
-    vatRate: l.vatRate,
-    netValue: l.netValue.toString(),
-    vatValue: l.vatValue.toString(),
-    grossValue: l.grossValue.toString()
-  })),
-  vatBreakdown: invoice.vatBreakdown.map((b) => ({
-    id: b.id,
-    vatRate: b.vatRate,
-    netAmount: b.netAmount.toString(),
-    vatAmount: b.vatAmount.toString()
-  }))
-});
+}) => {
+  const invoiceKsefState = resolveInvoiceKsefState(invoice);
+
+  return {
+    id: invoice.id,
+    companyId: invoice.companyId,
+    contractorId: invoice.contractorId,
+    invoiceNumber: invoice.invoiceNumber,
+    status: invoice.status,
+    invoiceType: invoice.invoiceType,
+    issueDate: invoice.issueDate.toISOString().slice(0, 10),
+    saleDate: invoice.saleDate ? invoice.saleDate.toISOString().slice(0, 10) : null,
+    placeOfIssue: invoice.placeOfIssue,
+    sellerName: invoice.sellerName,
+    sellerNip: invoice.sellerNip,
+    buyerName: invoice.buyerName,
+    buyerNip: invoice.buyerNip,
+    totalNet: invoice.totalNet.toString(),
+    totalVat: invoice.totalVat.toString(),
+    totalGross: invoice.totalGross.toString(),
+    paymentReceived: invoice.paymentReceived.toString(),
+    paymentMethod: invoice.paymentMethod,
+    paymentDueDate: invoice.paymentDueDate ? invoice.paymentDueDate.toISOString().slice(0, 10) : null,
+    currency: invoice.currency,
+    notes: invoice.notes,
+    correctionReason: invoice.correctionReason,
+    correctionImpactType: invoice.correctionImpactType,
+    correctedInvoice: invoice.correctedInvoice
+      ? {
+          id: invoice.correctedInvoice.id,
+          invoiceNumber: invoice.correctedInvoice.invoiceNumber,
+          issueDate: invoice.correctedInvoice.issueDate.toISOString().slice(0, 10),
+          ksefReference: invoice.correctedInvoice.ksefReference
+        }
+      : null,
+    ksefStatus: toKsefStatusApi(invoiceKsefState.status),
+    ksefReference: invoiceKsefState.ksefReference,
+    issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
+    createdAt: invoice.createdAt.toISOString(),
+    updatedAt: invoice.updatedAt.toISOString(),
+    lines: invoice.lines.map((l) => ({
+      id: l.id,
+      position: l.position,
+      name: l.name,
+      unit: l.unit,
+      quantity: l.quantity.toString(),
+      unitNetPrice: l.unitNetPrice.toString(),
+      vatRate: l.vatRate,
+      netValue: l.netValue.toString(),
+      vatValue: l.vatValue.toString(),
+      grossValue: l.grossValue.toString()
+    })),
+    vatBreakdown: invoice.vatBreakdown.map((b) => ({
+      id: b.id,
+      vatRate: b.vatRate,
+      netAmount: b.netAmount.toString(),
+      vatAmount: b.vatAmount.toString()
+    }))
+  };
+};
 
 const serializeInvoiceListItem = (invoice: {
   id: string;
@@ -427,29 +457,33 @@ const serializeInvoiceListItem = (invoice: {
   totalVat: { toString(): string };
   totalGross: { toString(): string };
   currency: string;
-  ksefStatus: string;
+  ksefStates?: Array<{ status: string; ksefReference: string | null }>;
   issuedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   contractor: { id: string; name: string; nip: string | null } | null;
-}) => ({
-  id: invoice.id,
-  companyId: invoice.companyId,
-  contractorId: invoice.contractorId,
-  invoiceNumber: invoice.invoiceNumber,
-  status: invoice.status,
-  invoiceType: invoice.invoiceType,
-  issueDate: invoice.issueDate.toISOString().slice(0, 10),
-  totalNet: invoice.totalNet.toString(),
-  totalVat: invoice.totalVat.toString(),
-  totalGross: invoice.totalGross.toString(),
-  currency: invoice.currency,
-  ksefStatus: toKsefStatusApi(invoice.ksefStatus),
-  issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
-  createdAt: invoice.createdAt.toISOString(),
-  updatedAt: invoice.updatedAt.toISOString(),
-  contractor: invoice.contractor
-});
+}) => {
+  const invoiceKsefState = resolveInvoiceKsefState(invoice);
+
+  return {
+    id: invoice.id,
+    companyId: invoice.companyId,
+    contractorId: invoice.contractorId,
+    invoiceNumber: invoice.invoiceNumber,
+    status: invoice.status,
+    invoiceType: invoice.invoiceType,
+    issueDate: invoice.issueDate.toISOString().slice(0, 10),
+    totalNet: invoice.totalNet.toString(),
+    totalVat: invoice.totalVat.toString(),
+    totalGross: invoice.totalGross.toString(),
+    currency: invoice.currency,
+    ksefStatus: toKsefStatusApi(invoiceKsefState.status),
+    issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
+    createdAt: invoice.createdAt.toISOString(),
+    updatedAt: invoice.updatedAt.toISOString(),
+    contractor: invoice.contractor
+  };
+};
 
 // ── Plugin ───────────────────────────────────────────────────────────────────
 
@@ -488,6 +522,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { status, page = 1, limit = 20 } = request.query;
 
       assertCompanyAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const where = {
         companyId,
@@ -513,7 +548,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
             totalVat: true,
             totalGross: true,
             currency: true,
-            ksefStatus: true,
+            ksefStates: buildInvoiceKsefStateInclude(selectedEnvironment),
             issuedAt: true,
             createdAt: true,
             updatedAt: true,
@@ -553,6 +588,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const body = request.body;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot create invoices');
@@ -579,7 +615,16 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const invoice = await createInvoiceDraft(fastify.prisma, input);
 
-      return reply.code(201).send(serializeInvoice(invoice));
+      const createdInvoice = await fastify.prisma.invoice.findUnique({
+        where: { id: invoice.id },
+        include: buildInvoiceDetailInclude(selectedEnvironment)
+      });
+
+      if (!createdInvoice) {
+        throw fastify.httpErrors.notFound('Invoice not found after creation');
+      }
+
+      return reply.code(201).send(serializeInvoice(createdInvoice));
     }
   );
 
@@ -606,6 +651,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const body = request.body;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot edit invoices');
       }
@@ -680,9 +726,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
             }
           },
           include: {
-            lines: { orderBy: { position: 'asc' } },
-            vatBreakdown: true,
-            correctedInvoice: { select: { id: true, invoiceNumber: true, issueDate: true, ksefReference: true } }
+            ...buildInvoiceDetailInclude(selectedEnvironment)
           }
         });
       });
@@ -713,14 +757,11 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       assertCompanyAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const invoice = await fastify.prisma.invoice.findUnique({
         where: { id },
-        include: {
-          lines: { orderBy: { position: 'asc' } },
-          vatBreakdown: true,
-          correctedInvoice: { select: { id: true, invoiceNumber: true, issueDate: true, ksefReference: true } }
-        }
+        include: buildInvoiceDetailInclude(selectedEnvironment)
       });
 
       if (!invoice || invoice.companyId !== companyId) {
@@ -752,6 +793,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot issue invoices');
@@ -811,7 +853,16 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         xmlChecksum
       }, 'Invoice issued and files persisted');
 
-      return serializeInvoice(invoice);
+      const issuedInvoice = await fastify.prisma.invoice.findUnique({
+        where: { id },
+        include: buildInvoiceDetailInclude(selectedEnvironment)
+      });
+
+      if (!issuedInvoice) {
+        throw fastify.httpErrors.notFound('Invoice not found after issuing');
+      }
+
+      return serializeInvoice(issuedInvoice);
     }
   );
 
@@ -953,7 +1004,13 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const invoice = await fastify.prisma.invoice.findUnique({
         where: { id },
-        include: { lines: { orderBy: { position: 'asc' } }, vatBreakdown: true, company: true, contractor: true }
+        include: {
+          lines: { orderBy: { position: 'asc' } },
+          vatBreakdown: true,
+          company: true,
+          contractor: true,
+          ksefStates: buildInvoiceKsefStateInclude(selectedEnvironment)
+        }
       });
 
       if (!invoice || invoice.companyId !== companyId) {
@@ -966,9 +1023,11 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         );
       }
 
-      if (invoice.ksefStatus !== 'NOT_SENT') {
+      const invoiceKsefState = resolveInvoiceKsefState(invoice);
+
+      if (invoiceKsefState.status !== 'NOT_SENT') {
         throw fastify.httpErrors.conflict(
-          `Invoice was already submitted to KSeF (current KSeF status: ${invoice.ksefStatus})`
+          `Invoice was already submitted to KSeF (current KSeF status: ${invoiceKsefState.status})`
         );
       }
 
@@ -1166,20 +1225,23 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot revert invoices');
       }
 
       const invoice = await fastify.prisma.invoice.findUnique({
         where: { id },
-        include: { lines: { orderBy: { position: 'asc' } }, vatBreakdown: true }
+        include: buildInvoiceDetailInclude(selectedEnvironment)
       });
 
       if (!invoice || invoice.companyId !== companyId) {
         throw fastify.httpErrors.notFound('Invoice not found');
       }
 
-      if (invoice.status !== 'ISSUED' || invoice.ksefStatus !== 'NOT_SENT') {
+      const invoiceKsefState = resolveInvoiceKsefState(invoice);
+
+      if (invoice.status !== 'ISSUED' || invoiceKsefState.status !== 'NOT_SENT') {
         throw fastify.httpErrors.conflict(
           'Only ISSUED invoices that have not been sent to KSeF can be reverted to draft'
         );
@@ -1208,9 +1270,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
           buyerAddress2: null
         },
         include: {
-          lines: { orderBy: { position: 'asc' } },
-          vatBreakdown: true,
-          correctedInvoice: { select: { id: true, invoiceNumber: true, issueDate: true, ksefReference: true } }
+          ...buildInvoiceDetailInclude(selectedEnvironment)
         }
       });
 
@@ -1246,20 +1306,22 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot create correction invoices');
       }
 
-      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const original = await fastify.prisma.invoice.findUnique({
         where: { id },
-        include: { lines: { orderBy: { position: 'asc' } }, vatBreakdown: true }
+        include: buildInvoiceDetailInclude(selectedEnvironment)
       });
 
       if (!original || original.companyId !== companyId) {
         throw fastify.httpErrors.notFound('Invoice not found');
       }
 
-      if (original.ksefStatus !== 'ACCEPTED') {
+      const originalKsefState = resolveInvoiceKsefState(original);
+
+      if (originalKsefState.status !== 'ACCEPTED') {
         throw fastify.httpErrors.conflict(
-          `Only invoices accepted by KSeF can be corrected (current KSeF status: ${original.ksefStatus})`
+          `Only invoices accepted by KSeF can be corrected (current KSeF status: ${originalKsefState.status})`
         );
       }
 
@@ -1293,7 +1355,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
           paymentMethod: original.paymentMethod,
           currency: original.currency,
           correctedInvoiceId: original.id,
-          correctedKsefRef: original.ksefReference,
+          correctedKsefRef: originalKsefState.ksefReference,
           correctionReason: reason ?? null,
           correctionImpactType: impactType ?? null,
           sellerName: original.sellerName,
@@ -1313,9 +1375,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
           vatBreakdown: { create: korBreakdown }
         },
         include: {
-          lines: { orderBy: { position: 'asc' } },
-          vatBreakdown: true,
-          correctedInvoice: { select: { id: true, invoiceNumber: true, issueDate: true, ksefReference: true } }
+          ...buildInvoiceDetailInclude(selectedEnvironment)
         }
       });
 
@@ -1346,13 +1406,14 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot record payments');
       }
 
       const invoice = await fastify.prisma.invoice.findUnique({
         where: { id },
-        include: { lines: { orderBy: { position: 'asc' } }, vatBreakdown: true }
+        include: buildInvoiceDetailInclude(selectedEnvironment)
       });
 
       if (!invoice || invoice.companyId !== companyId) {
@@ -1366,7 +1427,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const updated = await fastify.prisma.invoice.update({
         where: { id },
         data: { paymentReceived: request.body.amount },
-        include: { lines: { orderBy: { position: 'asc' } }, vatBreakdown: true }
+        include: buildInvoiceDetailInclude(selectedEnvironment)
       });
 
       fastify.log.info({ invoiceId: id, companyId, amount: request.body.amount }, 'Payment recorded');

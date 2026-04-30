@@ -200,15 +200,15 @@ describe('pollKsefSubmissionStatus()', () => {
       ksefReference: '8982160168-20260411-5144C4800000-D5',
       acceptedAt: new Date('2026-04-11T09:33:32.400Z')
     }));
-    const invoiceUpdate = vi.fn(async () => ({}));
+    const invoiceKsefStateUpsert = vi.fn(async () => ({}));
 
     const prisma = {
       ksefSubmission: {
         findUnique: ksefSubmissionFindUnique,
         findFirst: ksefSubmissionFindFirst
       },
-      invoice: {
-        update: invoiceUpdate
+      invoiceKsefState: {
+        upsert: invoiceKsefStateUpsert
       }
     } as unknown as PrismaClient;
 
@@ -237,12 +237,24 @@ describe('pollKsefSubmissionStatus()', () => {
         acceptedAt: true
       }
     });
-    expect(invoiceUpdate).toHaveBeenCalledWith({
-      where: { id: 'invoice-1' },
-      data: {
-        ksefStatus: 'ACCEPTED',
+    expect(invoiceKsefStateUpsert).toHaveBeenCalledWith({
+      where: {
+        invoiceId_environment: {
+          invoiceId: 'invoice-1',
+          environment: 'TEST',
+        }
+      },
+      create: {
+        invoiceId: 'invoice-1',
+        environment: 'TEST',
+        status: 'ACCEPTED',
         ksefReference: '8982160168-20260411-5144C4800000-D5',
-        ksefAcceptedAt: new Date('2026-04-11T09:33:32.400Z')
+        acceptedAt: new Date('2026-04-11T09:33:32.400Z')
+      },
+      update: {
+        status: 'ACCEPTED',
+        ksefReference: '8982160168-20260411-5144C4800000-D5',
+        acceptedAt: new Date('2026-04-11T09:33:32.400Z')
       }
     });
   });

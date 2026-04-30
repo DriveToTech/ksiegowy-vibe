@@ -22,6 +22,47 @@ const toKsefClientEnvironment = (
   return companyKsefEnvironment === 'PRODUCTION' ? 'production' : 'test';
 };
 
+const upsertInvoiceKsefState = async (
+  prisma: PrismaClient,
+  input: {
+    invoiceId: string;
+    environment: KsefEnvironment;
+    status: 'NOT_SENT' | 'QUEUED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'OFFLINE_QUEUED';
+    ksefReference?: string | null;
+    submittedAt?: Date | null;
+    acceptedAt?: Date | null;
+    lastSubmissionId?: string | null;
+  }
+): Promise<void> => {
+  const createData = {
+    invoiceId: input.invoiceId,
+    environment: input.environment,
+    status: input.status,
+    ksefReference: input.ksefReference ?? null,
+    ...(input.submittedAt !== undefined ? { submittedAt: input.submittedAt } : {}),
+    ...(input.acceptedAt !== undefined ? { acceptedAt: input.acceptedAt } : {}),
+    ...(input.lastSubmissionId !== undefined ? { lastSubmissionId: input.lastSubmissionId } : {}),
+  };
+  const updateData = {
+    status: input.status,
+    ksefReference: input.ksefReference ?? null,
+    ...(input.submittedAt !== undefined ? { submittedAt: input.submittedAt } : {}),
+    ...(input.acceptedAt !== undefined ? { acceptedAt: input.acceptedAt } : {}),
+    ...(input.lastSubmissionId !== undefined ? { lastSubmissionId: input.lastSubmissionId } : {}),
+  };
+
+  await prisma.invoiceKsefState.upsert({
+    where: {
+      invoiceId_environment: {
+        invoiceId: input.invoiceId,
+        environment: input.environment,
+      },
+    },
+    create: createData,
+    update: updateData,
+  });
+};
+
 const loadCompanyKsefAuthConfiguration = async (
   prisma: PrismaClient,
   companyId: string,
@@ -245,6 +286,14 @@ export const submitInvoiceToKsef = async (
       }
     });
 
+    await upsertInvoiceKsefState(prisma, {
+      invoiceId,
+      environment: selectedEnvironment,
+      status: 'SUBMITTED',
+      submittedAt: new Date(),
+      lastSubmissionId: submissionRecord.id,
+    });
+
     // The client polls KSeF before closing the session, so ksefReferenceNumber may already be available.
     const ksefReference = sendResult.ksefReferenceNumber;
 
@@ -257,6 +306,15 @@ export const submitInvoiceToKsef = async (
         prisma.invoice.update({
           where: { id: invoiceId },
           data: { ksefStatus: 'ACCEPTED', ksefReference, ksefAcceptedAt: new Date() }
+        }),
+        upsertInvoiceKsefState(prisma, {
+          invoiceId,
+          environment: selectedEnvironment,
+          status: 'ACCEPTED',
+          ksefReference,
+          submittedAt: submissionRecord.submittedAt ?? new Date(),
+          acceptedAt: new Date(),
+          lastSubmissionId: submissionRecord.id,
         })
       ]);
     } else {
@@ -289,6 +347,13 @@ export const submitInvoiceToKsef = async (
       data: { ksefStatus: 'OFFLINE_QUEUED' }
     });
 
+    await upsertInvoiceKsefState(prisma, {
+      invoiceId,
+      environment: selectedEnvironment,
+      status: 'OFFLINE_QUEUED',
+      lastSubmissionId: submissionRecord.id,
+    });
+
     throw err;
   }
 };
@@ -304,21 +369,27 @@ export const retryOfflineQueue = async (
   encryptionKey: string,
   logger: { info: (obj: object, msg: string) => void; error: (obj: object, msg: string) => void }
 ): Promise<void> => {
-  const queued = await prisma.invoice.findMany({
-    where: { ksefStatus: 'OFFLINE_QUEUED' },
+  const queuedStates = await prisma.invoiceKsefState.findMany({
+    where: { status: 'OFFLINE_QUEUED' },
     include: {
-      lines: { orderBy: { position: 'asc' } },
-      vatBreakdown: true,
-      company: true,
-      contractor: true
+      invoice: {
+        include: {
+          lines: { orderBy: { position: 'asc' } },
+          vatBreakdown: true,
+          company: true,
+          contractor: true,
+        },
+      },
     }
   });
 
-  if (queued.length === 0) return;
+  if (queuedStates.length === 0) return;
 
-  logger.info({ count: queued.length }, 'KSeF offline retry: processing queued invoices');
+  logger.info({ count: queuedStates.length }, 'KSeF offline retry: processing queued invoices');
 
-  for (const invoice of queued) {
+  for (const queuedState of queuedStates) {
+    const invoice = queuedState.invoice;
+
     if (!invoice.invoiceNumber || !invoice.contractor || !invoice.sellerNip || !invoice.buyerNip) {
       logger.info({ invoiceId: invoice.id }, 'KSeF offline retry: skipping invoice with missing data');
       continue;
@@ -342,7 +413,7 @@ export const retryOfflineQueue = async (
       invoice.companyId,
       invoiceData,
       encryptionKey,
-      resolveCompanyKsefEnvironment(invoice.company.ksefEnv),
+      queuedState.environment,
     )
       .then(() => logger.info({ invoiceId: invoice.id }, 'KSeF offline retry: submission succeeded'))
       .catch((err: unknown) => logger.error({ invoiceId: invoice.id, err }, 'KSeF offline retry: submission failed'));
@@ -391,13 +462,12 @@ const restoreAcceptedInvoiceStateFromSubmissionHistory = async (
     input.invoiceKsefReference !== acceptedSubmission.ksefReference ||
     (input.invoiceKsefAcceptedAt?.getTime() ?? 0) !== (acceptedSubmission.acceptedAt?.getTime() ?? 0)
   ) {
-    await prisma.invoice.update({
-      where: { id: input.invoiceId },
-      data: {
-        ksefStatus: 'ACCEPTED',
-        ksefReference: acceptedSubmission.ksefReference,
-        ksefAcceptedAt: acceptedSubmission.acceptedAt ?? input.invoiceKsefAcceptedAt ?? new Date()
-      }
+    await upsertInvoiceKsefState(prisma, {
+      invoiceId: input.invoiceId,
+      environment: input.environment,
+      status: 'ACCEPTED',
+      ksefReference: acceptedSubmission.ksefReference,
+      acceptedAt: acceptedSubmission.acceptedAt ?? input.invoiceKsefAcceptedAt ?? new Date(),
     });
   }
 
@@ -462,30 +532,39 @@ export const pollKsefSubmissionStatus = async (
 
   if (statusResult.statusCode === 200) {
     const ksefRef = statusResult.ksefReferenceNumber ?? null;
+    const acceptedAt = new Date();
 
-    await prisma.ksefSubmission.update({
-      where: { id: submissionId },
-      data: { status: 'ACCEPTED', ksefReference: ksefRef, acceptedAt: new Date() }
-    });
-
-    await prisma.invoice.update({
-      where: { id: submission.invoiceId },
-      data: { ksefStatus: 'ACCEPTED', ksefReference: ksefRef, ksefAcceptedAt: new Date() }
-    });
+    await Promise.all([
+      prisma.ksefSubmission.update({
+        where: { id: submissionId },
+        data: { status: 'ACCEPTED', ksefReference: ksefRef, acceptedAt }
+      }),
+      upsertInvoiceKsefState(prisma, {
+        invoiceId: submission.invoiceId,
+        environment: submission.environment,
+        status: 'ACCEPTED',
+        ksefReference: ksefRef,
+        acceptedAt,
+        lastSubmissionId: submissionId,
+      }),
+    ]);
 
     return { status: 'accepted', ...(ksefRef ? { ksefReferenceNumber: ksefRef } : {}) };
   }
 
   if (statusResult.statusCode === 400) {
-    await prisma.ksefSubmission.update({
-      where: { id: submissionId },
-      data: { status: 'REJECTED', errorMessage: 'Rejected by KSeF (status 400)' }
-    });
-
-    await prisma.invoice.update({
-      where: { id: submission.invoiceId },
-      data: { ksefStatus: 'REJECTED' }
-    });
+    await Promise.all([
+      prisma.ksefSubmission.update({
+        where: { id: submissionId },
+        data: { status: 'REJECTED', errorMessage: 'Rejected by KSeF (status 400)' }
+      }),
+      upsertInvoiceKsefState(prisma, {
+        invoiceId: submission.invoiceId,
+        environment: submission.environment,
+        status: 'REJECTED',
+        lastSubmissionId: submissionId,
+      }),
+    ]);
 
     return { status: 'rejected' };
   }

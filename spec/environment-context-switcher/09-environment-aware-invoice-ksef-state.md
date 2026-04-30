@@ -1,5 +1,8 @@
 # Ticket 09: Move Invoice KSeF State To Environment-Aware Read And Write Paths
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 2`
 
