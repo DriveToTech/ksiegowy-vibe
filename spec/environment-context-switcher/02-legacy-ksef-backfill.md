@@ -1,5 +1,8 @@
 # Ticket 02: Backfill Legacy KSeF Data Into The New Model
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 1`
 

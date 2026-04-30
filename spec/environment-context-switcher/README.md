@@ -6,7 +6,7 @@
 ## Execution Order
 ### Slice 1
 1. `01-persistence-foundation.md` Status: `completed`
-2. `02-legacy-ksef-backfill.md`
+2. `02-legacy-ksef-backfill.md` Status: `completed`
 3. `03-api-environment-resolver.md`
 4. `04-web-environment-forwarding.md`
 5. `05-ksef-settings-api.md`
