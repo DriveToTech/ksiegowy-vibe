@@ -1,7 +1,7 @@
 # Environment Context Switcher Plan
 
 ## Status
-- Overall: `planned`
+- Overall: `completed`
 - Document type: implementation spec
 - Confirmed product decision: the switcher changes only the current user's context, not the company's shared KSeF setting
 
@@ -429,3 +429,25 @@ Implement this in two delivery slices:
 Reason:
 - slice 1 establishes visible context and safe credential and session separation
 - slice 2 finishes the business-state refactor without forcing one risky release
+
+## Ticket Completion Summary
+
+All 15 tickets completed:
+
+| # | Ticket | Status |
+|---|--------|--------|
+| 01 | Persistence foundation | ✅ Done |
+| 02 | Legacy KSeF backfill | ✅ Done |
+| 03 | API environment resolver | ✅ Done |
+| 04 | Web environment forwarding | ✅ Done |
+| 05 | KSeF settings API | ✅ Done |
+| 06 | KSeF settings UI | ✅ Done |
+| 07 | Shell indicator and switcher | ✅ Done |
+| 08 | Environment-aware KSeF auth | ✅ Done |
+| 09 | Environment-aware invoice KSeF state | ✅ Done |
+| 10 | Environment-aware correction flow | ✅ Done |
+| 11 | Environment-aware incoming sync | ✅ Done |
+| 12 | Environment-aware read models and reports | ✅ Done |
+| 13 | KSeF action safety UX | ✅ Done |
+| 14 | Environment-aware test coverage | ✅ Done |
+| 15 | Legacy cleanup and docs | ✅ Done |

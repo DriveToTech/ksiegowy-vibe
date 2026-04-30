@@ -787,3 +787,71 @@ A `KOR` (correction) invoice self-references the original via `correctedInvoiceI
 
 ### Invoice number sequencing
 `Company.invoiceSeq` is a JSON object keyed by year (and optionally series prefix), e.g. `{"2025": 42, "2025/KOR": 3}`. The API increments the counter atomically when issuing an invoice.
+
+---
+
+## Environment-Aware KSeF Operating Model
+
+The platform supports per-user KSeF environment switching between `TEST` and `PRODUCTION`. This section documents how the environment context is resolved, how credentials and state are scoped, and what happens when an environment is not configured.
+
+### Environment resolution flow
+
+The user's cookie-based `active_ksef_environment` selection is sent to the API as the `x-ksef-environment` header on every KSeF-sensitive request. The API resolver (`resolveEffectiveKsefEnvironment`) determines the effective environment using this priority:
+
+1. **Header** — `x-ksef-environment` header value (set by the web shell from the user's cookie)
+2. **Company default** — `Company.ksefEnv` when the header is absent
+3. **Fallback** — `TEST` when neither header nor company default is set
+
+```mermaid
+flowchart TD
+    A[User request] --> B{x-ksef-environment header?}
+    B -->|Yes| C[Use header value]
+    B -->|No| D{Company.ksefEnv set?}
+    D -->|Yes| E[Use company default]
+    D -->|No| F[Default to TEST]
+    C --> G[Resolve credentials for environment]
+    E --> G
+    F --> G
+    G --> H{Token found?}
+    H -->|Yes| I[Execute KSeF action]
+    H -->|No| J[Error: no token configured]
+```
+
+### Per-environment credential resolution
+
+`loadCompanyKsefAuthConfiguration` resolves the KSeF API token for the effective environment in this order:
+
+1. **`CompanyKsefCredential`** — the per-environment credential record (`companyId + environment` unique key)
+2. **Legacy `Company.ksefTokenEnc/ksefTokenIv`** — only when `Company.ksefEnv` matches the selected environment (retained for rollout compatibility)
+3. **Environment variable `KSEF_AUTH_TOKEN`** — only for the `TEST` environment (development/fallback)
+
+If no token is found, the function throws an error and the KSeF action is blocked.
+
+### Invoice KSeF state
+
+`InvoiceKsefState` is the source of truth for per-environment KSeF status. Each invoice can have independent KSeF lifecycle state in `TEST` and `PRODUCTION` via the `(invoiceId, environment)` unique key.
+
+Legacy fields on `Invoice` (`ksefStatus`, `ksefReference`, `ksefSubmittedAt`, `ksefAcceptedAt`) are still written in parallel during submit and poll flows for rollout compatibility. These are marked with `// LEGACY: parallel write for rollout compatibility` comments in `ksef.service.ts` and must not be removed until the transition is validated.
+
+### KSeF session management
+
+`KsefSession` stores the encrypted refresh token per `(companyId, environment)` pair. This prevents `TEST` and `PRODUCTION` sessions from overwriting each other. Session lookup, creation, and refresh all operate against the effective environment.
+
+### Incoming sync
+
+- `KsefIncomingSync` records the `environment` used for each sync run.
+- `IncomingInvoice.ksefEnvironment` tags KSeF-linked incoming records with their origin environment.
+- Deduplication during sync scopes by `ksefEnvironment` so that `TEST` and `PRODUCTION` records are never accidentally merged.
+
+### Missing token behavior
+
+When the selected environment has no token configured:
+
+- **UI** — KSeF actions are blocked with a visible warning and a direct link to the KSeF settings page where the user can configure the token.
+- **API** — `loadCompanyKsefAuthConfiguration` throws an error (`Company <id> has no KSeF token configured for <environment>`), which surfaces as a 500/502 error response.
+
+### Safety UX
+
+- The shell displays a persistent environment badge (`TEST` or `PRODUCTION`) visible without opening settings.
+- `PRODUCTION` actions require explicit confirmation with stronger language.
+- The environment switcher persists the user's selection in a cookie (`active_ksef_environment`) that survives page refreshes.

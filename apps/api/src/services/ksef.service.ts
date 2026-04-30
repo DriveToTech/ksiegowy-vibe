@@ -303,6 +303,7 @@ export const submitInvoiceToKsef = async (
           where: { id: submissionRecord.id },
           data: { status: 'ACCEPTED', ksefReference, acceptedAt: new Date() }
         }),
+        // LEGACY: parallel write for rollout compatibility
         prisma.invoice.update({
           where: { id: invoiceId },
           data: { ksefStatus: 'ACCEPTED', ksefReference, ksefAcceptedAt: new Date() }
@@ -317,11 +318,12 @@ export const submitInvoiceToKsef = async (
           lastSubmissionId: submissionRecord.id,
         })
       ]);
-    } else {
-      await prisma.invoice.update({
-        where: { id: invoiceId },
-        data: { ksefStatus: 'SUBMITTED', ksefSubmittedAt: new Date() }
-      });
+      } else {
+        // LEGACY: parallel write for rollout compatibility
+        await prisma.invoice.update({
+          where: { id: invoiceId },
+          data: { ksefStatus: 'SUBMITTED', ksefSubmittedAt: new Date() }
+        });
     }
 
     return {
@@ -342,6 +344,7 @@ export const submitInvoiceToKsef = async (
       }
     });
 
+    // LEGACY: parallel write for rollout compatibility
     await prisma.invoice.update({
       where: { id: invoiceId },
       data: { ksefStatus: 'OFFLINE_QUEUED' }
