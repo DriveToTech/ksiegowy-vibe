@@ -1,5 +1,8 @@
 # Ticket 06: Rebuild The Settings UI For Per-Environment KSeF Management
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 1`
 

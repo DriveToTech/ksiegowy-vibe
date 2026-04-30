@@ -6,6 +6,7 @@ import type {
   AuthUser,
   BackupRunStatus,
   Company,
+  CompanyKsefSettings,
   CompanyBackupStatusReadModel,
   CompanyBackupSettings,
   Contractor,
@@ -23,6 +24,8 @@ export type {
   AuthUser,
   BackupRunStatus,
   Company,
+  CompanyKsefEnvironment,
+  CompanyKsefSettings,
   CompanyBackupStatusReadModel,
   CompanyBackupRunResult,
   CompanyBackupScheduleMode,
@@ -93,6 +96,10 @@ export async function getCompanies(): Promise<Company[]> {
 
 export async function getCompany(id: string): Promise<Company> {
   return apiFetch<Company>(`/companies/${id}`);
+}
+
+export async function getCompanyKsefSettings(companyId: string): Promise<CompanyKsefSettings> {
+  return apiFetch<CompanyKsefSettings>(`/companies/${companyId}/ksef-settings`);
 }
 
 export async function getActiveCompany(): Promise<{ companies: Company[]; activeCompanyId: string | null }> {

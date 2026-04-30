@@ -26,6 +26,8 @@ export type {
   CompanyBackupScheduleMode,
   CompanyBackupSettings,
   Company,
+  CompanyKsefEnvironment,
+  CompanyKsefSettings,
   Contractor,
   ContractorServiceRate,
   CreateCompanyBody,
@@ -104,6 +106,27 @@ export async function updateCompanyKsefSettings(
   await clientFetch<void>(`/companies/${companyId}/ksef-settings`, {
     method: 'PATCH',
     body: JSON.stringify(body),
+  });
+}
+
+export async function updateCompanyKsefCredential(
+  companyId: string,
+  environment: 'TEST' | 'PRODUCTION',
+  ksefToken: string,
+): Promise<void> {
+  await clientFetch<void>(`/companies/${companyId}/ksef-credentials/${environment}`, {
+    method: 'PUT',
+    body: JSON.stringify({ ksefToken }),
+  });
+}
+
+export async function updateCompanyKsefDefaultEnvironment(
+  companyId: string,
+  defaultEnvironment: 'TEST' | 'PRODUCTION',
+): Promise<void> {
+  await clientFetch<void>(`/companies/${companyId}/ksef-default-environment`, {
+    method: 'PATCH',
+    body: JSON.stringify({ defaultEnvironment }),
   });
 }
 

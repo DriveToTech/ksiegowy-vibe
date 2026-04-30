@@ -10,7 +10,7 @@
 3. `03-api-environment-resolver.md` Status: `completed`
 4. `04-web-environment-forwarding.md` Status: `completed`
 5. `05-ksef-settings-api.md` Status: `completed`
-6. `06-ksef-settings-ui.md`
+6. `06-ksef-settings-ui.md` Status: `completed`
 7. `07-shell-indicator-and-switcher.md`
 
 ### Slice 2

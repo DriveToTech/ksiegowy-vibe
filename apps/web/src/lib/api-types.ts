@@ -3,6 +3,8 @@ export type InvoiceStatus =
   | 'ISSUED'
   | 'CANCELLED';
 
+export type CompanyKsefEnvironment = 'TEST' | 'PRODUCTION';
+
 export type KsefStatus = 'not_submitted' | 'pending' | 'accepted' | 'rejected';
 
 export type PaymentMethod = 'BANK_TRANSFER' | 'CASH' | 'CARD' | 'OTHER';
@@ -166,7 +168,17 @@ export interface CreateCompanyBody {
   bankName?: string;
   bankAccount?: string;
   vatStatus?: 'ACTIVE' | 'EXEMPT' | 'NO_VAT';
-  ksefEnv?: 'TEST' | 'PRODUCTION';
+  ksefEnv?: CompanyKsefEnvironment;
+}
+
+export interface CompanyKsefCredentialStatus {
+  environment: CompanyKsefEnvironment;
+  hasToken: boolean;
+}
+
+export interface CompanyKsefSettings {
+  defaultEnvironment: CompanyKsefEnvironment;
+  credentials: CompanyKsefCredentialStatus[];
 }
 
 export type IncomingInvoiceStatus =
