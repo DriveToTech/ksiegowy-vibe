@@ -1,4 +1,4 @@
-import { getActiveCompany, getIncomingInvoices } from '../../../lib/api';
+import { getActiveCompany, getCompanyKsefSettings, getIncomingInvoices } from '../../../lib/api';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { ErrorState } from '../../../components/molecules/ErrorState';
 import { MetricCard } from '../../../components/molecules/MetricCard';
@@ -19,6 +19,9 @@ export default async function IncomingPage() {
   const processingCount = result.data.filter((invoice) => invoice.status === 'OCR_PROCESSING').length;
   const confirmedCount = result.data.filter((invoice) => invoice.status === 'CONFIRMED').length;
 
+  const ksefSettings = await getCompanyKsefSettings(companyId).catch(() => null);
+  const ksefCredentialStatuses = ksefSettings?.credentials ?? undefined;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -35,7 +38,7 @@ export default async function IncomingPage() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] xl:items-stretch">
         <UploadButton companyId={companyId} />
-        <KsefSyncButton companyId={companyId} />
+        <KsefSyncButton companyId={companyId} ksefCredentialStatuses={ksefCredentialStatuses} />
       </div>
 
       {result.data.length === 0 ? (

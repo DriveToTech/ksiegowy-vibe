@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getActiveCompany, getInvoice } from '../../../../lib/api';
+import { getActiveCompany, getCompanyKsefSettings, getInvoice } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
 import { Surface } from '../../../../components/atoms/Surface';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
@@ -50,6 +50,9 @@ export default async function InvoiceDetailPage({
 
   const paymentMethodLabel = t.invoiceDetail.paymentMethods[invoice.paymentMethod] ?? invoice.paymentMethod;
 
+  const ksefSettings = await getCompanyKsefSettings(companyId).catch(() => null);
+  const ksefCredentialStatuses = ksefSettings?.credentials ?? undefined;
+
   return (
     <div className="space-y-8">
       {invoice.invoiceType === 'KOR' && invoice.correctedInvoice && (
@@ -82,15 +85,16 @@ export default async function InvoiceDetailPage({
         </div>
 
         <div className="w-full max-w-2xl">
-          <InvoiceActions
-            companyId={companyId}
-            invoiceId={id}
-            invoiceType={invoice.invoiceType}
-            status={invoice.status}
-            ksefStatus={invoice.ksefStatus}
-            totalGross={invoice.totalGross}
-            paymentReceived={invoice.paymentReceived}
-          />
+        <InvoiceActions
+          companyId={companyId}
+          invoiceId={id}
+          invoiceType={invoice.invoiceType}
+          status={invoice.status}
+          ksefStatus={invoice.ksefStatus}
+          totalGross={invoice.totalGross}
+          paymentReceived={invoice.paymentReceived}
+          ksefCredentialStatuses={ksefCredentialStatuses}
+        />
         </div>
       </div>
 

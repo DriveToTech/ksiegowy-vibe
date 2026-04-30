@@ -19,7 +19,7 @@ vi.mock('@ksiegowy/shared-utils', () => ({
 
 import { createKsefClient } from '@ksiegowy/ksef-client';
 import { decrypt, encrypt } from '@ksiegowy/shared-utils';
-import { getOrCreateKsefSession, initKsefSession, pollKsefSubmissionStatus } from './ksef.service.js';
+import { getOrCreateKsefSession, initKsefSession, pollKsefSubmissionStatus, upsertInvoiceKsefState, loadCompanyKsefAuthConfiguration } from './ksef.service.js';
 
 describe('initKsefSession()', () => {
   beforeEach(() => {
@@ -179,6 +179,88 @@ describe('getOrCreateKsefSession()', () => {
     expect(vi.mocked(createKsefClient)).toHaveBeenCalledWith({ environment: 'production' });
     expect(refreshAuthSession).toHaveBeenCalledWith('decrypted:stored-refresh-token-enc');
   });
+
+  it('triggers initKsefSession when TEST session exists but PRODUCTION does not', async () => {
+    initAuthSession.mockResolvedValue({
+      accessToken: 'new-production-access-token',
+      refreshToken: 'new-production-refresh-token',
+      refreshTokenValidUntil: '2026-05-01T10:00:00.000Z',
+    });
+
+    const ksefSessionFindUnique = vi.fn(async () => null);
+    const ksefSessionUpsert = vi.fn(async () => ({}));
+    const companyFindUnique = vi.fn(async () => ({
+      nip: '8990001122',
+      ksefEnv: 'PRODUCTION',
+      ksefTokenEnc: 'production-legacy-enc',
+      ksefTokenIv: 'production-legacy-iv',
+      ksefCredentials: [{ tokenEnc: 'production-cred-enc', tokenIv: 'production-cred-iv' }],
+    }));
+
+    const prisma = {
+      ksefSession: {
+        findUnique: ksefSessionFindUnique,
+        upsert: ksefSessionUpsert,
+      },
+      company: {
+        findUnique: companyFindUnique,
+      },
+    } as unknown as PrismaClient;
+
+    const accessToken = await getOrCreateKsefSession(
+      prisma,
+      'company-1',
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      'PRODUCTION',
+    );
+
+    expect(accessToken).toBe('new-production-access-token');
+    expect(ksefSessionFindUnique).toHaveBeenCalledWith({
+      where: {
+        companyId_environment: {
+          companyId: 'company-1',
+          environment: 'PRODUCTION',
+        },
+      },
+    });
+    expect(initAuthSession).toHaveBeenCalled();
+  });
+
+  it('uses its own session when both TEST and PRODUCTION sessions exist', async () => {
+    refreshAuthSession.mockResolvedValue('test-refreshed-token');
+
+    const ksefSessionFindUnique = vi.fn(async () => ({
+      expiresAt: new Date('2099-01-01T10:00:00.000Z'),
+      tokenEnc: 'test-session-enc',
+      tokenIv: 'test-session-iv',
+    }));
+    const ksefSessionUpdate = vi.fn(async () => ({}));
+
+    const prisma = {
+      ksefSession: {
+        findUnique: ksefSessionFindUnique,
+        update: ksefSessionUpdate,
+      },
+    } as unknown as PrismaClient;
+
+    const accessToken = await getOrCreateKsefSession(
+      prisma,
+      'company-1',
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      'TEST',
+    );
+
+    expect(accessToken).toBe('test-refreshed-token');
+    expect(ksefSessionFindUnique).toHaveBeenCalledWith({
+      where: {
+        companyId_environment: {
+          companyId: 'company-1',
+          environment: 'TEST',
+        },
+      },
+    });
+    expect(vi.mocked(createKsefClient)).toHaveBeenCalledWith({ environment: 'test' });
+  });
 });
 
 describe('pollKsefSubmissionStatus()', () => {
@@ -257,5 +339,256 @@ describe('pollKsefSubmissionStatus()', () => {
         acceptedAt: new Date('2026-04-11T09:33:32.400Z')
       }
     });
+  });
+});
+
+describe('upsertInvoiceKsefState()', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('uses the invoiceId_environment compound unique key for upsert', async () => {
+    const invoiceKsefStateUpsert = vi.fn(async () => ({}));
+    const prisma = {
+      invoiceKsefState: { upsert: invoiceKsefStateUpsert },
+    } as unknown as PrismaClient;
+
+    await upsertInvoiceKsefState(prisma, {
+      invoiceId: 'invoice-1',
+      environment: 'PRODUCTION',
+      status: 'SUBMITTED',
+      submittedAt: new Date('2026-04-15T10:00:00.000Z'),
+      lastSubmissionId: 'submission-1',
+    });
+
+    expect(invoiceKsefStateUpsert).toHaveBeenCalledWith({
+      where: {
+        invoiceId_environment: {
+          invoiceId: 'invoice-1',
+          environment: 'PRODUCTION',
+        },
+      },
+      create: {
+        invoiceId: 'invoice-1',
+        environment: 'PRODUCTION',
+        status: 'SUBMITTED',
+        ksefReference: null,
+        submittedAt: new Date('2026-04-15T10:00:00.000Z'),
+        lastSubmissionId: 'submission-1',
+      },
+      update: {
+        status: 'SUBMITTED',
+        ksefReference: null,
+        submittedAt: new Date('2026-04-15T10:00:00.000Z'),
+        lastSubmissionId: 'submission-1',
+      },
+    });
+  });
+
+  it('allows TEST and PRODUCTION states to coexist independently for the same invoice', async () => {
+    const invoiceKsefStateUpsert = vi.fn(async () => ({}));
+    const prisma = {
+      invoiceKsefState: { upsert: invoiceKsefStateUpsert },
+    } as unknown as PrismaClient;
+
+    await upsertInvoiceKsefState(prisma, {
+      invoiceId: 'invoice-1',
+      environment: 'TEST',
+      status: 'ACCEPTED',
+      ksefReference: 'TEST-REF-001',
+      acceptedAt: new Date('2026-04-10T10:00:00.000Z'),
+    });
+
+    await upsertInvoiceKsefState(prisma, {
+      invoiceId: 'invoice-1',
+      environment: 'PRODUCTION',
+      status: 'NOT_SENT',
+    });
+
+    expect(invoiceKsefStateUpsert).toHaveBeenCalledTimes(2);
+    expect(invoiceKsefStateUpsert).toHaveBeenNthCalledWith(1, {
+      where: {
+        invoiceId_environment: { invoiceId: 'invoice-1', environment: 'TEST' },
+      },
+      create: expect.objectContaining({ environment: 'TEST', status: 'ACCEPTED', ksefReference: 'TEST-REF-001' }),
+      update: expect.objectContaining({ status: 'ACCEPTED', ksefReference: 'TEST-REF-001' }),
+    });
+    expect(invoiceKsefStateUpsert).toHaveBeenNthCalledWith(2, {
+      where: {
+        invoiceId_environment: { invoiceId: 'invoice-1', environment: 'PRODUCTION' },
+      },
+      create: expect.objectContaining({ environment: 'PRODUCTION', status: 'NOT_SENT' }),
+      update: expect.objectContaining({ status: 'NOT_SENT' }),
+    });
+  });
+});
+
+describe('loadCompanyKsefAuthConfiguration()', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    delete process.env.KSEF_AUTH_TOKEN;
+  });
+
+  it('returns the per-environment credential token when available', async () => {
+    const companyFindUnique = vi.fn(async () => ({
+      nip: '8990001122',
+      ksefEnv: 'TEST',
+      ksefTokenEnc: 'legacy-enc',
+      ksefTokenIv: 'legacy-iv',
+      ksefCredentials: [{ tokenEnc: 'production-cred-enc', tokenIv: 'production-cred-iv' }],
+    }));
+
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    const result = await loadCompanyKsefAuthConfiguration(
+      prisma,
+      'company-1',
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      'PRODUCTION',
+    );
+
+    expect(result).toEqual({
+      nip: '8990001122',
+      selectedEnvironment: 'PRODUCTION',
+      ksefToken: 'decrypted:production-cred-enc',
+    });
+  });
+
+  it('throws when no token is configured for the selected environment', async () => {
+    const companyFindUnique = vi.fn(async () => ({
+      nip: '8990001122',
+      ksefEnv: 'TEST',
+      ksefTokenEnc: null,
+      ksefTokenIv: null,
+      ksefCredentials: [],
+    }));
+
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    await expect(
+      loadCompanyKsefAuthConfiguration(
+        prisma,
+        'company-1',
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        'PRODUCTION',
+      ),
+    ).rejects.toThrow('Company company-1 has no KSeF token configured for PRODUCTION');
+  });
+
+  it('falls back to legacy token only when company.ksefEnv matches selectedEnvironment', async () => {
+    const companyFindUnique = vi.fn(async () => ({
+      nip: '8990001122',
+      ksefEnv: 'PRODUCTION',
+      ksefTokenEnc: 'legacy-enc',
+      ksefTokenIv: 'legacy-iv',
+      ksefCredentials: [],
+    }));
+
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    const result = await loadCompanyKsefAuthConfiguration(
+      prisma,
+      'company-1',
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      'PRODUCTION',
+    );
+
+    expect(result.ksefToken).toBe('decrypted:legacy-enc');
+  });
+
+  it('does not fall back to legacy token when company.ksefEnv does not match selectedEnvironment', async () => {
+    const companyFindUnique = vi.fn(async () => ({
+      nip: '8990001122',
+      ksefEnv: 'TEST',
+      ksefTokenEnc: 'legacy-enc',
+      ksefTokenIv: 'legacy-iv',
+      ksefCredentials: [],
+    }));
+
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    await expect(
+      loadCompanyKsefAuthConfiguration(
+        prisma,
+        'company-1',
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        'PRODUCTION',
+      ),
+    ).rejects.toThrow('Company company-1 has no KSeF token configured for PRODUCTION');
+  });
+
+  it('falls back to KSEF_AUTH_TOKEN env var only for TEST environment', async () => {
+    process.env.KSEF_AUTH_TOKEN = 'env-test-token';
+
+    const companyFindUnique = vi.fn(async () => ({
+      nip: '8990001122',
+      ksefEnv: 'PRODUCTION',
+      ksefTokenEnc: null,
+      ksefTokenIv: null,
+      ksefCredentials: [],
+    }));
+
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    const result = await loadCompanyKsefAuthConfiguration(
+      prisma,
+      'company-1',
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      'TEST',
+    );
+
+    expect(result.ksefToken).toBe('env-test-token');
+  });
+
+  it('does not fall back to KSEF_AUTH_TOKEN env var for PRODUCTION environment', async () => {
+    process.env.KSEF_AUTH_TOKEN = 'env-test-token';
+
+    const companyFindUnique = vi.fn(async () => ({
+      nip: '8990001122',
+      ksefEnv: 'TEST',
+      ksefTokenEnc: null,
+      ksefTokenIv: null,
+      ksefCredentials: [],
+    }));
+
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    await expect(
+      loadCompanyKsefAuthConfiguration(
+        prisma,
+        'company-1',
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        'PRODUCTION',
+      ),
+    ).rejects.toThrow('Company company-1 has no KSeF token configured for PRODUCTION');
+  });
+
+  it('throws when company is not found', async () => {
+    const companyFindUnique = vi.fn(async () => null);
+
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    await expect(
+      loadCompanyKsefAuthConfiguration(
+        prisma,
+        'company-missing',
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        'TEST',
+      ),
+    ).rejects.toThrow('Company company-missing not found');
   });
 });

@@ -22,7 +22,7 @@ const toKsefClientEnvironment = (
   return companyKsefEnvironment === 'PRODUCTION' ? 'production' : 'test';
 };
 
-const upsertInvoiceKsefState = async (
+export const upsertInvoiceKsefState = async (
   prisma: PrismaClient,
   input: {
     invoiceId: string;
@@ -63,7 +63,7 @@ const upsertInvoiceKsefState = async (
   });
 };
 
-const loadCompanyKsefAuthConfiguration = async (
+export const loadCompanyKsefAuthConfiguration = async (
   prisma: PrismaClient,
   companyId: string,
   encryptionKey: string,

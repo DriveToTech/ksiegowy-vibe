@@ -311,7 +311,7 @@ const assertCompanyAccess = (
   return membership;
 };
 
-const buildInvoiceKsefStateInclude = (selectedEnvironment: KsefEnvironment) => ({
+export const buildInvoiceKsefStateInclude = (selectedEnvironment: KsefEnvironment) => ({
   where: { environment: selectedEnvironment },
   select: {
     status: true,
@@ -319,7 +319,7 @@ const buildInvoiceKsefStateInclude = (selectedEnvironment: KsefEnvironment) => (
   },
 });
 
-const resolveInvoiceKsefState = (invoice: {
+export const resolveInvoiceKsefState = (invoice: {
   ksefStates?: Array<{ status: string; ksefReference: string | null }>;
 }): { status: string; ksefReference: string | null } => {
   const invoiceKsefState = invoice.ksefStates?.[0];
