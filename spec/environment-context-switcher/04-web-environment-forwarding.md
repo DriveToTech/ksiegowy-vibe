@@ -1,5 +1,8 @@
 # Ticket 04: Persist Active Environment In The Web App And Forward It To The API
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 1`
 

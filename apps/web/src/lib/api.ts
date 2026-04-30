@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers';
 import { API_BASE } from './api-base';
+import { getActiveKsefEnvironment } from './auth';
+import { KSEF_ENVIRONMENT_HEADER_NAME } from './ksef-environment';
 import type {
   AuthUser,
   BackupRunStatus,
@@ -134,8 +136,11 @@ export async function getKsefStatus(
   companyId: string,
   invoiceId: string,
 ): Promise<{ status: string; ksefReferenceNumber?: string }> {
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
+
   return apiFetch<{ status: string; ksefReferenceNumber?: string }>(
     `/companies/${companyId}/invoices/${invoiceId}/ksef-status`,
+    { headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment } },
   );
 }
 

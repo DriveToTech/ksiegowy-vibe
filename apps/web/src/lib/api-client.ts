@@ -1,4 +1,8 @@
 import { API_BASE } from './api-base';
+import {
+  getActiveKsefEnvironmentFromBrowser,
+  KSEF_ENVIRONMENT_HEADER_NAME,
+} from './ksef-environment';
 import type {
   CompanyBackupRunResult,
   CompanyBackupScheduleMode,
@@ -69,6 +73,12 @@ export async function clientFetch<T>(path: string, options?: RequestInit): Promi
   if (response.status === 204) return undefined as T;
 
   return response.json() as Promise<T>;
+}
+
+function getKsefEnvironmentHeaders(): Record<string, string> {
+  return {
+    [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser(),
+  };
 }
 
 export async function refreshBrowserSession(nextPath = '/dashboard'): Promise<void> {
@@ -144,7 +154,7 @@ export async function submitKsef(
 ): Promise<KsefSubmitResponse> {
   return clientFetch<KsefSubmitResponse>(
     `/companies/${companyId}/invoices/${invoiceId}/submit-ksef`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -165,7 +175,11 @@ export async function createCorrection(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/correct`,
-    { method: 'POST', body: body ? JSON.stringify(body) : undefined },
+    {
+      method: 'POST',
+      headers: getKsefEnvironmentHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    },
   );
 }
 
@@ -326,6 +340,7 @@ export async function checkKsefStatus(
 ): Promise<{ status: string; ksefReferenceNumber?: string }> {
   return clientFetch<{ status: string; ksefReferenceNumber?: string }>(
     `/companies/${companyId}/invoices/${invoiceId}/ksef-status`,
+    { headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -336,7 +351,11 @@ export async function syncIncomingFromKsef(
 ): Promise<KsefIncomingSyncResult> {
   return clientFetch<KsefIncomingSyncResult>(
     `/companies/${companyId}/incoming/ksef-sync`,
-    { method: 'POST', body: JSON.stringify({ dateFrom, dateTo }) },
+    {
+      method: 'POST',
+      headers: getKsefEnvironmentHeaders(),
+      body: JSON.stringify({ dateFrom, dateTo }),
+    },
   );
 }
 
