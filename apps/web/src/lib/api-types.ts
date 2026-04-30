@@ -84,6 +84,7 @@ export interface VatBreakdownEntry {
 export interface InvoiceSummary {
   id: string;
   companyId: string;
+  environment: CompanyKsefEnvironment;
   contractorId: string | null;
   invoiceNumber: string | null;
   status: InvoiceStatus;
@@ -103,6 +104,7 @@ export interface InvoiceSummary {
 export interface InvoiceDetail {
   id: string;
   companyId: string;
+  environment: CompanyKsefEnvironment;
   contractorId: string | null;
   invoiceNumber: string | null;
   status: InvoiceStatus;
@@ -200,6 +202,7 @@ export interface KsefIncomingSyncResult {
 export interface IncomingInvoiceSummary {
   id: string;
   companyId: string;
+  environment: CompanyKsefEnvironment;
   contractorId: string | null;
   status: IncomingInvoiceStatus;
   sellerName: string | null;
@@ -210,6 +213,7 @@ export interface IncomingInvoiceSummary {
   currency: string | null;
   ocrError: string | null;
   ksefReference: string | null;
+  ksefEnvironment: CompanyKsefEnvironment | null;
   createdAt: string;
   updatedAt: string;
   contractor: { id: string; name: string; nip: string | null } | null;

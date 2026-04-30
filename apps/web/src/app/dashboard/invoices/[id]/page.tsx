@@ -5,7 +5,7 @@ import { Surface } from '../../../../components/atoms/Surface';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
 import { ErrorState } from '../../../../components/molecules/ErrorState';
 import { MetricCard } from '../../../../components/molecules/MetricCard';
-import { InvoiceStatusChip, KsefStatusChip } from '../../../../components/molecules/StatusChip';
+import { InvoiceEnvironmentChip, InvoiceStatusChip, KsefStatusChip } from '../../../../components/molecules/StatusChip';
 import { formatDate, formatMoney } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 import InvoiceActions from './InvoiceActions';
@@ -79,6 +79,7 @@ export default async function InvoiceDetailPage({
             <div className="flex flex-wrap items-center gap-3">
               <InvoiceStatusChip status={invoice.status} />
               <KsefStatusChip status={invoice.ksefStatus} />
+              <InvoiceEnvironmentChip environment={invoice.environment} />
               <span className="text-sm text-muted">{t.invoiceDetail.issuedOn(formatDate(invoice.issueDate))}</span>
             </div>
           </div>
@@ -126,6 +127,7 @@ export default async function InvoiceDetailPage({
           <InfoRow label={t.invoiceDetail.fields.paymentMethod} value={paymentMethodLabel} />
           <InfoRow label={t.invoiceDetail.fields.paymentDueDate} value={formatDate(invoice.paymentDueDate)} />
           <InfoRow label={t.invoiceDetail.fields.currency} value={invoice.currency} />
+          <InfoRow label={t.invoiceDetail.fields.environment} value={invoice.environment} />
           <InfoRow label={t.invoiceDetail.fields.ksefReference} value={invoice.ksefReference} />
         </InfoSection>
       </div>

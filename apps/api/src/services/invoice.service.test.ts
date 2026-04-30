@@ -219,6 +219,7 @@ describe('createInvoiceDraft()', () => {
 
     await createInvoiceDraft(prisma, {
       companyId: 'company-1',
+      environment: 'TEST',
       issueDate: '2025-04-01',
       lines: [
         { position: 1, name: 'Service', quantity: '1', unitNetPrice: '100.00', vatRate: '23' }
@@ -237,6 +238,7 @@ describe('createInvoiceDraft()', () => {
 
     await createInvoiceDraft(prisma, {
       companyId: 'company-1',
+      environment: 'TEST',
       issueDate: '2025-04-01',
       lines: [
         { position: 1, name: 'Service', quantity: '1', unitNetPrice: '10.00', vatRate: '23' }
@@ -252,6 +254,7 @@ describe('createInvoiceDraft()', () => {
 
     await createInvoiceDraft(prisma, {
       companyId: 'company-1',
+      environment: 'TEST',
       issueDate: '2025-04-01',
       lines: [
         { position: 1, name: 'Service', quantity: '1', unitNetPrice: '10.00', vatRate: '23' }
@@ -267,6 +270,7 @@ describe('createInvoiceDraft()', () => {
 
     await createInvoiceDraft(prisma, {
       companyId: 'company-1',
+      environment: 'TEST',
       issueDate: '2025-04-01',
       lines: [
         { position: 1, name: 'Service', quantity: '1', unitNetPrice: '10.00', vatRate: '23' }
@@ -285,6 +289,7 @@ describe('createInvoiceDraft()', () => {
 
     await createInvoiceDraft(prisma, {
       companyId: 'company-1',
+      environment: 'TEST',
       issueDate: '2025-04-01',
       lines: [
         { position: 1, name: 'Service', unit: 'usł.', quantity: '1', unitNetPrice: '10.00', vatRate: '23' }
@@ -293,5 +298,21 @@ describe('createInvoiceDraft()', () => {
 
     const callArg = invoiceCreate.mock.calls[0]![0] as { data: { lines: { create: Array<{ unit: string }> } } };
     expect(callArg.data.lines.create[0]!.unit).toBe('usł.');
+  });
+
+  it('stores the draft in the selected environment', async () => {
+    const { prisma, invoiceCreate } = buildPrisma({ id: 'inv-1', lines: [], vatBreakdown: [] });
+
+    await createInvoiceDraft(prisma, {
+      companyId: 'company-1',
+      environment: 'PRODUCTION',
+      issueDate: '2025-04-01',
+      lines: [
+        { position: 1, name: 'Service', quantity: '1', unitNetPrice: '10.00', vatRate: '23' }
+      ]
+    });
+
+    const callArg = invoiceCreate.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(callArg.data.environment).toBe('PRODUCTION');
   });
 });

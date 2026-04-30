@@ -211,10 +211,26 @@ describe('parseFa3Xml()', () => {
     expect(() => parseFa3Xml(xml)).toThrow('invoiceNumber');
   });
 
+  it('uses fallbackInvoiceNumber when invoiceNumber (P_2) is missing', () => {
+    const xml = buildXml({ invoiceNumber: '' }).replace(/<P_2>[^<]*<\/P_2>/, '');
+
+    const result = parseFa3Xml(xml, { fallbackInvoiceNumber: 'KSEF-REF-123' });
+
+    expect(result.invoiceNumber).toBe('KSEF-REF-123');
+  });
+
   it('throws when issueDate (P_1) is missing', () => {
     const xml = buildXml().replace(/<P_1>[^<]*<\/P_1>/, '');
 
     expect(() => parseFa3Xml(xml)).toThrow('issueDate');
+  });
+
+  it('uses fallbackIssueDate when issueDate (P_1) is missing', () => {
+    const xml = buildXml().replace(/<P_1>[^<]*<\/P_1>/, '');
+
+    const result = parseFa3Xml(xml, { fallbackIssueDate: '2025-01-02' });
+
+    expect(result.issueDate).toBe('2025-01-02');
   });
 
   it('throws when sellerNip (Podmiot1/NIP) is missing', () => {
@@ -223,9 +239,47 @@ describe('parseFa3Xml()', () => {
     expect(() => parseFa3Xml(xml)).toThrow('sellerNip');
   });
 
-  it('throws when totalGross (P_15) is missing', () => {
+  it('uses fallbackSellerNip when sellerNip is missing', () => {
+    const xml = buildXml().replace(/<NIP>1234563218<\/NIP>/, '');
+
+    const result = parseFa3Xml(xml, { fallbackSellerNip: '9998887776' });
+
+    expect(result.sellerNip).toBe('9998887776');
+  });
+
+  it('uses fallbackSellerName when sellerName is missing', () => {
+    const xml = buildXml().replace(/<Nazwa>Test Seller<\/Nazwa>/, '');
+
+    const result = parseFa3Xml(xml, { fallbackSellerName: 'Fallback Seller' });
+
+    expect(result.sellerName).toBe('Fallback Seller');
+  });
+
+  it('derives zero totalGross when P_15 and amount bands are missing', () => {
+    const xml = buildXml({ totalNetBands: '', vatAmounts: '' }).replace(/<P_15>[^<]*<\/P_15>/, '');
+
+    const result = parseFa3Xml(xml);
+
+    expect(result.totalGross).toBe('0.00');
+  });
+
+  it('uses fallbackTotalGross when totalGross is missing', () => {
     const xml = buildXml().replace(/<P_15>[^<]*<\/P_15>/, '');
 
-    expect(() => parseFa3Xml(xml)).toThrow('totalGross');
+    const result = parseFa3Xml(xml, { fallbackTotalGross: '456.78' });
+
+    expect(result.totalGross).toBe('456.78');
+  });
+
+  it('derives totalGross from totalNet and totalVat when P_15 is missing', () => {
+    const xml = buildXml({
+      totalNetBands: '<P_13_1>100.00</P_13_1>',
+      vatAmounts: '<P_14_1>23.00</P_14_1>',
+      totalGross: '123.00'
+    }).replace(/<P_15>[^<]*<\/P_15>/, '');
+
+    const result = parseFa3Xml(xml);
+
+    expect(result.totalGross).toBe('123.00');
   });
 });

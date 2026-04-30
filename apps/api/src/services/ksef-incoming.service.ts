@@ -7,6 +7,29 @@ import { getOrCreateKsefSession, initKsefSession } from './ksef.service.js';
 
 const PAGE_SIZE = 100;
 
+const resolveFallbackTotalGross = (header: {
+  gross?: string;
+  net?: string;
+  vat?: string;
+}): string | undefined => {
+  if (header.gross && header.gross.trim().length > 0) {
+    return header.gross;
+  }
+
+  if (!header.net || !header.vat) {
+    return undefined;
+  }
+
+  const netAmount = Number.parseFloat(header.net);
+  const vatAmount = Number.parseFloat(header.vat);
+
+  if (Number.isNaN(netAmount) || Number.isNaN(vatAmount)) {
+    return undefined;
+  }
+
+  return (netAmount + vatAmount).toFixed(2);
+};
+
 export interface KsefIncomingSyncResult {
   readonly created: number;
   readonly linked: number;
@@ -77,7 +100,7 @@ export const syncIncomingInvoicesFromKsef = async (
 
         // Case A: already linked to this KSeF reference (scoped by environment)
         const existingLinked = await prisma.incomingInvoice.findFirst({
-          where: { companyId, ksefEnvironment: selectedEnvironment, ksefReference },
+          where: { companyId, environment: selectedEnvironment, ksefEnvironment: selectedEnvironment, ksefReference },
           select: { id: true }
         });
 
@@ -95,7 +118,7 @@ export const syncIncomingInvoicesFromKsef = async (
         const metadataInvoiceNumber = header.invoiceNumber ?? null;
         const existingUpload = metadataInvoiceNumber
           ? await prisma.incomingInvoice.findFirst({
-            where: { companyId, sellerNip, invoiceNumber: metadataInvoiceNumber, ksefReference: null, ksefEnvironment: selectedEnvironment },
+            where: { companyId, environment: selectedEnvironment, sellerNip, invoiceNumber: metadataInvoiceNumber, ksefReference: null, ksefEnvironment: selectedEnvironment },
             select: { id: true }
           })
           : null;
@@ -123,7 +146,17 @@ export const syncIncomingInvoicesFromKsef = async (
           }
         }
 
-        const parsed = parseFa3Xml(xml);
+        const fallbackInvoiceNumber = header.invoiceNumber ?? ksefReference;
+        const fallbackIssueDate = header.issueDate ?? header.invoicingDate;
+        const fallbackSellerName = header.seller?.name;
+        const fallbackTotalGross = resolveFallbackTotalGross(header);
+        const parsed = parseFa3Xml(xml, {
+          fallbackInvoiceNumber,
+          ...(fallbackIssueDate !== undefined ? { fallbackIssueDate } : {}),
+          ...(sellerNip !== '' ? { fallbackSellerNip: sellerNip } : {}),
+          ...(fallbackSellerName !== undefined ? { fallbackSellerName } : {}),
+          ...(fallbackTotalGross !== undefined ? { fallbackTotalGross } : {}),
+        });
 
         // Find existing contractor or auto-create one from KSeF data so the
         // seller is represented in the system even if never manually added.
@@ -156,6 +189,7 @@ export const syncIncomingInvoicesFromKsef = async (
         await prisma.incomingInvoice.create({
           data: {
             companyId,
+            environment: selectedEnvironment,
             source: 'ksef',
             ksefEnvironment: selectedEnvironment,
             status: 'CONFIRMED',

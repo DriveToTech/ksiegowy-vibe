@@ -52,7 +52,8 @@ The implementation must keep KSeF operations safe:
 
 ## Product Rules
 - The switcher is a user-level context switcher.
-- Company, contractor, invoice, and OCR data remain company-scoped in this slice.
+- Company and contractor data remain company-scoped in this slice.
+- Outgoing and incoming invoice visibility is environment-scoped in this slice.
 - The selected environment controls KSeF-connected behavior only.
 - The company still keeps a default KSeF environment as fallback.
 - `TEST` and `PRODUCTION` credentials are stored separately.
@@ -67,6 +68,8 @@ In scope:
 - environment-aware KSeF credential storage
 - environment-aware KSeF session storage
 - environment-aware invoice KSeF state
+- environment-aware outgoing invoice visibility
+- environment-aware incoming invoice visibility
 - environment-aware incoming sync audit
 - environment-aware correction and submission logic
 - settings UI for per-environment token management
@@ -75,7 +78,7 @@ In scope:
 Out of scope:
 - full duplication of company data per environment
 - separate companies for test and production
-- splitting contractors or invoices into separate test and production datasets
+- splitting contractors into separate test and production datasets
 - retroactive KSeF cleanup outside normal business flows
 
 ## Non-Goals
@@ -189,7 +192,15 @@ Reason:
 - imported incoming invoices from `TEST` and `PRODUCTION` must be distinguishable
 - deduplication should not accidentally merge records across environments
 
-### 7. Legacy transition
+### 7. Make outgoing invoice visibility environment-aware
+Add `environment` to `Invoice` and treat it as the visibility boundary for outgoing invoice reads and writes.
+
+Reason:
+- a draft created in `TEST` must remain visible only in `TEST`
+- a draft created in `PRODUCTION` must remain visible only in `PRODUCTION`
+- invoice detail, edit, issue, correction, payment, report, and list routes must not silently mix environments
+
+### 8. Legacy transition
 Treat these as legacy fields during rollout:
 - `Company.ksefTokenEnc`
 - `Company.ksefTokenIv`

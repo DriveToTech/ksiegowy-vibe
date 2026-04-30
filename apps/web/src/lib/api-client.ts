@@ -49,13 +49,14 @@ export type {
 
 export async function clientFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const hasBody = options?.body !== undefined;
+  const requestHeaders = options?.headers as Record<string, string> | undefined;
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
+    ...options,
     headers: {
       ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(options?.headers as Record<string, string> | undefined),
+      ...requestHeaders,
     },
-    ...options,
   });
 
   if (!response.ok) {
@@ -146,6 +147,7 @@ export async function createDraft(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(`/companies/${companyId}/invoices`, {
     method: 'POST',
+    headers: getKsefEnvironmentHeaders(),
     body: JSON.stringify(body),
   });
 }
@@ -157,6 +159,7 @@ export async function updateDraft(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(`/companies/${companyId}/invoices/${invoiceId}`, {
     method: 'PUT',
+    headers: getKsefEnvironmentHeaders(),
     body: JSON.stringify(body),
   });
 }
@@ -167,7 +170,7 @@ export async function issueInvoice(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/issue`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -187,7 +190,7 @@ export async function sendInvoiceEmail(
 ): Promise<{ emailId: string }> {
   return clientFetch<{ emailId: string }>(
     `/companies/${companyId}/invoices/${invoiceId}/send-email`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -212,7 +215,7 @@ export async function revertToDraft(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/revert-to-draft`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -224,7 +227,11 @@ export async function recordPayment(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/payment`,
-    { method: 'POST', body: JSON.stringify({ amount, ...(receivedAt ? { receivedAt } : {}) }) },
+    {
+      method: 'POST',
+      headers: getKsefEnvironmentHeaders(),
+      body: JSON.stringify({ amount, ...(receivedAt ? { receivedAt } : {}) })
+    },
   );
 }
 

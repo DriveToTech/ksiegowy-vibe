@@ -1,5 +1,5 @@
 import { Badge } from '../atoms/Badge';
-import type { InvoiceStatus, IncomingInvoiceStatus, KsefStatus } from '../../lib/api-types';
+import type { CompanyKsefEnvironment, InvoiceStatus, IncomingInvoiceStatus, KsefStatus } from '../../lib/api-types';
 
 const invoiceStatusMap: Record<InvoiceStatus, { label: string; tone: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' }> = {
   DRAFT: { label: 'Szkic', tone: 'neutral' },
@@ -24,6 +24,11 @@ const incomingStatusMap: Record<IncomingInvoiceStatus, { label: string; tone: 'n
   KSEF_SYNCED: { label: 'Z KSeF', tone: 'primary' },
 };
 
+const environmentToneMap: Record<CompanyKsefEnvironment, 'success' | 'warning'> = {
+  TEST: 'success',
+  PRODUCTION: 'warning',
+};
+
 export function InvoiceStatusChip({ status }: { status: InvoiceStatus }) {
   const config = invoiceStatusMap[status] ?? invoiceStatusMap.DRAFT;
   return <Badge tone={config.tone}>{config.label}</Badge>;
@@ -37,4 +42,8 @@ export function KsefStatusChip({ status }: { status: KsefStatus }) {
 export function IncomingStatusChip({ status }: { status: IncomingInvoiceStatus }) {
   const config = incomingStatusMap[status] ?? incomingStatusMap.UPLOADED;
   return <Badge tone={config.tone}>{config.label}</Badge>;
+}
+
+export function InvoiceEnvironmentChip({ environment }: { environment: CompanyKsefEnvironment }) {
+  return <Badge tone={environmentToneMap[environment]}>{environment}</Badge>;
 }

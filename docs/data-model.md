@@ -81,6 +81,7 @@ erDiagram
     Invoice {
         string id PK
         string companyId FK
+        KsefEnvironment environment
         string contractorId FK
         string invoiceNumber
         InvoiceStatus status
@@ -832,6 +833,24 @@ If no token is found, the function throws an error and the KSeF action is blocke
 `InvoiceKsefState` is the source of truth for per-environment KSeF status. Each invoice can have independent KSeF lifecycle state in `TEST` and `PRODUCTION` via the `(invoiceId, environment)` unique key.
 
 Legacy fields on `Invoice` (`ksefStatus`, `ksefReference`, `ksefSubmittedAt`, `ksefAcceptedAt`) are still written in parallel during submit and poll flows for rollout compatibility. These are marked with `// LEGACY: parallel write for rollout compatibility` comments in `ksef.service.ts` and must not be removed until the transition is validated.
+
+### Document visibility and ownership
+
+Outgoing invoices are now tagged directly on the `Invoice` record with an `environment` field. This means:
+
+- a draft created while the active environment is `TEST` remains a `TEST` invoice for its full lifecycle
+- a draft created while the active environment is `PRODUCTION` remains a `PRODUCTION` invoice for its full lifecycle
+- invoice list, detail, edit, issue, correction, payment, report, and queue reads are filtered by the active environment
+- existing invoices created before this change are backfilled to `TEST`
+
+Incoming invoices are now tagged directly on the `IncomingInvoice` record with an `environment` field. This means:
+
+- an uploaded OCR document remains visible only in the environment where it was uploaded
+- a KSeF-synced incoming document remains visible only in the environment where it was synced
+- incoming list, detail, OCR review, confirm, reject, and SSE status reads are filtered by the active environment
+- existing incoming invoices created before this change are backfilled to `TEST`
+
+The company record remains shared, but outgoing and incoming invoice visibility is environment-specific.
 
 ### KSeF session management
 

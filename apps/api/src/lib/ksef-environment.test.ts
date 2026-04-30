@@ -137,6 +137,20 @@ describe('resolveEffectiveKsefEnvironment()', () => {
     expect(result).toBe('PRODUCTION');
   });
 
+  it('returns cookie environment when header is missing and active_ksef_environment cookie is present', async () => {
+    const companyFindUnique = vi.fn(async () => ({ ksefEnv: 'TEST' }));
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+    } as unknown as PrismaClient;
+
+    const request = buildRequest({ cookie: 'active_ksef_environment=PRODUCTION; auth_token=token' });
+
+    const result = await resolveEffectiveKsefEnvironment(request, prisma, 'company-1');
+
+    expect(result).toBe('PRODUCTION');
+    expect(companyFindUnique).not.toHaveBeenCalled();
+  });
+
   it('returns company ksefEnv value when it is null (no automatic TEST fallback)', async () => {
     const companyFindUnique = vi.fn(async () => ({ ksefEnv: null }));
     const prisma = {

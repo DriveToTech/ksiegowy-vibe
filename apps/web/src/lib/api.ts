@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { API_BASE } from './api-base';
 import { getActiveKsefEnvironment } from './auth';
-import { KSEF_ENVIRONMENT_HEADER_NAME } from './ksef-environment';
+import { ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME, KSEF_ENVIRONMENT_HEADER_NAME } from './ksef-environment';
 import type {
   AuthUser,
   BackupRunStatus,
@@ -59,6 +59,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const cookieStore = await cookies();
   const authToken = cookieStore.get('auth_token')?.value;
   const refreshToken = cookieStore.get('refresh_token')?.value;
+  const activeKsefEnvironment = cookieStore.get(ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME)?.value;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -68,6 +69,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const cookieHeader = [
     authToken ? `auth_token=${authToken}` : null,
     refreshToken ? `refresh_token=${refreshToken}` : null,
+    activeKsefEnvironment ? `${ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME}=${activeKsefEnvironment}` : null,
   ].filter((value): value is string => value !== null).join('; ');
 
   if (cookieHeader) {
@@ -129,14 +131,20 @@ export async function getInvoices(
   params?: Record<string, string>,
 ): Promise<InvoiceSummary[]> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
   const data = await apiFetch<{ data: InvoiceSummary[]; total: number; page: number; limit: number }>(
     `/companies/${companyId}/invoices${qs}`,
+    { headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment } },
   );
   return data.data;
 }
 
 export async function getInvoice(companyId: string, invoiceId: string): Promise<InvoiceDetail> {
-  return apiFetch<InvoiceDetail>(`/companies/${companyId}/invoices/${invoiceId}`);
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
+
+  return apiFetch<InvoiceDetail>(`/companies/${companyId}/invoices/${invoiceId}`, {
+    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
+  });
 }
 
 export async function getKsefStatus(
@@ -158,11 +166,19 @@ export async function getIncomingInvoices(
   params?: Record<string, string>,
 ): Promise<{ data: IncomingInvoiceSummary[]; total: number; page: number; limit: number }> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch(`/companies/${companyId}/incoming${qs}`);
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
+
+  return apiFetch(`/companies/${companyId}/incoming${qs}`, {
+    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
+  });
 }
 
 export async function getIncomingInvoice(companyId: string, id: string): Promise<IncomingInvoiceDetail> {
-  return apiFetch(`/companies/${companyId}/incoming/${id}`);
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
+
+  return apiFetch(`/companies/${companyId}/incoming/${id}`, {
+    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
+  });
 }
 
 export async function getBackupStatus(): Promise<{ gdrive: BackupRunStatus | null; icloud: BackupRunStatus | null }> {

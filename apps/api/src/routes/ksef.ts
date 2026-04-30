@@ -56,7 +56,7 @@ export const ksefRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
       where: {
         environment: selectedEnvironment,
         status: 'OFFLINE_QUEUED',
-        invoice: { companyId }
+        invoice: { companyId, environment: selectedEnvironment }
       },
       orderBy: { updatedAt: 'asc' },
       select: {

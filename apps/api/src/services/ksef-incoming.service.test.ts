@@ -43,6 +43,7 @@ vi.mock('@ksiegowy/fa3-xml', () => ({
   })),
 }));
 
+import { parseFa3Xml } from '@ksiegowy/fa3-xml';
 import { syncIncomingInvoicesFromKsef } from './ksef-incoming.service.js';
 
 describe('syncIncomingInvoicesFromKsef()', () => {
@@ -228,6 +229,7 @@ describe('syncIncomingInvoicesFromKsef()', () => {
     expect(incomingInvoiceCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          environment: 'PRODUCTION',
           ksefEnvironment: 'PRODUCTION',
           companyId: 'company-1',
           source: 'ksef',
@@ -235,5 +237,393 @@ describe('syncIncomingInvoicesFromKsef()', () => {
         }),
       }),
     );
+  });
+
+  it('uses KSeF metadata fallback when XML is missing invoiceNumber', async () => {
+    refreshAuthSession.mockResolvedValue('access-token');
+    const incomingInvoiceCreate = vi.fn(async () => ({}));
+    const prisma = {
+      company: { findUnique: vi.fn(async () => ({ nip: '1234567890' })) },
+      ksefIncomingSync: {
+        create: vi.fn(async () => ({ id: 'sync-1' })),
+        update: vi.fn(async () => ({})),
+      },
+      ksefSession: {
+        findUnique: vi.fn(async () => ({
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+          tokenEnc: 'session-enc',
+          tokenIv: 'session-iv',
+        })),
+        update: vi.fn(async () => ({})),
+      },
+      incomingInvoice: {
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(async () => ({})),
+        create: incomingInvoiceCreate,
+      },
+      contractor: { findUnique: vi.fn(async () => null), create: vi.fn(async () => ({ id: 'new-contractor' })) },
+    } as unknown as PrismaClient;
+
+    const logger = { info: vi.fn(), error: vi.fn() } as never;
+
+    queryIncomingInvoices.mockResolvedValue({
+      invoiceHeaderList: [
+        {
+          ksefNumber: 'KSEF-REF-004',
+          seller: { nip: '9876543210' },
+          invoiceNumber: 'FV/METADATA/2026/04/01',
+        },
+      ],
+      hasMore: false,
+    });
+
+    fetchInvoiceXml.mockResolvedValue('<xml>invoice</xml>');
+    vi.mocked(parseFa3Xml).mockReturnValueOnce({
+      sellerName: 'Seller Sp. z o.o.',
+      sellerAddress: 'ul. Testowa 1, Warszawa',
+      buyerName: 'Buyer Sp. z o.o.',
+      buyerNip: '1234567890',
+      invoiceNumber: 'FV/METADATA/2026/04/01',
+      issueDate: '2026-04-15',
+      saleDate: '2026-04-15',
+      totalNet: '1000.00',
+      totalVat: '230.00',
+      totalGross: '1230.00',
+      currency: 'PLN',
+      dueDate: '2026-04-30',
+      bankAccount: null,
+      paymentMethod: 'BANK_TRANSFER',
+      lineItems: [],
+    });
+
+    await syncIncomingInvoicesFromKsef(
+      prisma,
+      'company-1',
+      'encryption-key',
+      'PRODUCTION',
+      '2026-04-01',
+      '2026-04-30',
+      logger,
+    );
+
+    expect(parseFa3Xml).toHaveBeenCalledWith('<xml>invoice</xml>', {
+      fallbackInvoiceNumber: 'FV/METADATA/2026/04/01',
+      fallbackSellerNip: '9876543210',
+    });
+  });
+
+  it('uses KSeF metadata fallback for missing issueDate in XML', async () => {
+    refreshAuthSession.mockResolvedValue('access-token');
+    const incomingInvoiceCreate = vi.fn(async () => ({}));
+    const prisma = {
+      company: { findUnique: vi.fn(async () => ({ nip: '1234567890' })) },
+      ksefIncomingSync: {
+        create: vi.fn(async () => ({ id: 'sync-1' })),
+        update: vi.fn(async () => ({})),
+      },
+      ksefSession: {
+        findUnique: vi.fn(async () => ({
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+          tokenEnc: 'session-enc',
+          tokenIv: 'session-iv',
+        })),
+        update: vi.fn(async () => ({})),
+      },
+      incomingInvoice: {
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(async () => ({})),
+        create: incomingInvoiceCreate,
+      },
+      contractor: { findUnique: vi.fn(async () => null), create: vi.fn(async () => ({ id: 'new-contractor' })) },
+    } as unknown as PrismaClient;
+
+    const logger = { info: vi.fn(), error: vi.fn() } as never;
+
+    queryIncomingInvoices.mockResolvedValue({
+      invoiceHeaderList: [
+        {
+          ksefNumber: 'KSEF-REF-005',
+          seller: { nip: '9876543210', name: 'Seller Header Name' },
+          invoiceNumber: 'FV/METADATA/2026/04/02',
+          issueDate: '2026-04-16',
+          gross: '1230.00',
+        },
+      ],
+      hasMore: false,
+    });
+
+    fetchInvoiceXml.mockResolvedValue('<xml>invoice</xml>');
+    vi.mocked(parseFa3Xml).mockReturnValueOnce({
+      sellerName: 'Seller Sp. z o.o.',
+      sellerAddress: 'ul. Testowa 1, Warszawa',
+      buyerName: 'Buyer Sp. z o.o.',
+      buyerNip: '1234567890',
+      invoiceNumber: 'FV/METADATA/2026/04/02',
+      issueDate: '2026-04-16',
+      saleDate: '2026-04-16',
+      totalNet: '1000.00',
+      totalVat: '230.00',
+      totalGross: '1230.00',
+      currency: 'PLN',
+      dueDate: '2026-04-30',
+      bankAccount: null,
+      paymentMethod: 'BANK_TRANSFER',
+      lineItems: [],
+    });
+
+    await syncIncomingInvoicesFromKsef(
+      prisma,
+      'company-1',
+      'encryption-key',
+      'PRODUCTION',
+      '2026-04-01',
+      '2026-04-30',
+      logger,
+    );
+
+    expect(parseFa3Xml).toHaveBeenCalledWith('<xml>invoice</xml>', {
+      fallbackInvoiceNumber: 'FV/METADATA/2026/04/02',
+      fallbackIssueDate: '2026-04-16',
+      fallbackSellerNip: '9876543210',
+      fallbackSellerName: 'Seller Header Name',
+      fallbackTotalGross: '1230.00',
+    });
+  });
+
+  it('uses KSeF metadata fallback for missing sellerNip in XML', async () => {
+    refreshAuthSession.mockResolvedValue('access-token');
+    const incomingInvoiceCreate = vi.fn(async () => ({}));
+    const prisma = {
+      company: { findUnique: vi.fn(async () => ({ nip: '1234567890' })) },
+      ksefIncomingSync: {
+        create: vi.fn(async () => ({ id: 'sync-1' })),
+        update: vi.fn(async () => ({})),
+      },
+      ksefSession: {
+        findUnique: vi.fn(async () => ({
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+          tokenEnc: 'session-enc',
+          tokenIv: 'session-iv',
+        })),
+        update: vi.fn(async () => ({})),
+      },
+      incomingInvoice: {
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(async () => ({})),
+        create: incomingInvoiceCreate,
+      },
+      contractor: { findUnique: vi.fn(async () => null), create: vi.fn(async () => ({ id: 'new-contractor' })) },
+    } as unknown as PrismaClient;
+
+    const logger = { info: vi.fn(), error: vi.fn() } as never;
+
+    queryIncomingInvoices.mockResolvedValue({
+      invoiceHeaderList: [
+        {
+          ksefNumber: 'KSEF-REF-006',
+          seller: { nip: '9876543210', name: 'Seller Header Name' },
+          invoiceNumber: 'FV/METADATA/2026/04/03',
+          issueDate: '2026-04-17',
+          gross: '1230.00',
+        },
+      ],
+      hasMore: false,
+    });
+
+    fetchInvoiceXml.mockResolvedValue('<xml>invoice</xml>');
+    vi.mocked(parseFa3Xml).mockReturnValueOnce({
+      sellerName: 'Seller Sp. z o.o.',
+      sellerAddress: 'ul. Testowa 1, Warszawa',
+      buyerName: 'Buyer Sp. z o.o.',
+      buyerNip: '1234567890',
+      invoiceNumber: 'FV/METADATA/2026/04/03',
+      issueDate: '2026-04-17',
+      saleDate: '2026-04-17',
+      sellerNip: '9876543210',
+      totalNet: '1000.00',
+      totalVat: '230.00',
+      totalGross: '1230.00',
+      currency: 'PLN',
+      dueDate: '2026-04-30',
+      bankAccount: null,
+      paymentMethod: 'BANK_TRANSFER',
+      lineItems: [],
+    });
+
+    await syncIncomingInvoicesFromKsef(
+      prisma,
+      'company-1',
+      'encryption-key',
+      'PRODUCTION',
+      '2026-04-01',
+      '2026-04-30',
+      logger,
+    );
+
+    expect(parseFa3Xml).toHaveBeenCalledWith('<xml>invoice</xml>', {
+      fallbackInvoiceNumber: 'FV/METADATA/2026/04/03',
+      fallbackIssueDate: '2026-04-17',
+      fallbackSellerNip: '9876543210',
+      fallbackSellerName: 'Seller Header Name',
+      fallbackTotalGross: '1230.00',
+    });
+  });
+
+  it('uses KSeF metadata fallback for missing sellerName in XML', async () => {
+    refreshAuthSession.mockResolvedValue('access-token');
+    const incomingInvoiceCreate = vi.fn(async () => ({}));
+    const prisma = {
+      company: { findUnique: vi.fn(async () => ({ nip: '1234567890' })) },
+      ksefIncomingSync: {
+        create: vi.fn(async () => ({ id: 'sync-1' })),
+        update: vi.fn(async () => ({})),
+      },
+      ksefSession: {
+        findUnique: vi.fn(async () => ({
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+          tokenEnc: 'session-enc',
+          tokenIv: 'session-iv',
+        })),
+        update: vi.fn(async () => ({})),
+      },
+      incomingInvoice: {
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(async () => ({})),
+        create: incomingInvoiceCreate,
+      },
+      contractor: { findUnique: vi.fn(async () => null), create: vi.fn(async () => ({ id: 'new-contractor' })) },
+    } as unknown as PrismaClient;
+
+    const logger = { info: vi.fn(), error: vi.fn() } as never;
+
+    queryIncomingInvoices.mockResolvedValue({
+      invoiceHeaderList: [
+        {
+          ksefNumber: 'KSEF-REF-007',
+          seller: { nip: '9876543210', name: 'Seller Header Name' },
+          invoiceNumber: 'FV/METADATA/2026/04/04',
+          issueDate: '2026-04-18',
+          gross: '1230.00',
+        },
+      ],
+      hasMore: false,
+    });
+
+    fetchInvoiceXml.mockResolvedValue('<xml>invoice</xml>');
+    vi.mocked(parseFa3Xml).mockReturnValueOnce({
+      sellerName: 'Seller Header Name',
+      sellerAddress: 'ul. Testowa 1, Warszawa',
+      buyerName: 'Buyer Sp. z o.o.',
+      buyerNip: '1234567890',
+      invoiceNumber: 'FV/METADATA/2026/04/04',
+      issueDate: '2026-04-18',
+      saleDate: '2026-04-18',
+      sellerNip: '9876543210',
+      totalNet: '1000.00',
+      totalVat: '230.00',
+      totalGross: '1230.00',
+      currency: 'PLN',
+      dueDate: '2026-04-30',
+      bankAccount: null,
+      paymentMethod: 'BANK_TRANSFER',
+      lineItems: [],
+    });
+
+    await syncIncomingInvoicesFromKsef(
+      prisma,
+      'company-1',
+      'encryption-key',
+      'PRODUCTION',
+      '2026-04-01',
+      '2026-04-30',
+      logger,
+    );
+
+    expect(parseFa3Xml).toHaveBeenCalledWith('<xml>invoice</xml>', {
+      fallbackInvoiceNumber: 'FV/METADATA/2026/04/04',
+      fallbackIssueDate: '2026-04-18',
+      fallbackSellerNip: '9876543210',
+      fallbackSellerName: 'Seller Header Name',
+      fallbackTotalGross: '1230.00',
+    });
+  });
+
+  it('uses KSeF metadata fallback for missing totalGross in XML', async () => {
+    refreshAuthSession.mockResolvedValue('access-token');
+    const incomingInvoiceCreate = vi.fn(async () => ({}));
+    const prisma = {
+      company: { findUnique: vi.fn(async () => ({ nip: '1234567890' })) },
+      ksefIncomingSync: {
+        create: vi.fn(async () => ({ id: 'sync-1' })),
+        update: vi.fn(async () => ({})),
+      },
+      ksefSession: {
+        findUnique: vi.fn(async () => ({
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+          tokenEnc: 'session-enc',
+          tokenIv: 'session-iv',
+        })),
+        update: vi.fn(async () => ({})),
+      },
+      incomingInvoice: {
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(async () => ({})),
+        create: incomingInvoiceCreate,
+      },
+      contractor: { findUnique: vi.fn(async () => null), create: vi.fn(async () => ({ id: 'new-contractor' })) },
+    } as unknown as PrismaClient;
+
+    const logger = { info: vi.fn(), error: vi.fn() } as never;
+
+    queryIncomingInvoices.mockResolvedValue({
+      invoiceHeaderList: [
+        {
+          ksefNumber: 'KSEF-REF-008',
+          seller: { nip: '9876543210', name: 'Seller Header Name' },
+          invoiceNumber: 'FV/METADATA/2026/04/05',
+          issueDate: '2026-04-19',
+          gross: '1230.00',
+        },
+      ],
+      hasMore: false,
+    });
+
+    fetchInvoiceXml.mockResolvedValue('<xml>invoice</xml>');
+    vi.mocked(parseFa3Xml).mockReturnValueOnce({
+      sellerName: 'Seller Header Name',
+      sellerAddress: 'ul. Testowa 1, Warszawa',
+      buyerName: 'Buyer Sp. z o.o.',
+      buyerNip: '1234567890',
+      invoiceNumber: 'FV/METADATA/2026/04/05',
+      issueDate: '2026-04-19',
+      saleDate: '2026-04-19',
+      sellerNip: '9876543210',
+      totalNet: '1000.00',
+      totalVat: '230.00',
+      totalGross: '1230.00',
+      currency: 'PLN',
+      dueDate: '2026-04-30',
+      bankAccount: null,
+      paymentMethod: 'BANK_TRANSFER',
+      lineItems: [],
+    });
+
+    await syncIncomingInvoicesFromKsef(
+      prisma,
+      'company-1',
+      'encryption-key',
+      'PRODUCTION',
+      '2026-04-01',
+      '2026-04-30',
+      logger,
+    );
+
+    expect(parseFa3Xml).toHaveBeenCalledWith('<xml>invoice</xml>', {
+      fallbackInvoiceNumber: 'FV/METADATA/2026/04/05',
+      fallbackIssueDate: '2026-04-19',
+      fallbackSellerNip: '9876543210',
+      fallbackSellerName: 'Seller Header Name',
+      fallbackTotalGross: '1230.00',
+    });
   });
 });

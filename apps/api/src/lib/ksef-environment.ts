@@ -2,6 +2,7 @@ import type { KsefEnvironment, PrismaClient } from '@prisma/client';
 import type { FastifyRequest } from 'fastify';
 
 export const KSEF_ENVIRONMENT_HEADER = 'x-ksef-environment';
+const ACTIVE_KSEF_ENVIRONMENT_COOKIE = 'active_ksef_environment';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -21,6 +22,25 @@ const readHeaderValue = (headerValue: string | string[] | undefined): string | n
   }
 
   return Array.isArray(headerValue) ? headerValue[0] ?? null : headerValue;
+};
+
+const readCookieValue = (cookieHeader: string | string[] | undefined, cookieName: string): string | null => {
+  const rawCookieHeader = readHeaderValue(cookieHeader);
+
+  if (!rawCookieHeader) {
+    return null;
+  }
+
+  const cookieEntry = rawCookieHeader
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${cookieName}=`));
+
+  if (!cookieEntry) {
+    return null;
+  }
+
+  return cookieEntry.slice(cookieName.length + 1);
 };
 
 export const readRequestedKsefEnvironment = (request: FastifyRequest): KsefEnvironment | null => {
@@ -44,6 +64,21 @@ export const readRequestedKsefEnvironment = (request: FastifyRequest): KsefEnvir
   return headerValue;
 };
 
+const readCookieKsefEnvironment = (request: FastifyRequest): KsefEnvironment | null => {
+  const cookieValue = readCookieValue(request.headers.cookie, ACTIVE_KSEF_ENVIRONMENT_COOKIE);
+
+  if (cookieValue === null) {
+    return null;
+  }
+
+  if (!isKsefEnvironment(cookieValue)) {
+    return null;
+  }
+
+  request.ksefEnvironment = cookieValue;
+  return cookieValue;
+};
+
 export const resolveEffectiveKsefEnvironment = async (
   request: FastifyRequest,
   prisma: PrismaClient,
@@ -53,6 +88,12 @@ export const resolveEffectiveKsefEnvironment = async (
 
   if (requestedEnvironment) {
     return requestedEnvironment;
+  }
+
+  const cookieEnvironment = readCookieKsefEnvironment(request);
+
+  if (cookieEnvironment) {
+    return cookieEnvironment;
   }
 
   const company = await prisma.company.findUnique({

@@ -85,6 +85,7 @@ export const reportsRoutes: FastifyPluginAsync = async (fastify): Promise<void> 
     const invoices = await fastify.prisma.invoice.findMany({
       where: {
         companyId,
+        environment: selectedEnvironment,
         status: 'ISSUED',
         ...(Object.keys(dateFilter).length > 0 ? { issueDate: dateFilter } : {})
       },

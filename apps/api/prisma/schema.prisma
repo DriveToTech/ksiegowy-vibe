@@ -182,6 +182,7 @@ model Contractor {
 model Invoice {
   id                   String                @id @default(cuid())
   companyId            String
+  environment          KsefEnvironment       @default(TEST)
   contractorId         String?
   invoiceNumber        String?
   status               InvoiceStatus         @default(DRAFT)
@@ -232,9 +233,11 @@ model Invoice {
   ksefSubmissions      KsefSubmission[]
   fileRecords          FileRecord[]
 
-  @@unique([companyId, invoiceNumber])
+  @@unique([companyId, environment, invoiceNumber])
   @@index([companyId, issueDate])
   @@index([companyId, status])
+  @@index([companyId, environment, issueDate])
+  @@index([companyId, environment, status])
   @@index([companyId, ksefStatus])
   @@index([contractorId])
 }
@@ -352,6 +355,7 @@ model FileRecord {
 model IncomingInvoice {
   id              String                @id @default(cuid())
   companyId       String
+  environment     KsefEnvironment       @default(TEST)
   contractorId    String?
   status          IncomingInvoiceStatus @default(UPLOADED)
   sellerName      String?
@@ -389,6 +393,8 @@ model IncomingInvoice {
 
   @@index([companyId])
   @@index([companyId, status])
+  @@index([companyId, environment, status])
+  @@index([companyId, environment, createdAt])
   @@index([companyId, ksefReference])
   @@index([companyId, ksefEnvironment, ksefReference])
 }

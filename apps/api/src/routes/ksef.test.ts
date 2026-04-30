@@ -81,7 +81,7 @@ describe('GET /companies/:companyId/ksef/queue', () => {
       where: {
         environment: 'PRODUCTION',
         status: 'OFFLINE_QUEUED',
-        invoice: { companyId: 'company-1' },
+        invoice: { companyId: 'company-1', environment: 'PRODUCTION' },
       },
       orderBy: { updatedAt: 'asc' },
       select: {

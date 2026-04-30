@@ -136,6 +136,7 @@ export const t = {
       totalVat: "Wartość VAT",
       totalGross: "Wartość brutto",
       currency: "Waluta",
+      environment: "Środowisko",
       notes: "Uwagi",
       nip: "NIP",
     },
@@ -509,6 +510,7 @@ export const t = {
       paymentMethod: "Forma płatności",
       paymentDueDate: "Termin płatności",
       currency: "Waluta",
+      environment: "Środowisko",
       ksefReference: "Nr ref. KSeF",
     },
     emptyLineItems: {
