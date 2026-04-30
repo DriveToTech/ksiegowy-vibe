@@ -11,7 +11,7 @@
 4. `04-web-environment-forwarding.md` Status: `completed`
 5. `05-ksef-settings-api.md` Status: `completed`
 6. `06-ksef-settings-ui.md` Status: `completed`
-7. `07-shell-indicator-and-switcher.md`
+7. `07-shell-indicator-and-switcher.md` Status: `completed`
 
 ### Slice 2
 8. `08-environment-aware-ksef-auth.md`

@@ -1,5 +1,8 @@
 # Ticket 07: Add Shell Indicator And Quick Environment Switcher
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 1`
 

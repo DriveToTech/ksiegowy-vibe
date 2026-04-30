@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 import { t } from '../../lib/translations';
 import type { Company } from '../../lib/api-types';
 import { cn } from '../../lib/cn';
+import type { KsefEnvironment } from '../../lib/ksef-environment';
 import { CompanySwitcher } from '../CompanySwitcher';
+import { KsefEnvironmentSwitcher } from '../KsefEnvironmentSwitcher';
 import { Surface } from '../atoms/Surface';
 import { BrandImage } from '../brand/BrandImage';
 import { DashboardNavigation } from './DashboardNavigation';
@@ -20,9 +22,10 @@ interface DashboardShellProps {
   children: ReactNode;
   companies: Company[];
   activeCompanyId: string | null;
+  activeKsefEnvironment: KsefEnvironment;
 }
 
-export function DashboardShell({ children, companies, activeCompanyId }: DashboardShellProps) {
+export function DashboardShell({ children, companies, activeCompanyId, activeKsefEnvironment }: DashboardShellProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto grid min-h-screen max-w-7xl gap-6 px-4 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-8 lg:py-6">
@@ -43,9 +46,15 @@ export function DashboardShell({ children, companies, activeCompanyId }: Dashboa
               </nav>
               <div className="space-y-4 pb-1">
                 <SidebarQuickActions />
-                <Surface tone="raised" shape="organic" className="space-y-2 p-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Aktywna firma</p>
-                  <CompanySwitcher companies={companies} activeCompanyId={activeCompanyId} />
+                <Surface tone="raised" shape="organic" className="space-y-4 p-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Aktywna firma</p>
+                    <CompanySwitcher companies={companies} activeCompanyId={activeCompanyId} />
+                  </div>
+
+                  <div className="h-px bg-outline/10" />
+
+                  <KsefEnvironmentSwitcher activeEnvironment={activeKsefEnvironment} />
                 </Surface>
               </div>
             </div>
@@ -55,7 +64,7 @@ export function DashboardShell({ children, companies, activeCompanyId }: Dashboa
         <div className="min-w-0 space-y-6 pb-28 lg:pb-0">
           <Surface tone="glass" shape="organic" className="px-4 py-4 lg:hidden">
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Dashboard</p>
                   <BrandImage alt="Księgowy Vibe logo" className="w-[150px]" sizes="150px" />
@@ -64,6 +73,8 @@ export function DashboardShell({ children, companies, activeCompanyId }: Dashboa
                   <CompanySwitcher companies={companies} activeCompanyId={activeCompanyId} />
                 </div>
               </div>
+
+              <KsefEnvironmentSwitcher activeEnvironment={activeKsefEnvironment} compact />
             </div>
           </Surface>
 
