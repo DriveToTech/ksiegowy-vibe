@@ -580,7 +580,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
 
-      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const from = new Date(dateFrom);
       const to = new Date(dateTo);
@@ -596,7 +596,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const encryptionKey = process.env['ENCRYPTION_KEY']!;
 
       return syncIncomingInvoicesFromKsef(
-        fastify.prisma, companyId, encryptionKey, dateFrom, dateTo, request.log
+        fastify.prisma, companyId, encryptionKey, selectedEnvironment, dateFrom, dateTo, request.log
       );
     }
   );

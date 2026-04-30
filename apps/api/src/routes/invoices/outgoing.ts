@@ -944,7 +944,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot submit to KSeF');
       }
 
-      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const encryptionKey = process.env['ENCRYPTION_KEY'];
       if (!encryptionKey) {
@@ -982,7 +982,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       });
 
       try {
-        return await submitInvoiceToKsef(fastify.prisma, id, companyId, invoiceData, encryptionKey);
+        return await submitInvoiceToKsef(fastify.prisma, id, companyId, invoiceData, encryptionKey, selectedEnvironment);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         fastify.log.error({ invoiceId: id, companyId, err }, 'KSeF submission failed');
@@ -1012,7 +1012,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       assertCompanyAccess(user, companyId, fastify);
 
-      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const encryptionKey = process.env['ENCRYPTION_KEY'];
       if (!encryptionKey) {
@@ -1020,7 +1020,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       }
 
       const latestSubmission = await fastify.prisma.ksefSubmission.findFirst({
-        where: { invoiceId: id, companyId },
+        where: { invoiceId: id, companyId, environment: selectedEnvironment },
         orderBy: { attemptNumber: 'desc' }
       });
 

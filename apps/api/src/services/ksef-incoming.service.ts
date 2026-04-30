@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { KsefEnvironment, PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import { createKsefClient } from '@ksiegowy/ksef-client';
 import { parseFa3Xml } from '@ksiegowy/fa3-xml';
@@ -25,29 +25,30 @@ export const syncIncomingInvoicesFromKsef = async (
   prisma: PrismaClient,
   companyId: string,
   encryptionKey: string,
+  selectedEnvironment: KsefEnvironment,
   dateFrom: string,
   dateTo: string,
   logger: FastifyBaseLogger
 ): Promise<KsefIncomingSyncResult> => {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { nip: true, ksefEnv: true }
+    select: { nip: true }
   });
 
   if (!company) throw new Error(`Company ${companyId} not found`);
 
   const syncRecord = await prisma.ksefIncomingSync.create({
-    data: { companyId, dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) }
+    data: { companyId, environment: selectedEnvironment, dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) }
   });
 
-  const environment = company.ksefEnv === 'PRODUCTION' ? 'production' : 'test';
+  const environment = selectedEnvironment === 'PRODUCTION' ? 'production' : 'test';
 
   let created = 0;
   let linked = 0;
   let skipped = 0;
 
   const run = async (): Promise<void> => {
-    let accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey);
+    let accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
     const client = createKsefClient({ environment });
 
     logger.info({ companyId, dateFrom, dateTo, syncId: syncRecord.id }, 'KSeF incoming invoice sync started');
@@ -61,7 +62,7 @@ export const syncIncomingInvoicesFromKsef = async (
         queryResult = await client.queryIncomingInvoices({ accessToken, dateFrom, dateTo, pageOffset, pageSize: PAGE_SIZE });
       } catch (error) {
         if (error instanceof KsefClientError && error.statusCode === 401) {
-          accessToken = await initKsefSession(prisma, companyId, encryptionKey);
+          accessToken = await initKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
           queryResult = await client.queryIncomingInvoices({ accessToken, dateFrom, dateTo, pageOffset, pageSize: PAGE_SIZE });
         } else {
           throw error;
@@ -115,7 +116,7 @@ export const syncIncomingInvoicesFromKsef = async (
           xml = await client.fetchInvoiceXml({ accessToken, ksefReferenceNumber: ksefReference });
         } catch (error) {
           if (error instanceof KsefClientError && error.statusCode === 401) {
-            accessToken = await initKsefSession(prisma, companyId, encryptionKey);
+            accessToken = await initKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
             xml = await client.fetchInvoiceXml({ accessToken, ksefReferenceNumber: ksefReference });
           } else {
             throw error;

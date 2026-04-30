@@ -1,5 +1,8 @@
 # Ticket 08: Refactor KSeF Credential And Session Services To Be Environment-Aware
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 2`
 

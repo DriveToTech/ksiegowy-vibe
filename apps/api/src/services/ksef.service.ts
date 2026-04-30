@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { KsefEnvironment, PrismaClient } from '@prisma/client';
 import { createKsefClient } from '@ksiegowy/ksef-client';
 import { decrypt, encrypt } from '@ksiegowy/shared-utils';
 import { buildFa3Xml } from '@ksiegowy/fa3-xml';
@@ -11,15 +11,66 @@ import { buildIssuedInvoiceDataForKsefSubmission } from './invoice-ksef-submissi
 const SESSION_TTL_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
 
 const resolveCompanyKsefEnvironment = (
-  companyKsefEnvironment: 'TEST' | 'PRODUCTION' | null | undefined
-): 'TEST' | 'PRODUCTION' => {
+  companyKsefEnvironment: KsefEnvironment | null | undefined
+): KsefEnvironment => {
   return companyKsefEnvironment === 'PRODUCTION' ? 'PRODUCTION' : 'TEST';
 };
 
 const toKsefClientEnvironment = (
-  companyKsefEnvironment: 'TEST' | 'PRODUCTION'
+  companyKsefEnvironment: KsefEnvironment
 ): 'test' | 'production' => {
   return companyKsefEnvironment === 'PRODUCTION' ? 'production' : 'test';
+};
+
+const loadCompanyKsefAuthConfiguration = async (
+  prisma: PrismaClient,
+  companyId: string,
+  encryptionKey: string,
+  selectedEnvironment: KsefEnvironment,
+): Promise<{
+  nip: string;
+  selectedEnvironment: KsefEnvironment;
+  ksefToken: string;
+}> => {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: {
+      nip: true,
+      ksefEnv: true,
+      ksefTokenEnc: true,
+      ksefTokenIv: true,
+      ksefCredentials: {
+        where: { environment: selectedEnvironment },
+        select: { tokenEnc: true, tokenIv: true },
+      },
+    },
+  });
+
+  if (!company) {
+    throw new Error(`Company ${companyId} not found`);
+  }
+
+  const selectedCredential = company.ksefCredentials[0] ?? null;
+  const selectedEnvironmentToken = selectedCredential
+    ? decrypt(selectedCredential.tokenEnc, selectedCredential.tokenIv, encryptionKey)
+    : null;
+  const legacyToken = company.ksefEnv === selectedEnvironment && company.ksefTokenEnc && company.ksefTokenIv
+    ? decrypt(company.ksefTokenEnc, company.ksefTokenIv, encryptionKey)
+    : null;
+  const environmentVariableToken = selectedEnvironment === 'TEST'
+    ? process.env['KSEF_AUTH_TOKEN'] ?? null
+    : null;
+  const ksefToken = selectedEnvironmentToken ?? legacyToken ?? environmentVariableToken;
+
+  if (!ksefToken) {
+    throw new Error(`Company ${companyId} has no KSeF token configured for ${selectedEnvironment}`);
+  }
+
+  return {
+    nip: company.nip,
+    selectedEnvironment,
+    ksefToken,
+  };
 };
 
 /**
@@ -31,21 +82,14 @@ const toKsefClientEnvironment = (
 export const getOrCreateKsefSession = async (
   prisma: PrismaClient,
   companyId: string,
-  encryptionKey: string
+  encryptionKey: string,
+  selectedEnvironment: KsefEnvironment,
 ): Promise<string> => {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { ksefEnv: true }
-  });
-
-  if (!company) throw new Error(`Company ${companyId} not found`);
-
-  const companyKsefEnvironment = resolveCompanyKsefEnvironment(company.ksefEnv);
   const existing = await prisma.ksefSession.findUnique({
     where: {
       companyId_environment: {
         companyId,
-        environment: companyKsefEnvironment,
+        environment: selectedEnvironment,
       },
     },
   });
@@ -58,19 +102,19 @@ export const getOrCreateKsefSession = async (
         where: {
           companyId_environment: {
             companyId,
-            environment: companyKsefEnvironment,
+            environment: selectedEnvironment,
           },
         },
         data: { lastUsedAt: new Date() }
       });
 
-      const environment = toKsefClientEnvironment(companyKsefEnvironment);
+      const environment = toKsefClientEnvironment(selectedEnvironment);
       const client = createKsefClient({ environment });
       return client.refreshAuthSession(refreshToken);
     }
   }
 
-  return initKsefSession(prisma, companyId, encryptionKey);
+  return initKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
 };
 
 /**
@@ -81,28 +125,22 @@ export const getOrCreateKsefSession = async (
 export const initKsefSession = async (
   prisma: PrismaClient,
   companyId: string,
-  encryptionKey: string
+  encryptionKey: string,
+  selectedEnvironment: KsefEnvironment,
 ): Promise<string> => {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { nip: true, ksefTokenEnc: true, ksefTokenIv: true, ksefEnv: true }
-  });
-
-  if (!company) throw new Error(`Company ${companyId} not found`);
-
-  const ksefToken = company.ksefTokenEnc && company.ksefTokenIv
-    ? decrypt(company.ksefTokenEnc, company.ksefTokenIv, encryptionKey)
-    : process.env['KSEF_AUTH_TOKEN'] ?? null;
-
-  if (!ksefToken) {
-    throw new Error(`Company ${companyId} has no KSeF token configured`);
-  }
-
-  const companyKsefEnvironment = resolveCompanyKsefEnvironment(company.ksefEnv);
-  const environment = toKsefClientEnvironment(companyKsefEnvironment);
+  const companyKsefAuthConfiguration = await loadCompanyKsefAuthConfiguration(
+    prisma,
+    companyId,
+    encryptionKey,
+    selectedEnvironment,
+  );
+  const environment = toKsefClientEnvironment(companyKsefAuthConfiguration.selectedEnvironment);
 
   const client = createKsefClient({ environment });
-  const authResult = await client.initAuthSession({ ksefToken, nip: company.nip });
+  const authResult = await client.initAuthSession({
+    ksefToken: companyKsefAuthConfiguration.ksefToken,
+    nip: companyKsefAuthConfiguration.nip,
+  });
 
   const refreshTokenExpiry = new Date(authResult.refreshTokenValidUntil);
   const { enc, iv } = encrypt(authResult.refreshToken, encryptionKey);
@@ -111,12 +149,12 @@ export const initKsefSession = async (
     where: {
       companyId_environment: {
         companyId,
-        environment: companyKsefEnvironment,
+        environment: companyKsefAuthConfiguration.selectedEnvironment,
       },
     },
     create: {
       companyId,
-      environment: companyKsefEnvironment,
+      environment: companyKsefAuthConfiguration.selectedEnvironment,
       tokenEnc: enc,
       tokenIv: iv,
       expiresAt: refreshTokenExpiry,
@@ -150,26 +188,23 @@ export const submitInvoiceToKsef = async (
   invoiceId: string,
   companyId: string,
   invoiceData: InvoiceData,
-  encryptionKey: string
+  encryptionKey: string,
+  selectedEnvironment: KsefEnvironment,
 ): Promise<KsefSubmitResult> => {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { ksefEnv: true }
-  });
-
-  if (!company) throw new Error(`Company ${companyId} not found`);
-
-  const environment = company.ksefEnv === 'PRODUCTION' ? 'production' : 'test';
+  const environment = toKsefClientEnvironment(selectedEnvironment);
   const xmlString = buildFa3Xml(invoiceData);
   const requestHash = crypto.createHash('sha256').update(xmlString).digest('hex');
 
-  const attemptCount = await prisma.ksefSubmission.count({ where: { invoiceId } });
+  const attemptCount = await prisma.ksefSubmission.count({
+    where: { invoiceId, environment: selectedEnvironment }
+  });
   const attemptNumber = attemptCount + 1;
 
   let submissionRecord = await prisma.ksefSubmission.create({
     data: {
       companyId,
       invoiceId,
+      environment: selectedEnvironment,
       attemptNumber,
       status: 'PENDING',
       requestHash,
@@ -183,7 +218,7 @@ export const submitInvoiceToKsef = async (
   };
 
   try {
-    let accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey);
+    let accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
     let sendResult;
 
     try {
@@ -193,7 +228,7 @@ export const submitInvoiceToKsef = async (
         (err.message.includes('401') || err.message.toLowerCase().includes('unauthori'));
 
       if (isUnauth) {
-        accessToken = await initKsefSession(prisma, companyId, encryptionKey);
+        accessToken = await initKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
         sendResult = await doSubmit(accessToken);
       } else {
         throw err;
@@ -301,7 +336,14 @@ export const retryOfflineQueue = async (
       continue;
     }
 
-    await submitInvoiceToKsef(prisma, invoice.id, invoice.companyId, invoiceData, encryptionKey)
+    await submitInvoiceToKsef(
+      prisma,
+      invoice.id,
+      invoice.companyId,
+      invoiceData,
+      encryptionKey,
+      resolveCompanyKsefEnvironment(invoice.company.ksefEnv),
+    )
       .then(() => logger.info({ invoiceId: invoice.id }, 'KSeF offline retry: submission succeeded'))
       .catch((err: unknown) => logger.error({ invoiceId: invoice.id, err }, 'KSeF offline retry: submission failed'));
   }
@@ -319,6 +361,7 @@ const restoreAcceptedInvoiceStateFromSubmissionHistory = async (
   input: {
     companyId: string;
     invoiceId: string;
+    environment: KsefEnvironment;
     invoiceKsefStatus: string;
     invoiceKsefReference: string | null;
     invoiceKsefAcceptedAt: Date | null;
@@ -328,6 +371,7 @@ const restoreAcceptedInvoiceStateFromSubmissionHistory = async (
     where: {
       companyId: input.companyId,
       invoiceId: input.invoiceId,
+      environment: input.environment,
       status: 'ACCEPTED',
       ksefReference: { not: null }
     },
@@ -377,7 +421,6 @@ export const pollKsefSubmissionStatus = async (
   const submission = await prisma.ksefSubmission.findUnique({
     where: { id: submissionId },
     include: {
-      company: { select: { ksefEnv: true } },
       invoice: {
         select: {
           id: true,
@@ -394,6 +437,7 @@ export const pollKsefSubmissionStatus = async (
   const restoredAcceptedState = await restoreAcceptedInvoiceStateFromSubmissionHistory(prisma, {
     companyId,
     invoiceId: submission.invoiceId,
+    environment: submission.environment,
     invoiceKsefStatus: submission.invoice.ksefStatus,
     invoiceKsefReference: submission.invoice.ksefReference,
     invoiceKsefAcceptedAt: submission.invoice.ksefAcceptedAt
@@ -406,8 +450,8 @@ export const pollKsefSubmissionStatus = async (
   if (!submission.referenceNumber) throw new Error('Submission has no referenceNumber to poll');
   if (!submission.sessionReferenceNumber) throw new Error('Submission has no sessionReferenceNumber to poll');
 
-  const environment = submission.company.ksefEnv === 'PRODUCTION' ? 'production' : 'test';
-  const accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey);
+  const environment = toKsefClientEnvironment(submission.environment);
+  const accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey, submission.environment);
   const client = createKsefClient({ environment });
 
   const statusResult = await client.pollInvoiceStatus({

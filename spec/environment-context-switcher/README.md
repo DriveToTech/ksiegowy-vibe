@@ -14,7 +14,7 @@
 7. `07-shell-indicator-and-switcher.md` Status: `completed`
 
 ### Slice 2
-8. `08-environment-aware-ksef-auth.md`
+8. `08-environment-aware-ksef-auth.md` Status: `completed`
 9. `09-environment-aware-invoice-ksef-state.md`
 10. `10-environment-aware-correction-flow.md`
 11. `11-environment-aware-incoming-sync.md`
