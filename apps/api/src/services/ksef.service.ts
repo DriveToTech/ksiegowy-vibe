@@ -10,6 +10,18 @@ import { buildIssuedInvoiceDataForKsefSubmission } from './invoice-ksef-submissi
 
 const SESSION_TTL_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
 
+const resolveCompanyKsefEnvironment = (
+  companyKsefEnvironment: 'TEST' | 'PRODUCTION' | null | undefined
+): 'TEST' | 'PRODUCTION' => {
+  return companyKsefEnvironment === 'PRODUCTION' ? 'PRODUCTION' : 'TEST';
+};
+
+const toKsefClientEnvironment = (
+  companyKsefEnvironment: 'TEST' | 'PRODUCTION'
+): 'test' | 'production' => {
+  return companyKsefEnvironment === 'PRODUCTION' ? 'production' : 'test';
+};
+
 /**
  * Returns a valid KSeF access token for the company.
  * The KsefSession table stores the encrypted refreshToken (v2).
@@ -21,22 +33,38 @@ export const getOrCreateKsefSession = async (
   companyId: string,
   encryptionKey: string
 ): Promise<string> => {
-  const existing = await prisma.ksefSession.findUnique({ where: { companyId } });
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { ksefEnv: true }
+  });
+
+  if (!company) throw new Error(`Company ${companyId} not found`);
+
+  const companyKsefEnvironment = resolveCompanyKsefEnvironment(company.ksefEnv);
+  const existing = await prisma.ksefSession.findUnique({
+    where: {
+      companyId_environment: {
+        companyId,
+        environment: companyKsefEnvironment,
+      },
+    },
+  });
 
   if (existing) {
     const expiresWithBuffer = new Date(existing.expiresAt.getTime() - SESSION_TTL_BUFFER_MS);
     if (expiresWithBuffer > new Date()) {
       const refreshToken = decrypt(existing.tokenEnc, existing.tokenIv, encryptionKey);
       await prisma.ksefSession.update({
-        where: { companyId },
+        where: {
+          companyId_environment: {
+            companyId,
+            environment: companyKsefEnvironment,
+          },
+        },
         data: { lastUsedAt: new Date() }
       });
 
-      const company = await prisma.company.findUnique({
-        where: { id: companyId },
-        select: { ksefEnv: true }
-      });
-      const environment = company?.ksefEnv === 'PRODUCTION' ? 'production' : 'test';
+      const environment = toKsefClientEnvironment(companyKsefEnvironment);
       const client = createKsefClient({ environment });
       return client.refreshAuthSession(refreshToken);
     }
@@ -70,8 +98,8 @@ export const initKsefSession = async (
     throw new Error(`Company ${companyId} has no KSeF token configured`);
   }
 
-  const envFromEnvVar = process.env['KSEF_ENV'] === 'production' ? 'production' : 'test';
-  const environment = company.ksefEnv === 'PRODUCTION' ? 'production' : company.ksefEnv === 'TEST' ? 'test' : envFromEnvVar;
+  const companyKsefEnvironment = resolveCompanyKsefEnvironment(company.ksefEnv);
+  const environment = toKsefClientEnvironment(companyKsefEnvironment);
 
   const client = createKsefClient({ environment });
   const authResult = await client.initAuthSession({ ksefToken, nip: company.nip });
@@ -80,8 +108,20 @@ export const initKsefSession = async (
   const { enc, iv } = encrypt(authResult.refreshToken, encryptionKey);
 
   await prisma.ksefSession.upsert({
-    where: { companyId },
-    create: { companyId, tokenEnc: enc, tokenIv: iv, expiresAt: refreshTokenExpiry, lastUsedAt: new Date() },
+    where: {
+      companyId_environment: {
+        companyId,
+        environment: companyKsefEnvironment,
+      },
+    },
+    create: {
+      companyId,
+      environment: companyKsefEnvironment,
+      tokenEnc: enc,
+      tokenIv: iv,
+      expiresAt: refreshTokenExpiry,
+      lastUsedAt: new Date()
+    },
     update: { tokenEnc: enc, tokenIv: iv, expiresAt: refreshTokenExpiry, lastUsedAt: new Date() }
   });
 

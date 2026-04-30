@@ -95,34 +95,49 @@ model User {
 }
 
 model Company {
-  id            String               @id @default(cuid())
-  name          String
-  nip           String               @unique
-  addressLine1  String
-  addressLine2  String?
-  email         String?
-  phone         String?
-  bankName      String?
-  bankAccount   String?
-  vatStatus     CompanyVatStatus     @default(ACTIVE)
-  invoiceSeq            Json                 @default("{}")
-  invoiceNumberPattern  String?
-  ksefTokenEnc  String?
-  ksefTokenIv   String?
-  ksefEnv       KsefEnvironment      @default(TEST)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  memberships         CompanyMembership[]
-  contractors         Contractor[]
-  invoices            Invoice[]
-  ksefSessions        KsefSession[]
-  submissions         KsefSubmission[]
-  fileRecords         FileRecord[]
-  incomingInvoices    IncomingInvoice[]
-  ksefIncomingSyncs   KsefIncomingSync[]
-  gDriveCredential    GoogleDriveCredential?
-  backupPolicies      CompanyBackupPolicy[]
-  serviceTemplates    ServiceTemplate[]
+  id                   String                  @id @default(cuid())
+  name                 String
+  nip                  String                  @unique
+  addressLine1         String
+  addressLine2         String?
+  email                String?
+  phone                String?
+  bankName             String?
+  bankAccount          String?
+  vatStatus            CompanyVatStatus        @default(ACTIVE)
+  invoiceSeq           Json                    @default("{}")
+  invoiceNumberPattern String?
+  ksefTokenEnc         String?
+  ksefTokenIv          String?
+  ksefEnv              KsefEnvironment         @default(TEST)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  memberships          CompanyMembership[]
+  contractors          Contractor[]
+  invoices             Invoice[]
+  ksefCredentials      CompanyKsefCredential[]
+  ksefSessions         KsefSession[]
+  submissions          KsefSubmission[]
+  fileRecords          FileRecord[]
+  incomingInvoices     IncomingInvoice[]
+  ksefIncomingSyncs    KsefIncomingSync[]
+  gDriveCredential     GoogleDriveCredential?
+  backupPolicies       CompanyBackupPolicy[]
+  serviceTemplates     ServiceTemplate[]
+}
+
+model CompanyKsefCredential {
+  id          String          @id @default(cuid())
+  companyId   String
+  environment KsefEnvironment
+  tokenEnc    String
+  tokenIv     String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, environment])
+  @@index([companyId])
 }
 
 model CompanyMembership {
@@ -140,22 +155,22 @@ model CompanyMembership {
 }
 
 model Contractor {
-  id           String    @id @default(cuid())
-  companyId    String
-  name         String
-  nip          String?
-  pesel        String?
-  addressLine1 String?
-  addressLine2 String?
-  countryCode  String    @default("PL")
-  email        String?
-  phone        String?
-  bankAccount  String?
-  notes        String?
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id               String                  @id @default(cuid())
+  companyId        String
+  name             String
+  nip              String?
+  pesel            String?
+  addressLine1     String?
+  addressLine2     String?
+  countryCode      String                  @default("PL")
+  email            String?
+  phone            String?
+  bankAccount      String?
+  notes            String?
+  isActive         Boolean                 @default(true)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  company          Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices         Invoice[]
   incomingInvoices IncomingInvoice[]
   serviceRates     ContractorServiceRate[]
@@ -165,56 +180,57 @@ model Contractor {
 }
 
 model Invoice {
-  id                 String               @id @default(cuid())
-  companyId          String
-  contractorId       String?
-  invoiceNumber      String?
-  status             InvoiceStatus        @default(DRAFT)
-  invoiceType        InvoiceType          @default(VAT)
-  issueDate          DateTime
-  saleDate           DateTime?
-  placeOfIssue       String               @default("Wrocław")
-  sellerName         String?
-  sellerNip          String?
-  sellerAddress1     String?
-  sellerAddress2     String?
-  sellerEmail        String?
-  sellerPhone        String?
-  sellerBank         String?
-  sellerAccount      String?
-  buyerName          String?
-  buyerNip           String?
-  buyerAddress1      String?
-  buyerAddress2      String?
-  buyerCountry       String               @default("PL")
-  totalNet           Decimal              @default(0) @db.Decimal(15, 2)
-  totalVat           Decimal              @default(0) @db.Decimal(15, 2)
-  totalGross         Decimal              @default(0) @db.Decimal(15, 2)
-  paymentReceived    Decimal              @default(0) @db.Decimal(15, 2)
-  paymentMethod      PaymentMethod        @default(BANK_TRANSFER)
-  paymentDueDate     DateTime?
-  currency           String               @default("PLN")
-  notes              String?
+  id                   String                @id @default(cuid())
+  companyId            String
+  contractorId         String?
+  invoiceNumber        String?
+  status               InvoiceStatus         @default(DRAFT)
+  invoiceType          InvoiceType           @default(VAT)
+  issueDate            DateTime
+  saleDate             DateTime?
+  placeOfIssue         String                @default("Wrocław")
+  sellerName           String?
+  sellerNip            String?
+  sellerAddress1       String?
+  sellerAddress2       String?
+  sellerEmail          String?
+  sellerPhone          String?
+  sellerBank           String?
+  sellerAccount        String?
+  buyerName            String?
+  buyerNip             String?
+  buyerAddress1        String?
+  buyerAddress2        String?
+  buyerCountry         String                @default("PL")
+  totalNet             Decimal               @default(0) @db.Decimal(15, 2)
+  totalVat             Decimal               @default(0) @db.Decimal(15, 2)
+  totalGross           Decimal               @default(0) @db.Decimal(15, 2)
+  paymentReceived      Decimal               @default(0) @db.Decimal(15, 2)
+  paymentMethod        PaymentMethod         @default(BANK_TRANSFER)
+  paymentDueDate       DateTime?
+  currency             String                @default("PLN")
+  notes                String?
   correctedInvoiceId   String?
   correctedKsefRef     String?
   correctionReason     String?
   correctionImpactType String?
   ksefReference        String?
-  ksefStatus         InvoiceKsefStatus    @default(NOT_SENT)
-  ksefSubmittedAt    DateTime?
-  ksefAcceptedAt     DateTime?
-  issuedAt           DateTime?
-  cancelledAt        DateTime?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  company            Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contractor         Contractor?          @relation(fields: [contractorId], references: [id], onDelete: SetNull)
-  correctedInvoice   Invoice?             @relation("InvoiceCorrections", fields: [correctedInvoiceId], references: [id], onDelete: SetNull)
-  corrections        Invoice[]            @relation("InvoiceCorrections")
-  lines              InvoiceLine[]
-  vatBreakdown       InvoiceVatBreakdown[]
-  ksefSubmissions    KsefSubmission[]
-  fileRecords        FileRecord[]
+  ksefStatus           InvoiceKsefStatus     @default(NOT_SENT)
+  ksefSubmittedAt      DateTime?
+  ksefAcceptedAt       DateTime?
+  issuedAt             DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contractor           Contractor?           @relation(fields: [contractorId], references: [id], onDelete: SetNull)
+  correctedInvoice     Invoice?              @relation("InvoiceCorrections", fields: [correctedInvoiceId], references: [id], onDelete: SetNull)
+  corrections          Invoice[]             @relation("InvoiceCorrections")
+  lines                InvoiceLine[]
+  vatBreakdown         InvoiceVatBreakdown[]
+  ksefStates           InvoiceKsefState[]
+  ksefSubmissions      KsefSubmission[]
+  fileRecords          FileRecord[]
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId, issueDate])
@@ -224,68 +240,91 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   invoiceId    String
   position     Int
   name         String
-  unit         String?  @default("szt")
-  quantity     Decimal  @db.Decimal(15, 4)
-  unitNetPrice Decimal  @db.Decimal(15, 4)
+  unit         String? @default("szt")
+  quantity     Decimal @db.Decimal(15, 4)
+  unitNetPrice Decimal @db.Decimal(15, 4)
   vatRate      String
-  netValue     Decimal  @db.Decimal(15, 2)
-  vatValue     Decimal  @db.Decimal(15, 2)
-  grossValue   Decimal  @db.Decimal(15, 2)
-  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  netValue     Decimal @db.Decimal(15, 2)
+  vatValue     Decimal @db.Decimal(15, 2)
+  grossValue   Decimal @db.Decimal(15, 2)
+  invoice      Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@unique([invoiceId, position])
 }
 
 model InvoiceVatBreakdown {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   invoiceId String
   vatRate   String
-  netAmount Decimal  @db.Decimal(15, 2)
-  vatAmount Decimal  @db.Decimal(15, 2)
-  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  netAmount Decimal @db.Decimal(15, 2)
+  vatAmount Decimal @db.Decimal(15, 2)
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@unique([invoiceId, vatRate])
 }
 
 model KsefSubmission {
-  id              String               @id @default(cuid())
-  companyId       String
-  invoiceId       String
-  attemptNumber   Int                  @default(1)
-  status          KsefSubmissionStatus
-  referenceNumber        String?              // v2: invoice reference number within the session
-  sessionReferenceNumber String?              // v2: online session reference number
+  id                     String               @id @default(cuid())
+  companyId              String
+  invoiceId              String
+  environment            KsefEnvironment      @default(TEST)
+  attemptNumber          Int                  @default(1)
+  status                 KsefSubmissionStatus
+  referenceNumber        String? // v2: invoice reference number within the session
+  sessionReferenceNumber String? // v2: online session reference number
   ksefReference          String?
-  requestHash     String?
-  responseBody    String?
-  errorMessage    String?
-  httpStatusCode  Int?
-  submittedAt     DateTime?
-  acceptedAt      DateTime?
-  createdAt       DateTime             @default(now())
-  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoice         Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  requestHash            String?
+  responseBody           String?
+  errorMessage           String?
+  httpStatusCode         Int?
+  submittedAt            DateTime?
+  acceptedAt             DateTime?
+  createdAt              DateTime             @default(now())
+  company                Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice                Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceKsefStates      InvoiceKsefState[]
 
-  @@unique([invoiceId, attemptNumber])
-  @@index([companyId, status])
+  @@unique([invoiceId, environment, attemptNumber])
+  @@index([companyId, environment, status])
 }
 
 model KsefSession {
-  id         String   @id @default(cuid())
-  companyId  String
-  tokenEnc   String
-  tokenIv    String
-  expiresAt  DateTime
-  lastUsedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id          String          @id @default(cuid())
+  companyId   String
+  environment KsefEnvironment @default(TEST)
+  tokenEnc    String
+  tokenIv     String
+  expiresAt   DateTime
+  lastUsedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  @@unique([companyId])
+  @@unique([companyId, environment])
+  @@index([companyId])
+}
+
+model InvoiceKsefState {
+  id               String            @id @default(cuid())
+  invoiceId        String
+  environment      KsefEnvironment
+  status           InvoiceKsefStatus @default(NOT_SENT)
+  ksefReference    String?
+  submittedAt      DateTime?
+  acceptedAt       DateTime?
+  lastSubmissionId String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  invoice          Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  lastSubmission   KsefSubmission?   @relation(fields: [lastSubmissionId], references: [id], onDelete: SetNull)
+
+  @@unique([invoiceId, environment])
+  @@index([environment, status])
+  @@index([lastSubmissionId])
 }
 
 model FileRecord {
@@ -293,12 +332,12 @@ model FileRecord {
   companyId         String
   invoiceId         String?
   incomingInvoiceId String?
-  type              String           // outgoing_pdf | outgoing_xml | incoming_scan
-  path              String           // absolute path on disk
-  relativePath      String           // relative to STORAGE_BASE_PATH
+  type              String // outgoing_pdf | outgoing_xml | incoming_scan
+  path              String // absolute path on disk
+  relativePath      String // relative to STORAGE_BASE_PATH
   mimeType          String
   sizeBytes         Int
-  checksum          String?          // SHA-256
+  checksum          String? // SHA-256
   backedUpAt        DateTime?
   createdAt         DateTime         @default(now())
   company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -311,51 +350,53 @@ model FileRecord {
 }
 
 model IncomingInvoice {
-  id             String                @id @default(cuid())
-  companyId      String
-  contractorId   String?
-  status         IncomingInvoiceStatus @default(UPLOADED)
-  sellerName     String?
-  sellerNip      String?
-  sellerAddress  String?
-  buyerName      String?
-  buyerNip       String?
-  invoiceNumber  String?
-  issueDate      DateTime?
-  saleDate       DateTime?
-  totalNet       Decimal?              @db.Decimal(15, 2)
-  totalVat       Decimal?              @db.Decimal(15, 2)
-  totalGross     Decimal?              @db.Decimal(15, 2)
-  currency       String?               @default("PLN")
-  paymentMethod  String?
-  dueDate        DateTime?
-  bankAccount    String?
-  notes          String?
-  lineItemsJson  Json?
-  ocrConfidence  Float?
-  ocrWarnings    Json?
-  ocrModel       String?
-  ocrError       String?
-  ocrMethod      String?
-  ksefReference  String?
-  ksefFetchedAt  DateTime?
-  source         String                @default("upload") // "upload" | "ksef"
-  confirmedAt    DateTime?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contractor     Contractor?           @relation(fields: [contractorId], references: [id], onDelete: SetNull)
-  fileRecords    FileRecord[]
+  id              String                @id @default(cuid())
+  companyId       String
+  contractorId    String?
+  status          IncomingInvoiceStatus @default(UPLOADED)
+  sellerName      String?
+  sellerNip       String?
+  sellerAddress   String?
+  buyerName       String?
+  buyerNip        String?
+  invoiceNumber   String?
+  issueDate       DateTime?
+  saleDate        DateTime?
+  totalNet        Decimal?              @db.Decimal(15, 2)
+  totalVat        Decimal?              @db.Decimal(15, 2)
+  totalGross      Decimal?              @db.Decimal(15, 2)
+  currency        String?               @default("PLN")
+  paymentMethod   String?
+  dueDate         DateTime?
+  bankAccount     String?
+  notes           String?
+  lineItemsJson   Json?
+  ocrConfidence   Float?
+  ocrWarnings     Json?
+  ocrModel        String?
+  ocrError        String?
+  ocrMethod       String?
+  ksefEnvironment KsefEnvironment?
+  ksefReference   String?
+  ksefFetchedAt   DateTime?
+  source          String                @default("upload") // "upload" | "ksef"
+  confirmedAt     DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  company         Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contractor      Contractor?           @relation(fields: [contractorId], references: [id], onDelete: SetNull)
+  fileRecords     FileRecord[]
 
   @@index([companyId])
   @@index([companyId, status])
   @@index([companyId, ksefReference])
+  @@index([companyId, ksefEnvironment, ksefReference])
 }
 
 model GoogleDriveCredential {
   id             String    @id @default(cuid())
   companyId      String    @unique
-  credentialsEnc String    // AES-256-GCM encrypted JSON {access_token, refresh_token, expiry_date}
+  credentialsEnc String // AES-256-GCM encrypted JSON {access_token, refresh_token, expiry_date}
   credentialsIv  String
   expiresAt      DateTime
   lastBackupAt   DateTime?
@@ -365,67 +406,67 @@ model GoogleDriveCredential {
 }
 
 model BackupRun {
-  id           String    @id @default(cuid())
-  provider     String    // gdrive | icloud
-  companyId    String?
+  id            String    @id @default(cuid())
+  provider      String // gdrive | icloud
+  companyId     String?
   triggerSource String?
-  status       String    // success | error
-  filesCount   Int       @default(0)
-  bytesTotal   BigInt    @default(0)
-  errorMessage String?
-  startedAt    DateTime
-  finishedAt   DateTime?
-  createdAt    DateTime  @default(now())
+  status        String // success | error
+  filesCount    Int       @default(0)
+  bytesTotal    BigInt    @default(0)
+  errorMessage  String?
+  startedAt     DateTime
+  finishedAt    DateTime?
+  createdAt     DateTime  @default(now())
 
   @@index([provider])
   @@index([companyId])
 }
 
 model CompanyBackupPolicy {
-  id                     String                    @id @default(cuid())
-  companyId              String
-  provider               CompanyBackupProvider     @default(GOOGLE_DRIVE)
-  automaticOnInvoiceIssued Boolean                 @default(false)
-  scheduleMode           CompanyBackupScheduleMode @default(MANUAL)
-  scheduleHour           Int?
-  scheduleMinute         Int?
-  scheduleDayOfWeek      Int?
-  scheduleTimezone       String                    @default("Europe/Warsaw")
-  lastScheduledRunKey    String?
-  lastScheduledRunAt     DateTime?
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
-  company                Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id                       String                    @id @default(cuid())
+  companyId                String
+  provider                 CompanyBackupProvider     @default(GOOGLE_DRIVE)
+  automaticOnInvoiceIssued Boolean                   @default(false)
+  scheduleMode             CompanyBackupScheduleMode @default(MANUAL)
+  scheduleHour             Int?
+  scheduleMinute           Int?
+  scheduleDayOfWeek        Int?
+  scheduleTimezone         String                    @default("Europe/Warsaw")
+  lastScheduledRunKey      String?
+  lastScheduledRunAt       DateTime?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  company                  Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, provider])
   @@index([scheduleMode])
 }
 
 model UserInvite {
-  id          String    @id @default(cuid())
-  companyId   String
-  email       String
-  role        CompanyMembershipRole @default(VIEWER)
-  token       String    @unique
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  id         String                @id @default(cuid())
+  companyId  String
+  email      String
+  role       CompanyMembershipRole @default(VIEWER)
+  token      String                @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime              @default(now())
 
   @@index([companyId])
   @@index([token])
 }
 
 model ServiceTemplate {
-  id          String   @id @default(cuid())
-  companyId   String
-  name        String
-  unit        String   @default("szt.")
-  vatRate     String   @default("23")
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  company         Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id              String                  @id @default(cuid())
+  companyId       String
+  name            String
+  unit            String                  @default("szt.")
+  vatRate         String                  @default("23")
+  description     String?
+  isActive        Boolean                 @default(true)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  company         Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contractorRates ContractorServiceRate[]
 
   @@index([companyId, isActive])
@@ -439,25 +480,27 @@ model ContractorServiceRate {
   currency          String          @default("PLN")
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
-  contractor      Contractor      @relation(fields: [contractorId], references: [id], onDelete: Cascade)
-  serviceTemplate ServiceTemplate @relation(fields: [serviceTemplateId], references: [id], onDelete: Cascade)
+  contractor        Contractor      @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  serviceTemplate   ServiceTemplate @relation(fields: [serviceTemplateId], references: [id], onDelete: Cascade)
 
   @@unique([contractorId, serviceTemplateId])
   @@index([contractorId])
 }
 
 model KsefIncomingSync {
-  id           String    @id @default(cuid())
+  id           String          @id @default(cuid())
   companyId    String
+  environment  KsefEnvironment @default(TEST)
   dateFrom     DateTime
   dateTo       DateTime
-  createdCount Int       @default(0)
-  linkedCount  Int       @default(0)
-  skippedCount Int       @default(0)
+  createdCount Int             @default(0)
+  linkedCount  Int             @default(0)
+  skippedCount Int             @default(0)
   errorMessage String?
   finishedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([companyId, environment])
 }

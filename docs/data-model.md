@@ -41,6 +41,16 @@ erDiagram
         datetime updatedAt
     }
 
+    CompanyKsefCredential {
+        string id PK
+        string companyId FK
+        KsefEnvironment environment
+        string tokenEnc
+        string tokenIv
+        datetime createdAt
+        datetime updatedAt
+    }
+
     CompanyMembership {
         string id PK
         string companyId FK
@@ -126,6 +136,7 @@ erDiagram
         string id PK
         string companyId FK
         string invoiceId FK
+        KsefEnvironment environment
         int attemptNumber
         KsefSubmissionStatus status
         string referenceNumber
@@ -141,11 +152,25 @@ erDiagram
 
     KsefSession {
         string id PK
-        string companyId FK, UK
+        string companyId FK
+        KsefEnvironment environment
         string tokenEnc
         string tokenIv
         datetime expiresAt
         datetime lastUsedAt
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    InvoiceKsefState {
+        string id PK
+        string invoiceId FK
+        KsefEnvironment environment
+        InvoiceKsefStatus status
+        string ksefReference
+        datetime submittedAt
+        datetime acceptedAt
+        string lastSubmissionId FK
         datetime createdAt
         datetime updatedAt
     }
@@ -184,6 +209,7 @@ erDiagram
         json ocrWarnings
         string ocrModel
         string ocrMethod
+        KsefEnvironment ksefEnvironment
         string ksefReference
         datetime ksefFetchedAt
         string source
@@ -269,6 +295,7 @@ erDiagram
     KsefIncomingSync {
         string id PK
         string companyId FK
+        KsefEnvironment environment
         datetime dateFrom
         datetime dateTo
         int createdCount
@@ -281,6 +308,7 @@ erDiagram
 
     User ||--o{ CompanyMembership : "has"
     Company ||--o{ CompanyMembership : "has"
+    Company ||--o{ CompanyKsefCredential : "stores"
     Company ||--o{ Contractor : "owns"
     Company ||--o{ Invoice : "issues"
     Company ||--o{ IncomingInvoice : "receives"
@@ -297,8 +325,10 @@ erDiagram
     Invoice ||--o{ InvoiceLine : "contains"
     Invoice ||--o{ InvoiceVatBreakdown : "has"
     Invoice ||--o{ KsefSubmission : "tracked by"
+    Invoice ||--o{ InvoiceKsefState : "tracks per environment"
     Invoice ||--o{ FileRecord : "has"
     Invoice ||--o{ Invoice : "corrected by"
+    KsefSubmission ||--o{ InvoiceKsefState : "is last submission for"
     IncomingInvoice ||--o{ FileRecord : "has"
     ServiceTemplate ||--o{ ContractorServiceRate : "priced via"
 ```
@@ -333,9 +363,23 @@ The central tenant entity. All application data is scoped to a company.
 | `nip` | `string` | Unique Polish VAT number |
 | `vatStatus` | enum | `ACTIVE` / `EXEMPT` / `NO_VAT` |
 | `invoiceSeq` | `json` | Invoice number sequence counters per year/series, e.g. `{"2025": 42}` |
-| `ksefTokenEnc` | `string?` | AES-256-GCM encrypted KSeF API token |
-| `ksefTokenIv` | `string?` | Encryption IV for `ksefTokenEnc` |
-| `ksefEnv` | enum | `TEST` or `PRODUCTION` — controls which KSeF endpoint is called |
+| `ksefTokenEnc` | `string?` | Legacy AES-256-GCM encrypted KSeF API token retained during migration to `CompanyKsefCredential` |
+| `ksefTokenIv` | `string?` | Legacy encryption IV retained during migration to `CompanyKsefCredential` |
+| `ksefEnv` | enum | Company default KSeF environment used as the fallback when no user-selected context is provided |
+
+Per-environment KSeF credentials now live in `CompanyKsefCredential`. The legacy company token columns remain temporarily for rollout compatibility.
+
+---
+
+### CompanyKsefCredential
+
+Environment-scoped KSeF API token storage. This is the target store for separate `TEST` and `PRODUCTION` credentials per company.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `environment` | enum | `TEST` or `PRODUCTION` |
+| `tokenEnc/tokenIv` | `string` | AES-256-GCM encrypted KSeF API token for that environment |
+| `(companyId, environment)` | unique | One credential record per company per environment |
 
 ---
 
@@ -406,7 +450,9 @@ stateDiagram-v2
 | `totalNet/Vat/Gross` | `Decimal(15,2)` | Aggregated from lines at issue time |
 | `correctedInvoiceId` | `string?` | Self-referencing FK — points to the original invoice for `KOR` type |
 | `correctedKsefRef` | `string?` | KSeF reference of the original (required by FA(3) spec) |
-| `ksefReference` | `string?` | KSeF-assigned reference number after acceptance |
+| `ksefReference` | `string?` | Legacy global KSeF reference retained during rollout to `InvoiceKsefState` |
+
+Environment-aware KSeF state is being moved to `InvoiceKsefState`. The legacy global KSeF columns remain temporarily for rollout compatibility.
 
 ---
 
@@ -442,7 +488,8 @@ Audit trail for every KSeF submission attempt. Supports retry tracking via `atte
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `attemptNumber` | `int` | Increments on each retry; `(invoiceId, attemptNumber)` is unique |
+| `environment` | enum | `TEST` or `PRODUCTION` — the KSeF environment used by this submission attempt |
+| `attemptNumber` | `int` | Increments on each retry; `(invoiceId, environment, attemptNumber)` is unique |
 | `status` | enum | `PENDING` → `SUBMITTED` → `ACCEPTED` / `REJECTED` / `ERROR` |
 | `referenceNumber` | `string?` | Invoice reference within the KSeF session (v2 API) |
 | `sessionReferenceNumber` | `string?` | KSeF online session reference (v2 API) |
@@ -454,13 +501,29 @@ Audit trail for every KSeF submission attempt. Supports retry tracking via `atte
 
 ### KsefSession
 
-Cached KSeF API session token per company. One active session at a time (`companyId` is unique).
+Cached KSeF API session token per company and environment. One active session per `(companyId, environment)` pair.
 
 | Column | Type | Notes |
 |--------|------|-------|
+| `environment` | enum | `TEST` or `PRODUCTION` |
 | `tokenEnc/tokenIv` | `string` | AES-256-GCM encrypted session token |
 | `expiresAt` | `datetime` | Session expiry — API checks this before reuse |
 | `lastUsedAt` | `datetime?` | Updated on each use for session health monitoring |
+
+---
+
+### InvoiceKsefState
+
+Environment-aware KSeF state for an invoice. This model allows the same invoice to have different KSeF lifecycle state in `TEST` and `PRODUCTION`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `environment` | enum | `TEST` or `PRODUCTION` |
+| `status` | enum | `NOT_SENT`, `QUEUED`, `SUBMITTED`, `ACCEPTED`, `REJECTED`, `OFFLINE_QUEUED` |
+| `ksefReference` | `string?` | Environment-specific KSeF reference |
+| `submittedAt/acceptedAt` | `datetime?` | Environment-specific submission lifecycle timestamps |
+| `lastSubmissionId` | `string?` | Optional pointer to the latest `KsefSubmission` for this environment |
+| `(invoiceId, environment)` | unique | One KSeF state record per invoice per environment |
 
 ---
 
@@ -505,6 +568,7 @@ stateDiagram-v2
 | `ocrWarnings` | `json?` | Array of field-level warnings from extraction |
 | `ocrModel` | `string?` | Model identifier used (e.g. `"tesseract"`, `"openrouter/..."`) |
 | `ocrMethod` | `string?` | `"tesseract"` or `"openrouter"` |
+| `ksefEnvironment` | `enum?` | Present for KSeF-linked records to distinguish `TEST` vs `PRODUCTION` origin |
 | `ksefReference` | `string?` | KSeF reference — used to deduplicate during sync |
 | `ksefFetchedAt` | `datetime?` | When this record was last synced from KSeF |
 
@@ -596,6 +660,7 @@ Audit trail for KSeF incoming invoice sync runs.
 
 | Column | Type | Notes |
 |--------|------|-------|
+| `environment` | enum | `TEST` or `PRODUCTION` — the KSeF environment used for the sync run |
 | `dateFrom/dateTo` | `datetime` | The query window sent to KSeF |
 | `createdCount` | `int` | New `IncomingInvoice` records created |
 | `linkedCount` | `int` | Existing upload records linked to KSeF references |

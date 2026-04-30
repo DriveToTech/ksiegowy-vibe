@@ -15,6 +15,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Infrastructure](docs/infrastructure.md) | Docker setup, CI/CD pipelines, environment variables, data persistence, and deployment checklist |
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
+| [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
 | [Backup Restore Drill](docs/backup-restore-drill.md) | Repeatable restore drill steps with evidence capture |
