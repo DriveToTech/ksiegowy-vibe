@@ -1,5 +1,8 @@
 # Ticket 05: Replace The Current KSeF Settings API With Environment-Aware Endpoints
 
+## Status
+- Ticket: `completed`
+
 ## Slice
 - `Slice 1`
 
