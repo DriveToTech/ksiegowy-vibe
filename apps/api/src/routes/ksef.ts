@@ -50,31 +50,39 @@ export const ksefRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
         throw fastify.httpErrors.forbidden('Access denied');
       }
 
-      await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+    const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
-      const invoices = await fastify.prisma.invoice.findMany({
-        where: { companyId, ksefStatus: 'OFFLINE_QUEUED' },
-        orderBy: { updatedAt: 'asc' },
-        select: {
-          id: true,
-          invoiceNumber: true,
-          issueDate: true,
-          totalGross: true,
-          currency: true,
-          ksefStatus: true,
-          updatedAt: true
+    const queuedStates = await fastify.prisma.invoiceKsefState.findMany({
+      where: {
+        environment: selectedEnvironment,
+        status: 'OFFLINE_QUEUED',
+        invoice: { companyId }
+      },
+      orderBy: { updatedAt: 'asc' },
+      select: {
+        status: true,
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            issueDate: true,
+            totalGross: true,
+            currency: true,
+            updatedAt: true,
+          }
         }
-      });
+      }
+    });
 
-      return invoices.map((inv: (typeof invoices)[number]) => ({
-        id: inv.id,
-        invoiceNumber: inv.invoiceNumber,
-        issueDate: inv.issueDate.toISOString().slice(0, 10),
-        totalGross: inv.totalGross.toString(),
-        currency: inv.currency,
-        ksefStatus: inv.ksefStatus,
-        updatedAt: inv.updatedAt.toISOString()
-      }));
+    return queuedStates.map((state) => ({
+      id: state.invoice.id,
+      invoiceNumber: state.invoice.invoiceNumber,
+      issueDate: state.invoice.issueDate.toISOString().slice(0, 10),
+      totalGross: state.invoice.totalGross.toString(),
+      currency: state.invoice.currency,
+      ksefStatus: state.status,
+      updatedAt: state.invoice.updatedAt.toISOString()
+    }));
     }
   );
 };

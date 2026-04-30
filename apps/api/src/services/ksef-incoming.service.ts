@@ -75,9 +75,9 @@ export const syncIncomingInvoicesFromKsef = async (
         // v2 uses ksefNumber; v1 used ksefReferenceNumber
         const ksefReference = header.ksefNumber ?? header.ksefReferenceNumber ?? '';
 
-        // Case A: already linked to this KSeF reference
+        // Case A: already linked to this KSeF reference (scoped by environment)
         const existingLinked = await prisma.incomingInvoice.findFirst({
-          where: { companyId, ksefReference },
+          where: { companyId, ksefEnvironment: selectedEnvironment, ksefReference },
           select: { id: true }
         });
 
@@ -95,9 +95,9 @@ export const syncIncomingInvoicesFromKsef = async (
         const metadataInvoiceNumber = header.invoiceNumber ?? null;
         const existingUpload = metadataInvoiceNumber
           ? await prisma.incomingInvoice.findFirst({
-              where: { companyId, sellerNip, invoiceNumber: metadataInvoiceNumber, ksefReference: null },
-              select: { id: true }
-            })
+            where: { companyId, sellerNip, invoiceNumber: metadataInvoiceNumber, ksefReference: null, ksefEnvironment: selectedEnvironment },
+            select: { id: true }
+          })
           : null;
 
         if (existingUpload) {
@@ -157,6 +157,7 @@ export const syncIncomingInvoicesFromKsef = async (
           data: {
             companyId,
             source: 'ksef',
+            ksefEnvironment: selectedEnvironment,
             status: 'CONFIRMED',
             ksefReference,
             ksefFetchedAt: new Date(),

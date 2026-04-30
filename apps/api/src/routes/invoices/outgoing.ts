@@ -333,7 +333,7 @@ const resolveInvoiceKsefState = (invoice: {
 const buildInvoiceDetailInclude = (selectedEnvironment: KsefEnvironment) => ({
   lines: { orderBy: { position: 'asc' as const } },
   vatBreakdown: true,
-  correctedInvoice: { select: { id: true, invoiceNumber: true, issueDate: true, ksefReference: true } },
+  correctedInvoice: { select: { id: true, invoiceNumber: true, issueDate: true, ksefReference: true, ksefStates: buildInvoiceKsefStateInclude(selectedEnvironment) } },
   ksefStates: buildInvoiceKsefStateInclude(selectedEnvironment),
 });
 
@@ -361,7 +361,7 @@ const serializeInvoice = (invoice: {
   notes: string | null;
   correctionReason: string | null;
   correctionImpactType: string | null;
-  correctedInvoice?: { id: string; invoiceNumber: string | null; issueDate: Date; ksefReference: string | null } | null;
+  correctedInvoice?: { id: string; invoiceNumber: string | null; issueDate: Date; ksefReference: string | null; ksefStates?: Array<{ status: string; ksefReference: string | null }> } | null;
   ksefStates?: Array<{ status: string; ksefReference: string | null }>;
   issuedAt: Date | null;
   createdAt: Date;
@@ -416,7 +416,7 @@ const serializeInvoice = (invoice: {
           id: invoice.correctedInvoice.id,
           invoiceNumber: invoice.correctedInvoice.invoiceNumber,
           issueDate: invoice.correctedInvoice.issueDate.toISOString().slice(0, 10),
-          ksefReference: invoice.correctedInvoice.ksefReference
+          ksefReference: resolveInvoiceKsefState(invoice.correctedInvoice).ksefReference
         }
       : null,
     ksefStatus: toKsefStatusApi(invoiceKsefState.status),

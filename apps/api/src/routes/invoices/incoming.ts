@@ -47,6 +47,7 @@ const incomingListItemSchema = {
     totalGross: { type: ['string', 'null'] },
     currency: { type: ['string', 'null'] },
     ocrError: { type: ['string', 'null'] },
+    ksefEnvironment: { type: ['string', 'null'] },
     createdAt: { type: 'string' },
     updatedAt: { type: 'string' },
     contractor: {
@@ -60,7 +61,7 @@ const incomingListItemSchema = {
       required: ['id', 'name', 'nip'],
     },
   },
-  required: ['id', 'companyId', 'contractorId', 'status', 'sellerName', 'sellerNip', 'invoiceNumber', 'issueDate', 'totalGross', 'currency', 'ocrError', 'createdAt', 'updatedAt', 'contractor'],
+  required: ['id', 'companyId', 'contractorId', 'status', 'sellerName', 'sellerNip', 'invoiceNumber', 'issueDate', 'totalGross', 'currency', 'ocrError', 'ksefEnvironment', 'createdAt', 'updatedAt', 'contractor'],
 } as const;
 
 const incomingDetailSchema = {
@@ -90,43 +91,44 @@ const incomingDetailSchema = {
     ocrConfidence: { type: ['number', 'null'] },
     ocrModel: { type: ['string', 'null'] },
     ocrError: { type: ['string', 'null'] },
-    ksefReference: { type: ['string', 'null'] },
-    confirmedAt: { type: ['string', 'null'] },
-    createdAt: { type: 'string' },
-    updatedAt: { type: 'string' },
-    contractor: {
-      type: ['object', 'null'],
+  ksefReference: { type: ['string', 'null'] },
+  ksefEnvironment: { type: ['string', 'null'] },
+  confirmedAt: { type: ['string', 'null'] },
+  createdAt: { type: 'string' },
+  updatedAt: { type: 'string' },
+  contractor: {
+    type: ['object', 'null'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string' },
+      name: { type: 'string' },
+      nip: { type: ['string', 'null'] },
+    },
+    required: ['id', 'name', 'nip'],
+  },
+  fileRecords: {
+    type: 'array',
+    items: {
+      type: 'object',
       additionalProperties: false,
       properties: {
         id: { type: 'string' },
-        name: { type: 'string' },
-        nip: { type: ['string', 'null'] },
+        type: { type: 'string' },
+        mimeType: { type: 'string' },
+        sizeBytes: { type: 'integer' },
+        createdAt: { type: 'string' },
       },
-      required: ['id', 'name', 'nip'],
-    },
-    fileRecords: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          id: { type: 'string' },
-          type: { type: 'string' },
-          mimeType: { type: 'string' },
-          sizeBytes: { type: 'integer' },
-          createdAt: { type: 'string' },
-        },
-        required: ['id', 'type', 'mimeType', 'sizeBytes', 'createdAt'],
-      },
+      required: ['id', 'type', 'mimeType', 'sizeBytes', 'createdAt'],
     },
   },
-  required: [
-    'id', 'companyId', 'contractorId', 'status', 'sellerName', 'sellerNip', 'sellerAddress',
-    'buyerName', 'buyerNip', 'invoiceNumber', 'issueDate', 'saleDate', 'totalNet', 'totalVat',
-    'totalGross', 'currency', 'paymentMethod', 'dueDate', 'bankAccount', 'notes',
-    'ocrConfidence', 'ocrModel', 'ocrError', 'ksefReference', 'confirmedAt',
-    'createdAt', 'updatedAt', 'contractor', 'fileRecords',
-  ],
+},
+required: [
+  'id', 'companyId', 'contractorId', 'status', 'sellerName', 'sellerNip', 'sellerAddress',
+  'buyerName', 'buyerNip', 'invoiceNumber', 'issueDate', 'saleDate', 'totalNet', 'totalVat',
+  'totalGross', 'currency', 'paymentMethod', 'dueDate', 'bankAccount', 'notes',
+  'ocrConfidence', 'ocrModel', 'ocrError', 'ksefReference', 'ksefEnvironment', 'confirmedAt',
+  'createdAt', 'updatedAt', 'contractor', 'fileRecords',
+],
 } as const;
 
 const confirmBodySchema = {
@@ -172,23 +174,18 @@ const serializeListItem = (inv: {
   status: string; sellerName: string | null; sellerNip: string | null;
   invoiceNumber: string | null; issueDate: Date | null; totalGross: { toString(): string } | null;
   currency: string | null; ocrError: string | null; ksefReference: string | null;
+  ksefEnvironment: string | null;
   createdAt: Date; updatedAt: Date;
   contractor: { id: string; name: string; nip: string | null } | null;
 }) => ({
-  id: inv.id,
-  companyId: inv.companyId,
-  contractorId: inv.contractorId,
-  status: inv.status,
-  sellerName: inv.sellerName,
-  sellerNip: inv.sellerNip,
+  id: inv.id, companyId: inv.companyId, contractorId: inv.contractorId,
+  status: inv.status, sellerName: inv.sellerName, sellerNip: inv.sellerNip,
   invoiceNumber: inv.invoiceNumber,
   issueDate: inv.issueDate ? inv.issueDate.toISOString().slice(0, 10) : null,
   totalGross: inv.totalGross ? inv.totalGross.toString() : null,
-  currency: inv.currency,
-  ocrError: inv.ocrError,
-  ksefReference: inv.ksefReference,
-  createdAt: inv.createdAt.toISOString(),
-  updatedAt: inv.updatedAt.toISOString(),
+  currency: inv.currency, ocrError: inv.ocrError, ksefReference: inv.ksefReference,
+  ksefEnvironment: inv.ksefEnvironment,
+  createdAt: inv.createdAt.toISOString(), updatedAt: inv.updatedAt.toISOString(),
   contractor: inv.contractor,
 });
 
@@ -308,13 +305,13 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * limit,
           take: limit,
-          select: {
-            id: true, companyId: true, contractorId: true, status: true,
-            sellerName: true, sellerNip: true, invoiceNumber: true,
-            issueDate: true, totalGross: true, currency: true, ocrError: true,
-            ksefReference: true, createdAt: true, updatedAt: true,
-            contractor: { select: { id: true, name: true, nip: true } },
-          },
+        select: {
+          id: true, companyId: true, contractorId: true, status: true,
+          sellerName: true, sellerNip: true, invoiceNumber: true,
+          issueDate: true, totalGross: true, currency: true, ocrError: true,
+          ksefReference: true, ksefEnvironment: true, createdAt: true, updatedAt: true,
+          contractor: { select: { id: true, name: true, nip: true } },
+        },
         }),
       ]);
 
@@ -360,9 +357,9 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         currency: invoice.currency, paymentMethod: invoice.paymentMethod,
         dueDate: invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : null,
         bankAccount: invoice.bankAccount, notes: invoice.notes,
-        ocrConfidence: invoice.ocrConfidence, ocrModel: invoice.ocrModel, ocrError: invoice.ocrError,
-        ksefReference: invoice.ksefReference,
-        confirmedAt: invoice.confirmedAt ? invoice.confirmedAt.toISOString() : null,
+    ocrConfidence: invoice.ocrConfidence, ocrModel: invoice.ocrModel, ocrError: invoice.ocrError,
+    ksefReference: invoice.ksefReference, ksefEnvironment: invoice.ksefEnvironment,
+    confirmedAt: invoice.confirmedAt ? invoice.confirmedAt.toISOString() : null,
         createdAt: invoice.createdAt.toISOString(), updatedAt: invoice.updatedAt.toISOString(),
         contractor: invoice.contractor,
         fileRecords: invoice.fileRecords.map((fileRecord) => ({
@@ -509,9 +506,9 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         currency: updated.currency, paymentMethod: updated.paymentMethod,
         dueDate: updated.dueDate ? updated.dueDate.toISOString().slice(0, 10) : null,
         bankAccount: updated.bankAccount, notes: updated.notes,
-        ocrConfidence: updated.ocrConfidence, ocrModel: updated.ocrModel, ocrError: updated.ocrError,
-        ksefReference: updated.ksefReference,
-        confirmedAt: updated.confirmedAt ? updated.confirmedAt.toISOString() : null,
+  ocrConfidence: updated.ocrConfidence, ocrModel: updated.ocrModel, ocrError: updated.ocrError,
+  ksefReference: updated.ksefReference, ksefEnvironment: updated.ksefEnvironment,
+  confirmedAt: updated.confirmedAt ? updated.confirmedAt.toISOString() : null,
         createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString(),
         contractor: updated.contractor,
         fileRecords: updated.fileRecords.map((fileRecord) => ({ ...fileRecord, createdAt: fileRecord.createdAt.toISOString() })),

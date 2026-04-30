@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { AccessTokenPayload } from '../lib/auth-config.js';
+import { resolveEffectiveKsefEnvironment } from '../lib/ksef-environment.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,11 +64,13 @@ export const reportsRoutes: FastifyPluginAsync = async (fastify): Promise<void> 
       const { companyId } = request.params;
       const { from, to, format = 'json' } = request.query;
 
-      if (!user.companies.find((c) => c.id === companyId)) {
-        throw fastify.httpErrors.forbidden('Access denied');
-      }
+    if (!user.companies.find((c) => c.id === companyId)) {
+      throw fastify.httpErrors.forbidden('Access denied');
+    }
 
-      // Build date range filter
+    const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+
+    // Build date range filter
       const dateFilter: { gte?: Date; lte?: Date } = {};
       if (from) {
         const [year, month] = from.split('-').map(Number);
@@ -79,15 +82,21 @@ export const reportsRoutes: FastifyPluginAsync = async (fastify): Promise<void> 
         dateFilter.lte = new Date(Date.UTC(year!, month!, 0, 23, 59, 59, 999));
       }
 
-      const invoices = await fastify.prisma.invoice.findMany({
-        where: {
-          companyId,
-          status: 'ISSUED',
-          ...(Object.keys(dateFilter).length > 0 ? { issueDate: dateFilter } : {})
-        },
-        orderBy: { issueDate: 'asc' },
-        include: { vatBreakdown: true }
-      });
+    const invoices = await fastify.prisma.invoice.findMany({
+      where: {
+        companyId,
+        status: 'ISSUED',
+        ...(Object.keys(dateFilter).length > 0 ? { issueDate: dateFilter } : {})
+      },
+      orderBy: { issueDate: 'asc' },
+      include: {
+        vatBreakdown: true,
+        ksefStates: {
+          where: { environment: selectedEnvironment },
+          select: { ksefReference: true }
+        }
+      }
+    });
 
       const rows = invoices.map((invoice) => ({
         invoiceNumber: invoice.invoiceNumber ?? '',
@@ -97,7 +106,7 @@ export const reportsRoutes: FastifyPluginAsync = async (fastify): Promise<void> 
         totalNet: invoice.totalNet.toString(),
         totalVat: invoice.totalVat.toString(),
         totalGross: invoice.totalGross.toString(),
-        ksefReference: invoice.ksefReference ?? '',
+        ksefReference: invoice.ksefStates[0]?.ksefReference ?? '',
         vatBreakdown: invoice.vatBreakdown.map((b) => ({
           vatRate: b.vatRate,
           netAmount: b.netAmount.toString(),

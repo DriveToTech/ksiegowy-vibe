@@ -26,3 +26,22 @@ Update API read paths that expose KSeF status or reference so they return the ac
 2. Queue endpoints use environment-specific state.
 3. Reports and exports use the selected environment's KSeF values.
 4. No read endpoint silently mixes environments.
+
+## Done
+
+### Changes made
+
+**`apps/api/src/routes/ksef.ts`** — KSeF queue endpoint:
+- Replaced the ignored `resolveEffectiveKsefEnvironment` call with a captured `selectedEnvironment` variable.
+- Replaced the legacy `Invoice.ksefStatus === 'OFFLINE_QUEUED'` query with an `invoiceKsefState.findMany` query scoped by `environment: selectedEnvironment` and `status: 'OFFLINE_QUEUED'`.
+- The response now reads `ksefStatus` from `InvoiceKsefState.status` instead of the legacy `Invoice.ksefStatus` field.
+
+**`apps/api/src/routes/reports.ts`** — VAT register report:
+- Added `resolveEffectiveKsefEnvironment` import.
+- Added environment resolution call after access check.
+- Updated the invoice query `include` to fetch `ksefStates` filtered by the selected environment (selecting only `ksefReference`).
+- Changed `ksefReference` mapping from the legacy `invoice.ksefReference` to `invoice.ksefStates[0]?.ksefReference ?? ''`, ensuring the report shows only the active environment's KSeF reference.
+
+### Verification
+- TypeScript typecheck: ✅ passes (`tsc --noEmit` — no errors)
+- Tests: ✅ 45/45 passing
