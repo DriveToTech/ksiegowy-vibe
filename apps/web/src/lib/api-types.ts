@@ -7,6 +7,8 @@ export type CompanyKsefEnvironment = 'TEST' | 'PRODUCTION';
 
 export type KsefStatus = 'not_submitted' | 'pending' | 'accepted' | 'rejected';
 
+export type InvoiceCorrectionMode = 'CANCELLATION' | 'FORMAL';
+
 export type PaymentMethod = 'BANK_TRANSFER' | 'CASH' | 'CARD' | 'OTHER';
 
 export type VatRate = '23' | '8' | '5' | '0' | 'zw' | 'np' | 'oo';
@@ -124,6 +126,8 @@ export interface InvoiceDetail {
   paymentDueDate: string | null;
   currency: string;
   notes: string | null;
+  correctedInvoiceNumber: string | null;
+  correctionMode: InvoiceCorrectionMode | null;
   correctionReason: string | null;
   correctionImpactType: string | null;
   correctedInvoice: { id: string; invoiceNumber: string | null; issueDate: string; ksefReference: string | null } | null;

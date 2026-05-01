@@ -197,7 +197,7 @@ export async function sendInvoiceEmail(
 export async function createCorrection(
   companyId: string,
   invoiceId: string,
-  body?: { reason?: string; impactType?: string },
+  body?: { reason?: string; impactType?: string; correctionMode?: 'cancellation' | 'formal'; correctedInvoiceNumber?: string },
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/correct`,

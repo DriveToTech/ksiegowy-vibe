@@ -74,6 +74,8 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [correctionReason, setCorrectionReason] = useState('');
   const [correctionImpactType, setCorrectionImpactType] = useState('');
+  const [correctionMode, setCorrectionMode] = useState<'cancellation' | 'formal'>('cancellation');
+  const [correctedInvoiceNumber, setCorrectedInvoiceNumber] = useState('');
   const isCorrectionInvoice = invoiceType === 'KOR';
 
   const activeEnvironment = getActiveKsefEnvironmentFromBrowser();
@@ -140,11 +142,19 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
     if (activeEnvironment === 'PRODUCTION') {
       if (!window.confirm(t.invoiceActions.productionConfirm)) return;
     }
+    const normalizedCorrectedInvoiceNumber = correctedInvoiceNumber.trim();
+    const normalizedCorrectionReason = correctionReason.trim();
+    if (correctionMode === 'formal' && !normalizedCorrectedInvoiceNumber && !normalizedCorrectionReason) {
+      setError(t.invoiceActions.correctionFormalRequiresData);
+      return;
+    }
     setError(null);
     setLoading('correct');
     createCorrection(companyId, invoiceId, {
-      ...(correctionReason ? { reason: correctionReason } : {}),
-      ...(correctionImpactType ? { impactType: correctionImpactType } : {})
+      ...(normalizedCorrectionReason ? { reason: normalizedCorrectionReason } : {}),
+      ...(correctionImpactType ? { impactType: correctionImpactType } : {}),
+      correctionMode,
+      ...(correctionMode === 'formal' && normalizedCorrectedInvoiceNumber ? { correctedInvoiceNumber: normalizedCorrectedInvoiceNumber } : {})
     })
       .then((correction) => router.push(`/dashboard/invoices/${correction.id}`))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
@@ -304,6 +314,34 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
         <Surface tone="glass" shape="organic" className="space-y-4 p-5">
           <h3 className="text-base font-semibold text-foreground">{t.invoiceActions.correctionModalTitle}</h3>
           <form onSubmit={handleCorrect} className="space-y-4">
+            <div>
+              <label htmlFor="correctionMode" className="mb-2 block text-sm font-semibold text-foreground">
+                {t.invoiceActions.correctionModeLabel}
+              </label>
+              <select
+                id="correctionMode"
+                value={correctionMode}
+                onChange={(e) => setCorrectionMode(e.target.value as 'cancellation' | 'formal')}
+                className="w-full rounded-xl border border-border bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="cancellation">{t.invoiceActions.correctionModeCancellation}</option>
+                <option value="formal">{t.invoiceActions.correctionModeFormal}</option>
+              </select>
+            </div>
+            {correctionMode === 'formal' ? (
+              <div>
+                <label htmlFor="correctedInvoiceNumber" className="mb-2 block text-sm font-semibold text-foreground">
+                  {t.invoiceActions.correctedInvoiceNumberLabel}
+                </label>
+                <Input
+                  id="correctedInvoiceNumber"
+                  type="text"
+                  value={correctedInvoiceNumber}
+                  onChange={(e) => setCorrectedInvoiceNumber(e.target.value)}
+                  placeholder={t.invoiceActions.correctedInvoiceNumberPlaceholder}
+                />
+              </div>
+            ) : null}
             <div>
               <label htmlFor="correctionReason" className="mb-2 block text-sm font-semibold text-foreground">
                 {t.invoiceActions.correctionReasonLabel}

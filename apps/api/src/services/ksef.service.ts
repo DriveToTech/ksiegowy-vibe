@@ -10,12 +10,6 @@ import { buildIssuedInvoiceDataForKsefSubmission } from './invoice-ksef-submissi
 
 const SESSION_TTL_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
 
-const resolveCompanyKsefEnvironment = (
-  companyKsefEnvironment: KsefEnvironment | null | undefined
-): KsefEnvironment => {
-  return companyKsefEnvironment === 'PRODUCTION' ? 'PRODUCTION' : 'TEST';
-};
-
 const toKsefClientEnvironment = (
   companyKsefEnvironment: KsefEnvironment
 ): 'test' | 'production' => {

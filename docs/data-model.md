@@ -101,6 +101,7 @@ erDiagram
         string currency
         string correctedInvoiceId FK
         string correctedKsefRef
+        string correctedInvoiceNumber
         string correctionReason
         InvoiceKsefStatus ksefStatus
         string ksefReference
@@ -785,6 +786,8 @@ Most child records cascade delete when the parent company is deleted. Exceptions
 
 ### Invoice corrections
 A `KOR` (correction) invoice self-references the original via `correctedInvoiceId`. The `corrections` relation allows querying all corrections for an invoice. `correctedKsefRef` is stored separately because corrections submitted to KSeF must reference the original KSeF number, not the internal database ID.
+
+Formal corrections that fix only invoice metadata, such as the original invoice number, can additionally store `correctedInvoiceNumber`. In this mode the correction keeps the original financial values unchanged while still referencing the accepted original invoice in KSeF.
 
 ### Invoice number sequencing
 `Company.invoiceSeq` is a JSON object keyed by year (and optionally series prefix), e.g. `{"2025": 42, "2025/KOR": 3}`. The API increments the counter atomically when issuing an invoice.

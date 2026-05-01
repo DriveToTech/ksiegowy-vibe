@@ -82,6 +82,11 @@ enum CompanyBackupScheduleMode {
   WEEKLY
 }
 
+enum InvoiceCorrectionMode {
+  CANCELLATION
+  FORMAL
+}
+
 model User {
   id          String              @id @default(cuid())
   email       String              @unique
@@ -213,6 +218,8 @@ model Invoice {
   notes                String?
   correctedInvoiceId   String?
   correctedKsefRef     String?
+  correctedInvoiceNumber String?
+  correctionMode       InvoiceCorrectionMode?
   correctionReason     String?
   correctionImpactType String?
   ksefReference        String?

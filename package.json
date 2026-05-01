@@ -1,7 +1,7 @@
 {
   "name": "ksiegowy-vibe",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Monorepo scaffold for ksiegowy-vibe.pl",
   "packageManager": "pnpm@10.33.0",
   "engines": {

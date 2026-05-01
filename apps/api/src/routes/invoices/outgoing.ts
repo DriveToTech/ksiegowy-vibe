@@ -88,6 +88,8 @@ const invoiceResponseSchema = {
     paymentDueDate: { type: ['string', 'null'] },
     currency: { type: 'string' },
     notes: { type: ['string', 'null'] },
+    correctedInvoiceNumber: { type: ['string', 'null'] },
+    correctionMode: { type: ['string', 'null'] },
     correctionReason: { type: ['string', 'null'] },
     correctionImpactType: { type: ['string', 'null'] },
     correctedInvoice: {
@@ -114,7 +116,7 @@ const invoiceResponseSchema = {
     'environment',
     'issueDate', 'saleDate', 'placeOfIssue', 'sellerName', 'sellerNip',
     'buyerName', 'buyerNip', 'totalNet', 'totalVat', 'totalGross', 'paymentReceived',
-    'paymentMethod', 'paymentDueDate', 'currency', 'notes',
+    'paymentMethod', 'paymentDueDate', 'currency', 'notes', 'correctedInvoiceNumber', 'correctionMode',
     'correctionReason', 'correctionImpactType', 'correctedInvoice',
     'ksefStatus', 'ksefReference', 'issuedAt', 'createdAt', 'updatedAt',
     'lines', 'vatBreakdown'
@@ -245,7 +247,9 @@ const createCorrectionBodySchema = {
   additionalProperties: false,
   properties: {
     reason: { type: 'string', minLength: 1 },
-    impactType: { type: 'string', enum: ['1', '2', '3'] }
+    impactType: { type: 'string', enum: ['1', '2', '3'] },
+    correctionMode: { type: 'string', enum: ['cancellation', 'formal'] },
+    correctedInvoiceNumber: { type: 'string', minLength: 1 },
   }
 } as const;
 
@@ -268,7 +272,11 @@ interface RecordPaymentBody {
 interface CreateCorrectionBody {
   reason?: string;
   impactType?: '1' | '2' | '3';
+  correctionMode?: 'cancellation' | 'formal';
+  correctedInvoiceNumber?: string;
 }
+
+type DatabaseInvoiceCorrectionMode = 'CANCELLATION' | 'FORMAL';
 
 interface ListQuerystring {
   status?: 'DRAFT' | 'ISSUED' | 'CANCELLED';
@@ -337,13 +345,70 @@ export const buildInvoiceKsefStateInclude = (selectedEnvironment: KsefEnvironmen
 });
 
 export const resolveInvoiceKsefState = (invoice: {
-  ksefStates?: Array<{ status: string; ksefReference: string | null }>;
+  ksefStates?: Array<{ status: string; ksefReference: string | null }>; 
 }): { status: string; ksefReference: string | null } => {
   const invoiceKsefState = invoice.ksefStates?.[0];
 
   return {
     status: invoiceKsefState?.status ?? 'NOT_SENT',
     ksefReference: invoiceKsefState?.ksefReference ?? null,
+  };
+};
+
+export const mapCorrectionModeToDatabase = (
+  correctionMode: CreateCorrectionBody['correctionMode'] | undefined
+): DatabaseInvoiceCorrectionMode => {
+  return correctionMode === 'formal' ? 'FORMAL' : 'CANCELLATION';
+};
+
+export const getCorrectionAmountPrefix = (correctionMode: DatabaseInvoiceCorrectionMode): '' | '-' => {
+  return correctionMode === 'FORMAL' ? '' : '-';
+};
+
+export const normalizeCorrectionRequest = (
+  input: CreateCorrectionBody,
+  originalInvoiceNumber: string | null,
+): {
+  correctionMode: DatabaseInvoiceCorrectionMode;
+  correctedInvoiceNumber: string | null;
+  correctionReason: string | null;
+  amountPrefix: '' | '-';
+} => {
+  const normalizedCorrectedInvoiceNumber = input.correctedInvoiceNumber?.trim();
+  const normalizedReason = input.reason?.trim();
+  const correctionMode = mapCorrectionModeToDatabase(input.correctionMode);
+
+  if (correctionMode === 'FORMAL' && !normalizedCorrectedInvoiceNumber && !normalizedReason) {
+    throw new Error('Formal correction requires correctedInvoiceNumber or reason');
+  }
+
+  if (
+    correctionMode === 'FORMAL' &&
+    normalizedCorrectedInvoiceNumber !== undefined &&
+    originalInvoiceNumber !== null &&
+    normalizedCorrectedInvoiceNumber === originalInvoiceNumber
+  ) {
+    throw new Error('Corrected invoice number must differ from the original invoice number');
+  }
+
+  if (correctionMode === 'CANCELLATION' && normalizedCorrectedInvoiceNumber !== undefined) {
+    throw new Error('correctedInvoiceNumber is only supported for formal corrections');
+  }
+
+  const correctionReason = correctionMode === 'FORMAL' && normalizedCorrectedInvoiceNumber !== undefined
+    ? [
+        originalInvoiceNumber !== null
+          ? `Korekta numeru faktury: bylo ${originalInvoiceNumber}, powinno byc ${normalizedCorrectedInvoiceNumber}`
+          : `Korekta numeru faktury: powinno byc ${normalizedCorrectedInvoiceNumber}`,
+        normalizedReason,
+      ].filter((value): value is string => value !== undefined && value !== '').join('. ')
+    : normalizedReason ?? null;
+
+  return {
+    correctionMode,
+    correctedInvoiceNumber: normalizedCorrectedInvoiceNumber ?? null,
+    correctionReason,
+    amountPrefix: getCorrectionAmountPrefix(correctionMode),
   };
 };
 
@@ -377,6 +442,8 @@ const serializeInvoice = (invoice: {
   paymentDueDate: Date | null;
   currency: string;
   notes: string | null;
+  correctedInvoiceNumber?: string | null;
+  correctionMode?: DatabaseInvoiceCorrectionMode | null;
   correctionReason: string | null;
   correctionImpactType: string | null;
   correctedInvoice?: { id: string; invoiceNumber: string | null; issueDate: Date; ksefReference: string | null; ksefStates?: Array<{ status: string; ksefReference: string | null }> } | null;
@@ -428,6 +495,8 @@ const serializeInvoice = (invoice: {
     paymentDueDate: invoice.paymentDueDate ? invoice.paymentDueDate.toISOString().slice(0, 10) : null,
     currency: invoice.currency,
     notes: invoice.notes,
+    correctedInvoiceNumber: invoice.correctedInvoiceNumber ?? null,
+    correctionMode: invoice.correctionMode ?? null,
     correctionReason: invoice.correctionReason,
     correctionImpactType: invoice.correctionImpactType,
     correctedInvoice: invoice.correctedInvoice
@@ -1390,25 +1459,46 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         );
       }
 
-      const { reason, impactType } = request.body;
+      const { impactType } = request.body;
+      const normalizedCorrection = (() => {
+        try {
+          return normalizeCorrectionRequest(request.body, original.invoiceNumber);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
 
-      // Build KOR lines with negated values
+          if (message === 'Corrected invoice number must differ from the original invoice number') {
+            throw fastify.httpErrors.conflict(message);
+          }
+
+          if (
+            message === 'Formal correction requires correctedInvoiceNumber or reason' ||
+            message === 'correctedInvoiceNumber is only supported for formal corrections'
+          ) {
+            throw fastify.httpErrors.badRequest(message);
+          }
+
+          throw error;
+        }
+      })();
+
+      // Formal corrections keep the financial values unchanged. Cancellation-style
+      // corrections negate them to reverse the original invoice effect.
       const korLines = original.lines.map((l) => ({
         position: l.position,
         name: l.name,
         unit: l.unit ?? 'szt',
         quantity: l.quantity.toString(),
-        unitNetPrice: `-${l.unitNetPrice.toString()}`,
+        unitNetPrice: `${normalizedCorrection.amountPrefix}${l.unitNetPrice.toString()}`,
         vatRate: l.vatRate,
-        netValue: `-${l.netValue.toString()}`,
-        vatValue: `-${l.vatValue.toString()}`,
-        grossValue: `-${l.grossValue.toString()}`
+        netValue: `${normalizedCorrection.amountPrefix}${l.netValue.toString()}`,
+        vatValue: `${normalizedCorrection.amountPrefix}${l.vatValue.toString()}`,
+        grossValue: `${normalizedCorrection.amountPrefix}${l.grossValue.toString()}`
       }));
 
       const korBreakdown = original.vatBreakdown.map((b) => ({
         vatRate: b.vatRate,
-        netAmount: `-${b.netAmount.toString()}`,
-        vatAmount: `-${b.vatAmount.toString()}`
+        netAmount: `${normalizedCorrection.amountPrefix}${b.netAmount.toString()}`,
+        vatAmount: `${normalizedCorrection.amountPrefix}${b.vatAmount.toString()}`
       }));
 
       const correction = await fastify.prisma.invoice.create({
@@ -1422,7 +1512,9 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
           currency: original.currency,
           correctedInvoiceId: original.id,
           correctedKsefRef: originalKsefState.ksefReference,
-          correctionReason: reason ?? null,
+          correctedInvoiceNumber: normalizedCorrection.correctedInvoiceNumber,
+          correctionMode: normalizedCorrection.correctionMode,
+          correctionReason: normalizedCorrection.correctionReason,
           correctionImpactType: impactType ?? null,
           sellerName: original.sellerName,
           sellerNip: original.sellerNip,
@@ -1433,10 +1525,12 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
           buyerAddress1: original.buyerAddress1,
           buyerAddress2: original.buyerAddress2,
           buyerCountry: original.buyerCountry,
-          totalNet: `-${original.totalNet.toString()}`,
-          totalVat: `-${original.totalVat.toString()}`,
-          totalGross: `-${original.totalGross.toString()}`,
-          notes: `Korekta faktury ${original.invoiceNumber ?? id}`,
+          totalNet: `${normalizedCorrection.amountPrefix}${original.totalNet.toString()}`,
+          totalVat: `${normalizedCorrection.amountPrefix}${original.totalVat.toString()}`,
+          totalGross: `${normalizedCorrection.amountPrefix}${original.totalGross.toString()}`,
+          notes: normalizedCorrection.correctionMode === 'FORMAL' && normalizedCorrection.correctedInvoiceNumber !== null
+            ? `Korekta formalna faktury ${original.invoiceNumber ?? id}. Prawidlowy numer: ${normalizedCorrection.correctedInvoiceNumber}`
+            : `Korekta faktury ${original.invoiceNumber ?? id}`,
           lines: { create: korLines },
           vatBreakdown: { create: korBreakdown }
         },

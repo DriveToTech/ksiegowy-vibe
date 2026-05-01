@@ -1,4 +1,4 @@
-import type { KsefEnvironment, PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KSEF_ENVIRONMENT_HEADER, readRequestedKsefEnvironment, resolveEffectiveKsefEnvironment } from './ksef-environment.js';
 

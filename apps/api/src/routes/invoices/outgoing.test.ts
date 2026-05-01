@@ -2,6 +2,9 @@ import type { KsefEnvironment } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import {
   buildInvoiceKsefStateInclude,
+  getCorrectionAmountPrefix,
+  mapCorrectionModeToDatabase,
+  normalizeCorrectionRequest,
   resolveInvoiceKsefState,
 } from './outgoing.js';
 
@@ -82,5 +85,69 @@ describe('buildInvoiceKsefStateInclude()', () => {
         ksefReference: true,
       },
     });
+  });
+});
+
+describe('normalizeCorrectionRequest()', () => {
+  it('defaults to cancellation mode and negates values', () => {
+    const result = normalizeCorrectionRequest({}, 'FV 1/4/2026');
+
+    expect(result).toEqual({
+      correctionMode: 'CANCELLATION',
+      correctedInvoiceNumber: null,
+      correctionReason: null,
+      amountPrefix: '-',
+    });
+  });
+
+  it('requires corrected invoice number or reason for formal corrections', () => {
+    expect(() => normalizeCorrectionRequest({ correctionMode: 'formal' }, 'FV 1/4/2026')).toThrow(
+      'Formal correction requires correctedInvoiceNumber or reason',
+    );
+  });
+
+  it('rejects unchanged corrected invoice number in formal mode', () => {
+    expect(() => normalizeCorrectionRequest(
+      { correctionMode: 'formal', correctedInvoiceNumber: 'FV 1/4/2026' },
+      'FV 1/4/2026',
+    )).toThrow('Corrected invoice number must differ from the original invoice number');
+  });
+
+  it('rejects corrected invoice number in cancellation mode', () => {
+    expect(() => normalizeCorrectionRequest(
+      { correctionMode: 'cancellation', correctedInvoiceNumber: 'FV 2/4/2026' },
+      'FV 1/4/2026',
+    )).toThrow('correctedInvoiceNumber is only supported for formal corrections');
+  });
+
+  it('builds formal correction reason with corrected invoice number', () => {
+    const result = normalizeCorrectionRequest(
+      {
+        correctionMode: 'formal',
+        correctedInvoiceNumber: 'FV 2/4/2026',
+        reason: 'Zmiana numeracji',
+      },
+      'FV 1/4/2026',
+    );
+
+    expect(result).toEqual({
+      correctionMode: 'FORMAL',
+      correctedInvoiceNumber: 'FV 2/4/2026',
+      correctionReason: 'Korekta numeru faktury: bylo FV 1/4/2026, powinno byc FV 2/4/2026. Zmiana numeracji',
+      amountPrefix: '',
+    });
+  });
+});
+
+describe('correction mode helpers', () => {
+  it('maps correction modes to database values', () => {
+    expect(mapCorrectionModeToDatabase(undefined)).toBe('CANCELLATION');
+    expect(mapCorrectionModeToDatabase('cancellation')).toBe('CANCELLATION');
+    expect(mapCorrectionModeToDatabase('formal')).toBe('FORMAL');
+  });
+
+  it('returns amount prefix per correction mode', () => {
+    expect(getCorrectionAmountPrefix('CANCELLATION')).toBe('-');
+    expect(getCorrectionAmountPrefix('FORMAL')).toBe('');
   });
 });

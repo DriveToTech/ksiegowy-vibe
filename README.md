@@ -24,7 +24,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 
 - **KSeF Integration** — Submit VAT invoices and sync incoming invoices from the National e-Invoice System (FA(3) XML generation, XSD validation, session management, offline queue with retry)
 - **KSeF Environment Context Switcher** — Per-user `TEST` / `PRODUCTION` environment switching with separate credentials, sessions, invoice visibility, and invoice KSeF state per environment. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
-- **Invoice Management** — Full lifecycle: draft → issue → PDF/XML generation → KSeF submission, including KOR correction invoices linked to accepted KSeF originals
+- **Invoice Management** — Full lifecycle: draft → issue → PDF/XML generation → KSeF submission, including KOR correction invoices linked to accepted KSeF originals, with support for formal corrections such as invoice-number fixes
 - **Incoming Invoices** — Upload PDFs/images with OCR, or sync directly from KSeF; review & confirm
 - **Multi-company Support** — Manage multiple VAT entities with role-based access (Admin / Accountant / Viewer)
 - **Contractor Management** — Buyer/seller database with NIP lookup (GUS API)

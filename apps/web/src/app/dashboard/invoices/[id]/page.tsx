@@ -49,6 +49,7 @@ export default async function InvoiceDetailPage({
   }
 
   const paymentMethodLabel = t.invoiceDetail.paymentMethods[invoice.paymentMethod] ?? invoice.paymentMethod;
+  const correctionModeLabel = invoice.correctionMode ? t.invoiceDetail.correctionModes[invoice.correctionMode] ?? invoice.correctionMode : null;
 
   const ksefSettings = await getCompanyKsefSettings(companyId).catch(() => null);
   const ksefCredentialStatuses = ksefSettings?.credentials ?? undefined;
@@ -128,6 +129,8 @@ export default async function InvoiceDetailPage({
           <InfoRow label={t.invoiceDetail.fields.paymentDueDate} value={formatDate(invoice.paymentDueDate)} />
           <InfoRow label={t.invoiceDetail.fields.currency} value={invoice.currency} />
           <InfoRow label={t.invoiceDetail.fields.environment} value={invoice.environment} />
+          <InfoRow label={t.invoiceDetail.fields.correctionMode} value={correctionModeLabel} />
+          <InfoRow label={t.invoiceDetail.fields.correctedInvoiceNumber} value={invoice.correctedInvoiceNumber} />
           <InfoRow label={t.invoiceDetail.fields.ksefReference} value={invoice.ksefReference} />
         </InfoSection>
       </div>
