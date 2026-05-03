@@ -3,6 +3,11 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { Company } from './api-types';
 import { API_BASE } from './api-base';
+import {
+  ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME,
+  normalizeKsefEnvironment,
+  type KsefEnvironment,
+} from './ksef-environment';
 
 export interface AuthenticatedUser {
   id: string;
@@ -23,6 +28,7 @@ export interface AuthSession {
   companies: Company[];
   companyRoles: Record<string, 'ADMIN' | 'ACCOUNTANT' | 'VIEWER'>;
   activeCompanyId: string | null;
+  activeKsefEnvironment: KsefEnvironment;
 }
 
 interface SessionRequestResult {
@@ -33,6 +39,11 @@ interface SessionRequestResult {
 interface AuthSessionOptions {
   onExpired?: 'passive' | 'refresh-redirect';
   refreshNext?: string;
+}
+
+export async function getActiveKsefEnvironment(): Promise<KsefEnvironment> {
+  const cookieStore = await cookies();
+  return normalizeKsefEnvironment(cookieStore.get(ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME)?.value);
 }
 
 function buildCookieHeader(cookieStore: Awaited<ReturnType<typeof cookies>>): string | null {
@@ -74,6 +85,7 @@ async function loadAuthSession({
 }: AuthSessionOptions = {}): Promise<AuthSession> {
   const cookieStore = await cookies();
   const cookieHeader = buildCookieHeader(cookieStore);
+  const activeKsefEnvironment = normalizeKsefEnvironment(cookieStore.get(ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME)?.value);
 
   if (!cookieHeader) {
     return {
@@ -82,6 +94,7 @@ async function loadAuthSession({
       companies: [],
       companyRoles: {},
       activeCompanyId: null,
+      activeKsefEnvironment,
     };
   }
 
@@ -98,6 +111,7 @@ async function loadAuthSession({
       companies: [],
       companyRoles: {},
       activeCompanyId: null,
+      activeKsefEnvironment,
     };
   }
 
@@ -126,6 +140,7 @@ async function loadAuthSession({
     companies,
     companyRoles: Object.fromEntries(session.companies.map((company) => [company.id, company.role])),
     activeCompanyId,
+    activeKsefEnvironment,
   };
 }
 

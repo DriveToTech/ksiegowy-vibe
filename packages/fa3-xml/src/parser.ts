@@ -28,6 +28,14 @@ export interface ParsedFa3Invoice {
   readonly lineItems: readonly ParsedFa3LineItem[];
 }
 
+export interface ParseFa3XmlOptions {
+  readonly fallbackInvoiceNumber?: string;
+  readonly fallbackIssueDate?: string;
+  readonly fallbackSellerNip?: string;
+  readonly fallbackSellerName?: string;
+  readonly fallbackTotalGross?: string;
+}
+
 /**
  * Extracts the text content of the first occurrence of a given XML tag.
  * Handles tags with or without attributes: <Tag>, <Tag attr="x">.
@@ -91,6 +99,17 @@ const sumVatAmounts = (xml: string): string => {
   return total.toFixed(2);
 };
 
+const sumGrossAmounts = (netAmount: string, vatAmount: string): string | null => {
+  const parsedNetAmount = Number.parseFloat(netAmount);
+  const parsedVatAmount = Number.parseFloat(vatAmount);
+
+  if (Number.isNaN(parsedNetAmount) || Number.isNaN(parsedVatAmount)) {
+    return null;
+  }
+
+  return (parsedNetAmount + parsedVatAmount).toFixed(2);
+};
+
 const parseLineItems = (xml: string): ParsedFa3LineItem[] => {
   const blocks = extractAllBlocks(xml, 'FaWiersz');
   return blocks.map((block) => ({
@@ -109,7 +128,7 @@ const parseLineItems = (xml: string): ParsedFa3LineItem[] => {
  * Parses a FA(3) invoice XML string into a structured object.
  * Throws if any required structural field is missing.
  */
-export const parseFa3Xml = (xml: string): ParsedFa3Invoice => {
+export const parseFa3Xml = (xml: string, options: ParseFa3XmlOptions = {}): ParsedFa3Invoice => {
   const podmiot1Block = extractBlock(xml, 'Podmiot1');
   const podmiot2Block = extractBlock(xml, 'Podmiot2');
   const faBlock = extractBlock(xml, 'Fa');
@@ -117,23 +136,14 @@ export const parseFa3Xml = (xml: string): ParsedFa3Invoice => {
   const terminBlock = platnoscBlock !== null ? extractBlock(platnoscBlock, 'TerminPlatnosci') : null;
 
   const invoiceNumber = faBlock !== null ? extractTagValue(faBlock, 'P_2') : null;
+  const resolvedInvoiceNumber = invoiceNumber ?? options.fallbackInvoiceNumber ?? null;
   const issueDate = faBlock !== null ? extractTagValue(faBlock, 'P_1') : null;
+  const resolvedIssueDate = issueDate ?? options.fallbackIssueDate ?? null;
   const sellerNip = podmiot1Block !== null ? extractTagValue(podmiot1Block, 'NIP') : null;
+  const resolvedSellerNip = sellerNip ?? options.fallbackSellerNip ?? null;
   const sellerName = podmiot1Block !== null ? extractTagValue(podmiot1Block, 'Nazwa') : null;
+  const resolvedSellerName = sellerName ?? options.fallbackSellerName ?? null;
   const totalGross = faBlock !== null ? extractTagValue(faBlock, 'P_15') : null;
-
-  if (invoiceNumber === null) throw new Error('parseFa3Xml: missing required field: invoiceNumber (Fa/P_2)');
-  if (issueDate === null) throw new Error('parseFa3Xml: missing required field: issueDate (P_1)');
-  if (sellerNip === null) throw new Error('parseFa3Xml: missing required field: sellerNip (Podmiot1/NIP)');
-  if (sellerName === null) throw new Error('parseFa3Xml: missing required field: sellerName (Podmiot1/Nazwa)');
-  if (totalGross === null) throw new Error('parseFa3Xml: missing required field: totalGross (P_15)');
-
-  const sellerAddressLine1 = podmiot1Block !== null ? extractTagValue(podmiot1Block, 'AdresL1') : null;
-  const sellerAddressLine2 = podmiot1Block !== null ? extractTagValue(podmiot1Block, 'AdresL2') : null;
-  const sellerAddress = sellerAddressLine1 !== null
-    ? (sellerAddressLine2 !== null ? `${sellerAddressLine1}, ${sellerAddressLine2}` : sellerAddressLine1)
-    : null;
-
   const totalNet = faBlock !== null
     ? (extractAllTagValues(faBlock, 'P_13_1').concat(
         extractAllTagValues(faBlock, 'P_13_2'),
@@ -143,20 +153,34 @@ export const parseFa3Xml = (xml: string): ParsedFa3Invoice => {
         extractAllTagValues(faBlock, 'P_13_N')
       ).reduce((sum, value) => sum + parseFloat(value), 0).toFixed(2))
     : '0.00';
+  const totalVat = faBlock !== null ? sumVatAmounts(faBlock) : '0.00';
+  const resolvedTotalGross = totalGross ?? options.fallbackTotalGross ?? sumGrossAmounts(totalNet, totalVat);
+
+  if (resolvedInvoiceNumber === null) throw new Error('parseFa3Xml: missing required field: invoiceNumber (Fa/P_2)');
+  if (resolvedIssueDate === null) throw new Error('parseFa3Xml: missing required field: issueDate (P_1)');
+  if (resolvedSellerNip === null) throw new Error('parseFa3Xml: missing required field: sellerNip (Podmiot1/NIP)');
+  if (resolvedSellerName === null) throw new Error('parseFa3Xml: missing required field: sellerName (Podmiot1/Nazwa)');
+  if (resolvedTotalGross === null) throw new Error('parseFa3Xml: missing required field: totalGross (P_15)');
+
+  const sellerAddressLine1 = podmiot1Block !== null ? extractTagValue(podmiot1Block, 'AdresL1') : null;
+  const sellerAddressLine2 = podmiot1Block !== null ? extractTagValue(podmiot1Block, 'AdresL2') : null;
+  const sellerAddress = sellerAddressLine1 !== null
+    ? (sellerAddressLine2 !== null ? `${sellerAddressLine1}, ${sellerAddressLine2}` : sellerAddressLine1)
+    : null;
 
   return {
-    invoiceNumber,
-    issueDate,
+    invoiceNumber: resolvedInvoiceNumber,
+    issueDate: resolvedIssueDate,
     saleDate: faBlock !== null ? extractTagValue(faBlock, 'P_6') : null,
     currency: (faBlock !== null ? extractTagValue(faBlock, 'KodWaluty') : null) ?? 'PLN',
-    sellerNip,
-    sellerName,
+    sellerNip: resolvedSellerNip,
+    sellerName: resolvedSellerName,
     sellerAddress,
     buyerNip: podmiot2Block !== null ? extractTagValue(podmiot2Block, 'NIP') : null,
     buyerName: podmiot2Block !== null ? extractTagValue(podmiot2Block, 'Nazwa') : null,
     totalNet,
-    totalVat: faBlock !== null ? sumVatAmounts(faBlock) : '0.00',
-    totalGross,
+    totalVat,
+    totalGross: resolvedTotalGross,
     dueDate: terminBlock !== null ? extractTagValue(terminBlock, 'Termin') : null,
     bankAccount: platnoscBlock !== null ? extractTagValue(platnoscBlock, 'NrRB') : null,
     paymentMethod: platnoscBlock !== null ? extractTagValue(platnoscBlock, 'FormaPlatnosci') : null,

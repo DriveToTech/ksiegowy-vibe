@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { API_BASE } from '../../../lib/api-base';
 import { cn } from '../../../lib/cn';
+import { getActiveKsefEnvironmentFromBrowser, KSEF_ENVIRONMENT_HEADER_NAME } from '../../../lib/ksef-environment';
 import { Button } from '../../../components/atoms/Button';
 import { Surface } from '../../../components/atoms/Surface';
 import { AppIcon } from '../../../components/icons/AppIcon';
@@ -29,6 +30,7 @@ export function UploadButton({ companyId }: { companyId: string }) {
     const response = await fetch(`${API_BASE}/companies/${companyId}/incoming`, {
       method: 'POST',
       credentials: 'include',
+      headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser() },
       body: formData,
     }).catch((err: unknown) => {
       setError(err instanceof Error ? err.message : t.errors.uploadFailed(0, ''));

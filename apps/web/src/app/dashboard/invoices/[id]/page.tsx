@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { getActiveCompany, getInvoice } from '../../../../lib/api';
+import { getActiveCompany, getCompanyKsefSettings, getInvoice } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
 import { Surface } from '../../../../components/atoms/Surface';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
 import { ErrorState } from '../../../../components/molecules/ErrorState';
 import { MetricCard } from '../../../../components/molecules/MetricCard';
-import { InvoiceStatusChip, KsefStatusChip } from '../../../../components/molecules/StatusChip';
+import { InvoiceEnvironmentChip, InvoiceStatusChip, KsefStatusChip } from '../../../../components/molecules/StatusChip';
 import { formatDate, formatMoney } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 import InvoiceActions from './InvoiceActions';
@@ -49,6 +49,10 @@ export default async function InvoiceDetailPage({
   }
 
   const paymentMethodLabel = t.invoiceDetail.paymentMethods[invoice.paymentMethod] ?? invoice.paymentMethod;
+  const correctionModeLabel = invoice.correctionMode ? t.invoiceDetail.correctionModes[invoice.correctionMode] ?? invoice.correctionMode : null;
+
+  const ksefSettings = await getCompanyKsefSettings(companyId).catch(() => null);
+  const ksefCredentialStatuses = ksefSettings?.credentials ?? undefined;
 
   return (
     <div className="space-y-8">
@@ -76,21 +80,23 @@ export default async function InvoiceDetailPage({
             <div className="flex flex-wrap items-center gap-3">
               <InvoiceStatusChip status={invoice.status} />
               <KsefStatusChip status={invoice.ksefStatus} />
+              <InvoiceEnvironmentChip environment={invoice.environment} />
               <span className="text-sm text-muted">{t.invoiceDetail.issuedOn(formatDate(invoice.issueDate))}</span>
             </div>
           </div>
         </div>
 
         <div className="w-full max-w-2xl">
-          <InvoiceActions
-            companyId={companyId}
-            invoiceId={id}
-            invoiceType={invoice.invoiceType}
-            status={invoice.status}
-            ksefStatus={invoice.ksefStatus}
-            totalGross={invoice.totalGross}
-            paymentReceived={invoice.paymentReceived}
-          />
+        <InvoiceActions
+          companyId={companyId}
+          invoiceId={id}
+          invoiceType={invoice.invoiceType}
+          status={invoice.status}
+          ksefStatus={invoice.ksefStatus}
+          totalGross={invoice.totalGross}
+          paymentReceived={invoice.paymentReceived}
+          ksefCredentialStatuses={ksefCredentialStatuses}
+        />
         </div>
       </div>
 
@@ -122,6 +128,9 @@ export default async function InvoiceDetailPage({
           <InfoRow label={t.invoiceDetail.fields.paymentMethod} value={paymentMethodLabel} />
           <InfoRow label={t.invoiceDetail.fields.paymentDueDate} value={formatDate(invoice.paymentDueDate)} />
           <InfoRow label={t.invoiceDetail.fields.currency} value={invoice.currency} />
+          <InfoRow label={t.invoiceDetail.fields.environment} value={invoice.environment} />
+          <InfoRow label={t.invoiceDetail.fields.correctionMode} value={correctionModeLabel} />
+          <InfoRow label={t.invoiceDetail.fields.correctedInvoiceNumber} value={invoice.correctedInvoiceNumber} />
           <InfoRow label={t.invoiceDetail.fields.ksefReference} value={invoice.ksefReference} />
         </InfoSection>
       </div>

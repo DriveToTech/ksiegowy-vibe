@@ -8,7 +8,11 @@ export default async function DashboardLayout({
   const session = await requireAuthSession('/dashboard');
 
   return (
-    <DashboardShell companies={session.companies} activeCompanyId={session.activeCompanyId}>
+    <DashboardShell
+      companies={session.companies}
+      activeCompanyId={session.activeCompanyId}
+      activeKsefEnvironment={session.activeKsefEnvironment}
+    >
       {children}
     </DashboardShell>
   );

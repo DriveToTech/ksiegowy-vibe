@@ -3,7 +3,11 @@ export type InvoiceStatus =
   | 'ISSUED'
   | 'CANCELLED';
 
+export type CompanyKsefEnvironment = 'TEST' | 'PRODUCTION';
+
 export type KsefStatus = 'not_submitted' | 'pending' | 'accepted' | 'rejected';
+
+export type InvoiceCorrectionMode = 'CANCELLATION' | 'FORMAL';
 
 export type PaymentMethod = 'BANK_TRANSFER' | 'CASH' | 'CARD' | 'OTHER';
 
@@ -82,6 +86,7 @@ export interface VatBreakdownEntry {
 export interface InvoiceSummary {
   id: string;
   companyId: string;
+  environment: CompanyKsefEnvironment;
   contractorId: string | null;
   invoiceNumber: string | null;
   status: InvoiceStatus;
@@ -101,6 +106,7 @@ export interface InvoiceSummary {
 export interface InvoiceDetail {
   id: string;
   companyId: string;
+  environment: CompanyKsefEnvironment;
   contractorId: string | null;
   invoiceNumber: string | null;
   status: InvoiceStatus;
@@ -120,6 +126,8 @@ export interface InvoiceDetail {
   paymentDueDate: string | null;
   currency: string;
   notes: string | null;
+  correctedInvoiceNumber: string | null;
+  correctionMode: InvoiceCorrectionMode | null;
   correctionReason: string | null;
   correctionImpactType: string | null;
   correctedInvoice: { id: string; invoiceNumber: string | null; issueDate: string; ksefReference: string | null } | null;
@@ -166,7 +174,17 @@ export interface CreateCompanyBody {
   bankName?: string;
   bankAccount?: string;
   vatStatus?: 'ACTIVE' | 'EXEMPT' | 'NO_VAT';
-  ksefEnv?: 'TEST' | 'PRODUCTION';
+  ksefEnv?: CompanyKsefEnvironment;
+}
+
+export interface CompanyKsefCredentialStatus {
+  environment: CompanyKsefEnvironment;
+  hasToken: boolean;
+}
+
+export interface CompanyKsefSettings {
+  defaultEnvironment: CompanyKsefEnvironment;
+  credentials: CompanyKsefCredentialStatus[];
 }
 
 export type IncomingInvoiceStatus =
@@ -188,6 +206,7 @@ export interface KsefIncomingSyncResult {
 export interface IncomingInvoiceSummary {
   id: string;
   companyId: string;
+  environment: CompanyKsefEnvironment;
   contractorId: string | null;
   status: IncomingInvoiceStatus;
   sellerName: string | null;
@@ -198,6 +217,7 @@ export interface IncomingInvoiceSummary {
   currency: string | null;
   ocrError: string | null;
   ksefReference: string | null;
+  ksefEnvironment: CompanyKsefEnvironment | null;
   createdAt: string;
   updatedAt: string;
   contractor: { id: string; name: string; nip: string | null } | null;

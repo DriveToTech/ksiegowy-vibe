@@ -95,26 +95,30 @@ export const t = {
     backToList: "← Faktury przychodzące",
     notFound: "Faktura nie znaleziona.",
     noCompany: "Brak firmy. Skonfiguruj firmę w ustawieniach.",
-    ksefSync: {
-      eyebrow: "Import z KSeF",
-      title: "Pobierz faktury zakupowe",
-      description:
-        "Zaimportuj dokumenty wystawione na Twoją firmę bezpośrednio z KSeF w wybranym zakresie dat.",
-      helperLabel: "KSeF",
-      helperDescription:
-        "Wybierz zakres dat i pobierz dokumenty bez wychodzenia z widoku faktur przychodzących.",
-      button: "Importuj z KSeF",
-      syncing: "Synchronizowanie...",
-      success: (created: number, linked: number, skipped: number) =>
-        `Synchronizacja zakończona: ${created} nowych, ${linked} powiązanych, ${skipped} pominiętych.`,
-      error: "Synchronizacja nie powiodła się.",
-      dateFrom: "Data od",
-      dateTo: "Data do",
-      confirm: "Importuj",
-      cancel: "Anuluj",
-      modalTitle: "Import z KSeF",
-      modalDescription: "Pobierz faktury wystawione na Twoją firmę w KSeF w podanym zakresie dat i dodaj je do listy przychodzących.",
-    },
+  ksefSync: {
+    eyebrow: "Import z KSeF",
+    title: "Pobierz faktury zakupowe",
+    description:
+      "Zaimportuj dokumenty wystawione na Twoją firmę bezpośrednio z KSeF w wybranym zakresie dat.",
+    helperLabel: "KSeF",
+    helperDescription:
+      "Wybierz zakres dat i pobierz dokumenty bez wychodzenia z widoku faktur przychodzących.",
+    button: "Importuj z KSeF",
+    syncing: "Synchronizowanie...",
+    success: (created: number, linked: number, skipped: number) =>
+      `Synchronizacja zakończona: ${created} nowych, ${linked} powiązanych, ${skipped} pominiętych.`,
+    error: "Synchronizacja nie powiodła się.",
+    dateFrom: "Data od",
+    dateTo: "Data do",
+    confirm: "Importuj",
+    cancel: "Anuluj",
+    modalTitle: "Import z KSeF",
+    modalDescription: "Pobierz faktury wystawione na Twoją firmę w KSeF w podanym zakresie dat i dodaj je do listy przychodzących.",
+    productionConfirm: "Wykonujesz synchronizację w środowisku PRODUKCYJNYM KSeF. Czy na pewno chcesz kontynuować?",
+    missingTokenWarning: (environment: string) => `Brak tokenu KSeF dla środowiska ${environment}. Przejdź do ustawień, aby go skonfigurować.`,
+    goToSettings: "Przejdź do ustawień",
+    environmentLabel: "Środowisko KSeF",
+  },
   },
 
   review: {
@@ -132,6 +136,7 @@ export const t = {
       totalVat: "Wartość VAT",
       totalGross: "Wartość brutto",
       currency: "Waluta",
+      environment: "Środowisko",
       notes: "Uwagi",
       nip: "NIP",
     },
@@ -450,6 +455,12 @@ export const t = {
     editInvoice: "Edytuj fakturę",
     editing: "Cofanie do szkicu…",
     correctionModalTitle: "Wystaw fakturę korygującą (KOR)",
+    correctionModeLabel: "Tryb korekty",
+    correctionModeCancellation: "Korekta do zera / odwrócenie wartości",
+    correctionModeFormal: "Korekta formalna bez zmiany kwot",
+    correctedInvoiceNumberLabel: "Prawidłowy numer faktury",
+    correctedInvoiceNumberPlaceholder: "Np. FV 15/04/2026",
+    correctionFormalRequiresData: "Korekta formalna wymaga prawidłowego numeru faktury albo opisu zmiany.",
     correctionReasonLabel: "Przyczyna korekty (opcjonalnie)",
     correctionImpactTypeLabel: "Typ korekty (TypKorekty)",
     correctionImpactTypePlaceholder: "Wybierz typ (opcjonalnie)",
@@ -457,6 +468,9 @@ export const t = {
     correctionImpactType2: "2 – korekta in plus na dzień wystawienia korekty",
     correctionImpactType3: "3 – inny termin rozliczenia",
     correctionConfirm: "Wystaw korektę",
+    productionConfirm: "Wykonujesz operację w środowisku PRODUKCYJNYM KSeF. Czy na pewno chcesz kontynuować?",
+    missingTokenWarning: (environment: string) => `Brak tokenu KSeF dla środowiska ${environment}. Przejdź do ustawień, aby go skonfigurować.`,
+    goToSettings: "Przejdź do ustawień",
   },
 
   invoiceDetail: {
@@ -502,8 +516,15 @@ export const t = {
       paymentMethod: "Forma płatności",
       paymentDueDate: "Termin płatności",
       currency: "Waluta",
+      environment: "Środowisko",
+      correctionMode: "Tryb korekty",
+      correctedInvoiceNumber: "Prawidłowy numer faktury",
       ksefReference: "Nr ref. KSeF",
     },
+    correctionModes: {
+      CANCELLATION: "Korekta do zera / odwrócenie wartości",
+      FORMAL: "Korekta formalna bez zmiany kwot",
+    } as Record<string, string>,
     emptyLineItems: {
       title: "Brak pozycji",
       description: "Ta faktura nie zawiera jeszcze żadnych pozycji.",

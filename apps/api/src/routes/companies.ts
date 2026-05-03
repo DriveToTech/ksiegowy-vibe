@@ -3,6 +3,8 @@ import type { AccessTokenPayload } from '../lib/auth-config.js';
 import { fetchCompanyByNip } from '../services/company-registry.service.js';
 import { encrypt } from '@ksiegowy/shared-utils';
 
+const KSEF_ENVIRONMENTS = ['TEST', 'PRODUCTION'] as const;
+
 // ── JSON Schema definitions ─────────────────────────────────────────────────
 
 const companySchema = {
@@ -37,6 +39,15 @@ const companyParamsSchema = {
     id: { type: 'string', minLength: 1 }
   },
   required: ['id']
+} as const;
+
+const companyKsefCredentialParamsSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    environment: { type: 'string', enum: KSEF_ENVIRONMENTS }
+  },
+  required: ['id', 'environment']
 } as const;
 
 const companyLookupQuerySchema = {
@@ -93,10 +104,36 @@ const createCompanyBodySchema = {
   }
 } as const;
 
+const companyKsefSettingsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    defaultEnvironment: { type: 'string', enum: KSEF_ENVIRONMENTS },
+    credentials: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          environment: { type: 'string', enum: KSEF_ENVIRONMENTS },
+          hasToken: { type: 'boolean' }
+        },
+        required: ['environment', 'hasToken']
+      }
+    }
+  },
+  required: ['defaultEnvironment', 'credentials']
+} as const;
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface CompanyParams {
   id: string;
+}
+
+interface CompanyKsefCredentialParams {
+  id: string;
+  environment: 'TEST' | 'PRODUCTION';
 }
 
 interface CompanyLookupQuery {
@@ -125,6 +162,14 @@ interface CreateCompanyBody {
   bankAccount?: string;
   vatStatus?: 'ACTIVE' | 'EXEMPT' | 'NO_VAT';
   ksefEnv?: 'TEST' | 'PRODUCTION';
+}
+
+interface CompanyKsefSettingsBody {
+  ksefToken: string;
+}
+
+interface CompanyKsefDefaultEnvironmentBody {
+  defaultEnvironment: 'TEST' | 'PRODUCTION';
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -160,6 +205,32 @@ const serializeCompany = (company: {
   createdAt: company.createdAt.toISOString(),
   updatedAt: company.updatedAt.toISOString()
 });
+
+const assertAdminCompanyAccess = (
+  user: AccessTokenPayload,
+  companyId: string,
+  fastify: Parameters<FastifyPluginAsync>[0]
+): void => {
+  const membership = user.companies.find((company) => company.id === companyId);
+
+  if (!membership) {
+    throw fastify.httpErrors.forbidden('Access denied');
+  }
+
+  if (membership.role !== 'ADMIN') {
+    throw fastify.httpErrors.forbidden('Only ADMIN can update KSeF settings');
+  }
+};
+
+const readEncryptionKey = (fastify: Parameters<FastifyPluginAsync>[0]): string => {
+  const encryptionKey = process.env['ENCRYPTION_KEY'];
+
+  if (!encryptionKey) {
+    throw fastify.httpErrors.internalServerError('ENCRYPTION_KEY is not configured');
+  }
+
+  return encryptionKey;
+};
 
 // ── Plugin ───────────────────────────────────────────────────────────────────
 
@@ -311,8 +382,166 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
   });
 
   /**
+   * GET /companies/:id/ksef-settings
+   * Returns the default KSeF environment and per-environment token presence.
+   * Requires ADMIN role.
+   */
+  fastify.get<{ Params: CompanyParams }>('/companies/:id/ksef-settings', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      params: companyParamsSchema,
+      response: {
+        200: companyKsefSettingsSchema
+      }
+    }
+  }, async (request) => {
+    const user = request.user as AccessTokenPayload;
+    const { id } = request.params;
+
+    assertAdminCompanyAccess(user, id, fastify);
+
+    const [company, credentials] = await Promise.all([
+      fastify.prisma.company.findUnique({
+        where: { id },
+        select: { ksefEnv: true }
+      }),
+      fastify.prisma.companyKsefCredential.findMany({
+        where: { companyId: id },
+        select: { environment: true }
+      })
+    ]);
+
+    if (!company) {
+      throw fastify.httpErrors.notFound('Company not found');
+    }
+
+    const environmentsWithToken = new Set(credentials.map((credential) => credential.environment));
+
+    return {
+      defaultEnvironment: company.ksefEnv,
+      credentials: KSEF_ENVIRONMENTS.map((environment) => ({
+        environment,
+        hasToken: environmentsWithToken.has(environment)
+      }))
+    };
+  });
+
+  /**
+   * PUT /companies/:id/ksef-credentials/:environment
+   * Saves the KSeF API token for one environment.
+   * Requires ADMIN role.
+   */
+  fastify.put<{ Params: CompanyKsefCredentialParams; Body: CompanyKsefSettingsBody }>(
+    '/companies/:id/ksef-credentials/:environment',
+    {
+      onRequest: [fastify.authenticate],
+      schema: {
+        params: companyKsefCredentialParamsSchema,
+        body: {
+          type: 'object',
+          required: ['ksefToken'],
+          additionalProperties: false,
+          properties: {
+            ksefToken: { type: 'string', minLength: 1 }
+          }
+        },
+        response: { 204: { type: 'null' } }
+      }
+    },
+    async (request, reply) => {
+      const user = request.user as AccessTokenPayload;
+      const { id, environment } = request.params;
+
+      assertAdminCompanyAccess(user, id, fastify);
+
+      const encryptionKey = readEncryptionKey(fastify);
+      const { enc, iv } = encrypt(request.body.ksefToken, encryptionKey);
+
+      await fastify.prisma.$transaction(async (transactionClient) => {
+        await transactionClient.companyKsefCredential.upsert({
+          where: { companyId_environment: { companyId: id, environment } },
+          create: { companyId: id, environment, tokenEnc: enc, tokenIv: iv },
+          update: { tokenEnc: enc, tokenIv: iv }
+        });
+
+        const company = await transactionClient.company.findUnique({
+          where: { id },
+          select: { ksefEnv: true }
+        });
+
+        if (!company) {
+          throw fastify.httpErrors.notFound('Company not found');
+        }
+
+        if (company.ksefEnv === environment) {
+          await transactionClient.company.update({
+            where: { id },
+            data: { ksefTokenEnc: enc, ksefTokenIv: iv }
+          });
+        }
+
+        await transactionClient.ksefSession.deleteMany({ where: { companyId: id, environment } });
+      });
+
+      return reply.code(204).send();
+    }
+  );
+
+  /**
+   * PATCH /companies/:id/ksef-default-environment
+   * Updates the company default KSeF environment without overwriting other environment credentials.
+   * Requires ADMIN role.
+   */
+  fastify.patch<{ Params: CompanyParams; Body: CompanyKsefDefaultEnvironmentBody }>(
+    '/companies/:id/ksef-default-environment',
+    {
+      onRequest: [fastify.authenticate],
+      schema: {
+        params: companyParamsSchema,
+        body: {
+          type: 'object',
+          required: ['defaultEnvironment'],
+          additionalProperties: false,
+          properties: {
+            defaultEnvironment: { type: 'string', enum: KSEF_ENVIRONMENTS }
+          }
+        },
+        response: { 204: { type: 'null' } }
+      }
+    },
+    async (request, reply) => {
+      const user = request.user as AccessTokenPayload;
+      const { id } = request.params;
+      const { defaultEnvironment } = request.body;
+
+      assertAdminCompanyAccess(user, id, fastify);
+
+      const credential = await fastify.prisma.companyKsefCredential.findUnique({
+        where: { companyId_environment: { companyId: id, environment: defaultEnvironment } },
+        select: { tokenEnc: true, tokenIv: true }
+      });
+
+      const updatedCompany = await fastify.prisma.company.update({
+        where: { id },
+        data: {
+          ksefEnv: defaultEnvironment,
+          ksefTokenEnc: credential?.tokenEnc ?? null,
+          ksefTokenIv: credential?.tokenIv ?? null,
+        }
+      });
+
+      if (!updatedCompany) {
+        throw fastify.httpErrors.notFound('Company not found');
+      }
+
+      return reply.code(204).send();
+    }
+  );
+
+  /**
    * PATCH /companies/:id/ksef-settings
-   * Saves the KSeF API token (encrypted) and environment for a company.
+   * Compatibility endpoint for the current UI.
+   * Saves the KSeF API token for the selected environment and makes it the company default.
    * Requires ADMIN role.
    */
   fastify.patch<{ Params: CompanyParams; Body: { ksefToken: string; ksefEnv: 'TEST' | 'PRODUCTION' } }>(
@@ -337,22 +566,33 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
       const user = request.user as AccessTokenPayload;
       const { id } = request.params;
 
-      const membership = user.companies.find((c) => c.id === id);
-      if (!membership) throw fastify.httpErrors.forbidden('Access denied');
-      if (membership.role !== 'ADMIN') throw fastify.httpErrors.forbidden('Only ADMIN can update KSeF settings');
+      assertAdminCompanyAccess(user, id, fastify);
 
-      const encryptionKey = process.env['ENCRYPTION_KEY'];
-      if (!encryptionKey) throw fastify.httpErrors.internalServerError('ENCRYPTION_KEY is not configured');
+      const encryptionKey = readEncryptionKey(fastify);
 
       const { enc, iv } = encrypt(request.body.ksefToken, encryptionKey);
 
-      await fastify.prisma.company.update({
-        where: { id },
-        data: { ksefTokenEnc: enc, ksefTokenIv: iv, ksefEnv: request.body.ksefEnv }
-      });
+      await fastify.prisma.$transaction(async (transactionClient) => {
+        await transactionClient.companyKsefCredential.upsert({
+          where: { companyId_environment: { companyId: id, environment: request.body.ksefEnv } },
+          create: {
+            companyId: id,
+            environment: request.body.ksefEnv,
+            tokenEnc: enc,
+            tokenIv: iv,
+          },
+          update: { tokenEnc: enc, tokenIv: iv }
+        });
 
-      // Invalidate any existing session so the new token is picked up immediately.
-      await fastify.prisma.ksefSession.deleteMany({ where: { companyId: id } });
+        await transactionClient.company.update({
+          where: { id },
+          data: { ksefTokenEnc: enc, ksefTokenIv: iv, ksefEnv: request.body.ksefEnv }
+        });
+
+        await transactionClient.ksefSession.deleteMany({
+          where: { companyId: id, environment: request.body.ksefEnv }
+        });
+      });
 
       return reply.code(204).send();
     }

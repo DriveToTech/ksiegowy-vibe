@@ -1,4 +1,8 @@
 import { API_BASE } from './api-base';
+import {
+  getActiveKsefEnvironmentFromBrowser,
+  KSEF_ENVIRONMENT_HEADER_NAME,
+} from './ksef-environment';
 import type {
   CompanyBackupRunResult,
   CompanyBackupScheduleMode,
@@ -22,6 +26,8 @@ export type {
   CompanyBackupScheduleMode,
   CompanyBackupSettings,
   Company,
+  CompanyKsefEnvironment,
+  CompanyKsefSettings,
   Contractor,
   ContractorServiceRate,
   CreateCompanyBody,
@@ -43,13 +49,14 @@ export type {
 
 export async function clientFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const hasBody = options?.body !== undefined;
+  const requestHeaders = options?.headers as Record<string, string> | undefined;
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
+    ...options,
     headers: {
       ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(options?.headers as Record<string, string> | undefined),
+      ...requestHeaders,
     },
-    ...options,
   });
 
   if (!response.ok) {
@@ -69,6 +76,12 @@ export async function clientFetch<T>(path: string, options?: RequestInit): Promi
   if (response.status === 204) return undefined as T;
 
   return response.json() as Promise<T>;
+}
+
+function getKsefEnvironmentHeaders(): Record<string, string> {
+  return {
+    [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser(),
+  };
 }
 
 export async function refreshBrowserSession(nextPath = '/dashboard'): Promise<void> {
@@ -97,6 +110,27 @@ export async function updateCompanyKsefSettings(
   });
 }
 
+export async function updateCompanyKsefCredential(
+  companyId: string,
+  environment: 'TEST' | 'PRODUCTION',
+  ksefToken: string,
+): Promise<void> {
+  await clientFetch<void>(`/companies/${companyId}/ksef-credentials/${environment}`, {
+    method: 'PUT',
+    body: JSON.stringify({ ksefToken }),
+  });
+}
+
+export async function updateCompanyKsefDefaultEnvironment(
+  companyId: string,
+  defaultEnvironment: 'TEST' | 'PRODUCTION',
+): Promise<void> {
+  await clientFetch<void>(`/companies/${companyId}/ksef-default-environment`, {
+    method: 'PATCH',
+    body: JSON.stringify({ defaultEnvironment }),
+  });
+}
+
 export async function updateCompany(
   companyId: string,
   body: Partial<Pick<CreateCompanyBody, 'name' | 'addressLine1' | 'addressLine2' | 'email' | 'phone' | 'bankName' | 'bankAccount'>> & { invoiceNumberPattern?: string | null },
@@ -113,6 +147,7 @@ export async function createDraft(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(`/companies/${companyId}/invoices`, {
     method: 'POST',
+    headers: getKsefEnvironmentHeaders(),
     body: JSON.stringify(body),
   });
 }
@@ -124,6 +159,7 @@ export async function updateDraft(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(`/companies/${companyId}/invoices/${invoiceId}`, {
     method: 'PUT',
+    headers: getKsefEnvironmentHeaders(),
     body: JSON.stringify(body),
   });
 }
@@ -134,7 +170,7 @@ export async function issueInvoice(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/issue`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -144,7 +180,7 @@ export async function submitKsef(
 ): Promise<KsefSubmitResponse> {
   return clientFetch<KsefSubmitResponse>(
     `/companies/${companyId}/invoices/${invoiceId}/submit-ksef`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -154,18 +190,22 @@ export async function sendInvoiceEmail(
 ): Promise<{ emailId: string }> {
   return clientFetch<{ emailId: string }>(
     `/companies/${companyId}/invoices/${invoiceId}/send-email`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
 export async function createCorrection(
   companyId: string,
   invoiceId: string,
-  body?: { reason?: string; impactType?: string },
+  body?: { reason?: string; impactType?: string; correctionMode?: 'cancellation' | 'formal'; correctedInvoiceNumber?: string },
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/correct`,
-    { method: 'POST', body: body ? JSON.stringify(body) : undefined },
+    {
+      method: 'POST',
+      headers: getKsefEnvironmentHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    },
   );
 }
 
@@ -175,7 +215,7 @@ export async function revertToDraft(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/revert-to-draft`,
-    { method: 'POST' },
+    { method: 'POST', headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -187,7 +227,11 @@ export async function recordPayment(
 ): Promise<InvoiceDetail> {
   return clientFetch<InvoiceDetail>(
     `/companies/${companyId}/invoices/${invoiceId}/payment`,
-    { method: 'POST', body: JSON.stringify({ amount, ...(receivedAt ? { receivedAt } : {}) }) },
+    {
+      method: 'POST',
+      headers: getKsefEnvironmentHeaders(),
+      body: JSON.stringify({ amount, ...(receivedAt ? { receivedAt } : {}) })
+    },
   );
 }
 
@@ -326,6 +370,7 @@ export async function checkKsefStatus(
 ): Promise<{ status: string; ksefReferenceNumber?: string }> {
   return clientFetch<{ status: string; ksefReferenceNumber?: string }>(
     `/companies/${companyId}/invoices/${invoiceId}/ksef-status`,
+    { headers: getKsefEnvironmentHeaders() },
   );
 }
 
@@ -336,7 +381,11 @@ export async function syncIncomingFromKsef(
 ): Promise<KsefIncomingSyncResult> {
   return clientFetch<KsefIncomingSyncResult>(
     `/companies/${companyId}/incoming/ksef-sync`,
-    { method: 'POST', body: JSON.stringify({ dateFrom, dateTo }) },
+    {
+      method: 'POST',
+      headers: getKsefEnvironmentHeaders(),
+      body: JSON.stringify({ dateFrom, dateTo }),
+    },
   );
 }
 

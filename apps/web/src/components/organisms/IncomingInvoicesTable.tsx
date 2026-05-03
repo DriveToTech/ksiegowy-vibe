@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { IncomingInvoiceSummary } from '../../lib/api-types';
 import { Surface } from '../atoms/Surface';
-import { IncomingStatusChip } from '../molecules/StatusChip';
+import { IncomingStatusChip, InvoiceEnvironmentChip } from '../molecules/StatusChip';
 
 interface IncomingInvoicesTableProps {
   invoices: IncomingInvoiceSummary[];
@@ -18,6 +18,7 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
                 <HeaderCell>Sprzedawca</HeaderCell>
                 <HeaderCell>NIP</HeaderCell>
                 <HeaderCell>Nr faktury</HeaderCell>
+                <HeaderCell>Środowisko</HeaderCell>
                 <HeaderCell>Nr ref. KSeF</HeaderCell>
                 <HeaderCell>Data</HeaderCell>
                 <HeaderCell className="text-right">Kwota brutto</HeaderCell>
@@ -31,6 +32,7 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
                   <BodyCell>{invoice.sellerName ?? '—'}</BodyCell>
                   <BodyCell>{invoice.sellerNip ?? '—'}</BodyCell>
                   <BodyCell>{invoice.invoiceNumber ?? '—'}</BodyCell>
+                  <BodyCell><InvoiceEnvironmentChip environment={invoice.environment} /></BodyCell>
                   <BodyCell><span className="block max-w-[200px] truncate font-mono text-xs text-muted" title={invoice.ksefReference ?? undefined}>{invoice.ksefReference ?? '—'}</span></BodyCell>
                   <BodyCell>{invoice.issueDate ?? '—'}</BodyCell>
                   <BodyCell className="text-right tabular-nums">
@@ -70,6 +72,10 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
             <div className="grid gap-3 sm:grid-cols-2">
               <DetailItem label="NIP" value={invoice.sellerNip ?? '—'} />
               <DetailItem label="Data" value={invoice.issueDate ?? '—'} align="right" />
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Środowisko</p>
+                <InvoiceEnvironmentChip environment={invoice.environment} />
+              </div>
               {invoice.ksefReference && (
                 <div className="sm:col-span-2">
                   <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Nr ref. KSeF</p>

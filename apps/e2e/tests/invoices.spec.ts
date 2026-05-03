@@ -64,7 +64,7 @@ test('new invoice form cancel returns to list', async ({ authenticatedPage: page
   await expect(page).toHaveURL(/\/dashboard\/invoices$/);
 });
 
-test('accepted invoice can create correction draft and shows explicit KOR actions', async ({ authenticatedPage: page }) => {
+test('accepted invoice can create formal correction draft and shows corrected invoice number', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/invoices/accepted-invoice-id');
 
   await expect(page.getByRole('button', { name: 'Wystaw korektę (KOR)' })).toBeVisible();
@@ -72,12 +72,18 @@ test('accepted invoice can create correction draft and shows explicit KOR action
   await page.getByRole('button', { name: 'Wystaw korektę (KOR)' }).click();
   await expect(page.getByRole('heading', { name: 'Wystaw fakturę korygującą (KOR)' })).toBeVisible();
 
-  await page.getByLabel('Przyczyna korekty (opcjonalnie)').fill('Zmiana ceny usługi');
+  await page.getByLabel('Tryb korekty').selectOption('formal');
+  await page.getByLabel('Prawidłowy numer faktury').fill('FV 15/04/2026');
+  await page.getByLabel('Przyczyna korekty (opcjonalnie)').fill('Zmiana numeracji');
   await page.getByLabel('Typ korekty (TypKorekty)').selectOption('2');
   await page.getByRole('button', { name: 'Wystaw korektę', exact: true }).click();
 
   await expect(page).toHaveURL(/\/dashboard\/invoices\/kor-draft-1$/);
   await expect(page.getByText('Korekta faktury:')).toBeVisible();
+  await expect(page.getByText('Prawidłowy numer faktury:')).toBeVisible();
+  await expect(page.getByText('FV 15/04/2026', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tryb korekty:')).toBeVisible();
+  await expect(page.getByText('Korekta formalna bez zmiany kwot')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wystaw korektę' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Zobacz oryginał' })).toBeVisible();
 

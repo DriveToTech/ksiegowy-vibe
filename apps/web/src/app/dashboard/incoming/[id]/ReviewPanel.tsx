@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE } from '../../../../lib/api-base';
 import type { IncomingInvoiceDetail, IncomingInvoiceStatus } from '../../../../lib/api-types';
+import { getActiveKsefEnvironmentFromBrowser, KSEF_ENVIRONMENT_HEADER_NAME } from '../../../../lib/ksef-environment';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
 import { Surface } from '../../../../components/atoms/Surface';
 import { Textarea } from '../../../../components/atoms/Textarea';
 import { FormField } from '../../../../components/molecules/FormField';
-import { IncomingStatusChip } from '../../../../components/molecules/StatusChip';
+import { IncomingStatusChip, InvoiceEnvironmentChip } from '../../../../components/molecules/StatusChip';
 import { t } from '../../../../lib/translations';
 
 interface Props {
@@ -66,7 +67,10 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
     const response = await fetch(`${API_BASE}/companies/${companyId}/incoming/${invoice.id}/confirm`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser(),
+      },
       body: JSON.stringify({
         ...(form.invoiceNumber && { invoiceNumber: form.invoiceNumber }),
         ...(form.issueDate && { issueDate: form.issueDate }),
@@ -101,6 +105,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
     const response = await fetch(`${API_BASE}/companies/${companyId}/incoming/${invoice.id}/reject`, {
       method: 'POST',
       credentials: 'include',
+      headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser() },
     }).catch(() => null);
 
     if (response?.ok) {
@@ -157,12 +162,15 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
               <p className="text-sm font-semibold text-foreground">{t.review.ocrPanel}</p>
               <p className="mt-1 text-sm text-muted">Dane odczytane z dokumentu i przygotowane do zatwierdzenia.</p>
             </div>
-            <OcrStatusLabel
-              status={invoice.status}
-              error={invoice.ocrError}
-              model={invoice.ocrModel}
-              confidence={invoice.ocrConfidence}
-            />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <InvoiceEnvironmentChip environment={invoice.environment} />
+              <OcrStatusLabel
+                status={invoice.status}
+                error={invoice.ocrError}
+                model={invoice.ocrModel}
+                confidence={invoice.ocrConfidence}
+              />
+            </div>
           </div>
         </div>
 
@@ -198,6 +206,13 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
                 <p className="mt-1 break-all font-mono text-sm text-foreground">{invoice.ksefReference}</p>
               </div>
             )}
+
+            <div className="rounded-md bg-surface-raised/40 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.review.fields.environment}</p>
+              <div className="mt-2">
+                <InvoiceEnvironmentChip environment={invoice.environment} />
+              </div>
+            </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               {formFields.map(([key, label]) => {
