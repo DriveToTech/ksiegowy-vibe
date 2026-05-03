@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { KsefEnvironment, PrismaClient } from '@prisma/client';
 import { calculateInvoiceTotals } from '@ksiegowy/fa3-xml';
 import type { InvoiceData, InvoiceLineInput, InvoiceParty, VatRate } from '@ksiegowy/types';
 import { generateInvoicePdf } from '@ksiegowy/pdf-templates';
@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 
 export interface CreateInvoiceDraftInput {
   companyId: string;
+  environment: KsefEnvironment;
   contractorId?: string;
   issueDate: string;         // YYYY-MM-DD
   saleDate?: string;
@@ -192,6 +193,7 @@ export const createInvoiceDraft = async (
   return prisma.invoice.create({
     data: {
       companyId: input.companyId,
+      environment: input.environment,
       contractorId: input.contractorId ?? null,
       issueDate,
       saleDate: input.saleDate ? new Date(input.saleDate) : null,

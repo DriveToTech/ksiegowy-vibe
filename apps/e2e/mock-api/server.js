@@ -68,6 +68,7 @@ function createInvoice(invoiceId, overrides = {}) {
   return {
     id: invoiceId,
     companyId: TEST_COMPANY.id,
+    environment: 'TEST',
     contractorId: TEST_CONTRACTOR.id,
     invoiceNumber: 'FV 12/4/2024',
     status: 'ISSUED',
@@ -87,6 +88,8 @@ function createInvoice(invoiceId, overrides = {}) {
     paymentDueDate: '2024-04-17',
     currency: 'PLN',
     notes: 'Invoice note',
+    correctedInvoiceNumber: null,
+    correctionMode: null,
     correctionReason: null,
     correctionImpactType: null,
     correctedInvoice: null,
@@ -154,7 +157,7 @@ function respond(req, res, status, data) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': typeof origin === 'string' ? origin : '*',
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, x-ksef-environment',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
   });
   res.end(JSON.stringify(data));
@@ -248,17 +251,25 @@ const server = http.createServer((req, res) => {
     return readJsonBody(req)
       .then((body) => {
         const correctionId = 'kor-draft-1';
+        const correctionMode = body.correctionMode === 'formal' ? 'FORMAL' : 'CANCELLATION';
+        const correctedInvoiceNumber = typeof body.correctedInvoiceNumber === 'string' ? body.correctedInvoiceNumber : null;
+        const correctionReason = correctionMode === 'FORMAL' && correctedInvoiceNumber
+          ? `Korekta numeru faktury: bylo ${String(originalInvoice.invoiceNumber)}, powinno byc ${correctedInvoiceNumber}${typeof body.reason === 'string' && body.reason.length > 0 ? `. ${body.reason}` : ''}`
+          : typeof body.reason === 'string' ? body.reason : null;
+        const amountPrefix = correctionMode === 'FORMAL' ? '' : '-';
         const correctionInvoice = createInvoice(correctionId, {
           invoiceNumber: null,
           status: 'DRAFT',
           invoiceType: 'KOR',
           issueDate: '2024-04-11',
           saleDate: '2024-04-10',
-          totalNet: '-100.00',
-          totalVat: '-23.00',
-          totalGross: '-123.00',
+          totalNet: `${amountPrefix}100.00`,
+          totalVat: `${amountPrefix}23.00`,
+          totalGross: `${amountPrefix}123.00`,
           issuedAt: null,
-          correctionReason: typeof body.reason === 'string' ? body.reason : null,
+          correctedInvoiceNumber,
+          correctionMode,
+          correctionReason,
           correctionImpactType: typeof body.impactType === 'string' ? body.impactType : null,
           correctedInvoice: {
             id: String(originalInvoice.id),
@@ -266,7 +277,9 @@ const server = http.createServer((req, res) => {
             issueDate: String(originalInvoice.issueDate),
             ksefReference: String(originalInvoice.ksefReference),
           },
-          notes: `Korekta faktury ${String(originalInvoice.invoiceNumber)}`,
+          notes: correctionMode === 'FORMAL' && correctedInvoiceNumber
+            ? `Korekta formalna faktury ${String(originalInvoice.invoiceNumber)}. Prawidlowy numer: ${correctedInvoiceNumber}`
+            : `Korekta faktury ${String(originalInvoice.invoiceNumber)}`,
           ksefStatus: 'not_submitted',
           ksefReference: null,
           lines: [
@@ -276,19 +289,19 @@ const server = http.createServer((req, res) => {
               name: 'Accounting service',
               unit: 'hour',
               quantity: '2',
-              unitNetPrice: '-50.00',
+              unitNetPrice: `${amountPrefix}50.00`,
               vatRate: '23',
-              netValue: '-100.00',
-              vatValue: '-23.00',
-              grossValue: '-123.00',
+              netValue: `${amountPrefix}100.00`,
+              vatValue: `${amountPrefix}23.00`,
+              grossValue: `${amountPrefix}123.00`,
             },
           ],
           vatBreakdown: [
             {
               id: `${correctionId}-vat-1`,
               vatRate: '23',
-              netAmount: '-100.00',
-              vatAmount: '-23.00',
+              netAmount: `${amountPrefix}100.00`,
+              vatAmount: `${amountPrefix}23.00`,
             },
           ],
           updatedAt: '2024-04-11T09:00:00.000Z',

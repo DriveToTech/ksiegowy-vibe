@@ -4,11 +4,31 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { issueInvoice, submitKsef, recordPayment, createCorrection, revertToDraft, sendInvoiceEmail, pdfUrl, checkKsefStatus } from '../../../../lib/api-client';
-import type { InvoiceStatus, KsefStatus } from '../../../../lib/api-types';
+import type { CompanyKsefCredentialStatus, InvoiceStatus, KsefStatus } from '../../../../lib/api-types';
+import { getActiveKsefEnvironmentFromBrowser } from '../../../../lib/ksef-environment';
+import { cn } from '../../../../lib/cn';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
 import { Surface } from '../../../../components/atoms/Surface';
 import { t } from '../../../../lib/translations';
+
+const environmentBadgeClasses: Record<string, string> = {
+  TEST: 'border-success/30 bg-success/15 text-success-ink',
+  PRODUCTION: 'border-warning/40 bg-warning/15 text-warning-ink',
+};
+
+function EnvironmentBadge({ environment }: { environment: string }) {
+  return (
+    <span
+      className={cn(
+        'ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]',
+        environmentBadgeClasses[environment] ?? environmentBadgeClasses.TEST,
+      )}
+    >
+      {environment}
+    </span>
+  );
+}
 
 function resolveErrorTitle(message: string): string {
   if (message.includes('KSeF submission failed')) return t.invoiceActions.ksefSubmissionError;
@@ -41,9 +61,10 @@ interface Props {
   ksefStatus: KsefStatus;
   totalGross: string;
   paymentReceived: string;
+  ksefCredentialStatuses?: CompanyKsefCredentialStatus[];
 }
 
-export default function InvoiceActions({ companyId, invoiceId, invoiceType, status, ksefStatus, totalGross, paymentReceived }: Props) {
+export default function InvoiceActions({ companyId, invoiceId, invoiceType, status, ksefStatus, totalGross, paymentReceived, ksefCredentialStatuses }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +74,13 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [correctionReason, setCorrectionReason] = useState('');
   const [correctionImpactType, setCorrectionImpactType] = useState('');
+  const [correctionMode, setCorrectionMode] = useState<'cancellation' | 'formal'>('cancellation');
+  const [correctedInvoiceNumber, setCorrectedInvoiceNumber] = useState('');
   const isCorrectionInvoice = invoiceType === 'KOR';
+
+  const activeEnvironment = getActiveKsefEnvironmentFromBrowser();
+  const activeCredential = ksefCredentialStatuses?.find((credential) => credential.environment === activeEnvironment);
+  const hasToken = activeCredential ? activeCredential.hasToken : true;
 
   const handleIssue = () => {
     setError(null);
@@ -65,6 +92,9 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
   };
 
   const handleSubmitKsef = () => {
+    if (activeEnvironment === 'PRODUCTION') {
+      if (!window.confirm(t.invoiceActions.productionConfirm)) return;
+    }
     setError(null);
     setLoading('ksef');
     submitKsef(companyId, invoiceId)
@@ -109,11 +139,22 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
 
   const handleCorrect = (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeEnvironment === 'PRODUCTION') {
+      if (!window.confirm(t.invoiceActions.productionConfirm)) return;
+    }
+    const normalizedCorrectedInvoiceNumber = correctedInvoiceNumber.trim();
+    const normalizedCorrectionReason = correctionReason.trim();
+    if (correctionMode === 'formal' && !normalizedCorrectedInvoiceNumber && !normalizedCorrectionReason) {
+      setError(t.invoiceActions.correctionFormalRequiresData);
+      return;
+    }
     setError(null);
     setLoading('correct');
     createCorrection(companyId, invoiceId, {
-      ...(correctionReason ? { reason: correctionReason } : {}),
-      ...(correctionImpactType ? { impactType: correctionImpactType } : {})
+      ...(normalizedCorrectionReason ? { reason: normalizedCorrectionReason } : {}),
+      ...(correctionImpactType ? { impactType: correctionImpactType } : {}),
+      correctionMode,
+      ...(correctionMode === 'formal' && normalizedCorrectedInvoiceNumber ? { correctedInvoiceNumber: normalizedCorrectedInvoiceNumber } : {})
     })
       .then((correction) => router.push(`/dashboard/invoices/${correction.id}`))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
@@ -181,25 +222,28 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
             {loading === 'edit' ? t.invoiceActions.editing : t.invoiceActions.editInvoice}
           </Button>
         )}
-        {status === 'ISSUED' && ksefStatus === 'not_submitted' && (
-          <Button onClick={handleSubmitKsef} disabled={loading === 'ksef'}>
-            {loading === 'ksef'
-              ? t.invoiceActions.submittingKsef
-              : isCorrectionInvoice
-                ? t.invoiceActions.submitCorrectionKsef
-                : t.invoiceActions.submitKsef}
-          </Button>
-        )}
-        {ksefStatus === 'pending' && (
-          <Button onClick={handleCheckKsefStatus} disabled={loading === 'ksef-check'} variant="secondary">
-            {loading === 'ksef-check' ? t.invoiceActions.checkingKsefStatus : t.invoiceActions.checkKsefStatus}
-          </Button>
-        )}
-        {ksefStatus === 'accepted' && (
-          <Button onClick={() => setShowCorrectionModal(true)} disabled={loading === 'correct'} variant="secondary">
-            {t.invoiceActions.correctInvoice}
-          </Button>
-        )}
+  {status === 'ISSUED' && ksefStatus === 'not_submitted' && (
+  <Button onClick={handleSubmitKsef} disabled={loading === 'ksef' || !hasToken}>
+    {loading === 'ksef'
+      ? t.invoiceActions.submittingKsef
+      : isCorrectionInvoice
+      ? t.invoiceActions.submitCorrectionKsef
+      : t.invoiceActions.submitKsef}
+    <EnvironmentBadge environment={activeEnvironment} />
+  </Button>
+)}
+  {ksefStatus === 'pending' && (
+  <Button onClick={handleCheckKsefStatus} disabled={loading === 'ksef-check' || !hasToken} variant="secondary">
+    {loading === 'ksef-check' ? t.invoiceActions.checkingKsefStatus : t.invoiceActions.checkKsefStatus}
+    <EnvironmentBadge environment={activeEnvironment} />
+  </Button>
+)}
+  {ksefStatus === 'accepted' && (
+  <Button onClick={() => setShowCorrectionModal(true)} disabled={loading === 'correct' || !hasToken} variant="secondary">
+    {t.invoiceActions.correctInvoice}
+    <EnvironmentBadge environment={activeEnvironment} />
+  </Button>
+)}
         {canRecordPayment && !isPaid && (
           <Button onClick={() => setShowPayment((value) => !value)} variant="secondary">
             {t.invoiceActions.recordPayment}
@@ -226,6 +270,16 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
           </>
         )}
       </div>
+
+      {!hasToken && (
+        <Surface tone="glass" shape="organic" className="border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-ink" role="alert">
+          <p>{t.invoiceActions.missingTokenWarning(activeEnvironment)}{' '}
+            <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
+              {t.invoiceActions.goToSettings}
+            </Link>
+          </p>
+        </Surface>
+      )}
 
       {showPayment && (
         <Surface tone="glass" shape="organic" className="space-y-4 p-4">
@@ -260,6 +314,34 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
         <Surface tone="glass" shape="organic" className="space-y-4 p-5">
           <h3 className="text-base font-semibold text-foreground">{t.invoiceActions.correctionModalTitle}</h3>
           <form onSubmit={handleCorrect} className="space-y-4">
+            <div>
+              <label htmlFor="correctionMode" className="mb-2 block text-sm font-semibold text-foreground">
+                {t.invoiceActions.correctionModeLabel}
+              </label>
+              <select
+                id="correctionMode"
+                value={correctionMode}
+                onChange={(e) => setCorrectionMode(e.target.value as 'cancellation' | 'formal')}
+                className="w-full rounded-xl border border-border bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="cancellation">{t.invoiceActions.correctionModeCancellation}</option>
+                <option value="formal">{t.invoiceActions.correctionModeFormal}</option>
+              </select>
+            </div>
+            {correctionMode === 'formal' ? (
+              <div>
+                <label htmlFor="correctedInvoiceNumber" className="mb-2 block text-sm font-semibold text-foreground">
+                  {t.invoiceActions.correctedInvoiceNumberLabel}
+                </label>
+                <Input
+                  id="correctedInvoiceNumber"
+                  type="text"
+                  value={correctedInvoiceNumber}
+                  onChange={(e) => setCorrectedInvoiceNumber(e.target.value)}
+                  placeholder={t.invoiceActions.correctedInvoiceNumberPlaceholder}
+                />
+              </div>
+            ) : null}
             <div>
               <label htmlFor="correctionReason" className="mb-2 block text-sm font-semibold text-foreground">
                 {t.invoiceActions.correctionReasonLabel}

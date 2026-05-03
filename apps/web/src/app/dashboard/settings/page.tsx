@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getCompany, getCompanyBackupPolicy, getCompanyBackupStatus, getInvites, getMembers } from '../../../lib/api';
+import { getCompany, getCompanyBackupPolicy, getCompanyBackupStatus, getCompanyKsefSettings, getInvites, getMembers } from '../../../lib/api';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { PageHeader } from '../../../components/molecules/PageHeader';
 import { getActiveCompanyRole, requireAuthSession } from '../../../lib/auth';
@@ -35,10 +35,15 @@ export default async function DashboardSettingsPage() {
   const isAdmin = role === 'ADMIN';
   const canEditCompany = role === 'ADMIN' || role === 'ACCOUNTANT';
 
-  const [company, members, invites, backupSettingsResult, backupStatusResult] = await Promise.all([
+  const [company, members, invites, ksefSettingsResult, backupSettingsResult, backupStatusResult] = await Promise.all([
     getCompany(activeCompanyId),
     getMembers(activeCompanyId).catch(() => []),
     isAdmin ? getInvites(activeCompanyId).catch(() => []) : Promise.resolve([]),
+    isAdmin
+      ? getCompanyKsefSettings(activeCompanyId)
+          .then((ksefSettings) => ({ ksefSettings, hasError: false }))
+          .catch(() => ({ ksefSettings: null, hasError: true }))
+      : Promise.resolve({ ksefSettings: null, hasError: false }),
     isAdmin
       ? getCompanyBackupPolicy(activeCompanyId)
           .then((backupSettings) => ({ backupSettings, hasError: false }))
@@ -67,8 +72,13 @@ export default async function DashboardSettingsPage() {
         <SummaryCard label="Twoja rola" value={role === 'ADMIN' ? 'Administrator' : role === 'ACCOUNTANT' ? 'Księgowy' : 'Podgląd'} strong />
       </div>
       <CompanyDetailsForm company={company} canEdit={canEditCompany} />
-      {isAdmin ? (
-        <KsefSettingsForm companyId={activeCompanyId} currentEnv={company?.ksefEnv ?? 'TEST'} />
+      {isAdmin && ksefSettingsResult.ksefSettings ? (
+        <KsefSettingsForm companyId={activeCompanyId} settings={ksefSettingsResult.ksefSettings} />
+      ) : null}
+      {isAdmin && !ksefSettingsResult.ksefSettings ? (
+        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error/30 bg-error-soft/45 p-5 text-sm text-error-ink xl:max-w-4xl">
+          Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.
+        </div>
       ) : null}
       {isAdmin ? (
         <InvoiceNumberPatternForm companyId={activeCompanyId} currentPattern={company?.invoiceNumberPattern ?? null} />

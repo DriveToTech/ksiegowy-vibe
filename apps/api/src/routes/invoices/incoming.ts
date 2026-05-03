@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { IncomingInvoiceStatus } from '@prisma/client';
+import type { IncomingInvoiceStatus, KsefEnvironment } from '@prisma/client';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
+import { resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
 import { saveFile } from '../../services/storage/local-fs.js';
 import { startOcrPipeline } from '../../services/ocr/process.js';
 import { isValidNip } from '@ksiegowy/shared-utils';
@@ -37,6 +38,7 @@ const incomingListItemSchema = {
   properties: {
     id: { type: 'string' },
     companyId: { type: 'string' },
+    environment: { type: 'string', enum: ['TEST', 'PRODUCTION'] },
     contractorId: { type: ['string', 'null'] },
     status: { type: 'string' },
     sellerName: { type: ['string', 'null'] },
@@ -46,6 +48,7 @@ const incomingListItemSchema = {
     totalGross: { type: ['string', 'null'] },
     currency: { type: ['string', 'null'] },
     ocrError: { type: ['string', 'null'] },
+    ksefEnvironment: { type: ['string', 'null'] },
     createdAt: { type: 'string' },
     updatedAt: { type: 'string' },
     contractor: {
@@ -59,7 +62,7 @@ const incomingListItemSchema = {
       required: ['id', 'name', 'nip'],
     },
   },
-  required: ['id', 'companyId', 'contractorId', 'status', 'sellerName', 'sellerNip', 'invoiceNumber', 'issueDate', 'totalGross', 'currency', 'ocrError', 'createdAt', 'updatedAt', 'contractor'],
+  required: ['id', 'companyId', 'environment', 'contractorId', 'status', 'sellerName', 'sellerNip', 'invoiceNumber', 'issueDate', 'totalGross', 'currency', 'ocrError', 'ksefEnvironment', 'createdAt', 'updatedAt', 'contractor'],
 } as const;
 
 const incomingDetailSchema = {
@@ -68,6 +71,7 @@ const incomingDetailSchema = {
   properties: {
     id: { type: 'string' },
     companyId: { type: 'string' },
+    environment: { type: 'string', enum: ['TEST', 'PRODUCTION'] },
     contractorId: { type: ['string', 'null'] },
     status: { type: 'string' },
     sellerName: { type: ['string', 'null'] },
@@ -89,43 +93,44 @@ const incomingDetailSchema = {
     ocrConfidence: { type: ['number', 'null'] },
     ocrModel: { type: ['string', 'null'] },
     ocrError: { type: ['string', 'null'] },
-    ksefReference: { type: ['string', 'null'] },
-    confirmedAt: { type: ['string', 'null'] },
-    createdAt: { type: 'string' },
-    updatedAt: { type: 'string' },
-    contractor: {
-      type: ['object', 'null'],
+  ksefReference: { type: ['string', 'null'] },
+  ksefEnvironment: { type: ['string', 'null'] },
+  confirmedAt: { type: ['string', 'null'] },
+  createdAt: { type: 'string' },
+  updatedAt: { type: 'string' },
+  contractor: {
+    type: ['object', 'null'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string' },
+      name: { type: 'string' },
+      nip: { type: ['string', 'null'] },
+    },
+    required: ['id', 'name', 'nip'],
+  },
+  fileRecords: {
+    type: 'array',
+    items: {
+      type: 'object',
       additionalProperties: false,
       properties: {
         id: { type: 'string' },
-        name: { type: 'string' },
-        nip: { type: ['string', 'null'] },
+        type: { type: 'string' },
+        mimeType: { type: 'string' },
+        sizeBytes: { type: 'integer' },
+        createdAt: { type: 'string' },
       },
-      required: ['id', 'name', 'nip'],
-    },
-    fileRecords: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          id: { type: 'string' },
-          type: { type: 'string' },
-          mimeType: { type: 'string' },
-          sizeBytes: { type: 'integer' },
-          createdAt: { type: 'string' },
-        },
-        required: ['id', 'type', 'mimeType', 'sizeBytes', 'createdAt'],
-      },
+      required: ['id', 'type', 'mimeType', 'sizeBytes', 'createdAt'],
     },
   },
-  required: [
-    'id', 'companyId', 'contractorId', 'status', 'sellerName', 'sellerNip', 'sellerAddress',
-    'buyerName', 'buyerNip', 'invoiceNumber', 'issueDate', 'saleDate', 'totalNet', 'totalVat',
-    'totalGross', 'currency', 'paymentMethod', 'dueDate', 'bankAccount', 'notes',
-    'ocrConfidence', 'ocrModel', 'ocrError', 'ksefReference', 'confirmedAt',
-    'createdAt', 'updatedAt', 'contractor', 'fileRecords',
-  ],
+},
+required: [
+  'id', 'companyId', 'environment', 'contractorId', 'status', 'sellerName', 'sellerNip', 'sellerAddress',
+  'buyerName', 'buyerNip', 'invoiceNumber', 'issueDate', 'saleDate', 'totalNet', 'totalVat',
+  'totalGross', 'currency', 'paymentMethod', 'dueDate', 'bankAccount', 'notes',
+  'ocrConfidence', 'ocrModel', 'ocrError', 'ksefReference', 'ksefEnvironment', 'confirmedAt',
+  'createdAt', 'updatedAt', 'contractor', 'fileRecords',
+],
 } as const;
 
 const confirmBodySchema = {
@@ -166,28 +171,36 @@ const assertAccess = (
   return membership;
 };
 
+const assertIncomingInvoiceEnvironmentAccess = <T extends { companyId: string; environment: KsefEnvironment }>(
+  invoice: T | null,
+  companyId: string,
+  selectedEnvironment: KsefEnvironment,
+  fastify: { httpErrors: { notFound: (msg: string) => Error } }
+): T => {
+  if (!invoice || invoice.companyId !== companyId || invoice.environment !== selectedEnvironment) {
+    throw fastify.httpErrors.notFound('Incoming invoice not found');
+  }
+
+  return invoice;
+};
+
 const serializeListItem = (inv: {
-  id: string; companyId: string; contractorId: string | null;
+  id: string; companyId: string; environment: KsefEnvironment; contractorId: string | null;
   status: string; sellerName: string | null; sellerNip: string | null;
   invoiceNumber: string | null; issueDate: Date | null; totalGross: { toString(): string } | null;
   currency: string | null; ocrError: string | null; ksefReference: string | null;
+  ksefEnvironment: string | null;
   createdAt: Date; updatedAt: Date;
   contractor: { id: string; name: string; nip: string | null } | null;
 }) => ({
-  id: inv.id,
-  companyId: inv.companyId,
-  contractorId: inv.contractorId,
-  status: inv.status,
-  sellerName: inv.sellerName,
-  sellerNip: inv.sellerNip,
+  id: inv.id, companyId: inv.companyId, environment: inv.environment, contractorId: inv.contractorId,
+  status: inv.status, sellerName: inv.sellerName, sellerNip: inv.sellerNip,
   invoiceNumber: inv.invoiceNumber,
   issueDate: inv.issueDate ? inv.issueDate.toISOString().slice(0, 10) : null,
   totalGross: inv.totalGross ? inv.totalGross.toString() : null,
-  currency: inv.currency,
-  ocrError: inv.ocrError,
-  ksefReference: inv.ksefReference,
-  createdAt: inv.createdAt.toISOString(),
-  updatedAt: inv.updatedAt.toISOString(),
+  currency: inv.currency, ocrError: inv.ocrError, ksefReference: inv.ksefReference,
+  ksefEnvironment: inv.ksefEnvironment,
+  createdAt: inv.createdAt.toISOString(), updatedAt: inv.updatedAt.toISOString(),
   contractor: inv.contractor,
 });
 
@@ -207,6 +220,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const data = await (request as unknown as { file(): Promise<{ filename: string; mimetype: string; toBuffer(): Promise<Buffer> }> }).file();
       if (!data) throw fastify.httpErrors.badRequest('No file uploaded');
@@ -234,6 +248,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const incoming = await fastify.prisma.incomingInvoice.create({
         data: {
           companyId,
+          environment: selectedEnvironment,
           status: 'UPLOADED',
           fileRecords: { connect: { id: fileRecord.id } },
         },
@@ -294,9 +309,11 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { status, page = 1, limit = 20 } = request.query;
 
       assertAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       const where = {
         companyId,
+        environment: selectedEnvironment,
         ...(status ? { status: status as IncomingInvoiceStatus } : {}),
       };
 
@@ -304,16 +321,19 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         fastify.prisma.incomingInvoice.count({ where }),
         fastify.prisma.incomingInvoice.findMany({
           where,
-          orderBy: { createdAt: 'desc' },
+          orderBy: [
+            { issueDate: { sort: 'desc', nulls: 'last' } },
+            { createdAt: 'desc' },
+          ],
           skip: (page - 1) * limit,
           take: limit,
-          select: {
-            id: true, companyId: true, contractorId: true, status: true,
-            sellerName: true, sellerNip: true, invoiceNumber: true,
-            issueDate: true, totalGross: true, currency: true, ocrError: true,
-            ksefReference: true, createdAt: true, updatedAt: true,
-            contractor: { select: { id: true, name: true, nip: true } },
-          },
+        select: {
+          id: true, companyId: true, environment: true, contractorId: true, status: true,
+          sellerName: true, sellerNip: true, invoiceNumber: true,
+          issueDate: true, totalGross: true, currency: true, ocrError: true,
+          ksefReference: true, ksefEnvironment: true, createdAt: true, updatedAt: true,
+          contractor: { select: { id: true, name: true, nip: true } },
+        },
         }),
       ]);
 
@@ -336,19 +356,23 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       assertAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
-      const invoice = await fastify.prisma.incomingInvoice.findUnique({
-        where: { id },
-        include: {
-          contractor: { select: { id: true, name: true, nip: true } },
-          fileRecords: { select: { id: true, type: true, mimeType: true, sizeBytes: true, createdAt: true } },
-        },
-      });
-
-      if (!invoice || invoice.companyId !== companyId) throw fastify.httpErrors.notFound('Incoming invoice not found');
+      const invoice = assertIncomingInvoiceEnvironmentAccess(
+        await fastify.prisma.incomingInvoice.findUnique({
+          where: { id },
+          include: {
+            contractor: { select: { id: true, name: true, nip: true } },
+            fileRecords: { select: { id: true, type: true, mimeType: true, sizeBytes: true, createdAt: true } },
+          },
+        }),
+        companyId,
+        selectedEnvironment,
+        fastify,
+      );
 
       return {
-        id: invoice.id, companyId: invoice.companyId, contractorId: invoice.contractorId, status: invoice.status,
+        id: invoice.id, companyId: invoice.companyId, environment: invoice.environment, contractorId: invoice.contractorId, status: invoice.status,
         sellerName: invoice.sellerName, sellerNip: invoice.sellerNip, sellerAddress: invoice.sellerAddress,
         buyerName: invoice.buyerName, buyerNip: invoice.buyerNip, invoiceNumber: invoice.invoiceNumber,
         issueDate: invoice.issueDate ? invoice.issueDate.toISOString().slice(0, 10) : null,
@@ -359,9 +383,9 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         currency: invoice.currency, paymentMethod: invoice.paymentMethod,
         dueDate: invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : null,
         bankAccount: invoice.bankAccount, notes: invoice.notes,
-        ocrConfidence: invoice.ocrConfidence, ocrModel: invoice.ocrModel, ocrError: invoice.ocrError,
-        ksefReference: invoice.ksefReference,
-        confirmedAt: invoice.confirmedAt ? invoice.confirmedAt.toISOString() : null,
+    ocrConfidence: invoice.ocrConfidence, ocrModel: invoice.ocrModel, ocrError: invoice.ocrError,
+    ksefReference: invoice.ksefReference, ksefEnvironment: invoice.ksefEnvironment,
+    confirmedAt: invoice.confirmedAt ? invoice.confirmedAt.toISOString() : null,
         createdAt: invoice.createdAt.toISOString(), updatedAt: invoice.updatedAt.toISOString(),
         contractor: invoice.contractor,
         fileRecords: invoice.fileRecords.map((fileRecord) => ({
@@ -383,6 +407,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       assertAccess(user, companyId, fastify);
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
       reply.raw.setHeader('Content-Type', 'text/event-stream');
       reply.raw.setHeader('Cache-Control', 'no-cache');
@@ -407,10 +432,10 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
         const invoice = await fastify.prisma.incomingInvoice.findUnique({
           where: { id },
-          select: { status: true, ocrError: true, ocrModel: true, ocrConfidence: true, companyId: true },
+          select: { status: true, ocrError: true, ocrModel: true, ocrConfidence: true, companyId: true, environment: true },
         });
 
-        if (!invoice || invoice.companyId !== companyId) {
+        if (!invoice || invoice.companyId !== companyId || invoice.environment !== selectedEnvironment) {
           sendEvent({ error: 'Not found' });
           clearInterval(ping);
           reply.raw.end();
@@ -452,9 +477,14 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
-      const invoice = await fastify.prisma.incomingInvoice.findUnique({ where: { id } });
-      if (!invoice || invoice.companyId !== companyId) throw fastify.httpErrors.notFound('Incoming invoice not found');
+      const invoice = assertIncomingInvoiceEnvironmentAccess(
+        await fastify.prisma.incomingInvoice.findUnique({ where: { id } }),
+        companyId,
+        selectedEnvironment,
+        fastify,
+      );
 
       const CONFIRMABLE = new Set(['UPLOADED', 'OCR_DONE', 'OCR_FAILED']);
       if (!CONFIRMABLE.has(invoice.status)) {
@@ -496,7 +526,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       });
 
       return {
-        id: updated.id, companyId: updated.companyId, contractorId: updated.contractorId,
+        id: updated.id, companyId: updated.companyId, environment: updated.environment, contractorId: updated.contractorId,
         status: updated.status, sellerName: updated.sellerName, sellerNip: updated.sellerNip,
         sellerAddress: updated.sellerAddress, buyerName: updated.buyerName, buyerNip: updated.buyerNip,
         invoiceNumber: updated.invoiceNumber,
@@ -508,9 +538,9 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         currency: updated.currency, paymentMethod: updated.paymentMethod,
         dueDate: updated.dueDate ? updated.dueDate.toISOString().slice(0, 10) : null,
         bankAccount: updated.bankAccount, notes: updated.notes,
-        ocrConfidence: updated.ocrConfidence, ocrModel: updated.ocrModel, ocrError: updated.ocrError,
-        ksefReference: updated.ksefReference,
-        confirmedAt: updated.confirmedAt ? updated.confirmedAt.toISOString() : null,
+  ocrConfidence: updated.ocrConfidence, ocrModel: updated.ocrModel, ocrError: updated.ocrError,
+  ksefReference: updated.ksefReference, ksefEnvironment: updated.ksefEnvironment,
+  confirmedAt: updated.confirmedAt ? updated.confirmedAt.toISOString() : null,
         createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString(),
         contractor: updated.contractor,
         fileRecords: updated.fileRecords.map((fileRecord) => ({ ...fileRecord, createdAt: fileRecord.createdAt.toISOString() })),
@@ -531,9 +561,14 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
-      const inv = await fastify.prisma.incomingInvoice.findUnique({ where: { id }, select: { companyId: true, status: true } });
-      if (!inv || inv.companyId !== companyId) throw fastify.httpErrors.notFound('Incoming invoice not found');
+      const inv = assertIncomingInvoiceEnvironmentAccess(
+        await fastify.prisma.incomingInvoice.findUnique({ where: { id }, select: { companyId: true, environment: true, status: true } }),
+        companyId,
+        selectedEnvironment,
+        fastify,
+      );
       if (inv.status === 'CONFIRMED') throw fastify.httpErrors.conflict('Cannot reject an already confirmed invoice');
 
       await fastify.prisma.incomingInvoice.update({
@@ -579,6 +614,8 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
 
+      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+
       const from = new Date(dateFrom);
       const to = new Date(dateTo);
 
@@ -593,7 +630,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const encryptionKey = process.env['ENCRYPTION_KEY']!;
 
       return syncIncomingInvoicesFromKsef(
-        fastify.prisma, companyId, encryptionKey, dateFrom, dateTo, request.log
+        fastify.prisma, companyId, encryptionKey, selectedEnvironment, dateFrom, dateTo, request.log
       );
     }
   );

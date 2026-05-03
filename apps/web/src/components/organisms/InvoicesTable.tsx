@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { InvoiceSummary } from '../../lib/api-types';
 import { formatDate, formatMoney } from '../../lib/format';
 import { Surface } from '../atoms/Surface';
-import { InvoiceStatusChip, KsefStatusChip } from '../molecules/StatusChip';
+import { InvoiceEnvironmentChip, InvoiceStatusChip, KsefStatusChip } from '../molecules/StatusChip';
 
 interface InvoicesTableProps {
   invoices: InvoiceSummary[];
@@ -20,6 +20,7 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
                 <HeaderCell>Numer</HeaderCell>
                 <HeaderCell>Data</HeaderCell>
                 <HeaderCell>Kontrahent</HeaderCell>
+                <HeaderCell>Środowisko</HeaderCell>
                 {!compact ? <HeaderCell className="text-right">Netto</HeaderCell> : null}
                 {!compact ? <HeaderCell className="text-right">VAT</HeaderCell> : null}
                 <HeaderCell className="text-right">Brutto</HeaderCell>
@@ -41,6 +42,9 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
                   </BodyCell>
                   <BodyCell>{formatDate(invoice.issueDate)}</BodyCell>
                   <BodyCell>{invoice.contractor?.name ?? '—'}</BodyCell>
+                  <BodyCell>
+                    <InvoiceEnvironmentChip environment={invoice.environment} />
+                  </BodyCell>
                   {!compact ? <BodyCell className="text-right tabular-nums">{formatMoney(invoice.totalNet)}</BodyCell> : null}
                   {!compact ? <BodyCell className="text-right tabular-nums">{formatMoney(invoice.totalVat)}</BodyCell> : null}
                   <BodyCell className="text-right tabular-nums">{formatMoney(invoice.totalGross)}</BodyCell>
@@ -86,6 +90,10 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
               <DetailItem label="Brutto" value={formatMoney(invoice.totalGross)} align="right" />
               {!compact ? <DetailItem label="Netto" value={formatMoney(invoice.totalNet)} /> : null}
               {!compact ? <DetailItem label="VAT" value={formatMoney(invoice.totalVat)} align="right" /> : null}
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Środowisko</p>
+                <InvoiceEnvironmentChip environment={invoice.environment} />
+              </div>
               <div className="sm:col-span-2 flex items-center justify-between gap-3">
                 <div className="space-y-1">
                   <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">KSeF</p>
