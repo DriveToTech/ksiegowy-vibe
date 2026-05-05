@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import type { AccessTokenPayload } from '../lib/auth-config.js';
 import { fetchCompanyByNip } from '../services/company-registry.service.js';
 import { encrypt } from '@ksiegowy/shared-utils';
@@ -415,7 +416,7 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
       throw fastify.httpErrors.notFound('Company not found');
     }
 
-    const environmentsWithToken = new Set(credentials.map((credential) => credential.environment));
+    const environmentsWithToken = new Set(credentials.map((credential: { environment: 'TEST' | 'PRODUCTION' }) => credential.environment));
 
     return {
       defaultEnvironment: company.ksefEnv,
@@ -457,7 +458,7 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
       const encryptionKey = readEncryptionKey(fastify);
       const { enc, iv } = encrypt(request.body.ksefToken, encryptionKey);
 
-      await fastify.prisma.$transaction(async (transactionClient) => {
+      await fastify.prisma.$transaction(async (transactionClient: Prisma.TransactionClient) => {
         await transactionClient.companyKsefCredential.upsert({
           where: { companyId_environment: { companyId: id, environment } },
           create: { companyId: id, environment, tokenEnc: enc, tokenIv: iv },
@@ -572,7 +573,7 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
 
       const { enc, iv } = encrypt(request.body.ksefToken, encryptionKey);
 
-      await fastify.prisma.$transaction(async (transactionClient) => {
+      await fastify.prisma.$transaction(async (transactionClient: Prisma.TransactionClient) => {
         await transactionClient.companyKsefCredential.upsert({
           where: { companyId_environment: { companyId: id, environment: request.body.ksefEnv } },
           create: {
