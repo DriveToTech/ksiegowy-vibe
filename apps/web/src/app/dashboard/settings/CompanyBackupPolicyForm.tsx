@@ -1,18 +1,20 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { API_BASE } from '../../../lib/api-base';
 import type {
+  BackupErrorCode,
   CompanyBackupStatusReadModel,
   CompanyBackupRunResult,
   CompanyBackupScheduleMode,
   CompanyBackupSettings,
   CompanyBackupOverallStatus,
+  GoogleDriveConnectionStatus,
   PlatformPostgresqlBackupReasonCode,
   PlatformPostgresqlBackupStatus,
 } from '../../../lib/api-types';
-import { runCompanyBackupPolicy, updateCompanyBackupPolicy } from '../../../lib/api-client';
+import { ApiClientError, runCompanyBackupPolicy, updateCompanyBackupPolicy } from '../../../lib/api-client';
 import { Badge } from '../../../components/atoms/Badge';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
@@ -34,7 +36,10 @@ export function CompanyBackupPolicyForm({
   hasBackupStatusError,
 }: CompanyBackupPolicyFormProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [backupSettings, setBackupSettings] = useState(initialBackupSettings);
+  const [backupStatus, setBackupStatus] = useState(initialBackupStatus);
   const [automaticOnInvoiceIssued, setAutomaticOnInvoiceIssued] = useState(
     initialBackupSettings.policy.automaticOnInvoiceIssued,
   );
@@ -52,17 +57,51 @@ export function CompanyBackupPolicyForm({
   );
   const [saveBusy, setSaveBusy] = useState(false);
   const [runBusy, setRunBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; code: BackupErrorCode | null } | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [lastRunResult, setLastRunResult] = useState<CompanyBackupRunResult | null>(null);
+
+  useEffect(() => {
+    setBackupSettings(initialBackupSettings);
+    setAutomaticOnInvoiceIssued(initialBackupSettings.policy.automaticOnInvoiceIssued);
+    setScheduleMode(initialBackupSettings.policy.scheduleMode);
+    setScheduleHour(initialBackupSettings.policy.scheduleHour === null ? '' : String(initialBackupSettings.policy.scheduleHour));
+    setScheduleMinute(initialBackupSettings.policy.scheduleMinute === null ? '' : String(initialBackupSettings.policy.scheduleMinute));
+    setScheduleDayOfWeek(
+      initialBackupSettings.policy.scheduleDayOfWeek === null ? '' : String(initialBackupSettings.policy.scheduleDayOfWeek),
+    );
+  }, [initialBackupSettings]);
+
+  useEffect(() => {
+    setBackupStatus(initialBackupStatus);
+  }, [initialBackupStatus]);
 
   const googleDriveConnectUrl = useMemo(() => {
     const queryParameters = new URLSearchParams({ companyId });
     return `${API_BASE}/backup/gdrive/connect?${queryParameters.toString()}`;
   }, [companyId]);
 
-  const postgresqlStatus = initialBackupStatus?.platformPostgresql;
-  const googleDriveStatus = initialBackupStatus?.companyGoogleDrive;
+  const postgresqlStatus = backupStatus?.platformPostgresql;
+  const googleDriveStatus = backupStatus?.companyGoogleDrive;
+  const googleDriveConnectionStatus = getGoogleDriveConnectionStatus(backupSettings, googleDriveStatus?.connectionStatus);
+  const isGoogleDriveConnected = googleDriveConnectionStatus === 'CONNECTED';
+  const requiresGoogleDriveReauthorization = googleDriveConnectionStatus === 'REAUTHORIZATION_REQUIRED';
+
+  useEffect(() => {
+    if (searchParams.get('gdrive') !== 'connected') {
+      return;
+    }
+
+    setSuccess('Połączenie Google Drive jest gotowe do użycia.');
+
+    const nextSearchParameters = new URLSearchParams(searchParams.toString());
+    nextSearchParameters.delete('gdrive');
+    const nextUrl = nextSearchParameters.toString().length > 0
+      ? `${pathname}?${nextSearchParameters.toString()}`
+      : pathname;
+
+    router.replace(nextUrl, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -73,17 +112,17 @@ export function CompanyBackupPolicyForm({
       const parsedHour = Number(scheduleHour);
       const parsedMinute = Number(scheduleMinute);
       if (!Number.isInteger(parsedHour) || parsedHour < 0 || parsedHour > 23) {
-        setError('Godzina harmonogramu musi być liczbą od 0 do 23.');
+        setError({ message: 'Godzina harmonogramu musi być liczbą od 0 do 23.', code: null });
         return;
       }
       if (!Number.isInteger(parsedMinute) || parsedMinute < 0 || parsedMinute > 59) {
-        setError('Minuta harmonogramu musi być liczbą od 0 do 59.');
+        setError({ message: 'Minuta harmonogramu musi być liczbą od 0 do 59.', code: null });
         return;
       }
       if (scheduleMode === 'WEEKLY') {
         const parsedDayOfWeek = Number(scheduleDayOfWeek);
         if (!Number.isInteger(parsedDayOfWeek) || parsedDayOfWeek < 1 || parsedDayOfWeek > 7) {
-          setError('Dzień tygodnia musi być liczbą od 1 (poniedziałek) do 7 (niedziela).');
+          setError({ message: 'Dzień tygodnia musi być liczbą od 1 (poniedziałek) do 7 (niedziela).', code: null });
           return;
         }
       }
@@ -116,7 +155,12 @@ export function CompanyBackupPolicyForm({
         router.refresh();
       })
       .catch((requestError: unknown) => {
-        setError(requestError instanceof Error ? requestError.message : 'Nie udało się zapisać polityki kopii zapasowych.');
+        setError({
+          message: requestError instanceof Error ? requestError.message : 'Nie udało się zapisać polityki kopii zapasowych.',
+          code: requestError instanceof ApiClientError && requestError.code === 'REAUTHORIZATION_REQUIRED'
+            ? requestError.code
+            : null,
+        });
       })
       .finally(() => setSaveBusy(false));
   };
@@ -140,7 +184,41 @@ export function CompanyBackupPolicyForm({
         router.refresh();
       })
       .catch((requestError: unknown) => {
-        setError(requestError instanceof Error ? requestError.message : 'Nie udało się uruchomić backupu.');
+        if (requestError instanceof ApiClientError && requestError.code === 'REAUTHORIZATION_REQUIRED') {
+          setBackupSettings((currentSettings) => ({
+            ...currentSettings,
+            googleDrive: {
+              ...currentSettings.googleDrive,
+              isConnected: false,
+              requiresReauthorization: true,
+            },
+          }));
+          setBackupStatus((currentStatus) => {
+            if (currentStatus === null) {
+              return currentStatus;
+            }
+
+            return {
+              ...currentStatus,
+              companyGoogleDrive: {
+                ...currentStatus.companyGoogleDrive,
+                connectionStatus: 'REAUTHORIZATION_REQUIRED',
+                summary:
+                  'Google Drive wymaga ponownego połączenia przed uruchomieniem backupu ręcznego i automatycznego.',
+              },
+            };
+          });
+          setError({
+            message: 'Google Drive wymaga ponownego połączenia przed uruchomieniem backupu. Odśwież autoryzację i spróbuj ponownie.',
+            code: requestError.code,
+          });
+          return;
+        }
+
+        setError({
+          message: requestError instanceof Error ? requestError.message : 'Nie udało się uruchomić backupu.',
+          code: null,
+        });
       })
       .finally(() => setRunBusy(false));
   };
@@ -156,7 +234,17 @@ export function CompanyBackupPolicyForm({
 
       {error ? (
         <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
+          <p>{error.message}</p>
+          {error.code === 'REAUTHORIZATION_REQUIRED' ? (
+            <div className="mt-3">
+              <a
+                href={googleDriveConnectUrl}
+                className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+              >
+                Połącz ponownie Google Drive
+              </a>
+            </div>
+          ) : null}
         </Surface>
       ) : null}
       {success ? (
@@ -196,21 +284,33 @@ export function CompanyBackupPolicyForm({
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Google Drive backup firmy</p>
             <p className="mt-1 text-sm text-muted">
-              {googleDriveStatus?.summary ?? 'Połącz konto Google Drive i ustaw automatyzację backupu dla dokumentów firmy.'}
+              {googleDriveStatus?.summary
+                ?? (requiresGoogleDriveReauthorization
+                  ? 'Google Drive wymaga ponownego połączenia, aby backup ręczny i automatyczny mogły wrócić do działania.'
+                  : 'Połącz konto Google Drive i ustaw automatyzację backupu dla dokumentów firmy.')}
             </p>
           </div>
           <Badge
-            tone={
-              (googleDriveStatus?.connectionStatus === 'CONNECTED' || backupSettings.googleDrive.isConnected)
-                ? 'success'
-                : 'warning'
-            }
+            tone={googleDriveConnectionStatus === 'CONNECTED' ? 'success' : 'warning'}
           >
-            {(googleDriveStatus?.connectionStatus === 'CONNECTED' || backupSettings.googleDrive.isConnected)
+            {googleDriveConnectionStatus === 'CONNECTED'
               ? 'Połączony'
-              : 'Niepołączony'}
+              : googleDriveConnectionStatus === 'REAUTHORIZATION_REQUIRED'
+                ? 'Wymaga ponownego połączenia'
+                : 'Niepołączony'}
           </Badge>
         </div>
+
+        {requiresGoogleDriveReauthorization ? (
+          <div className="mt-3">
+            <a
+              href={googleDriveConnectUrl}
+              className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+            >
+              Połącz ponownie Google Drive
+            </a>
+          </div>
+        ) : null}
 
         <p className="mt-3 text-sm text-muted">
           Ostatni backup:{' '}
@@ -228,14 +328,22 @@ export function CompanyBackupPolicyForm({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Polityka backupu Google Drive</p>
-            <p className="mt-1 text-sm text-muted">Połącz konto Google Drive i ustaw automatyzację backupu dla dokumentów firmy.</p>
+            <p className="mt-1 text-sm text-muted">
+              {requiresGoogleDriveReauthorization
+                ? 'Autoryzacja Google Drive wygasła lub została cofnięta. Odnów połączenie, aby przywrócić backup ręczny i harmonogram.'
+                : 'Połącz konto Google Drive i ustaw automatyzację backupu dla dokumentów firmy.'}
+            </p>
           </div>
-          <Badge tone={backupSettings.googleDrive.isConnected ? 'success' : 'warning'}>
-            {backupSettings.googleDrive.isConnected ? 'Konto podłączone' : 'Konto niepodłączone'}
+          <Badge tone={isGoogleDriveConnected ? 'success' : 'warning'}>
+            {isGoogleDriveConnected
+              ? 'Konto podłączone'
+              : requiresGoogleDriveReauthorization
+                ? 'Wymaga ponownego połączenia'
+                : 'Konto niepodłączone'}
           </Badge>
         </div>
 
-        {backupSettings.googleDrive.isConnected ? (
+        {isGoogleDriveConnected ? (
           <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
             <ReadOnlyItem
               label="Ostatni backup"
@@ -248,13 +356,15 @@ export function CompanyBackupPolicyForm({
           </div>
         ) : (
           <div className="mt-4 rounded-[1rem] border border-warning/30 bg-warning/20 px-4 py-3 text-sm text-warning-ink">
-            Google Drive nie jest jeszcze podłączony. Najpierw połącz konto, aby uruchamiać backup ręczny i harmonogram.
+            {requiresGoogleDriveReauthorization
+              ? 'Google Drive wymaga ponownego połączenia. Backup ręczny i automatyczny pozostają wstrzymane do czasu odnowienia autoryzacji.'
+              : 'Google Drive nie jest jeszcze podłączony. Najpierw połącz konto, aby uruchamiać backup ręczny i harmonogram.'}
             <div className="mt-3">
               <a
                 href={googleDriveConnectUrl}
                 className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
               >
-                Połącz Google Drive
+                {requiresGoogleDriveReauthorization ? 'Połącz ponownie Google Drive' : 'Połącz Google Drive'}
               </a>
             </div>
           </div>
@@ -268,7 +378,7 @@ export function CompanyBackupPolicyForm({
                 checked={automaticOnInvoiceIssued}
                 onChange={(event) => setAutomaticOnInvoiceIssued(event.target.checked)}
                 className="h-4 w-4 rounded border-outline/40 text-primary focus:ring-primary/30"
-                disabled={!backupSettings.googleDrive.isConnected || saveBusy}
+                disabled={!isGoogleDriveConnected || saveBusy}
               />
               Automatycznie uruchamiaj backup po wystawieniu faktury
             </label>
@@ -279,7 +389,7 @@ export function CompanyBackupPolicyForm({
               id="backup-schedule-mode"
               value={scheduleMode}
               onChange={(event) => setScheduleMode(event.target.value as CompanyBackupScheduleMode)}
-              disabled={!backupSettings.googleDrive.isConnected || saveBusy}
+              disabled={!isGoogleDriveConnected || saveBusy}
             >
               <option value="MANUAL">Ręczny</option>
               <option value="DAILY">Codziennie</option>
@@ -301,7 +411,7 @@ export function CompanyBackupPolicyForm({
                   max={23}
                   value={scheduleHour}
                   onChange={(event) => setScheduleHour(event.target.value)}
-                  disabled={!backupSettings.googleDrive.isConnected || saveBusy}
+                  disabled={!isGoogleDriveConnected || saveBusy}
                   required
                 />
               </FormField>
@@ -314,7 +424,7 @@ export function CompanyBackupPolicyForm({
                   max={59}
                   value={scheduleMinute}
                   onChange={(event) => setScheduleMinute(event.target.value)}
-                  disabled={!backupSettings.googleDrive.isConnected || saveBusy}
+                  disabled={!isGoogleDriveConnected || saveBusy}
                   required
                 />
               </FormField>
@@ -327,7 +437,7 @@ export function CompanyBackupPolicyForm({
                 id="backup-schedule-day-of-week"
                 value={scheduleDayOfWeek}
                 onChange={(event) => setScheduleDayOfWeek(event.target.value)}
-                disabled={!backupSettings.googleDrive.isConnected || saveBusy}
+                disabled={!isGoogleDriveConnected || saveBusy}
                 required
               >
                 <option value="">Wybierz dzień</option>
@@ -343,14 +453,14 @@ export function CompanyBackupPolicyForm({
           ) : null}
 
           <div className="md:col-span-2 flex flex-wrap gap-3">
-            <Button type="submit" disabled={!backupSettings.googleDrive.isConnected || saveBusy}>
+            <Button type="submit" disabled={!isGoogleDriveConnected || saveBusy}>
               {saveBusy ? 'Zapisywanie…' : 'Zapisz politykę backupu'}
             </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={handleRunNow}
-              disabled={!backupSettings.googleDrive.isConnected || runBusy}
+              disabled={!isGoogleDriveConnected || runBusy}
             >
               {runBusy ? 'Uruchamianie…' : 'Backup teraz'}
             </Button>
@@ -387,20 +497,20 @@ export function CompanyBackupPolicyForm({
         <div className="mt-4 space-y-4 border-t border-outline/15 pt-4">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Status ogólny</p>
-            <Badge tone={initialBackupStatus ? overallStatusBadgeTone[initialBackupStatus.overallStatus] : 'neutral'}>
-              {initialBackupStatus ? overallStatusLabel[initialBackupStatus.overallStatus] : 'Niedostępny'}
+            <Badge tone={backupStatus ? overallStatusBadgeTone[backupStatus.overallStatus] : 'neutral'}>
+              {backupStatus ? overallStatusLabel[backupStatus.overallStatus] : 'Niedostępny'}
             </Badge>
           </div>
           <div className="grid gap-3 text-sm md:grid-cols-2">
             <ReadOnlyItem
               label="Czas oceny statusu"
-              value={initialBackupStatus ? formatDateTime(initialBackupStatus.evaluatedAt) : 'Brak danych'}
+              value={backupStatus ? formatDateTime(backupStatus.evaluatedAt) : 'Brak danych'}
             />
             <ReadOnlyItem
               label="Automatyzacja polityki Google Drive"
               value={
-                initialBackupStatus
-                  ? initialBackupStatus.companyGoogleDrive.isPolicyAutomationEnabled
+                backupStatus
+                  ? backupStatus.companyGoogleDrive.isPolicyAutomationEnabled
                     ? 'Włączona'
                     : 'Wyłączona'
                   : 'Brak danych'
@@ -441,11 +551,11 @@ export function CompanyBackupPolicyForm({
             <ReadOnlyItem
               label="Połączenie Google Drive"
               value={
-                googleDriveStatus
-                  ? googleDriveStatus.connectionStatus === 'CONNECTED'
-                    ? 'Połączony'
+                googleDriveConnectionStatus === 'CONNECTED'
+                  ? 'Połączony'
+                  : googleDriveConnectionStatus === 'REAUTHORIZATION_REQUIRED'
+                    ? 'Wymaga ponownego połączenia'
                     : 'Niepołączony'
-                  : 'Brak danych'
               }
             />
           </div>
@@ -527,4 +637,19 @@ function formatBytes(value: number): string {
     return `${(value / (1024 * 1024)).toFixed(1)} MB`;
   }
   return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function getGoogleDriveConnectionStatus(
+  backupSettings: CompanyBackupSettings,
+  statusConnectionStatus?: GoogleDriveConnectionStatus,
+): GoogleDriveConnectionStatus {
+  if (backupSettings.googleDrive.requiresReauthorization || statusConnectionStatus === 'REAUTHORIZATION_REQUIRED') {
+    return 'REAUTHORIZATION_REQUIRED';
+  }
+
+  if (statusConnectionStatus === 'CONNECTED' || backupSettings.googleDrive.isConnected) {
+    return 'CONNECTED';
+  }
+
+  return 'DISCONNECTED';
 }

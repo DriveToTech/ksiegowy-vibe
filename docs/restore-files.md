@@ -63,13 +63,22 @@ rclone sync "${ICLOUD_RCLONE_REMOTE}:${ICLOUD_RCLONE_DEST}" "${STORAGE_BASE_PATH
 Google Drive backup stores files under a company-scoped structure:
 
 ```text
-ksiegowy-backup/
-└── company-<companyId>/
-    ├── invoices/
-    └── incoming/
+<BACKUP_DESTINATION_ROOT>/
+└── files/
+    └── <environment>/
+        └── company-<companyId>/
+            ├── invoices/
+            └── incoming/
 ```
 
 Use Drive UI or Drive API tooling to download required files from `company-<companyId>` and restore them into the matching folder under `STORAGE_BASE_PATH/<companyId>/...`.
+
+Canonical layout example:
+
+- `BACKUP_DESTINATION_ROOT=ksiegowy-vibe-backups`
+- `<environment>` comes from `DB_BACKUP_ENVIRONMENT_NAME` and defaults to `local`
+
+Backward compatibility note: this file layout stays canonical for Google Drive backups. For PostgreSQL remote publishing, `BACKUP_DESTINATION_ROOT` is an explicit opt-in; when it is unset, legacy `DB_BACKUP_REMOTE_BASE_PATH/<environment>/...` destinations remain in use.
 
 Expected scope/limitations:
 

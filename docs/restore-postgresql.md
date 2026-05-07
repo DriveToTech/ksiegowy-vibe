@@ -9,6 +9,9 @@ This runbook covers restoring a PostgreSQL logical backup created by `backup-pos
   - `postgresql-<environment>-<timestamp>.sql.gz`
   - `postgresql-<environment>-<timestamp>.sql.gz.sha256`
   - `postgresql-<environment>-<timestamp>.manifest.json`
+- Option A keeps one shared PostgreSQL database unchanged, so each artifact set is a full logical backup of the whole shared database
+- Remote publishing layout is `<BACKUP_DESTINATION_ROOT>/postgresql/<environment>/<timestamp>/...` only when `BACKUP_DESTINATION_ROOT` is explicitly set
+- When `BACKUP_DESTINATION_ROOT` is unset, backward-compatible PostgreSQL remote destinations remain `DB_BACKUP_REMOTE_BASE_PATH/<environment>/<timestamp>/...`
 - Point-in-time recovery (WAL-based) is **not** part of this slice
 
 ## Preconditions

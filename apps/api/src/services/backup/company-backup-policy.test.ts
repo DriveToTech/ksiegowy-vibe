@@ -5,9 +5,11 @@ import type { PrismaClient } from '@prisma/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildScheduledRunKey,
+  getCompanyGoogleDriveBackupSettings,
   getCompanyBackupStatus,
   isPolicyDueNow,
   readPlatformPostgresqlBackupFreshness,
+  updateCompanyGoogleDriveBackupPolicy,
   validateCompanyBackupPolicy,
 } from './company-backup-policy.js';
 
@@ -155,6 +157,42 @@ describe('readPlatformPostgresqlBackupFreshness()', () => {
 });
 
 describe('getCompanyBackupStatus()', () => {
+  it('returns reauthorization-required state when the stored Google Drive connection is unhealthy', async () => {
+    const backupDirectory = await createTemporaryBackupDirectory();
+    const artifactTimestamp = '20260416T151500Z';
+    const artifactFilePath = path.join(backupDirectory, `postgresql-test-${artifactTimestamp}.sql.gz`);
+
+    process.env['POSTGRESQL_BACKUP_ARTIFACTS_PATH'] = backupDirectory;
+    process.env['DB_BACKUP_ENVIRONMENT_NAME'] = 'test';
+
+    await fs.writeFile(artifactFilePath, 'sql content');
+    await fs.writeFile(path.join(backupDirectory, `postgresql-test-${artifactTimestamp}.sql.gz.sha256`), 'checksum');
+    await fs.writeFile(path.join(backupDirectory, `postgresql-test-${artifactTimestamp}.manifest.json`), '{}');
+
+    const prisma = {
+      companyBackupPolicy: {
+        findUnique: async () => ({
+          automaticOnInvoiceIssued: true,
+          scheduleMode: 'MANUAL',
+        }),
+      },
+      googleDriveCredential: {
+        findUnique: async () => ({
+          requiresReauthorization: true,
+          lastBackupAt: new Date('2026-04-16T12:00:00.000Z'),
+        }),
+      },
+    } as unknown as PrismaClient;
+
+    const status = await getCompanyBackupStatus(prisma, 'company-1');
+
+    expect(status.companyGoogleDrive.connectionStatus).toBe('REAUTHORIZATION_REQUIRED');
+    expect(status.companyGoogleDrive.summary).toBe(
+      'Google Drive requires reauthorization and backup automation cannot run until the connection is restored.'
+    );
+    expect(status.overallStatus).toBe('DEGRADED');
+  });
+
   it('returns platformPostgresql status as UNAVAILABLE when artifact source cannot be read', async () => {
     const unavailablePath = path.join(await createTemporaryBackupDirectory(), 'not-a-directory.txt');
     await fs.writeFile(unavailablePath, 'unavailable source marker');
@@ -201,5 +239,56 @@ describe('getCompanyBackupStatus()', () => {
     expect(status.platformPostgresql.status).toBe('MISSING');
     expect(status.platformPostgresql.reasonCode).toBe('ARTIFACT_NOT_FOUND');
     expect(status.overallStatus).toBe('CRITICAL');
+  });
+});
+
+describe('getCompanyGoogleDriveBackupSettings()', () => {
+  it('exposes the persisted reauthorization-required flag', async () => {
+    const backupDirectory = await createTemporaryBackupDirectory();
+    process.env['POSTGRESQL_BACKUP_ARTIFACTS_PATH'] = backupDirectory;
+    process.env['DB_BACKUP_ENVIRONMENT_NAME'] = 'test';
+
+    const prisma = {
+      companyBackupPolicy: {
+        findUnique: async () => null,
+      },
+      googleDriveCredential: {
+        findUnique: async () => ({
+          requiresReauthorization: true,
+          expiresAt: new Date('2026-04-16T15:00:00.000Z'),
+          lastBackupAt: new Date('2026-04-16T12:00:00.000Z'),
+        }),
+      },
+    } as unknown as PrismaClient;
+
+    const settings = await getCompanyGoogleDriveBackupSettings(prisma, 'company-1');
+
+    expect(settings.googleDrive).toEqual({
+      isConnected: false,
+      requiresReauthorization: true,
+      expiresAt: '2026-04-16T15:00:00.000Z',
+      lastBackupAt: '2026-04-16T12:00:00.000Z',
+    });
+  });
+});
+
+describe('updateCompanyGoogleDriveBackupPolicy()', () => {
+  it('rejects enabling automation when Google Drive requires reauthorization', async () => {
+    const prisma = {
+      companyBackupPolicy: {
+        findUnique: async () => null,
+      },
+      googleDriveCredential: {
+        findUnique: async () => ({
+          requiresReauthorization: true,
+        }),
+      },
+    } as unknown as PrismaClient;
+
+    await expect(
+      updateCompanyGoogleDriveBackupPolicy(prisma, 'company-1', {
+        automaticOnInvoiceIssued: true,
+      })
+    ).rejects.toThrow('Google Drive must be connected before enabling scheduled or invoice-issued backups');
   });
 });

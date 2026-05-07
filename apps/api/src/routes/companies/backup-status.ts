@@ -57,7 +57,7 @@ const backupStatusResponseSchema = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        connectionStatus: { type: 'string', enum: ['CONNECTED', 'DISCONNECTED'] },
+        connectionStatus: { type: 'string', enum: ['CONNECTED', 'DISCONNECTED', 'REAUTHORIZATION_REQUIRED'] },
         lastBackupAt: { type: ['string', 'null'], format: 'date-time' },
         isPolicyAutomationEnabled: { type: 'boolean' },
         summary: { type: 'string' },

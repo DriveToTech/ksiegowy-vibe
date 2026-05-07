@@ -412,6 +412,7 @@ model GoogleDriveCredential {
   credentialsEnc String // AES-256-GCM encrypted JSON {access_token, refresh_token, expiry_date}
   credentialsIv  String
   expiresAt      DateTime
+  requiresReauthorization Boolean @default(false)
   lastBackupAt   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

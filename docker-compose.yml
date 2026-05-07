@@ -42,6 +42,7 @@ services:
       CORS_ORIGIN: http://localhost:3000
       STORAGE_BASE_PATH: /app/storage
       POSTGRESQL_BACKUP_ARTIFACTS_PATH: /app/backups/postgresql
+      BACKUP_DESTINATION_ROOT: ${BACKUP_DESTINATION_ROOT:-ksiegowy-vibe-backups}
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
     volumes:
       - ./storage:/app/storage
@@ -86,7 +87,7 @@ services:
       DB_BACKUP_RETENTION_DAYS: ${DB_BACKUP_RETENTION_DAYS:-14}
       DB_BACKUP_LOCAL_RETENTION_DAYS: ${DB_BACKUP_LOCAL_RETENTION_DAYS:-14}
       DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS: ${DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS:-120}
-      DB_BACKUP_REMOTE_BASE_PATH: ${DB_BACKUP_REMOTE_BASE_PATH:-ksiegowy-vibe/backups/postgresql}
+      BACKUP_DESTINATION_ROOT: ${BACKUP_DESTINATION_ROOT:-ksiegowy-vibe-backups}
       DB_BACKUP_REMOTE_PRIMARY_NAME: ${DB_BACKUP_REMOTE_PRIMARY_NAME:-}
       DB_BACKUP_REMOTE_SECONDARY_NAME: ${DB_BACKUP_REMOTE_SECONDARY_NAME:-}
       DB_BACKUP_RCLONE_CONFIG_PATH: /tmp/rclone-runtime/rclone.conf
@@ -110,6 +111,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-ksiegowy}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-ksiegowy_dev}
       STORAGE_BASE_PATH: /app/storage
+      BACKUP_DESTINATION_ROOT: ${BACKUP_DESTINATION_ROOT:-ksiegowy-vibe-backups}
     command: ['node', 'dist/scheduled-company-google-drive-backup-runner.js']
     volumes:
       - ./storage:/app/storage:ro
