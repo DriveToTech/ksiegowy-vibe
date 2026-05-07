@@ -6,7 +6,7 @@ import type {
   PrismaClient,
 } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
-import { GDriveBackupProvider } from './gdrive.js';
+import { GDriveBackupProvider, isGoogleDriveReauthorizationRequiredError } from './gdrive.js';
 
 export const COMPANY_BACKUP_PROVIDER = 'GOOGLE_DRIVE' as const;
 
@@ -49,7 +49,7 @@ export interface CompanyBackupStatusReadModel {
   overallStatus: 'HEALTHY' | 'DEGRADED' | 'CRITICAL' | 'UNKNOWN';
   platformPostgresql: PlatformPostgresqlBackupStatusReadModel;
   companyGoogleDrive: {
-    connectionStatus: 'CONNECTED' | 'DISCONNECTED';
+    connectionStatus: 'CONNECTED' | 'DISCONNECTED' | 'REAUTHORIZATION_REQUIRED';
     lastBackupAt: string | null;
     isPolicyAutomationEnabled: boolean;
     summary: string;
@@ -70,6 +70,7 @@ export interface CompanyGoogleDriveBackupSettings {
   provider: typeof COMPANY_BACKUP_PROVIDER;
   googleDrive: {
     isConnected: boolean;
+    requiresReauthorization: boolean;
     expiresAt: string | null;
     lastBackupAt: string | null;
   };
@@ -93,6 +94,19 @@ export interface CompanyGoogleDriveBackupRunResult {
   startedAt: string;
   finishedAt: string;
   triggerSource: string;
+}
+
+export interface CompanyGoogleDriveBackupRunError {
+  code: 'REAUTHORIZATION_REQUIRED';
+  message: string;
+}
+
+interface BackupResultWithCause {
+  provider: string;
+  filesCount: number;
+  bytesTotal: number;
+  error?: string;
+  cause?: unknown;
 }
 
 const DEFAULT_POLICY: Pick<CompanyBackupPolicy, 'automaticOnInvoiceIssued' | 'scheduleMode' | 'scheduleHour' | 'scheduleMinute' | 'scheduleDayOfWeek' | 'scheduleTimezone'> = {
@@ -233,7 +247,8 @@ export const getCompanyGoogleDriveBackupSettings = async (
     companyId,
     provider: COMPANY_BACKUP_PROVIDER,
     googleDrive: {
-      isConnected: credential !== null,
+      isConnected: credential !== null && !credential.requiresReauthorization,
+      requiresReauthorization: credential?.requiresReauthorization === true,
       expiresAt: credential?.expiresAt.toISOString() ?? null,
       lastBackupAt: credential?.lastBackupAt?.toISOString() ?? null,
     },
@@ -293,7 +308,7 @@ export const updateCompanyGoogleDriveBackupPolicy = async (
   );
 
   validateCompanyBackupPolicy(mergedPolicy);
-  validatePolicyAutomationConnection(mergedPolicy, credential !== null);
+  validatePolicyAutomationConnection(mergedPolicy, credential !== null && !credential.requiresReauthorization);
 
   const updateData = {
     automaticOnInvoiceIssued: mergedPolicy.automaticOnInvoiceIssued,
@@ -335,16 +350,18 @@ export const runCompanyGoogleDriveBackup = async (
   }
 
   const provider = new GDriveBackupProvider(encryptionKey);
+
   if (!provider.isEnabled()) {
     throw new Error('Google Drive backup is not configured (GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, ENCRYPTION_KEY)');
   }
 
   const startedAt = new Date();
-  const backupResult = await provider.run(prisma, storageBase, companyId).catch((error: unknown) => ({
+  const backupResult: BackupResultWithCause = await provider.run(prisma, storageBase, companyId).catch((error: unknown) => ({
     provider: 'gdrive',
     filesCount: 0,
     bytesTotal: 0,
     error: error instanceof Error ? error.message : String(error),
+    cause: error,
   }));
 
   const finishedAt = new Date();
@@ -364,6 +381,9 @@ export const runCompanyGoogleDriveBackup = async (
 
   if (backupResult.error) {
     logger.error({ companyId, triggerSource, error: backupResult.error }, 'Google Drive company backup failed');
+    if (isGoogleDriveReauthorizationRequiredError(backupResult.cause)) {
+      throw backupResult.cause;
+    }
     throw new Error(backupResult.error);
   }
 
@@ -728,6 +748,14 @@ const buildCompanyGoogleDriveSummary = (
     return 'Google Drive is connected and backups can be triggered manually.';
   }
 
+  if (connectionStatus === 'REAUTHORIZATION_REQUIRED' && isPolicyAutomationEnabled) {
+    return 'Google Drive requires reauthorization and backup automation cannot run until the connection is restored.';
+  }
+
+  if (connectionStatus === 'REAUTHORIZATION_REQUIRED') {
+    return 'Google Drive requires reauthorization before backups can run.';
+  }
+
   if (isPolicyAutomationEnabled) {
     return 'Google Drive is disconnected and backup automation cannot run.';
   }
@@ -749,6 +777,10 @@ const aggregateOverallBackupStatus = (
   }
 
   if (platformPostgresqlStatus === 'STALE') {
+    return 'DEGRADED';
+  }
+
+  if (companyGoogleDriveConnectionStatus === 'REAUTHORIZATION_REQUIRED') {
     return 'DEGRADED';
   }
 
@@ -775,7 +807,11 @@ export const getCompanyBackupStatus = async (
   };
 
   const isPolicyAutomationEnabled = isCompanyBackupPolicyAutomationEnabled(policyForAutomationCheck);
-  const companyGoogleDriveConnectionStatus: CompanyBackupStatusReadModel['companyGoogleDrive']['connectionStatus'] = credential ? 'CONNECTED' : 'DISCONNECTED';
+  const companyGoogleDriveConnectionStatus: CompanyBackupStatusReadModel['companyGoogleDrive']['connectionStatus'] = !credential
+    ? 'DISCONNECTED'
+    : credential.requiresReauthorization
+      ? 'REAUTHORIZATION_REQUIRED'
+      : 'CONNECTED';
 
   const platformPostgresql: PlatformPostgresqlBackupStatusReadModel = {
     status: platformPostgresqlBackupFreshnessWithAvailability.status,

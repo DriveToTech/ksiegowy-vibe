@@ -32,6 +32,20 @@ const invoiceLineSchema = {
   }
 } as const;
 
+const draftUpdateInvoiceLineSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['position', 'name', 'quantity', 'unitNetPrice', 'vatRate'],
+  properties: {
+    position: { type: 'integer', minimum: 1 },
+    name: { type: 'string', minLength: 1 },
+    unit: { type: 'string' },
+    quantity: { type: 'string', pattern: '^[0-9]+([.][0-9]+)?$' },
+    unitNetPrice: { type: 'string', pattern: '^-?[0-9]+([.][0-9]+)?$' },
+    vatRate: { type: 'string', enum: ['23', '8', '5', '0', 'zw', 'np', 'oo'] }
+  }
+} as const;
+
 const invoiceLineResponseSchema = {
   type: 'object',
   additionalProperties: false,
@@ -207,6 +221,26 @@ const createDraftBodySchema = {
       type: 'array',
       minItems: 1,
       items: invoiceLineSchema
+    }
+  }
+} as const;
+
+const updateDraftBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['issueDate', 'lines'],
+  properties: {
+    contractorId: { type: 'string', minLength: 1 },
+    issueDate: { type: 'string', format: 'date' },
+    saleDate: { type: 'string', format: 'date' },
+    paymentDueDate: { type: 'string', format: 'date' },
+    paymentMethod: { type: 'string', enum: ['BANK_TRANSFER', 'CASH', 'CARD', 'OTHER'] },
+    currency: { type: 'string', default: 'PLN' },
+    notes: { type: 'string' },
+    lines: {
+      type: 'array',
+      minItems: 1,
+      items: draftUpdateInvoiceLineSchema
     }
   }
 } as const;
@@ -732,7 +766,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       onRequest: [fastify.authenticate],
       schema: {
         params: invoiceParamsSchema,
-        body: createDraftBodySchema,
+        body: updateDraftBodySchema,
         response: {
           200: invoiceResponseSchema
         }
@@ -757,6 +791,13 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       );
       if (existing.status !== 'DRAFT') {
         throw fastify.httpErrors.conflict(`Only DRAFT invoices can be edited (current status: ${existing.status})`);
+      }
+
+      if (
+        existing.invoiceType !== 'KOR' &&
+        body.lines.some((line) => line.unitNetPrice.startsWith('-'))
+      ) {
+        throw fastify.httpErrors.badRequest('Negative unitNetPrice is only supported for KOR drafts');
       }
 
       const lines: InvoiceLineInput[] = body.lines.map((l) => ({

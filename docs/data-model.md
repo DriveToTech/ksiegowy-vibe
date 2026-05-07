@@ -584,6 +584,7 @@ Stores Google Drive OAuth2 credentials for backup, encrypted at rest. One record
 |--------|------|-------|
 | `credentialsEnc/credentialsIv` | `string` | AES-256-GCM encrypted JSON `{access_token, refresh_token, expiry_date}` |
 | `expiresAt` | `datetime` | OAuth2 token expiry — API refreshes before use |
+| `requiresReauthorization` | `boolean` | Persisted connection health flag set after Google returns `invalid_grant`; cleared on successful OAuth reconnect |
 | `lastBackupAt` | `datetime?` | Timestamp of last successful backup for this company |
 
 ---

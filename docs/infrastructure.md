@@ -129,11 +129,13 @@ PostgreSQL backup job behavior:
 
 - waits for PostgreSQL readiness before `pg_dump`
 - writes artifacts locally to `./backups/postgresql`
+- uses `BACKUP_DESTINATION_ROOT` as the canonical remote backup root for PostgreSQL remote publishing only when explicitly set
 - uploads artifacts to remote staging path only when at least one remote is configured
 - verifies remote presence of the full artifact set (`.sql.gz`, `.sha256`, `.manifest.json`) in remote mode
 - promotes verified set into a timestamped final directory in remote mode
 - removes partial remote set on publish failure in remote mode
 - prunes old local artifacts from `./backups/postgresql` using `DB_BACKUP_LOCAL_RETENTION_DAYS`
+- keeps Option A database topology unchanged: one shared PostgreSQL database, with each logical backup containing the whole shared database
 
 Current verification scope is limited to remote file presence. It does not yet prove remote checksum integrity or restoreability.
 
@@ -284,7 +286,8 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 | `DB_BACKUP_RETENTION_DAYS` | `14` | Remote retention period for PostgreSQL backup artifacts |
 | `DB_BACKUP_LOCAL_RETENTION_DAYS` | `14` | Local retention period for artifacts in `./backups/postgresql` |
 | `DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS` | `120` | Max wait for PostgreSQL readiness before backup fails |
-| `DB_BACKUP_REMOTE_BASE_PATH` | `ksiegowy-vibe/backups/postgresql` | Base path on each rclone remote |
+| `BACKUP_DESTINATION_ROOT` | unset | Optional canonical remote backup root shared by company Google Drive file backups and PostgreSQL remote publishing. Set it to opt in PostgreSQL remote publishing to the unified `<root>/postgresql/<environment>/...` layout. |
+| `DB_BACKUP_REMOTE_BASE_PATH` | — | Legacy PostgreSQL remote base path used only when `BACKUP_DESTINATION_ROOT` is unset. |
 | `DB_BACKUP_REMOTE_PRIMARY_NAME` | — | Primary rclone remote name |
 | `DB_BACKUP_REMOTE_SECONDARY_NAME` | — | Secondary rclone remote name (optional) |
 | `DB_BACKUP_RCLONE_CONFIG_PATH` | — | Absolute host path to `rclone.conf` in remote mode. Leave empty in local-only mode to use bundled placeholder config. |
@@ -352,6 +355,15 @@ Invoice-issued Google Drive trigger remains best-effort because it depends on as
 
 Google Drive execution is company-scoped, incremental by `GoogleDriveCredential.lastBackupAt`, and stored under company-specific folders. It is intentionally independent from `FileRecord.backedUpAt` to avoid cross-provider interference with platform iCloud metadata updates.
 
+Canonical remote destination model:
+
+- company Google Drive files: `<BACKUP_DESTINATION_ROOT>/files/<environment>/company-<companyId>/...`
+- PostgreSQL remote artifacts: `<BACKUP_DESTINATION_ROOT>/postgresql/<environment>/<timestamp>/...`
+
+`DB_BACKUP_ENVIRONMENT_NAME` is reused as the `<environment>` path segment source for both flows. Default: `local`.
+
+PostgreSQL backward compatibility rule: when `BACKUP_DESTINATION_ROOT` is unset, PostgreSQL remote publishing stays on legacy `DB_BACKUP_REMOTE_BASE_PATH/<environment>/...` instead of silently migrating to the canonical root.
+
 Backup runs are audited in the `BackupRun` table.
 
 Restore procedures are documented in [File Restore Runbook](./restore-files.md), [PostgreSQL Restore Runbook](./restore-postgresql.md), and [Backup Restore Drill](./backup-restore-drill.md).
@@ -364,11 +376,12 @@ PostgreSQL backups are now handled by a separate one-shot Docker Compose service
 
 - local-only mode writes artifacts to `./backups/postgresql` and skips remote upload
 - remote mode also uploads artifacts through `rclone` to one or two configured remotes
+- Option A keeps one shared PostgreSQL database unchanged, so each PostgreSQL backup remains a full logical dump of the shared database
 
-Each remote backup set is stored in its own timestamped directory under the configured base path, for example:
+Each canonical-root remote backup set is stored in its own timestamped directory under the configured base path, for example:
 
 ```
-<remote>:ksiegowy-vibe/backups/postgresql/production/20260415T031500Z/
+<remote>:ksiegowy-vibe-backups/postgresql/production/20260415T031500Z/
 ```
 
 with files:
@@ -379,6 +392,7 @@ with files:
 
 > Encryption note: this implementation does not cryptographically enforce remote encryption itself. Operators must use encrypted backup destinations (for example `rclone crypt` or provider/storage encryption with strict IAM and private access).
 > Operator note: local-only mode uses a bundled placeholder `rclone.conf` file. Remote mode requires `DB_BACKUP_RCLONE_CONFIG_PATH` to point to a real host `rclone.conf` file.
+> Compatibility note: `BACKUP_DESTINATION_ROOT` is an explicit opt-in for the unified PostgreSQL remote path. When it is unset, the PostgreSQL backup script falls back to legacy `DB_BACKUP_REMOTE_BASE_PATH` instead of silently migrating existing remote destinations.
 
 ## Alerting integration by exit code
 
