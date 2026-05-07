@@ -65,3 +65,4 @@ Capture and store as markdown in your ops workspace or incident system.
 - Freshness check validates local PostgreSQL artifact age and `BackupRun` metadata only.
 - It does not prove remote checksum integrity or full restoreability.
 - Google Drive file backup restore may require manual file-to-path mapping.
+- Option A still uses one shared PostgreSQL database, so drill restores of PostgreSQL always restore the whole shared database, not a company-scoped subset.

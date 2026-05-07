@@ -14,6 +14,7 @@ This guide covers the three development run modes currently supported in this re
 - `pnpm dev` loads variables from `.env` and starts **API + web locally**.
 - `pnpm dev:web` loads variables from `.env` and starts **only web locally**.
 - Container hostnames such as `http://api:3001` and `postgres` work **only inside the Docker network**. Local processes must use `localhost`.
+- `BACKUP_DESTINATION_ROOT` is the canonical remote backup root for company Google Drive file backups. For PostgreSQL remote publishing, setting it is an explicit opt-in to the unified `<root>/postgresql/<environment>/...` layout; when it is unset, legacy `DB_BACKUP_REMOTE_BASE_PATH/<environment>/...` destinations remain in use. It does not change the local PostgreSQL artifact directory, which remains repo `backups/postgresql`.
 - When the API runs locally, set `POSTGRESQL_BACKUP_ARTIFACTS_PATH` to an **absolute path** pointing at the repo backup artifacts directory, for example:
 
 ```bash

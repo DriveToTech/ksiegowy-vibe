@@ -15,6 +15,7 @@ Implemented now:
 - Timestamped PostgreSQL artifacts with checksum and manifest files
 - PostgreSQL local-only mode support when remote names are not configured
 - Upload to one or two optional `rclone` remotes with retention cleanup
+- Canonical backup destination root contract via `BACKUP_DESTINATION_ROOT` shared by company Google Drive file backups and PostgreSQL remote publishing
 - Docker Compose local-only runtime support without requiring custom rclone config path configuration
 - PostgreSQL readiness wait before backup execution
 - Staged remote publishing with remote artifact-set presence verification and cleanup on failure
@@ -45,15 +46,16 @@ Define a backup implementation plan that moves the platform from basic file-sync
    - Scheduling is described as daily at `02:00`.
    - Execution now uses host cron + one-shot service for scheduled company Google Drive policy runs, and API async trigger for invoice-issued runs.
    - Scheduled company Google Drive execution is best-effort per slot and currently has no catch-up semantics.
-   - Google Drive behavior is company-scoped and uses company-specific folders.
+   - Google Drive behavior is company-scoped and uses canonical destination path segments: `<BACKUP_DESTINATION_ROOT>/files/<environment>/company-<companyId>/...`.
 
 2. Current evidence confirms file backup intent, but not full recovery coverage.
    - Repository context states automated Google Drive and iCloud backup exists.
    - The confirmed current state says scheduled company Google Drive runs are host-cron-triggered one-shot jobs, while invoice-issued trigger remains API async best-effort.
 
 3. PostgreSQL backup baseline is now implemented in this slice.
-   - A logical dump flow exists via `backup-postgres` one-shot Docker Compose service.
-   - Point-in-time recovery capability is still not implemented and should not be assumed.
+    - A logical dump flow exists via `backup-postgres` one-shot Docker Compose service.
+    - Option A keeps one shared PostgreSQL database unchanged, so each PostgreSQL backup remains a full logical dump of the whole shared database.
+    - Point-in-time recovery capability is still not implemented and should not be assumed.
 
 4. Restore documentation baseline is now in place.
    - PostgreSQL restore runbook exists in `docs/restore-postgresql.md`.
@@ -74,6 +76,7 @@ Define a backup implementation plan that moves the platform from basic file-sync
    - `GET /companies/:companyId/backup-status` is the preferred indicator-focused read model for the settings UI.
    - `GET/PATCH /companies/:companyId/backup-policy` remains the editable Google Drive company policy API.
    - `GET /companies/:companyId/backup-policy` still includes PostgreSQL freshness fields for compatibility, but that is no longer the preferred status source for settings.
+   - Google Drive credentials now persist a reauthorization-required flag so invalid refresh tokens survive reloads and scheduled runs until the admin reconnects OAuth.
    - Technical backup fields are shown in settings under an advanced details accordion.
    - If status cannot be loaded but policy can, Google Drive policy editing remains available and the PostgreSQL indicator degrades to unavailable.
 
@@ -149,15 +152,19 @@ Notes:
    - Reassess WAL archiving or physical backup only after baseline restore reliability is proven.
 
 4. **Version backup artifacts by timestamp**
-   - Every backup artifact should be uniquely timestamped and traceable to source environment.
-   - Latest-copy-only behavior should be avoided.
+    - Every backup artifact should be uniquely timestamped and traceable to source environment.
+    - Latest-copy-only behavior should be avoided.
 
-5. **Keep dual remote destinations if operationally sustainable**
-   - Google Drive (OAuth/API) and iCloud (local sync or `rclone`, depending on environment) can remain remote targets for file backups if verification is added.
-   - Database backups should use the same or equivalent remote strategy only if operational complexity stays acceptable.
+5. **Use one canonical remote backup root**
+   - `BACKUP_DESTINATION_ROOT` should be the shared top-level destination for both file backups and PostgreSQL backups.
+   - Environment-specific and backup-type-specific segments should be appended below that root.
 
-6. **Treat restore verification as part of the backup system**
-   - Backup is not complete until restore steps are documented and periodically exercised.
+6. **Keep dual remote destinations if operationally sustainable**
+    - Google Drive (OAuth/API) and iCloud (local sync or `rclone`, depending on environment) can remain remote targets for file backups if verification is added.
+    - Database backups should use the same or equivalent remote strategy only if operational complexity stays acceptable.
+
+7. **Treat restore verification as part of the backup system**
+    - Backup is not complete until restore steps are documented and periodically exercised.
 
 ## Proposed Architecture
 
@@ -174,12 +181,13 @@ flowchart TD
     EncryptDatabase --> RemoteA
     EncryptDatabase --> RemoteB
 
-    RemoteA --> Verification[Verify artifact presence and age]
-    RemoteB --> Verification
+    RemoteA --> CanonicalRoot[<BACKUP_DESTINATION_ROOT>/files/<environment>/company-<companyId> or <BACKUP_DESTINATION_ROOT>/postgresql/<environment>/<timestamp>]
+    RemoteB --> CanonicalRoot
+
+    CanonicalRoot --> Verification[Verify artifact presence and age]
     Verification --> Alerts[Alert on failure or stale backup]
 
-    RemoteA --> RestoreDrill[Periodic restore drill environment]
-    RemoteB --> RestoreDrill
+    CanonicalRoot --> RestoreDrill[Periodic restore drill environment]
     RestoreDrill --> Runbook[Update restore runbook and evidence]
 ```
 

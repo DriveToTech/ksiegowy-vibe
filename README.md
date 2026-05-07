@@ -248,7 +248,8 @@ pnpm dev
 | `DB_BACKUP_RETENTION_DAYS` | Remote retention window for PostgreSQL artifacts |
 | `DB_BACKUP_LOCAL_RETENTION_DAYS` | Local retention window for files in `./backups/postgresql` |
 | `DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS` | How long backup job waits for PostgreSQL readiness before failing |
-| `DB_BACKUP_REMOTE_BASE_PATH` | Base remote directory for PostgreSQL artifacts |
+| `BACKUP_DESTINATION_ROOT` | Optional canonical remote backup root shared by Google Drive file backups and PostgreSQL remote publishing; set it to opt in PostgreSQL remote publishing to `<root>/postgresql/<environment>/...` |
+| `DB_BACKUP_REMOTE_BASE_PATH` | Legacy PostgreSQL remote base path used only when `BACKUP_DESTINATION_ROOT` is unset |
 | `DB_BACKUP_REMOTE_PRIMARY_NAME` | Primary rclone remote name for PostgreSQL backups |
 | `DB_BACKUP_REMOTE_SECONDARY_NAME` | Secondary rclone remote name for PostgreSQL backups |
 | `DB_BACKUP_RCLONE_CONFIG_PATH` | Absolute host path to source `rclone.conf` mounted read-only in remote mode; backup container seeds a writable runtime copy from it (leave empty in local-only mode) |
@@ -268,15 +269,29 @@ pnpm dev
 
 This repository now includes a dedicated one-shot Docker Compose service named `backup-postgres` that runs outside the API process.
 
+It runs only as its own manual or externally scheduled job. Starting Docker Compose does not trigger it, and `POST /companies/:companyId/backup-policy/run` does not trigger it. To create PostgreSQL backups, run `docker compose --profile backup run --rm backup-postgres` or schedule that command externally.
+
 - API still runs daily iCloud backup cron and hourly KSeF retry cron.
 - PostgreSQL artifacts are written to `./backups/postgresql` (not `./storage`).
 - In Docker Compose runtime, the API mounts `./backups/postgresql` read-only and reads freshness from `POSTGRESQL_BACKUP_ARTIFACTS_PATH=/app/backups/postgresql`.
+- `BACKUP_DESTINATION_ROOT` is the canonical remote backup root for company Google Drive file backups and for PostgreSQL remote publishing only when you explicitly set it.
 - The backup job waits for PostgreSQL readiness before starting `pg_dump`.
 - Local retention cleanup is applied after each successful run (`DB_BACKUP_LOCAL_RETENTION_DAYS`).
+- Option A keeps one shared PostgreSQL database unchanged. Every PostgreSQL logical backup still contains the whole shared database, not a per-company slice.
 - Each run creates:
   - `postgresql-<environment>-<timestamp>.sql.gz`
   - `postgresql-<environment>-<timestamp>.sql.gz.sha256`
   - `postgresql-<environment>-<timestamp>.manifest.json`
+
+Canonical remote destinations:
+
+- PostgreSQL: `<BACKUP_DESTINATION_ROOT>/postgresql/<environment>/<timestamp>/...`
+- Company Google Drive files: `<BACKUP_DESTINATION_ROOT>/files/<environment>/company-<companyId>/...`
+
+Backward compatibility note:
+
+- when `BACKUP_DESTINATION_ROOT` is unset, PostgreSQL remote publishing stays on legacy `DB_BACKUP_REMOTE_BASE_PATH/<environment>/...`
+- setting `BACKUP_DESTINATION_ROOT` is the explicit opt-in to the unified PostgreSQL remote path
 
 Backup modes:
 
@@ -318,8 +333,10 @@ The job fails fast only when remote upload is configured incorrectly (for exampl
 
 ### Host cron wiring example
 
+Local/host scheduling example only. Docker Compose does not start this job automatically; cron on your developer machine or host must run it explicitly.
+
 ```bash
-# Every day at 03:15 server local time
+# Example local crontab entry: every day at 03:15 host local time
 15 3 * * * cd /path/to/ksiegowy-vibe.pl && docker compose --profile backup run --rm backup-postgres >> /var/log/ksiegowy-postgres-backup.log 2>&1
 ```
 
@@ -334,12 +351,14 @@ If you want **local-only mode**:
 
 If you want **remote mode**:
 - set at least one remote name (`DB_BACKUP_REMOTE_PRIMARY_NAME` and/or `DB_BACKUP_REMOTE_SECONDARY_NAME`)
+- set `BACKUP_DESTINATION_ROOT` to opt in to the unified PostgreSQL remote path, or keep using legacy `DB_BACKUP_REMOTE_BASE_PATH`
 - set `DB_BACKUP_RCLONE_CONFIG_PATH` to an absolute path available on the host
 - set remote retention (`DB_BACKUP_RETENTION_DAYS`)
 - use encrypted backup storage (`rclone crypt` or an encrypted provider/storage class with strict IAM)
 
 > Security note: this slice does not automatically verify whether a configured remote is encrypted. Encryption posture must be enforced by operator configuration.
 > Operator note: in local-only mode, Compose mounts a bundled placeholder config file. In remote mode, `DB_BACKUP_RCLONE_CONFIG_PATH` must point to a real host `rclone.conf` file.
+> Compatibility note: `BACKUP_DESTINATION_ROOT` is the canonical setting. The PostgreSQL backup script falls back to legacy `DB_BACKUP_REMOTE_BASE_PATH` only when `BACKUP_DESTINATION_ROOT` is unset.
 
 ## Scheduled Company Google Drive Backup Job
 
@@ -350,9 +369,9 @@ Scheduled company Google Drive policy execution now runs outside the API process
 - Uses `DATABASE_URL` and `STORAGE_BASE_PATH`
 - Mounts `./storage` as read-only (`/app/storage:ro`)
 
-Manual company backup trigger and invoice-issued trigger are unchanged.
+Manual company Google Drive backup trigger and invoice-issued trigger are unchanged.
 
-- `POST /companies/:companyId/backup-policy/run` still triggers immediate manual backup.
+- `POST /companies/:companyId/backup-policy/run` still triggers immediate company Google Drive file backup only. It does not run the PostgreSQL backup job.
 - Invoice-issued trigger remains async best-effort and can be delayed or skipped during API downtime/restart windows.
 
 ### Host cron wiring example
@@ -387,7 +406,8 @@ Requirement mode defaults to `auto` and follows env-level enablement signals:
 Alert wiring example (host cron):
 
 ```bash
-# Every 30 minutes. Non-zero exit can be captured by cron mail, systemd, or external monitors.
+# Optional local crontab entry: every 30 minutes on the host machine.
+# Non-zero exit can be captured by cron mail, systemd, or external monitors.
 */30 * * * * cd /path/to/ksiegowy-vibe.pl && docker compose --profile backup run --rm verify-backups >> /var/log/ksiegowy-backup-freshness.log 2>&1
 ```
 
@@ -413,12 +433,12 @@ In the web app, this configuration is available in **Dashboard → Ustawienia** 
   - Returns:
     - overall backup status for the settings view
     - read-only platform PostgreSQL status indicator (`FRESH` / `STALE` / `MISSING` / `INCOMPLETE` / `UNAVAILABLE`)
-    - company Google Drive connection and automation summary
+    - company Google Drive connection and automation summary, including `REAUTHORIZATION_REQUIRED` when OAuth consent must be restored
 
 - `GET /companies/:companyId/backup-policy`
   - ADMIN only
   - Returns:
-    - Google Drive connection status for this company
+    - Google Drive connection status for this company, including persisted `requiresReauthorization`
     - company policy (`MANUAL` / `DAILY` / `WEEKLY`, local schedule fields, invoice-issued toggle)
     - read-only platform PostgreSQL backup freshness for compatibility with the existing policy payload
 
@@ -438,7 +458,9 @@ If the status read model cannot be loaded but `backup-policy` still loads, the s
 
 - `POST /companies/:companyId/backup-policy/run`
   - ADMIN only
-  - Triggers immediate company-scoped Google Drive backup (`triggerSource=manual_admin`)
+  - Triggers immediate company-scoped Google Drive file backup only (`triggerSource=manual_admin`)
+  - Does not trigger the separate PostgreSQL backup job
+  - Returns `409` with code `REAUTHORIZATION_REQUIRED` when the stored Google refresh token is no longer valid and the admin must reconnect Google Drive
 
 ### Schedule semantics
 
@@ -471,7 +493,7 @@ pnpm db:seed       # Seed initial data
 
 - The `Wystaw korektę (KOR)` action is available on the outgoing invoice detail view for invoices with `status=ISSUED` and `ksefStatus=ACCEPTED`.
 - Creating the correction opens a new `KOR` draft that keeps a reference to the original invoice number, issue date, and original KSeF reference number.
-- Correction lines use signed adjustment values, so issuing a `KOR` invoice supports negative net, VAT, and gross amounts when reversing the original invoice.
+- Correction lines use signed adjustment values, so issuing and editing a `KOR` draft supports negative net, VAT, and gross amounts when reversing the original invoice.
 - The correction draft then follows the standard flow: issue the correction, then use `Wyślij korektę do KSeF` on the correction detail view.
 - Offline retry uses the same stored correction metadata, so queued KOR submissions can be retried safely.
 

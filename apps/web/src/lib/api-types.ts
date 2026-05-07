@@ -291,6 +291,7 @@ export type CompanyBackupScheduleMode = 'MANUAL' | 'DAILY' | 'WEEKLY';
 
 export interface CompanyGoogleDriveBackupConnection {
   isConnected: boolean;
+  requiresReauthorization: boolean;
   expiresAt: string | null;
   lastBackupAt: string | null;
 }
@@ -347,6 +348,10 @@ export interface CompanyBackupRunResult {
   triggerSource: string;
 }
 
+export type GoogleDriveConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'REAUTHORIZATION_REQUIRED';
+
+export type BackupErrorCode = 'REAUTHORIZATION_REQUIRED';
+
 export interface CompanyBackupStatusReadModel {
   companyId: string;
   evaluatedAt: string;
@@ -364,7 +369,7 @@ export interface CompanyBackupStatusReadModel {
     reasonCode: PlatformPostgresqlBackupReasonCode;
   };
   companyGoogleDrive: {
-    connectionStatus: 'CONNECTED' | 'DISCONNECTED';
+    connectionStatus: GoogleDriveConnectionStatus;
     lastBackupAt: string | null;
     isPolicyAutomationEnabled: boolean;
     summary: string;
