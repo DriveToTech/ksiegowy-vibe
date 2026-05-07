@@ -4,6 +4,10 @@ import path from 'node:path';
 import { createReadStream } from 'node:fs';
 import type { PrismaClient } from '@prisma/client';
 import { encrypt, decrypt } from '@ksiegowy/shared-utils';
+import {
+  buildGoogleDriveCompanyBackupRootPathSegments,
+  validateBackupDestinationPathSegment,
+} from './backup-destination.js';
 import type { BackupProvider, BackupResult } from './provider.js';
 
 const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
@@ -13,6 +17,41 @@ export interface DriveTokens {
   refresh_token: string;
   expiry_date: number;
 }
+
+export class GoogleDriveReauthorizationRequiredError extends Error {
+  readonly code = 'REAUTHORIZATION_REQUIRED' as const;
+
+  constructor(message = 'Google Drive authorization expired. Reconnect Google Drive to continue backups.') {
+    super(message);
+    this.name = 'GoogleDriveReauthorizationRequiredError';
+  }
+}
+
+export const isGoogleDriveReauthorizationRequiredError = (
+  error: unknown
+): error is GoogleDriveReauthorizationRequiredError => {
+  return error instanceof GoogleDriveReauthorizationRequiredError;
+};
+
+const isInvalidGrantError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if (error.message.includes('invalid_grant')) {
+    return true;
+  }
+
+  const errorWithResponse = error as Error & {
+    response?: {
+      data?: {
+        error?: string;
+      };
+    };
+  };
+
+  return errorWithResponse.response?.data?.error === 'invalid_grant';
+};
 
 export const buildPendingCompanyFileRecordFilter = (
   companyId: string,
@@ -59,33 +98,52 @@ export const resolveFilePathForBackup = (
 };
 
 const normalizeRelativePathWithinCompany = (companyId: string, relativePath: string): string => {
-  if (relativePath.startsWith(`${companyId}/`)) {
-    return relativePath.slice(companyId.length + 1);
+  const normalizedRelativePath = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+
+  if (normalizedRelativePath.startsWith(`${companyId}/`)) {
+    return normalizedRelativePath.slice(companyId.length + 1);
   }
 
-  return relativePath;
+  return normalizedRelativePath;
 };
 
 const getDriveFolderPathForFileRecord = (companyId: string, relativePath: string): string[] => {
   const relativePathWithinCompany = normalizeRelativePathWithinCompany(companyId, relativePath);
-  const directoryPath = path.dirname(relativePathWithinCompany);
+  const directoryPath = path.posix.dirname(relativePathWithinCompany);
 
   if (!directoryPath || directoryPath === '.') {
     return [];
   }
 
-  return directoryPath.split('/').filter((segment) => segment.length > 0);
+  return directoryPath
+    .split('/')
+    .filter((segment) => segment.length > 0)
+    .map((pathSegment) => validateBackupDestinationPathSegment(pathSegment, 'Google Drive folder path segment'));
 };
 
 const getDriveFileNameForFileRecord = (companyId: string, relativePath: string, fallbackPath: string): string => {
   const relativePathWithinCompany = normalizeRelativePathWithinCompany(companyId, relativePath);
-  const fileName = path.basename(relativePathWithinCompany);
+  const fileName = path.posix.basename(relativePathWithinCompany);
 
   if (fileName && fileName !== '.') {
-    return fileName;
+    return validateBackupDestinationPathSegment(fileName, 'Google Drive file name');
   }
 
-  return path.basename(fallbackPath);
+  return validateBackupDestinationPathSegment(path.basename(fallbackPath), 'Google Drive file name');
+};
+
+export const resolveGoogleDriveDestinationForFileRecord = (
+  companyId: string,
+  relativePath: string,
+  fallbackPath: string
+): {
+  folderPathSegments: string[];
+  fileName: string;
+} => {
+  return {
+    folderPathSegments: getDriveFolderPathForFileRecord(companyId, relativePath),
+    fileName: getDriveFileNameForFileRecord(companyId, relativePath, fallbackPath),
+  };
 };
 
 interface DriveFolderResolver {
@@ -94,15 +152,18 @@ interface DriveFolderResolver {
 
 const createDriveFolderResolver = (
   drive: ReturnType<typeof google.drive>,
-  companyRootFolderId: string
+  rootFolderId?: string
 ): DriveFolderResolver => {
   const folderIdByPath = new Map<string, string>();
-  folderIdByPath.set('', companyRootFolderId);
+
+  if (rootFolderId) {
+    folderIdByPath.set('', rootFolderId);
+  }
 
   return {
     async getFolderIdForPathSegments(pathSegments: string[]): Promise<string> {
       let currentPathKey = '';
-      let currentParentFolderId = companyRootFolderId;
+      let currentParentFolderId = rootFolderId;
 
       for (const pathSegment of pathSegments) {
         const nextPathKey = currentPathKey ? `${currentPathKey}/${pathSegment}` : pathSegment;
@@ -118,6 +179,10 @@ const createDriveFolderResolver = (
         folderIdByPath.set(nextPathKey, childFolderId);
         currentParentFolderId = childFolderId;
         currentPathKey = nextPathKey;
+      }
+
+      if (!currentParentFolderId) {
+        throw new Error('Google Drive destination path cannot be empty');
       }
 
       return currentParentFolderId;
@@ -177,11 +242,13 @@ export async function exchangeCodeAndStore(
       credentialsEnc: enc,
       credentialsIv: iv,
       expiresAt: new Date(credentials.expiry_date),
+      requiresReauthorization: false,
     },
     update: {
       credentialsEnc: enc,
       credentialsIv: iv,
       expiresAt: new Date(credentials.expiry_date),
+      requiresReauthorization: false,
     },
   });
 }
@@ -222,6 +289,7 @@ export class GDriveBackupProvider implements BackupProvider {
         cred.companyId,
         cred.credentialsEnc,
         cred.credentialsIv,
+        cred.requiresReauthorization,
         cred.lastBackupAt,
         storageBasePath
       );
@@ -237,9 +305,14 @@ export class GDriveBackupProvider implements BackupProvider {
     companyId: string,
     credentialsEnc: string,
     credentialsIv: string,
+    requiresReauthorization: boolean,
     lastBackupAt: Date | null,
     storageBasePath: string
   ): Promise<{ filesCount: number; bytesTotal: number }> {
+    if (requiresReauthorization) {
+      throw new GoogleDriveReauthorizationRequiredError();
+    }
+
     const snapshotCutoff = new Date();
     const json = decrypt(credentialsEnc, credentialsIv, this.encryptionKey);
     const tokens = JSON.parse(json) as DriveTokens;
@@ -252,7 +325,21 @@ export class GDriveBackupProvider implements BackupProvider {
     });
 
     // Auto-refresh the token if expired
-    const { credentials: refreshed } = await oauth2Client.refreshAccessToken();
+    const { credentials: refreshed } = await oauth2Client.refreshAccessToken().catch(async (error: unknown) => {
+      if (!isInvalidGrantError(error)) {
+        throw error;
+      }
+
+      await prisma.googleDriveCredential.update({
+        where: { companyId },
+        data: {
+          requiresReauthorization: true,
+        },
+      });
+
+      throw new GoogleDriveReauthorizationRequiredError();
+    });
+
     if (refreshed.access_token && refreshed.expiry_date) {
       const updated: DriveTokens = {
         access_token: refreshed.access_token,
@@ -266,15 +353,17 @@ export class GDriveBackupProvider implements BackupProvider {
           credentialsEnc: encData,
           credentialsIv: encIv,
           expiresAt: new Date(updated.expiry_date),
+          requiresReauthorization: false,
         },
       });
       oauth2Client.setCredentials(refreshed);
     }
 
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
-    // Find or create root and company folder
-    const rootFolderId = await ensureDriveFolder(drive, 'ksiegowy-backup');
-    const companyFolderId = await ensureDriveFolder(drive, `company-${companyId}`, rootFolderId);
+    const destinationPathResolver = createDriveFolderResolver(drive);
+    const companyFolderId = await destinationPathResolver.getFolderIdForPathSegments(
+      buildGoogleDriveCompanyBackupRootPathSegments(companyId)
+    );
     const folderResolver = createDriveFolderResolver(drive, companyFolderId);
 
     // Get files created after last successful Google Drive backup for this company.
@@ -335,9 +424,13 @@ export class GDriveBackupProvider implements BackupProvider {
     let bytesTotal = 0;
 
     for (const fileToUpload of filesToUpload) {
-      const folderPathSegments = getDriveFolderPathForFileRecord(companyId, fileToUpload.relativePath);
-      const targetFolderId = await folderResolver.getFolderIdForPathSegments(folderPathSegments);
-      const targetFileName = getDriveFileNameForFileRecord(companyId, fileToUpload.relativePath, fileToUpload.absolutePath);
+      const googleDriveDestination = resolveGoogleDriveDestinationForFileRecord(
+        companyId,
+        fileToUpload.relativePath,
+        fileToUpload.absolutePath
+      );
+      const targetFolderId = await folderResolver.getFolderIdForPathSegments(googleDriveDestination.folderPathSegments);
+      const targetFileName = googleDriveDestination.fileName;
 
       await drive.files.create({
         requestBody: {

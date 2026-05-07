@@ -70,6 +70,7 @@ export default function EditInvoiceForm({
   contractorRates?: ContractorServiceRate[];
 }) {
   const router = useRouter();
+  const allowsNegativeUnitNetPrice = invoice.invoiceType === 'KOR';
 
   const [contractorId, setContractorId] = useState(invoice.contractorId ?? contractors[0]?.id ?? '');
   const [issueDate, setIssueDate] = useState(invoice.issueDate);
@@ -326,7 +327,7 @@ export default function EditInvoiceForm({
                         type="number"
                         aria-label="Cena netto"
                         value={line.unitNetPrice}
-                        min="0"
+                        min={allowsNegativeUnitNetPrice ? undefined : '0'}
                         step="0.01"
                         onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
                         placeholder="0,00"
@@ -457,7 +458,7 @@ export default function EditInvoiceForm({
                         type="number"
                         aria-label="Cena netto"
                         value={line.unitNetPrice}
-                        min="0"
+                        min={allowsNegativeUnitNetPrice ? undefined : '0'}
                         step="0.01"
                         onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
                         placeholder="0,00"

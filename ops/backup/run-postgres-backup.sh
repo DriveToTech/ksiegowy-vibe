@@ -18,12 +18,37 @@ backup_environment_name="${DB_BACKUP_ENVIRONMENT_NAME:-local}"
 backup_retention_days="${DB_BACKUP_RETENTION_DAYS:-14}"
 backup_local_retention_days="${DB_BACKUP_LOCAL_RETENTION_DAYS:-14}"
 postgres_ready_timeout_seconds="${DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS:-120}"
-backup_remote_base_path="${DB_BACKUP_REMOTE_BASE_PATH:-ksiegowy-vibe/backups/postgresql}"
+legacy_backup_remote_base_path="${DB_BACKUP_REMOTE_BASE_PATH:-}"
 backup_remote_primary_name="${DB_BACKUP_REMOTE_PRIMARY_NAME:-}"
 backup_remote_secondary_name="${DB_BACKUP_REMOTE_SECONDARY_NAME:-}"
 rclone_config_path="${DB_BACKUP_RCLONE_CONFIG_PATH:-/tmp/rclone-runtime/rclone.conf}"
 rclone_source_config_path="${DB_BACKUP_RCLONE_SOURCE_CONFIG_PATH:-/tmp/rclone-source/rclone.conf}"
 backup_output_directory="/backup-output"
+
+validate_backup_destination_path_segment() {
+  local path_segment="$1"
+  local segment_label="$2"
+
+  if [[ -z "${path_segment}" ]]; then
+    echo "[backup-postgres] ${segment_label} cannot be empty."
+    exit 1
+  fi
+
+  if [[ "${path_segment}" == "." || "${path_segment}" == ".." ]]; then
+    echo "[backup-postgres] ${segment_label} cannot be \".\" or \"..\"."
+    exit 1
+  fi
+
+  if [[ "${path_segment}" == *"/"* || "${path_segment}" == *\\* ]]; then
+    echo "[backup-postgres] ${segment_label} cannot contain path separators."
+    exit 1
+  fi
+
+  if [[ "${path_segment}" =~ [[:cntrl:]] ]]; then
+    echo "[backup-postgres] ${segment_label} cannot contain control characters."
+    exit 1
+  fi
+}
 
 remote_upload_enabled="false"
 
@@ -126,7 +151,22 @@ cat <<EOF > "${manifest_file_path}"
 }
 EOF
 
-backup_destination_path="${backup_remote_base_path}/${backup_environment_name}"
+backup_destination_path=""
+
+if [[ -n "${BACKUP_DESTINATION_ROOT:-}" ]]; then
+  validate_backup_destination_path_segment "${BACKUP_DESTINATION_ROOT}" "BACKUP_DESTINATION_ROOT"
+  validate_backup_destination_path_segment "${backup_environment_name}" "DB_BACKUP_ENVIRONMENT_NAME"
+  backup_destination_path="${BACKUP_DESTINATION_ROOT}/postgresql/${backup_environment_name}"
+elif [[ -n "${legacy_backup_remote_base_path}" ]]; then
+  backup_destination_path="${legacy_backup_remote_base_path}/${backup_environment_name}"
+  echo "[backup-postgres] BACKUP_DESTINATION_ROOT is not set. Falling back to legacy DB_BACKUP_REMOTE_BASE_PATH=${legacy_backup_remote_base_path}. BACKUP_DESTINATION_ROOT takes precedence when both are set."
+fi
+
+if [[ "${remote_upload_enabled}" == "true" && -z "${backup_destination_path}" ]]; then
+  echo "[backup-postgres] Remote upload requires BACKUP_DESTINATION_ROOT for the canonical destination layout, or legacy DB_BACKUP_REMOTE_BASE_PATH for backward-compatible PostgreSQL destinations."
+  exit 1
+fi
+
 artifact_file_names=("${backup_file_name}" "${checksum_file_name}" "${manifest_file_name}")
 
 verify_remote_artifact_set() {

@@ -21,7 +21,25 @@ import type {
   ServiceTemplate,
 } from './api-types';
 
+export class ApiClientError extends Error {
+  statusCode: number;
+  code?: string;
+
+  constructor(message: string, statusCode: number, code?: string) {
+    super(message);
+    this.name = 'ApiClientError';
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+}
+
+interface ApiClientErrorResponseBody {
+  message?: unknown;
+  code?: unknown;
+}
+
 export type {
+  BackupErrorCode,
   CompanyBackupRunResult,
   CompanyBackupScheduleMode,
   CompanyBackupSettings,
@@ -62,15 +80,21 @@ export async function clientFetch<T>(path: string, options?: RequestInit): Promi
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     let message = body;
+    let code: string | undefined;
+
     try {
-      const parsed = JSON.parse(body) as { message?: unknown };
+      const parsed = JSON.parse(body) as ApiClientErrorResponseBody;
       if (typeof parsed.message === 'string' && parsed.message.length > 0) {
         message = parsed.message;
+      }
+      if (typeof parsed.code === 'string' && parsed.code.length > 0) {
+        code = parsed.code;
       }
     } catch {
       // not JSON — use raw body
     }
-    throw new Error(message || `Request failed with status ${response.status}`);
+
+    throw new ApiClientError(message || `Request failed with status ${response.status}`, response.status, code);
   }
 
   if (response.status === 204) return undefined as T;

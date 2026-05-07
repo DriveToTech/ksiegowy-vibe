@@ -148,18 +148,31 @@ After setting `GDRIVE_CLIENT_ID`, `GDRIVE_CLIENT_SECRET`, `GDRIVE_REDIRECT_URI`,
 6. Confirm the callback returns successfully and the company shows Google Drive as connected
 7. Run a **manual backup**
 8. Verify that:
-   - the run completes successfully in the app
-   - a `BackupRun` entry is recorded
-   - files appear in the expected Google Drive folder structure:
+    - the run completes successfully in the app
+    - a `BackupRun` entry is recorded
+    - files appear in the expected Google Drive folder structure:
 
 ```text
-ksiegowy-backup/
-└── company-<companyId>/
-    ├── invoices/
-    └── incoming/
+<BACKUP_DESTINATION_ROOT>/
+└── files/
+    └── <environment>/
+        └── company-<companyId>/
+            ├── invoices/
+            └── incoming/
 ```
 
+Canonical layout example:
+
+- `BACKUP_DESTINATION_ROOT=ksiegowy-vibe-backups`
+- `<environment>` comes from `DB_BACKUP_ENVIRONMENT_NAME` and defaults to `local`
+
+For PostgreSQL remote publishing, this canonical root is an explicit opt-in. When `BACKUP_DESTINATION_ROOT` is unset, PostgreSQL keeps using legacy `DB_BACKUP_REMOTE_BASE_PATH/<environment>/...` destinations.
+
 For restore steps, see [File Backup Restore Runbook](./restore-files.md).
+
+If Google later revokes the refresh token or the consent becomes invalid, the API persists a **reauthorization required** state after the next failed token refresh (`invalid_grant`). That state is exposed by the company backup settings/status endpoints and is cleared automatically after the admin completes `/backup/gdrive/connect` again.
+
+In **Dashboard → Ustawienia**, this state is shown separately from a normal disconnected account. The UI keeps the existing connect flow, but changes the action copy to a reconnect prompt and surfaces the same reconnect link after a manual backup fails with a reauthorization-required error.
 
 If authorization fails, check:
 

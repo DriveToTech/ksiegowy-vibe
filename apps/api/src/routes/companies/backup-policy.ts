@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { CompanyBackupScheduleMode } from '@prisma/client';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
+import { isGoogleDriveReauthorizationRequiredError } from '../../services/backup/gdrive.js';
 import {
   getCompanyGoogleDriveBackupSettings,
   runCompanyGoogleDriveBackup,
@@ -86,15 +87,28 @@ const companyBackupSettingsSchema = {
       additionalProperties: false,
       properties: {
         isConnected: { type: 'boolean' },
+        requiresReauthorization: { type: 'boolean' },
         expiresAt: { type: ['string', 'null'], format: 'date-time' },
         lastBackupAt: { type: ['string', 'null'], format: 'date-time' },
       },
-      required: ['isConnected', 'expiresAt', 'lastBackupAt'],
+      required: ['isConnected', 'requiresReauthorization', 'expiresAt', 'lastBackupAt'],
     },
     policy: backupPolicySchema,
     platformPostgresqlBackupFreshness: platformPostgresqlBackupFreshnessSchema,
   },
   required: ['companyId', 'provider', 'googleDrive', 'policy', 'platformPostgresqlBackupFreshness'],
+} as const;
+
+const backupRunErrorResponseSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    statusCode: { type: 'integer' },
+    error: { type: 'string' },
+    message: { type: 'string' },
+    code: { type: 'string', enum: ['REAUTHORIZATION_REQUIRED'] },
+  },
+  required: ['statusCode', 'error', 'message', 'code'],
 } as const;
 
 const updateCompanyBackupPolicyBodySchema = {
@@ -201,10 +215,11 @@ export const companyBackupPolicyRoutes: FastifyPluginAsync = async (fastify): Pr
         params: companyIdParamsSchema,
         response: {
           200: companyBackupRunResponseSchema,
+          409: backupRunErrorResponseSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const user = request.user as AccessTokenPayload;
       const { companyId } = request.params;
       assertCompanyAdministrator(user, companyId, fastify);
@@ -216,6 +231,15 @@ export const companyBackupPolicyRoutes: FastifyPluginAsync = async (fastify): Pr
         companyId,
         'manual_admin'
       ).catch((error: unknown) => {
+        if (isGoogleDriveReauthorizationRequiredError(error)) {
+          return reply.code(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: error.message,
+            code: error.code,
+          });
+        }
+
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('No Google Drive credentials found')) {
           throw fastify.httpErrors.badRequest('Google Drive is not connected for this company');
