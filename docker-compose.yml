@@ -46,7 +46,7 @@ services:
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
     volumes:
       - ./storage:/app/storage
-      - ./backups/postgresql:/app/backups/postgresql:ro
+      - ${DB_BACKUP_LOCAL_PATH:-./backups/postgresql}:/app/backups/postgresql:ro
 
   web:
     build:
@@ -93,9 +93,55 @@ services:
       DB_BACKUP_RCLONE_CONFIG_PATH: /tmp/rclone-runtime/rclone.conf
       DB_BACKUP_RCLONE_SOURCE_CONFIG_PATH: /tmp/rclone-source/rclone.conf
     volumes:
-      - ./backups/postgresql:/backup-output
+      - ${DB_BACKUP_LOCAL_PATH:-./backups/postgresql}:/backup-output
       - ${DB_BACKUP_RCLONE_CONFIG_PATH:-./ops/backup/rclone/rclone.conf}:/tmp/rclone-source/rclone.conf:ro
       - backup_postgres_rclone_runtime:/tmp/rclone-runtime
+
+  download-postgres-backup:
+    build:
+      context: .
+      dockerfile: ops/backup/Dockerfile
+    restart: 'no'
+    profiles:
+      - backup
+    entrypoint: ["/usr/local/bin/download-postgres-backup.sh"]
+    env_file: .env
+    environment:
+      DB_BACKUP_ENVIRONMENT_NAME: ${DB_BACKUP_ENVIRONMENT_NAME:-production}
+      BACKUP_DESTINATION_ROOT: ${BACKUP_DESTINATION_ROOT:-ksiegowy-vibe-backups}
+      DB_BACKUP_REMOTE_PRIMARY_NAME: ${DB_BACKUP_REMOTE_PRIMARY_NAME:-}
+      DB_BACKUP_RCLONE_CONFIG_PATH: /tmp/rclone-runtime/rclone.conf
+      DB_BACKUP_RCLONE_SOURCE_CONFIG_PATH: /tmp/rclone-source/rclone.conf
+    volumes:
+      - ${DB_BACKUP_LOCAL_PATH:-./backups/postgresql}:/backup-output
+      - ${DB_BACKUP_RCLONE_CONFIG_PATH:-./ops/backup/rclone/rclone.conf}:/tmp/rclone-source/rclone.conf:ro
+      - backup_postgres_rclone_runtime:/tmp/rclone-runtime
+
+  restore-postgres:
+    build:
+      context: .
+      dockerfile: ops/backup/Dockerfile
+    restart: 'no'
+    profiles:
+      - backup
+    entrypoint: ["/usr/local/bin/run-postgres-restore.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-ksiegowy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-ksiegowy_dev}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      DB_RESTORE_ENVIRONMENT_NAME: ${DB_RESTORE_ENVIRONMENT_NAME:-production}
+      DB_RESTORE_ARTIFACT_NAME: ${DB_RESTORE_ARTIFACT_NAME:-}
+      DB_RESTORE_CONFIRMED: ${DB_RESTORE_CONFIRMED:-}
+      DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS: ${DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS:-120}
+    volumes:
+      - ${DB_BACKUP_LOCAL_PATH:-./backups/postgresql}:/backup-output:ro
 
   backup-gdrive-scheduled:
     build:
@@ -146,7 +192,7 @@ services:
       BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS: ${BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS:-30}
     entrypoint: ["/usr/local/bin/check-backup-freshness.sh"]
     volumes:
-      - ./backups/postgresql:/backup-output
+      - ${DB_BACKUP_LOCAL_PATH:-./backups/postgresql}:/backup-output
 
 volumes:
   postgres_data:

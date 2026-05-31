@@ -323,7 +323,47 @@ flowchart LR
 docker compose --profile backup run --rm backup-postgres
 ```
 
+#### Quick commands
+
+```bash
+# Production — backs up and uploads to Google Drive
+pnpm backup:postgres
+
+# Local test — runs the full pipeline but skips remote upload
+pnpm backup:postgres:local
+```
+
+> **Note:** If you update your host rclone config after the first backup run (e.g. add a remote or re-authenticate), remove the cached volume first so the container picks up the new config:
+> ```bash
+> docker volume rm ksiegowy-vibe-pl_backup_postgres_rclone_runtime
+> ```
+
 The job does **not** require remotes in local-only mode.
+
+### PostgreSQL Restore
+
+Full restore workflow: download from Google Drive → inspect → restore.
+
+```bash
+# 1. Download latest backup from Google Drive to local artifacts folder
+pnpm backup:postgres:download
+
+# 2. Inspect what was downloaded
+ls -lh backups/postgresql/
+
+# 3. Stop the API, restore, start API
+docker compose stop api
+DB_RESTORE_CONFIRMED=yes pnpm restore:postgres
+docker compose start api
+```
+
+To restore a specific artifact instead of the latest:
+
+```bash
+DB_RESTORE_CONFIRMED=yes DB_RESTORE_ARTIFACT_NAME=postgresql-production-20260531T201833Z.sql.gz pnpm restore:postgres
+```
+
+See [`docs/restore-postgresql.md`](docs/restore-postgresql.md) for the full runbook including manual fallback steps.
 
 Docker Compose backup profile ships with a local placeholder rclone config file, so local-only mode runs without configuring `DB_BACKUP_RCLONE_CONFIG_PATH`.
 
