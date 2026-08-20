@@ -22,11 +22,11 @@ export function PageHeader({
         {eyebrow ? (
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{eyebrow}</p>
         ) : null}
-        <div className="space-y-2 lg:pl-8">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:max-w-[14ch]">
+        <div className="space-y-2">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {title}
           </h1>
-          {description ? <p className="max-w-2xl text-sm text-muted sm:text-base lg:ml-10">{description}</p> : null}
+          {description ? <p className="max-w-2xl text-sm text-muted sm:text-base">{description}</p> : null}
         </div>
       </div>
       {actions ? <div className="flex flex-wrap gap-3 lg:justify-end lg:pt-6">{actions}</div> : null}

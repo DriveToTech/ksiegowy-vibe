@@ -78,14 +78,14 @@ export function DashboardShell({ children, companies, activeCompanyId, activeKse
             </div>
           </Surface>
 
-          <div className={cn('min-w-0 space-y-8 pt-2 lg:pl-4 xl:pl-10')}>{children}</div>
+          <div className={cn('min-w-0 space-y-8 pt-2')}>{children}</div>
         </div>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4 lg:hidden">
         <nav
           aria-label="Mobilna nawigacja dashboardu"
-          className="mx-auto grid max-w-xl grid-cols-5 gap-2 rounded-full border border-outline/15 bg-surface-panel/55 p-2 backdrop-blur-[28px]"
+          className="mx-auto grid max-w-xl grid-cols-5 gap-2 rounded-full border border-outline bg-surface-panel/55 p-2 backdrop-blur-[28px]"
         >
           <DashboardNavigation items={navigationItems} mobile />
         </nav>

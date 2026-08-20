@@ -73,13 +73,13 @@ export default function EditInvoiceForm({
     setError(null);
 
     if (!contractorId) {
-      setError('Wybierz kontrahenta.');
+      setError(t.newInvoice.contractorRequiredError);
       return;
     }
 
     const validLines = lines.filter((l) => l.name.trim() && l.unitNetPrice.trim());
     if (validLines.length === 0) {
-      setError('Dodaj co najmniej jedną pozycję faktury.');
+      setError(t.newInvoice.lineItemRequiredError);
       return;
     }
 
@@ -89,7 +89,7 @@ export default function EditInvoiceForm({
       unitNetPriceValue: parseDecimalValue(l.unitNetPrice),
     }));
     if (parsedLines.some((l) => l.quantityValue === null || l.unitNetPriceValue === null)) {
-      setError('Nieprawidłowa wartość liczbowa w ilości lub cenie pozycji faktury.');
+      setError(t.newInvoice.invalidLineNumberError);
       return;
     }
 
@@ -112,7 +112,7 @@ export default function EditInvoiceForm({
     })
       .then(() => router.push(`/dashboard/invoices/${invoice.id}`))
       .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Nieznany błąd podczas zapisu.');
+        setError(err instanceof Error ? err.message : t.newInvoice.unknownSaveError);
         setSubmitting(false);
       });
   };
@@ -143,17 +143,17 @@ export default function EditInvoiceForm({
             />
           </FormField>
 
-          <FormField label="Kontrahent" htmlFor="contractorId" required>
+          <FormField label={t.newInvoice.contractorLabel} htmlFor="contractorId" required>
             <Select
               id="contractorId"
               value={contractorId}
               onChange={(e) => setContractorId(e.target.value)}
               required
             >
-              <option value="">— wybierz kontrahenta —</option>
+              <option value="">{t.newInvoice.contractorPlaceholder}</option>
               {contractors.map((contractor) => (
                 <option key={contractor.id} value={contractor.id}>
-                  {contractor.name} ({contractor.nip ?? 'brak NIP'})
+                  {contractor.name} ({contractor.nip ?? t.newInvoice.noNipFallback})
                 </option>
               ))}
             </Select>
@@ -164,7 +164,7 @@ export default function EditInvoiceForm({
           <div className="rounded-[1rem] border border-outline/30 bg-surface-raised/30 px-4 py-2.5 text-sm">
             <span className="font-medium text-foreground">{selectedContractor.name}</span>
             {selectedContractor.nip ? (
-              <span className="ml-3 text-muted">NIP: {selectedContractor.nip}</span>
+              <span className="ml-3 text-muted">{t.invoiceDetail.fields.nip}: {selectedContractor.nip}</span>
             ) : null}
           </div>
         ) : null}
@@ -173,7 +173,7 @@ export default function EditInvoiceForm({
       {/* ── Section 2: Pozycje faktury ─────────────────────────────────────── */}
       <Surface tone="glass" shape="organic" className="space-y-5 p-6">
         <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-          Pozycje faktury
+          {t.invoiceDetail.sections.lineItemsTitle}
         </h2>
 
         <InvoiceLineItemsEditor
@@ -189,21 +189,21 @@ export default function EditInvoiceForm({
       <div className="grid gap-6 md:grid-cols-2">
         <Surface tone="glass" shape="organic" className="space-y-4 p-6">
           <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">
-            Szczegóły płatności
+            {t.newInvoice.paymentDetailsTitle}
           </h2>
 
-          <FormField label="Forma płatności" htmlFor="paymentMethod">
+          <FormField label={t.invoiceDetail.fields.paymentMethod} htmlFor="paymentMethod">
             <Select
               id="paymentMethod"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value as 'BANK_TRANSFER' | 'CASH')}
             >
-              <option value="BANK_TRANSFER">Przelew</option>
-              <option value="CASH">Gotówka</option>
+              <option value="BANK_TRANSFER">{t.invoiceDetail.paymentMethods.BANK_TRANSFER}</option>
+              <option value="CASH">{t.invoiceDetail.paymentMethods.CASH}</option>
             </Select>
           </FormField>
 
-          <FormField label="Termin płatności" htmlFor="paymentDueDate" required>
+          <FormField label={t.invoiceDetail.fields.paymentDueDate} htmlFor="paymentDueDate" required>
             <Input
               id="paymentDueDate"
               type="date"
@@ -216,7 +216,7 @@ export default function EditInvoiceForm({
 
         <Surface tone="glass" shape="organic" className="p-6">
           <h2 className="mb-4 font-display text-xl font-semibold tracking-tight text-foreground">
-            Podsumowanie
+            {t.newInvoice.summaryTitle}
           </h2>
           <VatBreakdownTable lines={lines} totals={totals} />
         </Surface>
@@ -226,18 +226,18 @@ export default function EditInvoiceForm({
       <Surface tone="glass" shape="organic" className="space-y-3 p-6">
         <div>
           <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">
-            Uwagi do faktury
+            {t.newInvoice.notesTitle}
           </h2>
           <p className="mt-1 text-sm text-muted">
-            Treść uwag zostanie wydrukowana na fakturze PDF.{' '}
-            <span className="font-medium text-foreground">Nie jest przesyłana do KSeF.</span>
+            {t.newInvoice.notesPdfHint}{' '}
+            <span className="font-medium text-foreground">{t.newInvoice.notesKsefHint}</span>
           </p>
         </div>
         <Textarea
           id="notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Opcjonalne uwagi, warunki, informacje dodatkowe…"
+          placeholder={t.newInvoice.notesPlaceholder}
           rows={4}
         />
       </Surface>
@@ -245,13 +245,13 @@ export default function EditInvoiceForm({
       {/* ── Actions ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4">
         <Button type="submit" size="lg" disabled={submitting}>
-          {submitting ? 'Zapisywanie…' : 'Zapisz zmiany'}
+          {submitting ? t.newInvoice.savingButton : t.newInvoice.saveChangesButton}
         </Button>
         <Link
           href={`/dashboard/invoices/${invoice.id}`}
           className="text-sm font-medium text-muted transition hover:text-foreground"
         >
-          Anuluj
+          {t.newInvoice.cancelButton}
         </Link>
       </div>
     </form>

@@ -10,16 +10,16 @@ interface IncomingInvoicesTableProps {
 export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) {
   return (
     <>
-      <Surface tone="glass" shape="organic" className="hidden overflow-hidden lg:block">
+      <Surface tone="glass" shape="default" className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto px-3 py-3">
-          <table className="min-w-full border-collapse text-sm">
-            <thead className="text-left text-muted">
+          <table className="min-w-full border-separate border-spacing-y-2 text-sm">
+            <thead className="sticky top-0 z-10 bg-surface-panel text-left text-muted">
               <tr>
                 <HeaderCell>Sprzedawca</HeaderCell>
-                <HeaderCell>NIP</HeaderCell>
+                <HeaderCell className="hidden 2xl:table-cell">NIP</HeaderCell>
                 <HeaderCell>Nr faktury</HeaderCell>
-                <HeaderCell>Środowisko</HeaderCell>
-                <HeaderCell>Nr ref. KSeF</HeaderCell>
+                <HeaderCell className="hidden xl:table-cell">Środowisko</HeaderCell>
+                <HeaderCell className="hidden xl:table-cell">Nr ref. KSeF</HeaderCell>
                 <HeaderCell>Data</HeaderCell>
                 <HeaderCell className="text-right">Kwota brutto</HeaderCell>
                 <HeaderCell>Status</HeaderCell>
@@ -28,12 +28,12 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
             </thead>
             <tbody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id} className="border-b-[10px] border-transparent bg-transparent transition hover:bg-surface-raised/32">
+                <tr key={invoice.id} className="bg-transparent transition hover:bg-surface-raised/32">
                   <BodyCell>{invoice.sellerName ?? '—'}</BodyCell>
-                  <BodyCell>{invoice.sellerNip ?? '—'}</BodyCell>
+                  <BodyCell className="hidden 2xl:table-cell">{invoice.sellerNip ?? '—'}</BodyCell>
                   <BodyCell>{invoice.invoiceNumber ?? '—'}</BodyCell>
-                  <BodyCell><InvoiceEnvironmentChip environment={invoice.environment} /></BodyCell>
-                  <BodyCell><span className="block max-w-[200px] truncate font-mono text-xs text-muted" title={invoice.ksefReference ?? undefined}>{invoice.ksefReference ?? '—'}</span></BodyCell>
+                  <BodyCell className="hidden xl:table-cell"><InvoiceEnvironmentChip environment={invoice.environment} /></BodyCell>
+                  <BodyCell className="hidden xl:table-cell"><span className="block max-w-[200px] truncate font-mono text-xs text-muted" title={invoice.ksefReference ?? undefined}>{invoice.ksefReference ?? '—'}</span></BodyCell>
                   <BodyCell>{invoice.issueDate ?? '—'}</BodyCell>
                   <BodyCell className="text-right tabular-nums">
                     {invoice.totalGross ? `${invoice.totalGross} ${invoice.currency ?? 'PLN'}` : '—'}
@@ -44,7 +44,7 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
                   <BodyCell>
                     <Link
                       href={`/dashboard/incoming/${invoice.id}`}
-                      className="text-sm font-semibold text-primary-strong transition hover:text-primary"
+                      className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-strong transition hover:text-primary"
                     >
                       Przeglądaj
                     </Link>
@@ -103,11 +103,11 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
 }
 
 function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] ${className}`}>{children}</th>;
+  return <th className={`px-3 py-3 text-xs font-semibold uppercase tracking-[0.06em] ${className}`}>{children}</th>;
 }
 
 function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-5 py-4 align-middle text-foreground ${className}`}>{children}</td>;
+  return <td className={`px-3 py-4 align-middle text-foreground ${className}`}>{children}</td>;
 }
 
 function DetailItem({

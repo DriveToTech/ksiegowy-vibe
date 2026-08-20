@@ -29,7 +29,7 @@ export function Surface({
 }: SurfaceProps) {
   return (
     <div
-      className={cn('border border-outline/15', shapeClasses[shape], toneClasses[tone], className)}
+      className={cn('border border-outline', shapeClasses[shape], toneClasses[tone], className)}
       {...props}
     >
       {children}

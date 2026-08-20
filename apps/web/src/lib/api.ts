@@ -129,14 +129,12 @@ export async function getContractor(companyId: string, contractorId: string): Pr
 export async function getInvoices(
   companyId: string,
   params?: Record<string, string>,
-): Promise<InvoiceSummary[]> {
+): Promise<{ data: InvoiceSummary[]; total: number; page: number; limit: number }> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   const activeKsefEnvironment = await getActiveKsefEnvironment();
-  const data = await apiFetch<{ data: InvoiceSummary[]; total: number; page: number; limit: number }>(
-    `/companies/${companyId}/invoices${qs}`,
-    { headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment } },
-  );
-  return data.data;
+  return apiFetch(`/companies/${companyId}/invoices${qs}`, {
+    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
+  });
 }
 
 export async function getInvoice(companyId: string, invoiceId: string): Promise<InvoiceDetail> {

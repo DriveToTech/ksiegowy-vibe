@@ -136,7 +136,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   value={dateFrom}
                   max={dateTo}
                   onChange={(event) => setDateFrom(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
 
@@ -151,7 +151,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   min={dateFrom}
                   max={today()}
                   onChange={(event) => setDateTo(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
             </div>
             </div>
