@@ -3,7 +3,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useCallback } from 'react';
 import type { ContractorServiceRate, ServiceTemplate, VatRate } from '../../lib/api-types';
-import { formatMoney } from '../../lib/format';
+import { formatMoney, parseDecimalValue } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
@@ -41,8 +41,8 @@ export function vatMultiplier(rate: VatRate): number {
 }
 
 export function calcLine(line: LineItem): { net: number; vat: number; gross: number } {
-  const qty = parseFloat(line.quantity) || 0;
-  const price = parseFloat(line.unitNetPrice) || 0;
+  const qty = parseDecimalValue(line.quantity) ?? 0;
+  const price = parseDecimalValue(line.unitNetPrice) ?? 0;
   const net = Math.round(qty * price * 100) / 100;
   const vat = Math.round(net * vatMultiplier(line.vatRate) * 100) / 100;
   return { net, vat, gross: Math.round((net + vat) * 100) / 100 };
@@ -54,7 +54,6 @@ interface InvoiceLineItemsEditorProps {
   serviceTemplates?: ServiceTemplate[];
   contractorRates?: ContractorServiceRate[];
   contractorId: string;
-  allowsNegativeUnitNetPrice?: boolean;
 }
 
 export function InvoiceLineItemsEditor({
@@ -63,7 +62,6 @@ export function InvoiceLineItemsEditor({
   serviceTemplates = [],
   contractorRates = [],
   contractorId,
-  allowsNegativeUnitNetPrice = false,
 }: InvoiceLineItemsEditorProps) {
   const updateLine = useCallback(
     (index: number, field: keyof LineItem, value: string) => {
@@ -108,7 +106,7 @@ export function InvoiceLineItemsEditor({
   return (
     <>
       {/* Desktop table */}
-      <div className="hidden lg:block">
+      <div className="hidden xl:block">
         {serviceTemplates.length > 0 ? (
           <p className="mb-3 text-xs text-muted">
             {t.newInvoice.catalogPickerButton}:
@@ -116,13 +114,12 @@ export function InvoiceLineItemsEditor({
         ) : null}
         <table className="w-full table-fixed text-sm">
           <colgroup>
-            <col style={{ width: '29%' }} />
-            <col style={{ width: '7%' }} />
+            <col style={{ width: '24%' }} />
+            <col style={{ width: '11%' }} />
             <col style={{ width: '8%' }} />
-            <col style={{ width: '12%' }} />
+            <col style={{ width: '15%' }} />
             <col style={{ width: '13%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '12%' }} />
+            <col style={{ width: '22%' }} />
             <col style={{ width: '7%' }} />
           </colgroup>
           <thead>
@@ -132,14 +129,13 @@ export function InvoiceLineItemsEditor({
               <th className="pb-3 pl-2 text-left">J.m.</th>
               <th className="pb-3 text-right">Cena netto</th>
               <th className="pb-3 pl-2 text-left">Stawka VAT</th>
-              <th className="pb-3 text-right">Wartość netto</th>
               <th className="pb-3 text-right">Wartość brutto</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {lines.map((line, index) => {
-              const { net, gross } = calcLine(line);
+              const { gross } = calcLine(line);
               return (
                 <tr key={index} className="align-middle">
                   <td className="py-1 pr-1">
@@ -166,13 +162,12 @@ export function InvoiceLineItemsEditor({
                   </td>
                   <td className="px-1 py-1">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       aria-label="Ilość"
                       value={line.quantity}
-                      min="0"
-                      step="any"
                       onChange={(e) => updateLine(index, 'quantity', e.target.value)}
-                      className="text-right tabular-nums"
+                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </td>
                   <td className="px-1 py-1">
@@ -185,14 +180,13 @@ export function InvoiceLineItemsEditor({
                   </td>
                   <td className="px-1 py-1">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       aria-label="Cena netto"
                       value={line.unitNetPrice}
-                      min={allowsNegativeUnitNetPrice ? undefined : '0'}
-                      step="0.01"
                       onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
                       placeholder="0,00"
-                      className="text-right tabular-nums"
+                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </td>
                   <td className="px-1 py-1">
@@ -207,11 +201,6 @@ export function InvoiceLineItemsEditor({
                         </option>
                       ))}
                     </Select>
-                  </td>
-                  <td className="px-1 py-1">
-                    <div className="flex h-11 w-full items-center justify-end rounded-[1rem] border border-outline bg-surface-raised/30 px-3 tabular-nums text-muted">
-                      {formatMoney(net)}
-                    </div>
                   </td>
                   <td className="px-1 py-1">
                     <div className="flex h-11 w-full items-center justify-end rounded-[1rem] border border-outline bg-surface-raised/30 px-3 font-semibold tabular-nums text-foreground">
@@ -249,7 +238,7 @@ export function InvoiceLineItemsEditor({
       </div>
 
       {/* Mobile cards */}
-      <div className="grid gap-4 lg:hidden">
+      <div className="grid gap-4 xl:hidden">
         {lines.map((line, index) => {
           const { net, vat, gross } = calcLine(line);
           return (
@@ -305,25 +294,23 @@ export function InvoiceLineItemsEditor({
                   </FormField>
                   <FormField label="Ilość">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       aria-label="Ilość"
                       value={line.quantity}
-                      min="0"
-                      step="any"
                       onChange={(e) => updateLine(index, 'quantity', e.target.value)}
-                      className="text-right tabular-nums"
+                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </FormField>
                   <FormField label="Cena netto" required>
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       aria-label="Cena netto"
                       value={line.unitNetPrice}
-                      min={allowsNegativeUnitNetPrice ? undefined : '0'}
-                      step="0.01"
                       onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
                       placeholder="0,00"
-                      className="text-right tabular-nums"
+                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </FormField>
                   <FormField label="Stawka VAT">

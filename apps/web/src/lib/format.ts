@@ -8,6 +8,18 @@ export function formatMoney(value: string | number): string {
 }
 
 /**
+ * Parse a decimal number typed with either a comma or a dot separator
+ * (e.g. "1234,56" or "1234.56") into a number. Returns null for anything
+ * that isn't a valid decimal, including empty input. Logical inverse of
+ * formatMoney's numeric parsing.
+ */
+export function parseDecimalValue(value: string): number | null {
+  const normalized = value.trim().replace(',', '.');
+  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return null;
+  return Number(normalized);
+}
+
+/**
  * Format an ISO date string (YYYY-MM-DD or full ISO) as dd.MM.yyyy
  */
 export function formatDate(value: string | undefined | null): string {
