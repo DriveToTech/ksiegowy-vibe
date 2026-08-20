@@ -9,7 +9,11 @@ import { formatMoney } from '../../../lib/format';
 import { requireAuthSession } from '../../../lib/auth';
 import { t } from '../../../lib/translations';
 
-export default async function InvoicesPage() {
+export default async function InvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const session = await requireAuthSession('/dashboard/invoices');
   const companyId = session.activeCompanyId;
 
@@ -34,10 +38,15 @@ export default async function InvoicesPage() {
     );
   }
 
-  const [invoices, contractors] = await Promise.all([
-    getInvoices(companyId),
+  const { page: pageParam } = await searchParams;
+  const page = Number(pageParam) > 0 ? Number(pageParam) : 1;
+
+  const [invoicesResult, contractors] = await Promise.all([
+    getInvoices(companyId, { page: String(page) }),
     getContractors(companyId).catch(() => []),
   ]);
+  const { data: invoices, total, limit } = invoicesResult;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasContractors = contractors.length > 0;
 
   const drafts = invoices.filter((invoice) => invoice.status === 'DRAFT').length;
@@ -60,10 +69,10 @@ export default async function InvoicesPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <MetricCard
           label={t.outgoingInvoices.metricCards.totalLabel}
-          value={String(invoices.length)}
+          value={String(total)}
           hint={t.outgoingInvoices.metricCards.totalHint}
         />
         <MetricCard
@@ -79,7 +88,7 @@ export default async function InvoicesPage() {
         />
       </div>
 
-      {invoices.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           title={t.outgoingInvoices.emptyState.title}
           description={hasContractors ? t.outgoingInvoices.emptyState.withContractorsDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
@@ -97,7 +106,24 @@ export default async function InvoicesPage() {
         />
       ) : null}
 
-      {invoices.length > 0 ? <InvoicesTable invoices={invoices} /> : null}
+      {total > 0 ? (
+        <>
+          <InvoicesTable invoices={invoices} />
+          <div className="flex items-center justify-between gap-4">
+            <Link href={`/dashboard/invoices?page=${page - 1}`}>
+              <Button variant="secondary" size="sm" disabled={page <= 1}>
+                {t.pagination.previous}
+              </Button>
+            </Link>
+            <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)}</p>
+            <Link href={`/dashboard/invoices?page=${page + 1}`}>
+              <Button variant="secondary" size="sm" disabled={page >= totalPages}>
+                {t.pagination.next}
+              </Button>
+            </Link>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

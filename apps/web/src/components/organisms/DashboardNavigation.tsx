@@ -50,7 +50,7 @@ export function DashboardNavigation({ items, mobile = false }: DashboardNavigati
           >
             <span className={cn('flex items-center gap-3', mobile ? 'flex-col justify-center gap-1' : '')}>
               <AppIcon name={item.icon} className={mobile ? 'h-4 w-4' : 'h-4 w-4'} />
-              <span>{item.label}</span>
+              <span className={mobile ? 'w-full truncate' : ''}>{item.label}</span>
             </span>
           </Link>
         );

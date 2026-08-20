@@ -96,7 +96,7 @@ export default async function DashboardSettingsPage() {
           Nie udało się pobrać ustawień backupu firmy. Odśwież stronę i spróbuj ponownie.
         </div>
       ) : null}
-      <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline/15 bg-surface-panel/55 p-5 backdrop-blur-xl xl:max-w-4xl">
+      <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline bg-surface-panel/55 p-5 backdrop-blur-xl xl:max-w-4xl">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.settings.serviceCatalogLink}</p>
         <p className="mt-1 text-sm text-muted">
           {t.serviceCatalog.pageDescription}
@@ -121,7 +121,7 @@ export default async function DashboardSettingsPage() {
 
 function SummaryCard({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline/15 bg-surface-panel/55 p-4 backdrop-blur-xl">
+    <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline bg-surface-panel/55 p-4 backdrop-blur-xl">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{label}</p>
       <p className={strong ? 'mt-2 text-lg font-semibold text-primary' : 'mt-2 text-lg font-semibold text-foreground'}>{value}</p>
     </div>

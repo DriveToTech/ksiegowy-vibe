@@ -90,6 +90,7 @@ export default async function InvoiceDetailPage({
         <InvoiceActions
           companyId={companyId}
           invoiceId={id}
+          invoiceNumber={invoice.invoiceNumber}
           invoiceType={invoice.invoiceType}
           status={invoice.status}
           ksefStatus={invoice.ksefStatus}

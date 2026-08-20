@@ -75,10 +75,10 @@ export function ContractorList({
             : t.contractors.emptyList}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[1.75rem] border border-outline/15 bg-surface-panel/55 backdrop-blur-xl">
+        <div className="overflow-x-auto rounded-[1.75rem] border border-outline bg-surface-panel/55 backdrop-blur-xl">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-outline/15">
+              <tr className="border-b border-outline">
                 <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-[0.15em] text-muted">
                   {t.contractors.columns.name}
                 </th>

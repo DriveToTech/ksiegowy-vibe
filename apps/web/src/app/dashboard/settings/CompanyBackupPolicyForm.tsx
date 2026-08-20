@@ -377,7 +377,7 @@ export function CompanyBackupPolicyForm({
                 type="checkbox"
                 checked={automaticOnInvoiceIssued}
                 onChange={(event) => setAutomaticOnInvoiceIssued(event.target.checked)}
-                className="h-4 w-4 rounded border-outline/40 text-primary focus:ring-primary/30"
+                className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
                 disabled={!isGoogleDriveConnected || saveBusy}
               />
               Automatycznie uruchamiaj backup po wystawieniu faktury
@@ -494,7 +494,7 @@ export function CompanyBackupPolicyForm({
         <summary className="cursor-pointer list-none text-sm font-semibold text-foreground marker:hidden">
           Zaawansowane szczegóły statusu backupu
         </summary>
-        <div className="mt-4 space-y-4 border-t border-outline/15 pt-4">
+        <div className="mt-4 space-y-4 border-t border-outline pt-4">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Status ogólny</p>
             <Badge tone={backupStatus ? overallStatusBadgeTone[backupStatus.overallStatus] : 'neutral'}>

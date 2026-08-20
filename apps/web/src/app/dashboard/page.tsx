@@ -35,7 +35,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const invoices = await getInvoices(companyId).catch((error: unknown) => {
+  const { data: invoices } = await getInvoices(companyId).catch((error: unknown) => {
     throw error instanceof Error ? error : new Error('Błąd pobierania faktur');
   });
 

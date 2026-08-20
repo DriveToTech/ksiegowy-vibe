@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { issueInvoice, submitKsef, recordPayment, createCorrection, revertToDraft, sendInvoiceEmail, pdfUrl, checkKsefStatus } from '../../../../lib/api-client';
 import type { CompanyKsefCredentialStatus, InvoiceStatus, KsefStatus } from '../../../../lib/api-types';
@@ -10,6 +10,7 @@ import { cn } from '../../../../lib/cn';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
 import { Surface } from '../../../../components/atoms/Surface';
+import { formatMoney } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
@@ -27,6 +28,57 @@ function EnvironmentBadge({ environment }: { environment: string }) {
     >
       {environment}
     </span>
+  );
+}
+
+function ProductionConfirmPanel({
+  invoiceNumber,
+  totalGross,
+  confirmLabel,
+  confirmingLabel,
+  isSubmitting,
+  onCancel,
+  onConfirm,
+}: {
+  invoiceNumber: string | null;
+  totalGross: string;
+  confirmLabel: string;
+  confirmingLabel: string;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold text-warning-ink">{t.invoiceActions.productionConfirmTitle}</h3>
+        <p className="text-sm text-muted">{t.invoiceActions.productionConfirmDescription}</p>
+      </div>
+      <dl className="grid gap-3 rounded-2xl bg-surface-raised/50 p-4 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-[0.14em] text-muted">{t.invoiceActions.productionConfirmInvoiceNumberLabel}</dt>
+          <dd className="mt-1 font-semibold text-foreground">{invoiceNumber ?? t.invoiceActions.productionConfirmInvoiceNumberFallback}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-[0.14em] text-muted">{t.invoiceActions.productionConfirmAmountLabel}</dt>
+          <dd className="mt-1 font-semibold tabular-nums text-foreground">{formatMoney(totalGross)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-[0.14em] text-muted">{t.invoiceActions.productionConfirmEnvironmentLabel}</dt>
+          <dd className="mt-1">
+            <EnvironmentBadge environment="PRODUCTION" />
+          </dd>
+        </div>
+      </dl>
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" onClick={onCancel} autoFocus>
+          {t.invoiceActions.productionConfirmCancel}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onConfirm} disabled={isSubmitting}>
+          {isSubmitting ? confirmingLabel : confirmLabel}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -56,6 +108,7 @@ function resolveErrorDetail(message: string): string | null {
 interface Props {
   companyId: string;
   invoiceId: string;
+  invoiceNumber: string | null;
   invoiceType: string;
   status: InvoiceStatus;
   ksefStatus: KsefStatus;
@@ -64,7 +117,7 @@ interface Props {
   ksefCredentialStatuses?: CompanyKsefCredentialStatus[];
 }
 
-export default function InvoiceActions({ companyId, invoiceId, invoiceType, status, ksefStatus, totalGross, paymentReceived, ksefCredentialStatuses }: Props) {
+export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, invoiceType, status, ksefStatus, totalGross, paymentReceived, ksefCredentialStatuses }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +129,10 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
   const [correctionImpactType, setCorrectionImpactType] = useState('');
   const [correctionMode, setCorrectionMode] = useState<'cancellation' | 'formal'>('cancellation');
   const [correctedInvoiceNumber, setCorrectedInvoiceNumber] = useState('');
+  const [pendingProductionAction, setPendingProductionAction] = useState<'ksef' | 'correct' | null>(null);
   const isCorrectionInvoice = invoiceType === 'KOR';
+  const isSubmitKsefInFlight = useRef(false);
+  const isCorrectInFlight = useRef(false);
 
   const activeEnvironment = getActiveKsefEnvironmentFromBrowser();
   const activeCredential = ksefCredentialStatuses?.find((credential) => credential.environment === activeEnvironment);
@@ -93,8 +149,16 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
 
   const handleSubmitKsef = () => {
     if (activeEnvironment === 'PRODUCTION') {
-      if (!window.confirm(t.invoiceActions.productionConfirm)) return;
+      setPendingProductionAction('ksef');
+      return;
     }
+    performSubmitKsef();
+  };
+
+  const performSubmitKsef = () => {
+    if (isSubmitKsefInFlight.current) return;
+    isSubmitKsefInFlight.current = true;
+    setPendingProductionAction(null);
     setError(null);
     setLoading('ksef');
     submitKsef(companyId, invoiceId)
@@ -107,7 +171,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
         router.refresh();
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(null));
+      .finally(() => { setLoading(null); isSubmitKsefInFlight.current = false; });
   };
 
   const handleCheckKsefStatus = () => {
@@ -139,15 +203,25 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
 
   const handleCorrect = (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeEnvironment === 'PRODUCTION') {
-      if (!window.confirm(t.invoiceActions.productionConfirm)) return;
-    }
     const normalizedCorrectedInvoiceNumber = correctedInvoiceNumber.trim();
     const normalizedCorrectionReason = correctionReason.trim();
     if (correctionMode === 'formal' && !normalizedCorrectedInvoiceNumber && !normalizedCorrectionReason) {
       setError(t.invoiceActions.correctionFormalRequiresData);
       return;
     }
+    if (activeEnvironment === 'PRODUCTION') {
+      setPendingProductionAction('correct');
+      return;
+    }
+    performCorrect();
+  };
+
+  const performCorrect = () => {
+    if (isCorrectInFlight.current) return;
+    isCorrectInFlight.current = true;
+    const normalizedCorrectedInvoiceNumber = correctedInvoiceNumber.trim();
+    const normalizedCorrectionReason = correctionReason.trim();
+    setPendingProductionAction(null);
     setError(null);
     setLoading('correct');
     createCorrection(companyId, invoiceId, {
@@ -158,7 +232,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
     })
       .then((correction) => router.push(`/dashboard/invoices/${correction.id}`))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => { setLoading(null); setShowCorrectionModal(false); });
+      .finally(() => { setLoading(null); setShowCorrectionModal(false); isCorrectInFlight.current = false; });
   };
 
   const handleSendEmail = () => {
@@ -188,6 +262,10 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-2 text-sm text-muted">
+        <span>{t.invoiceActions.activeEnvironmentLabel}</span>
+        <EnvironmentBadge environment={activeEnvironment} />
+      </div>
       {error && (
         <Surface tone="glass" shape="organic" className="border-error/20 bg-error-soft/70 px-4 py-3 text-error-ink" role="alert">
           <p className="text-sm font-semibold">{errorTitle}</p>
@@ -271,6 +349,20 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
         )}
       </div>
 
+      {pendingProductionAction === 'ksef' && (
+        <Surface tone="glass" shape="organic" className="border-warning/40 bg-warning/10 p-5">
+          <ProductionConfirmPanel
+            invoiceNumber={invoiceNumber}
+            totalGross={totalGross}
+            confirmLabel={isCorrectionInvoice ? t.invoiceActions.submitCorrectionKsef : t.invoiceActions.submitKsef}
+            confirmingLabel={t.invoiceActions.submittingKsef}
+            isSubmitting={loading === 'ksef'}
+            onCancel={() => setPendingProductionAction(null)}
+            onConfirm={performSubmitKsef}
+          />
+        </Surface>
+      )}
+
       {!hasToken && (
         <Surface tone="glass" shape="organic" className="border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-ink" role="alert">
           <p>{t.invoiceActions.missingTokenWarning(activeEnvironment)}{' '}
@@ -310,7 +402,21 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
         </Surface>
       )}
 
-      {showCorrectionModal && (
+      {showCorrectionModal && pendingProductionAction === 'correct' && (
+        <Surface tone="glass" shape="organic" className="border-warning/40 bg-warning/10 p-5">
+          <ProductionConfirmPanel
+            invoiceNumber={invoiceNumber}
+            totalGross={totalGross}
+            confirmLabel={t.invoiceActions.correctionConfirm}
+            confirmingLabel={t.invoiceActions.correcting}
+            isSubmitting={loading === 'correct'}
+            onCancel={() => setPendingProductionAction(null)}
+            onConfirm={performCorrect}
+          />
+        </Surface>
+      )}
+
+      {showCorrectionModal && pendingProductionAction !== 'correct' && (
         <Surface tone="glass" shape="organic" className="space-y-4 p-5">
           <h3 className="text-base font-semibold text-foreground">{t.invoiceActions.correctionModalTitle}</h3>
           <form onSubmit={handleCorrect} className="space-y-4">
@@ -322,7 +428,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
                 id="correctionMode"
                 value={correctionMode}
                 onChange={(e) => setCorrectionMode(e.target.value as 'cancellation' | 'formal')}
-                className="w-full rounded-xl border border-border bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-xl border border-outline bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="cancellation">{t.invoiceActions.correctionModeCancellation}</option>
                 <option value="formal">{t.invoiceActions.correctionModeFormal}</option>
@@ -362,7 +468,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
                 id="correctionImpactType"
                 value={correctionImpactType}
                 onChange={(e) => setCorrectionImpactType(e.target.value)}
-                className="w-full rounded-xl border border-border bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-xl border border-outline bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">{t.invoiceActions.correctionImpactTypePlaceholder}</option>
                 <option value="1">{t.invoiceActions.correctionImpactType1}</option>
@@ -374,7 +480,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceType, stat
               <Button type="submit" disabled={loading === 'correct'}>
                 {loading === 'correct' ? t.invoiceActions.correcting : t.invoiceActions.correctionConfirm}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setShowCorrectionModal(false)}>
+              <Button type="button" variant="ghost" onClick={() => { setShowCorrectionModal(false); setPendingProductionAction(null); }}>
                 {t.invoiceActions.cancel}
               </Button>
             </div>

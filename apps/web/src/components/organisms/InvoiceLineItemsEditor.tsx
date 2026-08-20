@@ -124,12 +124,12 @@ export function InvoiceLineItemsEditor({
           </colgroup>
           <thead>
             <tr className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-              <th className="pb-3 pl-1 text-left">Nazwa</th>
-              <th className="pb-3 text-right">Ilość</th>
-              <th className="pb-3 pl-2 text-left">J.m.</th>
-              <th className="pb-3 text-right">Cena netto</th>
-              <th className="pb-3 pl-2 text-left">Stawka VAT</th>
-              <th className="pb-3 text-right">Wartość brutto</th>
+              <th className="pb-3 pl-1 text-left">{t.invoiceLineItemsEditor.nameColumn}</th>
+              <th className="pb-3 text-right">{t.invoiceLineItemsEditor.quantityColumn}</th>
+              <th className="pb-3 pl-2 text-left">{t.invoiceLineItemsEditor.unitColumn}</th>
+              <th className="pb-3 text-right">{t.invoiceLineItemsEditor.unitNetPriceColumn}</th>
+              <th className="pb-3 pl-2 text-left">{t.invoiceLineItemsEditor.vatRateColumn}</th>
+              <th className="pb-3 text-right">{t.invoiceLineItemsEditor.grossValueColumn}</th>
               <th />
             </tr>
           </thead>
@@ -154,17 +154,17 @@ export function InvoiceLineItemsEditor({
                     ) : null}
                     <Input
                       type="text"
-                      aria-label="Nazwa pozycji"
+                      aria-label={t.invoiceLineItemsEditor.itemNameAriaLabel}
                       value={line.name}
                       onChange={(e) => updateLine(index, 'name', e.target.value)}
-                      placeholder="Nazwa usługi lub towaru"
+                      placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
                     />
                   </td>
                   <td className="px-1 py-1">
                     <Input
                       type="text"
                       inputMode="decimal"
-                      aria-label="Ilość"
+                      aria-label={t.invoiceLineItemsEditor.quantityAriaLabel}
                       value={line.quantity}
                       onChange={(e) => updateLine(index, 'quantity', e.target.value)}
                       className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -173,7 +173,7 @@ export function InvoiceLineItemsEditor({
                   <td className="px-1 py-1">
                     <Input
                       type="text"
-                      aria-label="Jednostka miary"
+                      aria-label={t.invoiceLineItemsEditor.unitAriaLabel}
                       value={line.unit}
                       onChange={(e) => updateLine(index, 'unit', e.target.value)}
                     />
@@ -182,7 +182,7 @@ export function InvoiceLineItemsEditor({
                     <Input
                       type="text"
                       inputMode="decimal"
-                      aria-label="Cena netto"
+                      aria-label={t.invoiceLineItemsEditor.unitNetPriceAriaLabel}
                       value={line.unitNetPrice}
                       onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
                       placeholder="0,00"
@@ -191,7 +191,7 @@ export function InvoiceLineItemsEditor({
                   </td>
                   <td className="px-1 py-1">
                     <Select
-                      aria-label="Stawka VAT"
+                      aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
                       value={line.vatRate}
                       onChange={(e) => updateLine(index, 'vatRate', e.target.value)}
                     >
@@ -212,9 +212,9 @@ export function InvoiceLineItemsEditor({
                       {lines.length > 1 ? (
                         <button
                           type="button"
-                          aria-label="Usuń pozycję"
+                          aria-label={t.invoiceLineItemsEditor.removeLineAriaLabel}
                           onClick={() => removeLine(index)}
-                          className="rounded-lg p-1.5 text-muted transition hover:bg-error-soft hover:text-error-ink"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-3 text-muted transition hover:bg-error-soft hover:text-error-ink"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M18 6L6 18M6 6l12 12" />
@@ -228,13 +228,9 @@ export function InvoiceLineItemsEditor({
             })}
           </tbody>
         </table>
-        <button
-          type="button"
-          onClick={addLine}
-          className="mt-3 text-sm font-semibold text-primary transition hover:text-primary/80"
-        >
-          + Dodaj pozycję
-        </button>
+        <Button type="button" variant="secondary" size="sm" onClick={addLine} className="mt-3">
+          {t.invoiceLineItemsEditor.addLineButton}
+        </Button>
       </div>
 
       {/* Mobile cards */}
@@ -245,7 +241,7 @@ export function InvoiceLineItemsEditor({
             <Surface key={index} tone="glass" shape="organic" className="space-y-4 p-4">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
-                  Pozycja {index + 1}
+                  {t.invoiceLineItemsEditor.positionLabel(index + 1)}
                 </p>
                 {lines.length > 1 ? (
                   <Button
@@ -254,7 +250,7 @@ export function InvoiceLineItemsEditor({
                     className="text-error-ink hover:bg-error-soft"
                     onClick={() => removeLine(index)}
                   >
-                    Usuń
+                    {t.invoiceLineItemsEditor.removeButton}
                   </Button>
                 ) : null}
               </div>
@@ -273,49 +269,49 @@ export function InvoiceLineItemsEditor({
                     </Select>
                   </FormField>
                 ) : null}
-                <FormField label="Nazwa / opis" required>
+                <FormField label={t.invoiceLineItemsEditor.nameFieldLabel} required>
                   <Input
                     type="text"
-                    aria-label="Nazwa pozycji"
+                    aria-label={t.invoiceLineItemsEditor.itemNameAriaLabel}
                     value={line.name}
                     onChange={(e) => updateLine(index, 'name', e.target.value)}
-                    placeholder="Nazwa usługi lub towaru"
+                    placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
                   />
                 </FormField>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Jednostka miary">
+                  <FormField label={t.invoiceLineItemsEditor.unitFieldLabel}>
                     <Input
                       type="text"
-                      aria-label="Jednostka miary"
+                      aria-label={t.invoiceLineItemsEditor.unitAriaLabel}
                       value={line.unit}
                       onChange={(e) => updateLine(index, 'unit', e.target.value)}
                     />
                   </FormField>
-                  <FormField label="Ilość">
+                  <FormField label={t.invoiceLineItemsEditor.quantityFieldLabel}>
                     <Input
                       type="text"
                       inputMode="decimal"
-                      aria-label="Ilość"
+                      aria-label={t.invoiceLineItemsEditor.quantityAriaLabel}
                       value={line.quantity}
                       onChange={(e) => updateLine(index, 'quantity', e.target.value)}
                       className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </FormField>
-                  <FormField label="Cena netto" required>
+                  <FormField label={t.invoiceLineItemsEditor.unitNetPriceFieldLabel} required>
                     <Input
                       type="text"
                       inputMode="decimal"
-                      aria-label="Cena netto"
+                      aria-label={t.invoiceLineItemsEditor.unitNetPriceAriaLabel}
                       value={line.unitNetPrice}
                       onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
                       placeholder="0,00"
                       className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </FormField>
-                  <FormField label="Stawka VAT">
+                  <FormField label={t.invoiceLineItemsEditor.vatRateFieldLabel}>
                     <Select
-                      aria-label="Stawka VAT"
+                      aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
                       value={line.vatRate}
                       onChange={(e) => updateLine(index, 'vatRate', e.target.value)}
                     >
@@ -329,21 +325,17 @@ export function InvoiceLineItemsEditor({
                 </div>
 
                 <div className="grid gap-3 rounded-[1.75rem_1.25rem_2rem_1.25rem] bg-surface-raised/50 p-4 backdrop-blur-xl sm:grid-cols-3">
-                  <MobileTotalItem label="Netto" value={formatMoney(net)} />
-                  <MobileTotalItem label="VAT" value={formatMoney(vat)} />
-                  <MobileTotalItem label="Brutto" value={formatMoney(gross)} bold />
+                  <MobileTotalItem label={t.invoiceDetail.metrics.net} value={formatMoney(net)} />
+                  <MobileTotalItem label={t.invoiceDetail.metrics.vat} value={formatMoney(vat)} />
+                  <MobileTotalItem label={t.invoiceDetail.metrics.gross} value={formatMoney(gross)} bold />
                 </div>
               </div>
             </Surface>
           );
         })}
-        <button
-          type="button"
-          onClick={addLine}
-          className="text-sm font-semibold text-primary transition hover:text-primary/80"
-        >
-          + Dodaj pozycję
-        </button>
+        <Button type="button" variant="secondary" size="sm" onClick={addLine}>
+          {t.invoiceLineItemsEditor.addLineButton}
+        </Button>
       </div>
     </>
   );

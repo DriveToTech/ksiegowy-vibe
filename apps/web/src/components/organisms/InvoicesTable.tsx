@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { InvoiceSummary } from '../../lib/api-types';
 import { formatDate, formatMoney } from '../../lib/format';
+import { t } from '../../lib/translations';
 import { Surface } from '../atoms/Surface';
 import { InvoiceEnvironmentChip, InvoiceStatusChip, KsefStatusChip } from '../molecules/StatusChip';
 
@@ -12,55 +13,46 @@ interface InvoicesTableProps {
 export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps) {
   return (
     <>
-      <Surface tone="glass" shape="organic" className="hidden overflow-hidden lg:block">
+      <Surface tone="glass" shape="default" className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto px-3 py-3">
-          <table className="min-w-full border-collapse text-sm">
-            <thead className="text-left text-muted">
+          <table className="min-w-full border-separate border-spacing-y-2 text-sm">
+            <thead className="sticky top-0 z-10 bg-surface-panel text-left text-muted">
               <tr>
-                <HeaderCell>Numer</HeaderCell>
-                <HeaderCell>Data</HeaderCell>
-                <HeaderCell>Kontrahent</HeaderCell>
-                <HeaderCell>Środowisko</HeaderCell>
-                {!compact ? <HeaderCell className="text-right">Netto</HeaderCell> : null}
-                {!compact ? <HeaderCell className="text-right">VAT</HeaderCell> : null}
-                <HeaderCell className="text-right">Brutto</HeaderCell>
-                <HeaderCell>Status</HeaderCell>
-                <HeaderCell>KSeF</HeaderCell>
-                <HeaderCell>Akcje</HeaderCell>
+                <HeaderCell>{t.invoicesTable.numberColumn}</HeaderCell>
+                <HeaderCell>{t.invoicesTable.dateColumn}</HeaderCell>
+                <HeaderCell>{t.invoicesTable.contractorColumn}</HeaderCell>
+                <HeaderCell className="hidden xl:table-cell">{t.invoicesTable.environmentColumn}</HeaderCell>
+                {!compact ? <HeaderCell className="hidden text-right 2xl:table-cell">{t.invoicesTable.netColumn}</HeaderCell> : null}
+                {!compact ? <HeaderCell className="hidden text-right 2xl:table-cell">{t.invoicesTable.vatColumn}</HeaderCell> : null}
+                <HeaderCell className="text-right">{t.invoicesTable.grossColumn}</HeaderCell>
+                <HeaderCell>{t.invoicesTable.statusColumn}</HeaderCell>
+                <HeaderCell className="hidden xl:table-cell">{t.invoicesTable.ksefColumn}</HeaderCell>
               </tr>
             </thead>
             <tbody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id} className="border-b-[10px] border-transparent bg-transparent transition hover:bg-surface-raised/32">
+                <tr key={invoice.id} className="bg-transparent transition hover:bg-surface-raised/32">
                   <BodyCell>
                     <Link
                       href={`/dashboard/invoices/${invoice.id}`}
-                      className="font-semibold text-primary-strong transition hover:text-primary"
+                      className="inline-flex min-h-11 items-center font-semibold text-primary-strong transition hover:text-primary"
                     >
-                      {invoice.invoiceNumber ?? 'Szkic'}
+                      {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
                     </Link>
                   </BodyCell>
                   <BodyCell>{formatDate(invoice.issueDate)}</BodyCell>
                   <BodyCell>{invoice.contractor?.name ?? '—'}</BodyCell>
-                  <BodyCell>
+                  <BodyCell className="hidden xl:table-cell">
                     <InvoiceEnvironmentChip environment={invoice.environment} />
                   </BodyCell>
-                  {!compact ? <BodyCell className="text-right tabular-nums">{formatMoney(invoice.totalNet)}</BodyCell> : null}
-                  {!compact ? <BodyCell className="text-right tabular-nums">{formatMoney(invoice.totalVat)}</BodyCell> : null}
+                  {!compact ? <BodyCell className="hidden text-right tabular-nums 2xl:table-cell">{formatMoney(invoice.totalNet)}</BodyCell> : null}
+                  {!compact ? <BodyCell className="hidden text-right tabular-nums 2xl:table-cell">{formatMoney(invoice.totalVat)}</BodyCell> : null}
                   <BodyCell className="text-right tabular-nums">{formatMoney(invoice.totalGross)}</BodyCell>
                   <BodyCell>
                     <InvoiceStatusChip status={invoice.status} />
                   </BodyCell>
-                  <BodyCell>
+                  <BodyCell className="hidden xl:table-cell">
                     <KsefStatusChip status={invoice.ksefStatus} />
-                  </BodyCell>
-                  <BodyCell>
-                    <Link
-                      href={`/dashboard/invoices/${invoice.id}`}
-                      className="text-sm font-medium text-primary-strong transition hover:text-primary"
-                    >
-                      Szczegóły
-                    </Link>
                   </BodyCell>
                 </tr>
               ))}
@@ -78,32 +70,32 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
                   href={`/dashboard/invoices/${invoice.id}`}
                   className="font-display text-lg font-semibold tracking-tight text-primary-strong"
                 >
-                  {invoice.invoiceNumber ?? 'Szkic'}
+                  {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
                 </Link>
-                <p className="mt-1 text-sm text-muted">{invoice.contractor?.name ?? 'Brak kontrahenta'}</p>
+                <p className="mt-1 text-sm text-muted">{invoice.contractor?.name ?? t.invoicesTable.noContractorFallback}</p>
               </div>
               <InvoiceStatusChip status={invoice.status} />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <DetailItem label="Data" value={formatDate(invoice.issueDate)} />
-              <DetailItem label="Brutto" value={formatMoney(invoice.totalGross)} align="right" />
-              {!compact ? <DetailItem label="Netto" value={formatMoney(invoice.totalNet)} /> : null}
-              {!compact ? <DetailItem label="VAT" value={formatMoney(invoice.totalVat)} align="right" /> : null}
+              <DetailItem label={t.invoicesTable.dateColumn} value={formatDate(invoice.issueDate)} />
+              <DetailItem label={t.invoicesTable.grossColumn} value={formatMoney(invoice.totalGross)} align="right" />
+              {!compact ? <DetailItem label={t.invoicesTable.netColumn} value={formatMoney(invoice.totalNet)} /> : null}
+              {!compact ? <DetailItem label={t.invoicesTable.vatColumn} value={formatMoney(invoice.totalVat)} align="right" /> : null}
               <div className="space-y-1">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Środowisko</p>
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoicesTable.environmentColumn}</p>
                 <InvoiceEnvironmentChip environment={invoice.environment} />
               </div>
               <div className="sm:col-span-2 flex items-center justify-between gap-3">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">KSeF</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoicesTable.ksefColumn}</p>
                   <KsefStatusChip status={invoice.ksefStatus} />
                 </div>
                 <Link
                   href={`/dashboard/invoices/${invoice.id}`}
-                  className="text-sm font-semibold text-primary-strong transition hover:text-primary"
+                  className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-strong transition hover:text-primary"
                 >
-                  Szczegóły
+                  {t.invoicesTable.detailsLink}
                 </Link>
               </div>
             </div>
@@ -115,11 +107,11 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
 }
 
 function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] ${className}`}>{children}</th>;
+  return <th className={`px-3 py-3 text-xs font-semibold uppercase tracking-[0.06em] ${className}`}>{children}</th>;
 }
 
 function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-5 py-4 align-middle text-foreground ${className}`}>{children}</td>;
+  return <td className={`px-3 py-4 align-middle text-foreground ${className}`}>{children}</td>;
 }
 
 function DetailItem({

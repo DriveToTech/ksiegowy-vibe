@@ -12,7 +12,7 @@ export function FloatingLabelInput({ label, id, className, ...props }: FloatingL
         id={id}
         placeholder=" "
         className={cn(
-          'peer h-14 w-full rounded-[1rem] border border-outline/40 bg-surface-raised/65 px-3 pb-1.5 pt-5 text-sm text-foreground outline-none backdrop-blur-xl transition',
+          'peer h-14 w-full rounded-[1rem] border border-outline bg-surface-raised/65 px-3 pb-1.5 pt-5 text-sm text-foreground outline-none backdrop-blur-xl transition',
           'placeholder-transparent focus:border-primary focus:ring-4 focus:ring-primary/15 focus-visible:ring-4 focus-visible:ring-primary/15',
           'disabled:cursor-not-allowed disabled:opacity-60',
           className,

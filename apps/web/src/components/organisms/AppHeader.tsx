@@ -7,7 +7,7 @@ import { SessionActions } from './SessionActions';
 export function AppHeader({ user }: { user: AuthenticatedUser | null }) {
   return (
     <header className="sticky top-0 z-40 px-4 pt-4 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-[2rem_1.5rem_2.25rem_1.25rem] border border-outline/15 bg-surface-panel/55 px-5 py-4 backdrop-blur-[28px]">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-[2rem_1.5rem_2.25rem_1.25rem] border border-outline bg-surface-panel/55 px-5 py-4 backdrop-blur-[28px]">
         <div className="space-y-1 lg:pl-4">
           <Link href="/" className="inline-flex">
             <BrandImage alt="Księgowy Vibe logo" className="w-[156px] sm:w-[172px]" priority />
