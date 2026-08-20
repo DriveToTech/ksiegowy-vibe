@@ -14,6 +14,7 @@ import { ErrorState } from '../../../../../components/molecules/ErrorState';
 import { FormField } from '../../../../../components/molecules/FormField';
 import { VatBreakdownTable } from '../../../../../components/molecules/VatBreakdownTable';
 import { calcLine, emptyLine, InvoiceLineItemsEditor, type LineItem } from '../../../../../components/organisms/InvoiceLineItemsEditor';
+import { parseDecimalValue } from '../../../../../lib/format';
 import { t } from '../../../../../lib/translations';
 
 export default function EditInvoiceForm({
@@ -30,7 +31,6 @@ export default function EditInvoiceForm({
   contractorRates?: ContractorServiceRate[];
 }) {
   const router = useRouter();
-  const allowsNegativeUnitNetPrice = invoice.invoiceType === 'KOR';
 
   const [contractorId, setContractorId] = useState(invoice.contractorId ?? contractors[0]?.id ?? '');
   const [issueDate, setIssueDate] = useState(invoice.issueDate);
@@ -83,6 +83,16 @@ export default function EditInvoiceForm({
       return;
     }
 
+    const parsedLines = validLines.map((l) => ({
+      ...l,
+      quantityValue: parseDecimalValue(l.quantity),
+      unitNetPriceValue: parseDecimalValue(l.unitNetPrice),
+    }));
+    if (parsedLines.some((l) => l.quantityValue === null || l.unitNetPriceValue === null)) {
+      setError('Nieprawidłowa wartość liczbowa w ilości lub cenie pozycji faktury.');
+      return;
+    }
+
     setSubmitting(true);
     updateDraft(companyId, invoice.id, {
       contractorId,
@@ -91,12 +101,12 @@ export default function EditInvoiceForm({
       paymentDueDate,
       paymentMethod,
       notes: notes.trim() || undefined,
-      lines: validLines.map((l, idx) => ({
+      lines: parsedLines.map((l, idx) => ({
         position: idx + 1,
         name: l.name,
-        quantity: l.quantity,
+        quantity: l.quantityValue!.toString(),
         unit: l.unit,
-        unitNetPrice: l.unitNetPrice,
+        unitNetPrice: l.unitNetPriceValue!.toString(),
         vatRate: l.vatRate,
       })),
     })
@@ -172,7 +182,6 @@ export default function EditInvoiceForm({
           serviceTemplates={serviceTemplates}
           contractorRates={contractorRates}
           contractorId={contractorId}
-          allowsNegativeUnitNetPrice={allowsNegativeUnitNetPrice}
         />
       </Surface>
 

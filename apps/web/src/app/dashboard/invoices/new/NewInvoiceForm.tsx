@@ -14,6 +14,7 @@ import { ErrorState } from '../../../../components/molecules/ErrorState';
 import { FormField } from '../../../../components/molecules/FormField';
 import { VatBreakdownTable } from '../../../../components/molecules/VatBreakdownTable';
 import { calcLine, emptyLine, InvoiceLineItemsEditor, type LineItem } from '../../../../components/organisms/InvoiceLineItemsEditor';
+import { parseDecimalValue } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 
 function todayIso(): string {
@@ -83,6 +84,16 @@ export default function NewInvoiceForm({
       return;
     }
 
+    const parsedLines = validLines.map((l) => ({
+      ...l,
+      quantityValue: parseDecimalValue(l.quantity),
+      unitNetPriceValue: parseDecimalValue(l.unitNetPrice),
+    }));
+    if (parsedLines.some((l) => l.quantityValue === null || l.unitNetPriceValue === null)) {
+      setError('Nieprawidłowa wartość liczbowa w ilości lub cenie pozycji faktury.');
+      return;
+    }
+
     setSubmitting(true);
     createDraft(companyId, {
       contractorId,
@@ -91,12 +102,12 @@ export default function NewInvoiceForm({
       paymentDueDate,
       paymentMethod,
       notes: notes.trim() || undefined,
-      lines: validLines.map((l, idx) => ({
+      lines: parsedLines.map((l, idx) => ({
         position: idx + 1,
         name: l.name,
-        quantity: l.quantity,
+        quantity: l.quantityValue!.toString(),
         unit: l.unit,
-        unitNetPrice: l.unitNetPrice,
+        unitNetPrice: l.unitNetPriceValue!.toString(),
         vatRate: l.vatRate,
       })),
     })
