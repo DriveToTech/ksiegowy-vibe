@@ -19,7 +19,13 @@
     "db:seed": "sh -c 'set -a && . ./.env && set +a && pnpm tsx scripts/seed.ts'",
     "ksef:seed-incoming": "sh -c 'set -a && . ./.env && set +a && pnpm tsx scripts/ksef-seed-incoming.ts \"$@\"' --",
     "db:migrate": "sh -c 'set -a && . ./.env && set +a && pnpm --filter @ksiegowy/api exec prisma migrate dev'",
-    "db:studio": "sh -c 'set -a && . ./.env && set +a && pnpm --filter @ksiegowy/api exec prisma studio'"
+    "db:studio": "sh -c 'set -a && . ./.env && set +a && pnpm --filter @ksiegowy/api exec prisma studio'",
+    "backup:postgres": "docker compose --profile backup run --rm backup-postgres",
+    "backup:postgres:local": "docker compose --profile backup run --rm -e DB_BACKUP_ENVIRONMENT_NAME=local -e DB_BACKUP_REMOTE_PRIMARY_NAME= -e DB_BACKUP_REMOTE_SECONDARY_NAME= backup-postgres",
+    "backup:postgres:download": "docker compose --profile backup run --rm download-postgres-backup",
+    "restore:postgres": "docker compose --profile backup run --rm restore-postgres",
+    "publish:container:images": "bash scripts/publish-container-images.sh",
+    "test:publish:container:images": "bash scripts/publish-container-images.test.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
