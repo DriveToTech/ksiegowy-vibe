@@ -63,9 +63,9 @@ export default async function InvoicesPage({
         title={t.outgoingInvoices.pageTitle}
         description={t.outgoingInvoices.pageDescription}
         actions={
-          <Link href="/dashboard/invoices/new">
-            <Button disabled={!hasContractors}>{t.outgoingInvoices.addButton}</Button>
-          </Link>
+          <Button href="/dashboard/invoices/new" variant="primaryQuiet" disabled={!hasContractors}>
+            {t.outgoingInvoices.addButton}
+          </Button>
         }
       />
 
@@ -94,9 +94,9 @@ export default async function InvoicesPage({
           description={hasContractors ? t.outgoingInvoices.emptyState.withContractorsDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
           action={
             hasContractors ? (
-              <Link href="/dashboard/invoices/new">
-                <Button>{t.outgoingInvoices.emptyState.createFirstInvoice}</Button>
-              </Link>
+              <Button href="/dashboard/invoices/new" variant="primaryQuiet">
+                {t.outgoingInvoices.emptyState.createFirstInvoice}
+              </Button>
             ) : (
               <Link href="/dashboard/contractors">
                 <Button>{t.outgoingInvoices.emptyState.addContractor}</Button>

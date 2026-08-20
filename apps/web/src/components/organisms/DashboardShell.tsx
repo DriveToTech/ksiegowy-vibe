@@ -6,7 +6,6 @@ import type { KsefEnvironment } from '../../lib/ksef-environment';
 import { CompanySwitcher } from '../CompanySwitcher';
 import { KsefEnvironmentSwitcher } from '../KsefEnvironmentSwitcher';
 import { Surface } from '../atoms/Surface';
-import { BrandImage } from '../brand/BrandImage';
 import { DashboardNavigation } from './DashboardNavigation';
 import { SidebarQuickActions } from './SidebarQuickActions';
 
@@ -37,7 +36,6 @@ export function DashboardShell({ children, companies, activeCompanyId, activeKse
           >
             <div className="space-y-2 px-3 pb-8 pt-2">
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Workspace</p>
-              <BrandImage alt="Księgowy Vibe logo" className="w-[178px]" />
               <p className="max-w-[14rem] text-sm text-muted">Nowoczesny pulpit księgowy dla faktur, OCR i KSeF.</p>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-1">
@@ -67,7 +65,6 @@ export function DashboardShell({ children, companies, activeCompanyId, activeKse
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Dashboard</p>
-                  <BrandImage alt="Księgowy Vibe logo" className="w-[150px]" sizes="150px" />
                 </div>
                 <div className="min-w-[180px]">
                   <CompanySwitcher companies={companies} activeCompanyId={activeCompanyId} />
