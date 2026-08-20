@@ -136,7 +136,7 @@ export default async function InvoiceDetailPage({
         </InfoSection>
       </div>
 
-      <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:mr-8">
+      <Surface tone="glass" shape="organic" className="space-y-5 p-6">
         <div>
           <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
           <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.lineItemsDescription}</p>
@@ -211,7 +211,7 @@ export default async function InvoiceDetailPage({
       </Surface>
 
       {invoice.vatBreakdown.length > 0 ? (
-        <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:translate-x-6">
+        <Surface tone="glass" shape="organic" className="space-y-5 p-6">
           <div>
             <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.vatBreakdownTitle}</h2>
             <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.vatBreakdownDescription}</p>
@@ -219,11 +219,11 @@ export default async function InvoiceDetailPage({
 
           <div className="grid gap-3 md:grid-cols-3">
             {invoice.vatBreakdown.map((row) => (
-              <Surface key={row.id} tone="glass" shape="organic" className="space-y-3 p-4">
+              <div key={row.id} className="space-y-3 border-t border-outline/30 pt-3 first:border-t-0 first:pt-0">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoiceDetail.vatBreakdownRate(row.vatRate)}</p>
                 <InfoMetric label={t.invoiceDetail.metrics.net} value={formatMoney(row.netAmount)} />
                 <InfoMetric label={t.invoiceDetail.metrics.vat} value={formatMoney(row.vatAmount)} strong />
-              </Surface>
+              </div>
             ))}
           </div>
         </Surface>
@@ -241,10 +241,10 @@ export default async function InvoiceDetailPage({
 
 function InfoSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Surface tone="glass" shape="organic" className="space-y-4 p-5">
+    <section className="space-y-4 border-t border-outline/30 pt-4 first:border-t-0 first:pt-0">
       <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{title}</h2>
       {children}
-    </Surface>
+    </section>
   );
 }
 

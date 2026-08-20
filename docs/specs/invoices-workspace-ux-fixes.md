@@ -79,9 +79,9 @@ Metric-card grid to equal thirds, `Surface` radius/`overflow-hidden` clipping on
 
 ---
 
-## Phase 8 — Visual QA follow-up (NOT IMPLEMENTED — planning only)
+## Phase 8 — Visual QA follow-up (IMPLEMENTED)
 
-Found during manual review of phases 1–7 on real data. Root-caused by file/line below; nothing in this phase has been coded — hand off item by item.
+Implemented in the web application after manual review of phases 1–7 on real data. The scoped mechanical and design fixes below are complete; navigation order, translations, business logic, and shared `Surface` consumers were preserved.
 
 ### 8.1 — Sticky header lets scrolled content bleed through
 
@@ -99,21 +99,21 @@ Two sibling `Surface` blocks on the invoice detail page ("Pozycje faktury" at li
 
 Fix direction: remove both `xl:mr-8` and `xl:translate-x-6` — let both blocks sit in the same container with the same implicit edges. If they were added to work around something else (e.g. clearance for a floating element), find that reason first rather than deleting blind.
 
-### 8.3 — Reconsider the bordered-frame-per-block pattern
+### 8.3 — Reconsider the bordered-frame-per-block pattern (decision implemented)
 
 **Files**: every `Surface` usage in the invoices flow, e.g. `apps/web/src/app/dashboard/invoices/[id]/page.tsx` (7 separate `Surface` blocks on one page), `apps/web/src/components/molecules/VatBreakdownTable.tsx`
 
 Open design question, not a bug: nearly every content grouping — including small metadata clusters like "Sprzedawca" / "Nabywca" / "Szczegóły dokumentu" — is wrapped in its own bordered, rounded `Surface`. On a single page (the invoice detail view) that's 7+ nested frames, which reads as visually busy/boxy rather than giving the page real hierarchy.
 
-Fix direction (needs a design decision, not just a code change): reserve the bordered `Surface` treatment for blocks that are genuinely distinct interactive or scannable units (the line-items table, the VAT breakdown, the actions panel) and demote purely informational metadata groups (seller/buyer/document details) to plain sections — a heading plus a thin rule or just spacing, no border/background/radius. Recommend routing this specific call through **ux-ui-architect** before implementation, since it changes the visual language app-wide, not just this page.
+Decision: reserve the bordered `Surface` treatment for genuinely distinct interactive or scannable units and demote the seller, buyer, and document metadata groups on this invoice-detail page to plain semantic sections with headings and separators. Nested VAT-rate frames on this page are lightweight rows; `Surface` and unrelated `VatBreakdownTable` consumers are unchanged.
 
-### 8.4 — "Nowa faktura" button styling
+### 8.4 — "Nowa faktura" button styling (decision implemented)
 
 **File**: `apps/web/src/app/dashboard/invoices/page.tsx:67`, `apps/web/src/components/atoms/Button.tsx:8-9`
 
 Uses `Button`'s default `variant="primary"`: a three-stop gradient (`from-primary via-primary-strong to-cyan-300`) on a full pill shape with a glow shadow (`shadow-[var(--shadow-aura)]`). This was not touched by phases 1–7 — worth checking whether it still reads as intended now that the `--outline` token changed elsewhere on the page (phase 2), or whether the gradient/glow combination is simply too loud next to the calmer bordered blocks around it.
 
-Fix direction: no root cause identified yet — this needs a visual judgment call, not a mechanical fix. Options to evaluate: flatten to a single-tone `primary` background instead of the 3-stop gradient, drop or soften the `shadow-aura` glow, or keep the gradient but reduce its stop count/contrast. Recommend a quick side-by-side comparison of 2-3 variants before picking one, rather than guessing.
+Decision: add a narrowly scoped `primaryQuiet` Button variant with a single-tone primary background, primary-ink text, no gradient, and no glow. Use it only for the invoice-list create actions; the global `primary` variant remains unchanged.
 
 ### 8.5 — Duplicate logo, sidebar rearrangement
 
@@ -122,9 +122,13 @@ Fix direction: no root cause identified yet — this needs a visual judgment cal
 The `Księgowy Vibe` logo currently renders in three places at once on desktop: the sticky top bar (`AppHeader.tsx:11-13`) and twice more inside `DashboardShell` (line 40 — desktop sidebar, line 70 — presumably the mobile/collapsed variant). With the top bar already carrying the logo, the sidebar copy is pure duplication and eats vertical space at the top of the nav column, visible stacked in the screenshot.
 
 Fix direction:
-- Remove the `BrandImage` at `DashboardShell.tsx:40` (desktop sidebar) — the top bar's logo already establishes identity on every page. Leave `:70` alone until confirmed whether it's the same desktop element or a distinct mobile-nav one.
+- Remove both `BrandImage` instances from `DashboardShell.tsx` — the top bar's logo is the sole brand anchor on desktop and mobile.
 - Sidebar rearrangement itself is open — no specific defect found, just a stated "not sure about this." Recommend reviewing `DashboardNavigation.tsx`'s current item order/grouping against actual usage frequency (e.g. is "Faktury wychodzące" reached more often than "Przegląd"?) before reshuffling, and consider whether removing the logo block alone (freeing ~80-100px) resolves most of the discomfort without a deeper rearrangement. Route through **ux-ui-architect** if a structural change (grouping, section labels, collapsing) is wanted beyond the logo removal.
 
-### Suggested handoff order
+### Implementation status
 
-8.1 and 8.2 are mechanical, single-file, low-risk — do those first. 8.5's logo removal is equally mechanical. 8.3 and 8.4 are judgment calls that benefit from a design pass (ux-ui-architect) before any code changes, and 8.5's rearrangement question should wait on that same pass rather than being guessed at alongside the logo removal.
+- 8.1 sticky header coverage: complete.
+- 8.2 invoice detail alignment offsets: complete.
+- 8.3 invoice detail metadata and nested VAT-rate frames: complete for this page only.
+- 8.4 invoice-list create actions: complete with the scoped `primaryQuiet` Button variant; the global primary variant is unchanged.
+- 8.5 duplicate dashboard logos: complete; navigation order and behavior were not changed.
