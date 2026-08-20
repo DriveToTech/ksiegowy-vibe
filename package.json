@@ -23,7 +23,9 @@
     "backup:postgres": "docker compose --profile backup run --rm backup-postgres",
     "backup:postgres:local": "docker compose --profile backup run --rm -e DB_BACKUP_ENVIRONMENT_NAME=local -e DB_BACKUP_REMOTE_PRIMARY_NAME= -e DB_BACKUP_REMOTE_SECONDARY_NAME= backup-postgres",
     "backup:postgres:download": "docker compose --profile backup run --rm download-postgres-backup",
-    "restore:postgres": "docker compose --profile backup run --rm restore-postgres"
+    "restore:postgres": "docker compose --profile backup run --rm restore-postgres",
+    "publish:container:images": "bash scripts/publish-container-images.sh",
+    "test:publish:container:images": "bash scripts/publish-container-images.test.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

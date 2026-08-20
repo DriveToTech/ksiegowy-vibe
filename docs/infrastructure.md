@@ -215,6 +215,76 @@ The standalone output strips unused Node.js modules — the final image is minim
 
 ---
 
+## Local Private Registry Image Publishing
+
+The app-repo side of production image publishing is intentionally local-first. Build and push container images to any private OCI-compatible registry from a trusted workstation or deployment host with environment variables set at runtime. Do not store registry secrets in git.
+
+Script entrypoint: [`scripts/publish-container-images.sh`](../scripts/publish-container-images.sh)
+
+Optional `pnpm` wrapper: `pnpm publish:container:images`
+
+### Published images
+
+- `apps/api/Dockerfile` → `${REGISTRY_HOST}/${IMAGE_NAMESPACE}/${API_IMAGE_NAME}:${IMAGE_TAG}`
+- `apps/web/Dockerfile` → `${REGISTRY_HOST}/${IMAGE_NAMESPACE}/${WEB_IMAGE_NAME}:${IMAGE_TAG}`
+
+If `SECONDARY_IMAGE_TAG` is set, the script also tags and pushes both images with that second tag.
+
+### Registry publishing environment variables
+
+#### Required
+
+| Variable | Description |
+|----------|-------------|
+| `REGISTRY_HOST` | Private registry host, for example `registry.example.internal` |
+| `IMAGE_NAMESPACE` | Registry namespace or project |
+| `REGISTRY_USERNAME` | Registry username or robot-account name |
+| `REGISTRY_PASSWORD` | Registry password or robot-account secret |
+| `IMAGE_TAG` | Primary tag applied to both images |
+
+#### Optional
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONTAINER_ENGINE` | `docker` | Container engine command (`docker`, `podman`, or an absolute path) |
+| `BUILD_CONTEXT_DIRECTORY` | repo root | Build context used for both image builds |
+| `API_DOCKERFILE_PATH` | `apps/api/Dockerfile` | API Dockerfile path |
+| `WEB_DOCKERFILE_PATH` | `apps/web/Dockerfile` | Web Dockerfile path |
+| `API_IMAGE_NAME` | `api` | API image name inside the registry namespace |
+| `WEB_IMAGE_NAME` | `web` | Web image name inside the registry namespace |
+| `SECONDARY_IMAGE_TAG` | unset | Optional second tag for both images |
+| `WEB_NEXT_PUBLIC_API_URL` | unset | Specific override for the required browser API URL build arg |
+| `NEXT_PUBLIC_API_URL` | unset | Standard browser API URL build arg. The publish script uses this when `WEB_NEXT_PUBLIC_API_URL` is not set |
+
+### Example usage
+
+```bash
+export REGISTRY_HOST="registry.example.internal"
+export IMAGE_NAMESPACE="accounting-apps"
+export REGISTRY_USERNAME="publisher"
+export REGISTRY_PASSWORD="<registry-secret>"
+export IMAGE_TAG="2026-06-13"
+export SECONDARY_IMAGE_TAG="latest"
+export API_IMAGE_NAME="api"
+export WEB_IMAGE_NAME="web"
+export NEXT_PUBLIC_API_URL="https://app.example.com/backend"
+
+pnpm publish:container:images
+```
+
+### Behavior and safety guarantees
+
+- fails fast on missing required environment variables, missing Dockerfiles, missing build context, or missing container engine command
+- requires a non-local browser API URL for the web image through `WEB_NEXT_PUBLIC_API_URL` or `NEXT_PUBLIC_API_URL`
+- logs into the target registry with `--password-stdin`
+- builds and pushes both images sequentially so failures stop the release early
+- prints all published image references at the end for copy/paste into runtime deployment manifests
+- keeps the public repository safe because credentials live only in environment variables at execution time
+
+Repository-specific promotion and deployment should stay in your private operations repository, not in this public codebase.
+
+---
+
 ## CI/CD — GitHub Actions
 
 Files: [`.github/workflows/`](../.github/workflows/)
@@ -247,7 +317,7 @@ flowchart LR
 
 Triggered automatically after a successful CI run on `main`.
 
-> **Note:** The deploy workflow currently builds Docker images. Registry push and remote deploy steps are scaffolded but not yet wired to a specific host.
+> **Non-authoritative status:** `deploy.yml` is not the production release path. Keep GitHub deployment disabled/non-authoritative for real releases. The supported public-repo release boundary is local image publication only, documented in [Local Private Registry Image Publishing](#local-private-registry-image-publishing).
 
 ---
 
@@ -447,10 +517,12 @@ This slice keeps backup scheduling flows separate intentionally:
 
 ## Production Deployment Checklist
 
+- [ ] Export Harbor publishing environment variables on the trusted workstation or deployment host only (never commit Harbor credentials)
+- [ ] Run `pnpm publish:harbor:images` and record the published API and web image references
 - [ ] Set all required environment variables in `.env`
 - [ ] Use a strong, randomly generated `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `ENCRYPTION_KEY`
 - [ ] Set `CORS_ORIGIN` to your production domain
-- [ ] Set `NEXT_PUBLIC_API_URL` to your production API URL (build-time arg for Docker)
+- [ ] Set `NEXT_PUBLIC_API_URL` to your production browser-facing API URL, for example `https://app.example.com/backend`
 - [ ] Run `prisma migrate deploy` after every release
 - [ ] Mount `./storage` on durable storage (not ephemeral container filesystem)
 - [ ] Confirm backup credentials are configured (Google Drive or iCloud)

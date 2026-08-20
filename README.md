@@ -306,7 +306,7 @@ Remote publishing behavior (remote mode only):
 
 Verification scope note:
 - current checks confirm remote artifact-set presence only
-- they do not prove remote checksum integrity or restoreability on the remote destination
+- they do not prove remote checksum integrity or restore ability on the remote destination
 
 ```mermaid
 flowchart LR
@@ -791,7 +791,56 @@ PATCH /companies/:id/ksef-settings
 
 ## Deployment
 
-The application is designed for self-hosted deployment. Use the Docker Compose setup for the simplest path — it bundles everything including Tesseract and GraphicsMagick into the API image.
+The application is designed for self-hosted deployment. The public repository intentionally stops at **generic OCI image publication** from your workstation or deployment host. Environment-specific promotion and rollout steps should live in a private operations repository.
+
+### Publish production images to a private registry
+
+The repository ships a local script that builds and pushes **both** production images:
+
+- `apps/api/Dockerfile`
+- `apps/web/Dockerfile`
+
+Required environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `REGISTRY_HOST` | Private registry host, for example `registry.example.internal` |
+| `IMAGE_NAMESPACE` | Registry namespace or project |
+| `REGISTRY_USERNAME` | Registry username |
+| `REGISTRY_PASSWORD` | Registry password or robot-account secret |
+| `IMAGE_TAG` | Primary image tag, for example `2026-06-13` or `git-sha` |
+
+Optional environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONTAINER_ENGINE` | `docker` | Container engine command, for example `docker` or `podman` |
+| `BUILD_CONTEXT_DIRECTORY` | repo root | Build context used for both images |
+| `API_DOCKERFILE_PATH` | `apps/api/Dockerfile` | API Dockerfile path |
+| `WEB_DOCKERFILE_PATH` | `apps/web/Dockerfile` | Web Dockerfile path |
+| `API_IMAGE_NAME` | `api` | API image name inside the registry namespace |
+| `WEB_IMAGE_NAME` | `web` | Web image name inside the registry namespace |
+| `SECONDARY_IMAGE_TAG` | unset | Optional second tag to publish for both images, for example `latest` |
+| `WEB_NEXT_PUBLIC_API_URL` | unset | Specific override for the required browser API URL build arg |
+| `NEXT_PUBLIC_API_URL` | unset | Standard browser API URL build arg. The publish script uses this when `WEB_NEXT_PUBLIC_API_URL` is not set |
+
+Example:
+
+```bash
+export REGISTRY_HOST="registry.example.internal"
+export IMAGE_NAMESPACE="accounting-apps"
+export REGISTRY_USERNAME="publisher"
+export REGISTRY_PASSWORD="<registry-secret>"
+export IMAGE_TAG="2026-06-13"
+export SECONDARY_IMAGE_TAG="latest"
+export API_IMAGE_NAME="api"
+export WEB_IMAGE_NAME="web"
+export NEXT_PUBLIC_API_URL="https://app.example.com/backend"
+
+pnpm publish:container:images
+```
+
+The script fails fast on missing configuration, requires a real browser API URL for the web image, logs in with `--password-stdin`, and prints the published image references at the end so you can hand them off to whatever private deployment or GitOps system you use.
 
 ### Docker Compose (full stack)
 
@@ -814,6 +863,8 @@ pnpm --filter @ksiegowy/api exec prisma migrate deploy
 pnpm build
 node apps/api/dist/main.js
 ```
+
+For a more detailed private-registry publishing guide, see [docs/infrastructure.md](docs/infrastructure.md#local-private-registry-image-publishing).
 
 ## Roles
 
