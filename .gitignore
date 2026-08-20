@@ -37,3 +37,7 @@ apps/e2e/test-results/
 
 #geenerated invoices
 apps/api/storage/**/outgoing/**
+
+# AI
+.claude/
+.opencode/
