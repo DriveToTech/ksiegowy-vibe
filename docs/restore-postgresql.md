@@ -1,4 +1,4 @@
-# PostgreSQL Restore Runbook (Initial)
+# PostgreSQL Restore Runbook
 
 This runbook covers restoring a PostgreSQL logical backup created by `backup-postgres`.
 
@@ -10,81 +10,120 @@ This runbook covers restoring a PostgreSQL logical backup created by `backup-pos
   - `postgresql-<environment>-<timestamp>.sql.gz.sha256`
   - `postgresql-<environment>-<timestamp>.manifest.json`
 - Option A keeps one shared PostgreSQL database unchanged, so each artifact set is a full logical backup of the whole shared database
-- Remote publishing layout is `<BACKUP_DESTINATION_ROOT>/postgresql/<environment>/<timestamp>/...` only when `BACKUP_DESTINATION_ROOT` is explicitly set
-- When `BACKUP_DESTINATION_ROOT` is unset, backward-compatible PostgreSQL remote destinations remain `DB_BACKUP_REMOTE_BASE_PATH/<environment>/<timestamp>/...`
+- Remote publishing layout: `<BACKUP_DESTINATION_ROOT>/postgresql/<environment>/<timestamp>/...`
 - Point-in-time recovery (WAL-based) is **not** part of this slice
 
-## Preconditions
+## Automated restore (recommended)
 
-1. You have shell access to the Docker host.
-2. You have the backup artifact set downloaded locally.
-3. You know the target database credentials (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`).
-4. You have a maintenance window (restore overwrites database objects).
-5. All database writers can be stopped or isolated during restore.
-
-## Restore Flow
-
-```mermaid
-flowchart TD
-    A[Download backup artifact set] --> B[Verify SHA256 checksum]
-    B --> C[Stop API writes or enter maintenance mode]
-    C --> D[Restore into PostgreSQL with psql]
-    D --> E[Start API service]
-    E --> F[Run smoke checks]
-```
-
-## Step-by-step
-
-### 1) Verify artifact integrity
-
-Run in directory where backup files are stored:
-
-Linux:
+### Step 1 — Download the latest backup from Google Drive
 
 ```bash
-sha256sum -c postgresql-<environment>-<timestamp>.sql.gz.sha256
+pnpm backup:postgres:download
 ```
 
-macOS:
+This fetches the most recent artifact set for the `production` environment from Google Drive and places it in `DB_BACKUP_LOCAL_PATH` (default `./backups/postgresql`). It verifies the SHA256 checksum after download.
+
+### Step 2 — Inspect the downloaded files
 
 ```bash
-shasum -a 256 -c postgresql-<environment>-<timestamp>.sql.gz.sha256
+ls -lh backups/postgresql/
 ```
 
-Expected result: `OK`.
+Confirm the timestamp matches the backup you intend to restore.
 
-### 2) Isolate concurrent access before restore
-
-Stop API writes and any other process that can write to PostgreSQL:
+### Step 3 — Stop the API
 
 ```bash
 docker compose stop api
 ```
 
-Also ensure:
+Also ensure no cron jobs or migration scripts are writing to the database.
 
-1. Host cron job for `backup-postgres` is temporarily disabled.
-2. No migration/seeding scripts are running.
-3. No ad-hoc SQL clients are writing to the target database.
-
-Optionally terminate active sessions for the target database right before restore:
+Optionally terminate active sessions:
 
 ```bash
-docker compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();"
+docker compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();"
 ```
 
-### 3) Restore database from logical dump
+### Step 4 — Restore
+
+```bash
+DB_RESTORE_CONFIRMED=yes pnpm restore:postgres
+```
+
+To restore a specific artifact instead of the latest:
+
+```bash
+DB_RESTORE_CONFIRMED=yes DB_RESTORE_ARTIFACT_NAME=postgresql-production-20260531T201833Z.sql.gz pnpm restore:postgres
+```
+
+The script verifies the SHA256 checksum before restoring and stops immediately on any SQL error.
+
+### Step 5 — Start the API and run smoke checks
+
+```bash
+docker compose start api
+curl -fsS http://localhost:3001/health
+curl -fsS http://localhost:3001/ready
+```
+
+Then validate in UI: login, company list, invoice list.
+
+## Restore flow
+
+```mermaid
+flowchart TD
+    A[pnpm backup:postgres:download] --> B[Inspect downloaded files]
+    B --> C[docker compose stop api]
+    C --> D[DB_RESTORE_CONFIRMED=yes pnpm restore:postgres]
+    D --> E[docker compose start api]
+    E --> F[Smoke checks]
+```
+
+## Rollback approach when restore is invalid
+
+1. Stop API: `docker compose stop api`
+2. Restore a different known-good artifact using `DB_RESTORE_ARTIFACT_NAME=<filename>`
+3. Start API: `docker compose start api`
+4. Re-run smoke checks.
+
+## Manual restore (fallback)
+
+Use this when the automated scripts are unavailable or you need fine-grained control.
+
+### Preconditions
+
+1. Shell access to the Docker host.
+2. Backup artifact set downloaded locally.
+3. Target database credentials known.
+4. Maintenance window available.
+
+### 1) Verify artifact integrity
+
+Linux:
+```bash
+sha256sum -c postgresql-<environment>-<timestamp>.sql.gz.sha256
+```
+
+macOS:
+```bash
+shasum -a 256 -c postgresql-<environment>-<timestamp>.sql.gz.sha256
+```
+
+### 2) Isolate concurrent access
+
+```bash
+docker compose stop api
+```
+
+### 3) Restore database
 
 ```bash
 gzip -dc postgresql-<environment>-<timestamp>.sql.gz | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
-Notes:
-- `-v ON_ERROR_STOP=1` makes restore fail immediately on SQL error.
-- Backup dump is generated with `--clean --if-exists`, so existing objects are replaced.
-- If needed, restore into a separate database first and then swap.
-
-### 4) Start API container again
+### 4) Start API
 
 ```bash
 docker compose start api
@@ -92,32 +131,14 @@ docker compose start api
 
 ### 5) Smoke checks
 
-Run at minimum:
-
 ```bash
 curl -fsS http://localhost:3001/health
 curl -fsS http://localhost:3001/ready
 ```
 
-Then validate in UI:
-
-1. Login works.
-2. Company list loads.
-3. Invoice list loads for at least one company.
-
-## Rollback approach when restore is invalid
-
-If restored data is invalid:
-
-1. Stop API: `docker compose stop api`
-2. Restore a different known-good artifact with the same procedure.
-3. Start API: `docker compose start api`
-4. Re-run smoke checks.
-
 ## Ownership and evidence
 
 For every restore event, record:
-
 - Operator name
 - Date/time
 - Artifact name
