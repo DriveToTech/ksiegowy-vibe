@@ -8,7 +8,6 @@ import type { CompanyKsefCredentialStatus } from '../../../lib/api-types';
 import { getActiveKsefEnvironmentFromBrowser } from '../../../lib/ksef-environment';
 import { cn } from '../../../lib/cn';
 import { Button } from '../../../components/atoms/Button';
-import { Surface } from '../../../components/atoms/Surface';
 import { t } from '../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
@@ -80,29 +79,9 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
 
   return (
     <>
-      <Surface tone="glass" shape="organic" className="flex h-full flex-col justify-between gap-5 p-5 sm:p-6">
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">{t.incoming.ksefSync.eyebrow}</p>
-          <h2 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            {t.incoming.ksefSync.title}
-          </h2>
-          <p className="text-sm text-muted">{t.incoming.ksefSync.description}</p>
-        </div>
-
-        <div className="rounded-[1.75rem_1.25rem_2rem_1.25rem] bg-surface-raised/45 p-4 backdrop-blur-xl">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.incoming.ksefSync.helperLabel}</p>
-          <p className="mt-2 text-sm text-foreground">{t.incoming.ksefSync.helperDescription}</p>
-          <div className="pt-4">
-            <Button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              aria-label={t.incoming.ksefSync.button}
-            >
-              {t.incoming.ksefSync.button}
-            </Button>
-          </div>
-        </div>
-      </Surface>
+      <Button type="button" onClick={() => setIsModalOpen(true)} aria-label={t.incoming.ksefSync.button}>
+        {t.incoming.ksefSync.button}
+      </Button>
 
       {isModalOpen && (
         <div
@@ -136,7 +115,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   value={dateFrom}
                   max={dateTo}
                   onChange={(event) => setDateFrom(event.target.value)}
-                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
               </div>
 
@@ -151,7 +130,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   min={dateFrom}
                   max={today()}
                   onChange={(event) => setDateTo(event.target.value)}
-                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
             </div>
             </div>

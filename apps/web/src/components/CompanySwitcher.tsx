@@ -10,9 +10,11 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 export function CompanySwitcher({
   companies,
   activeCompanyId,
+  compact = false,
 }: {
   companies: Company[];
   activeCompanyId: string | null;
+  compact?: boolean;
 }) {
   const router = useRouter();
 
@@ -20,7 +22,10 @@ export function CompanySwitcher({
 
   if (companies.length === 1) {
     return (
-      <span className="block truncate rounded-md bg-surface-raised px-3 py-2 text-sm font-semibold text-foreground">
+      <span
+        title={companies[0]?.name}
+        className="flex min-h-11 min-w-0 items-center truncate rounded-md bg-surface-raised px-3 text-sm font-semibold text-foreground"
+      >
         {companies[0]?.name}
       </span>
     );
@@ -36,7 +41,8 @@ export function CompanySwitcher({
       value={activeCompanyId ?? ''}
       onChange={handleChange}
       aria-label={t.companySwitcher.selectCompany}
-      className="max-w-full"
+      title={companies.find((company) => company.id === activeCompanyId)?.name}
+      className={compact ? 'min-w-0 sm:w-56' : 'max-w-full'}
     >
       {companies.map((c) => (
         <option key={c.id} value={c.id}>

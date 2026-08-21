@@ -4,7 +4,7 @@ test('contractors list page loads', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/contractors');
 
   await expect(page.getByRole('heading', { name: 'Kontrahenci' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Dodaj kontrahenta' })).toBeVisible();
+  await expect(page.getByRole('main').locator('header').getByRole('link', { name: 'Dodaj kontrahenta' })).toBeVisible();
 });
 
 test('contractors list shows search and filter controls', async ({ authenticatedPage: page }) => {

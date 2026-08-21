@@ -1,14 +1,69 @@
 import { test, expect } from './fixtures/auth';
 
-test('sidebar shows all navigation items', async ({ authenticatedPage: page }) => {
+test('desktop sidebar contains navigation only and one active page', async ({ authenticatedPage: page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/dashboard');
-  const dashboardNavigation = page.getByRole('navigation', { name: 'Nawigacja dashboardu' });
+  const sidebar = page.getByRole('complementary');
+  const dashboardNavigation = sidebar.getByRole('navigation', { name: 'Nawigacja dashboardu', exact: true });
 
-  await expect(dashboardNavigation.getByRole('link', { name: 'Przegląd' })).toBeVisible();
-  await expect(dashboardNavigation.getByRole('link', { name: 'Faktury wychodzące' })).toBeVisible();
-  await expect(dashboardNavigation.getByRole('link', { name: 'Faktury przychodzące' })).toBeVisible();
-  await expect(dashboardNavigation.getByRole('link', { name: 'Kontrahenci' })).toBeVisible();
-  await expect(dashboardNavigation.getByRole('link', { name: 'Ustawienia', exact: true })).toBeVisible();
+  await expect(dashboardNavigation.getByRole('link')).toHaveCount(5);
+  await expect(dashboardNavigation.getByRole('link', { name: 'Przegląd' })).toHaveAttribute('aria-current', 'page');
+  await expect(dashboardNavigation).toHaveClass(/flex-col/);
+  const activeNavigationContrasts = await dashboardNavigation.getByRole('link', { name: 'Przegląd' }).evaluate((element) => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas is unavailable');
+
+    const parseColor = (color: string) => {
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return context.getImageData(0, 0, 1, 1).data.slice(0, 3);
+    };
+    const luminance = (color: string) => {
+      const channels = Array.from(parseColor(color)).map((channel) => channel / 255);
+      const linearChannels = channels.map((channel) =>
+        channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+      );
+      return 0.2126 * (linearChannels[0] ?? 0) + 0.7152 * (linearChannels[1] ?? 0) + 0.0722 * (linearChannels[2] ?? 0);
+    };
+    return ['light', 'dark'].map((theme) => {
+      document.documentElement.dataset.theme = theme;
+      const styles = getComputedStyle(element);
+      const backgroundLuminance = luminance(styles.backgroundColor);
+      const foregroundLuminance = luminance(styles.color);
+      return (Math.max(backgroundLuminance, foregroundLuminance) + 0.05) /
+        (Math.min(backgroundLuminance, foregroundLuminance) + 0.05);
+    });
+  });
+  expect(activeNavigationContrasts.every((contrast) => contrast >= 4.5)).toBe(true);
+  await expect(sidebar.getByText('Szybkie działania')).toHaveCount(0);
+  await expect(sidebar.getByText('Aktywna firma')).toHaveCount(0);
+  await expect(sidebar.getByLabel('Wybierz aktywne środowisko KSeF')).toHaveCount(0);
+});
+
+test('mobile keeps bottom navigation and hides desktop sidebar', async ({ authenticatedPage: page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dashboard');
+
+  await expect(page.getByRole('complementary')).toBeHidden();
+  const mobileNavigation = page.getByRole('navigation', { name: 'Mobilna nawigacja dashboardu' });
+  await expect(mobileNavigation).toBeVisible();
+  await expect(mobileNavigation.getByRole('link')).toHaveCount(5);
+
+  for (const [accessibleName, visibleLabel] of [
+    ['Przegląd', 'Start'],
+    ['Faktury wychodzące', 'Sprzedaż'],
+    ['Faktury przychodzące', 'Zakupy'],
+    ['Kontrahenci', 'Firmy'],
+    ['Ustawienia', 'Ustawienia'],
+  ]) {
+    const link = mobileNavigation.getByRole('link', { name: accessibleName });
+    await expect(link).toBeVisible();
+    await expect(link.getByText(visibleLabel, { exact: true })).toBeVisible();
+    const linkBox = await link.boundingBox();
+    expect(linkBox?.width).toBeGreaterThanOrEqual(44);
+    expect(linkBox?.height).toBeGreaterThanOrEqual(44);
+  }
 });
 
 test('clicking Kontrahenci navigates to contractors page', async ({ authenticatedPage: page }) => {
@@ -46,4 +101,23 @@ test('settings page loads with members section', async ({ authenticatedPage: pag
 
   await expect(page.getByRole('heading', { name: 'Ustawienia' })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Członkowie/ })).toBeVisible();
+});
+
+test('dashboard exposes one visible navigation surface and semantic state', async ({ authenticatedPage: page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/dashboard');
+
+  await expect(page.getByRole('main')).toHaveCount(1);
+  await expect(page.getByRole('banner')).toHaveCount(1);
+  await expect(page.getByRole('complementary')).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: 'Nawigacja dashboardu', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Mobilna nawigacja dashboardu' })).toBeHidden();
+  await expect(page.getByRole('link', { name: 'Przegląd' })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('button', { name: 'Włącz ciemny motyw' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByText('TEST', { exact: true }).first()).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('complementary')).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Nawigacja dashboardu', exact: true })).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Mobilna nawigacja dashboardu' })).toBeVisible();
 });

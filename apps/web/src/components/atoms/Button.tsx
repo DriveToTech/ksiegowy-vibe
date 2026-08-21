@@ -7,7 +7,7 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'rounded-full bg-gradient-to-br from-primary via-primary-strong to-cyan-300 text-primary-ink shadow-[var(--shadow-aura)] hover:brightness-105 focus-visible:outline-primary disabled:brightness-100 disabled:opacity-60',
+    'rounded-full bg-primary text-primary-ink shadow-[var(--shadow-aura)] hover:bg-primary-strong focus-visible:outline-primary disabled:brightness-100 disabled:opacity-60',
   primaryQuiet:
     'rounded-full bg-primary text-primary-ink hover:brightness-105 focus-visible:outline-primary disabled:brightness-100 disabled:opacity-60',
   secondary:
@@ -15,7 +15,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   ghost:
     'rounded-full bg-transparent text-foreground hover:bg-surface-panel/70 focus-visible:outline-primary disabled:opacity-60',
   danger:
-    'rounded-full bg-error text-foreground shadow-[var(--shadow-aura)] hover:brightness-105 focus-visible:outline-error disabled:opacity-60',
+    'rounded-full bg-error text-error-action-ink shadow-[var(--shadow-aura)] hover:brightness-105 focus-visible:outline-error disabled:opacity-60',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -3,9 +3,25 @@ import { defineConfig, devices } from '@playwright/test';
 const isCI = !!process.env.CI;
 const e2eAppPort = 3200;
 const e2eApiPort = 3199;
+const projects = [
+  {
+    name: 'chromium',
+    use: { ...devices['Desktop Chrome'] },
+  },
+  ...(process.env.VISUAL_REGRESSION === 'true'
+    ? [
+        {
+          name: 'chromium-linux',
+          testMatch: /dashboard\.spec\.ts/,
+          use: { ...devices['Desktop Chrome'] },
+        },
+      ]
+    : []),
+];
 
 export default defineConfig({
   testDir: './tests',
+  snapshotPathTemplate: '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}',
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
@@ -16,12 +32,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
+  projects,
   webServer: [
     {
       command: 'node mock-api/server.js',

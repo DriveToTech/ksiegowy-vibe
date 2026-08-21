@@ -69,10 +69,10 @@ export default async function DashboardPage() {
         description={t.dashboard.pageDescription}
         actions={
           <>
-            <Link href="/dashboard/incoming" className="lg:hidden">
+            <Link href="/dashboard/incoming">
               <Button variant="secondary">{t.dashboard.goToIncoming}</Button>
             </Link>
-            <Link href="/dashboard/invoices/new" className="lg:hidden">
+            <Link href="/dashboard/invoices/new">
               <Button>{t.dashboard.createInvoice}</Button>
             </Link>
           </>
