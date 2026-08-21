@@ -9,9 +9,9 @@ interface SurfaceProps extends HTMLAttributes<HTMLDivElement> {
 
 const toneClasses: Record<NonNullable<SurfaceProps['tone']>, string> = {
   base: 'bg-surface',
-  muted: 'bg-surface-muted/90',
-  raised: 'bg-surface-raised/92 backdrop-blur-xl shadow-[var(--shadow-aura)]',
-  glass: 'bg-surface-panel/55 backdrop-blur-[40px] shadow-[var(--shadow-aura)]',
+  muted: 'bg-surface-muted',
+  raised: 'bg-surface-raised shadow-soft',
+  glass: 'bg-surface-panel/95 shadow-soft',
 };
 
 const shapeClasses: Record<NonNullable<SurfaceProps['shape']>, string> = {

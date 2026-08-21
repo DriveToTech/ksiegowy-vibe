@@ -7,6 +7,12 @@ export const t = {
     settings: "Ustawienia",
   },
 
+  theme: {
+    label: "Motyw",
+    switchToLight: "Włącz jasny motyw",
+    switchToDark: "Włącz ciemny motyw",
+  },
+
   pagination: {
     previous: "Poprzednia",
     next: "Następna",
@@ -41,15 +47,6 @@ export const t = {
     lastActivityLabel: "Ostatnia aktywność",
     lastActivityDescription: (invoiceNumber: string, issueDate: string) =>
       `Ostatnio zaktualizowano fakturę ${invoiceNumber} z dnia ${issueDate}.`,
-    quickActions: {
-      title: "Szybkie działania",
-      subtitle: "Najczęstsze skróty robocze",
-      newInvoiceTitle: "Nowa faktura",
-      newInvoiceDescription: "Utwórz dokument sprzedaży.",
-      incomingInvoiceTitle: "Prześlij do OCR",
-      incomingInvoiceDescription: "Dodaj fakturę od kontrahenta.",
-      manageCompanySettings: "Zarządzaj ustawieniami firmy",
-    },
   },
 
   incoming: {
@@ -474,11 +471,17 @@ export const t = {
 
   header: {
     subtitle: "Cyfrowa przestrzeń księgowa",
+    companyContext: "Aktywna firma",
+    ksefContext: "Środowisko KSeF",
     navAriaLabel: "Nawigacja główna",
     nav: {
       dashboard: "Pulpit",
       login: "Logowanie",
     },
+  },
+
+  ksefEnvironmentSwitcher: {
+    selectEnvironment: "Wybierz aktywne środowisko KSeF",
   },
 
   login: {

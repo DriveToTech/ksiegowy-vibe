@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { cn } from '../lib/cn';
+import { t } from '../lib/translations';
 import {
   ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME,
   KSEF_ENVIRONMENT_COOKIE_MAX_AGE,
@@ -28,12 +29,14 @@ export function KsefEnvironmentSwitcher({ activeEnvironment, compact = false }: 
   };
 
   return (
-    <div className={compact ? 'space-y-2' : 'space-y-3'}>
-      <div className={compact ? 'flex items-center justify-between gap-3' : 'space-y-2'}>
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">KSeF context</p>
+    <div className={compact ? 'flex min-w-0 items-center gap-2' : 'space-y-3'}>
+      <div className={compact ? 'contents' : 'space-y-2'}>
+        <p className={compact ? 'sr-only' : 'text-xs font-medium uppercase tracking-[0.16em] text-muted'}>
+          {t.header.ksefContext}
+        </p>
         <span
           className={cn(
-            'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.14em]',
+            'inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.08em] sm:px-3 sm:text-xs sm:tracking-[0.14em]',
             environmentToneClasses[activeEnvironment],
           )}
         >
@@ -44,8 +47,8 @@ export function KsefEnvironmentSwitcher({ activeEnvironment, compact = false }: 
       <Select
         value={activeEnvironment}
         onChange={handleChange}
-        aria-label="Wybierz aktywne środowisko KSeF"
-        className="max-w-full"
+        aria-label={t.ksefEnvironmentSwitcher.selectEnvironment}
+        className={compact ? 'min-w-0 w-[6.25rem] sm:w-32' : 'max-w-full'}
       >
         <option value="TEST">TEST</option>
         <option value="PRODUCTION">PRODUCTION</option>

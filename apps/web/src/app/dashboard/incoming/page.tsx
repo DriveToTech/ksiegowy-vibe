@@ -38,17 +38,18 @@ export default async function IncomingPage({
         eyebrow={t.incoming.pageEyebrow}
         title={t.incoming.pageTitle}
         description={t.incoming.pageDescription}
+        actions={
+          <>
+            <UploadButton companyId={companyId} />
+            <KsefSyncButton companyId={companyId} ksefCredentialStatuses={ksefCredentialStatuses} />
+          </>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard label={t.incoming.metrics.allLabel} value={String(result.total)} hint={t.incoming.metrics.allHint} />
         <MetricCard label={t.incoming.metrics.processingLabel} value={String(processingCount)} hint={t.incoming.metrics.processingHint} />
         <MetricCard label={t.incoming.metrics.confirmedLabel} value={String(confirmedCount)} hint={t.incoming.metrics.confirmedHint} accent="primary" />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] xl:items-stretch">
-        <UploadButton companyId={companyId} />
-        <KsefSyncButton companyId={companyId} ksefCredentialStatuses={ksefCredentialStatuses} />
       </div>
 
       {result.total === 0 ? (

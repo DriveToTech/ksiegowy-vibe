@@ -82,7 +82,10 @@ ksiegowy-vibe/
 ## Frontend Branding
 
 - The web app root layout uses `apps/web/src/components/brand/assets/logo.png` as the favicon via Next.js metadata, so browser tab branding stays aligned with the shared brand asset.
-- The desktop dashboard sidebar keeps the lower sidebar content scrollable so quick actions never overlap primary navigation targets on shorter viewports.
+- The authenticated header is the sole global brand anchor and contains company, KSeF, theme, and session context.
+- The desktop dashboard sidebar contains navigation only; page actions live beside the content they affect.
+- Light mode is the default, with an explicit dark preference stored locally in the browser.
+- Mobile retains persistent bottom navigation in a reserved shell region and scrollable main content, so content and focused controls are not covered while scrolling.
 
 ## Prerequisites
 
@@ -574,6 +577,30 @@ pnpm --filter @ksiegowy/e2e test:debug
 # Open the last HTML report
 pnpm --filter @ksiegowy/e2e report
 ```
+
+Visual dashboard baselines must be generated and verified with the exact
+Playwright dependency and matching Linux container image (`1.59.1`):
+
+```bash
+# Regenerate the three dashboard baselines
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:' --update-snapshots"
+
+# Verify without changing baselines
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:'"
+```
+
+Do not use a floating Playwright package range or a different container image
+for visual comparisons.
+
+Focused dashboard and responsive header checks:
+
+```bash
+pnpm --filter @ksiegowy/web typecheck
+pnpm --filter @ksiegowy/web lint
+pnpm --filter @ksiegowy/e2e test
+```
+
+At a 390px viewport, the authenticated app header keeps the brand and theme/session controls on the first row, company and KSeF controls on the second row, and verifies that the page does not overflow horizontally.
 
 ### First run setup
 

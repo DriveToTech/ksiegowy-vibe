@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Inter, Manrope } from 'next/font/google';
 import type { ReactNode } from 'react';
 import brandLogo from '../components/brand/assets/logo.png';
 import { AppHeader } from '../components/organisms/AppHeader';
 import { getAuthSession } from '../lib/auth';
+import { THEME_BOOTSTRAP_SCRIPT } from '../lib/theme';
 
 import './globals.css';
 
@@ -33,9 +35,17 @@ export default async function RootLayout({
   const session = await getAuthSession().catch(() => null);
 
   return (
-    <html lang="pl">
-      <body className={`${inter.variable} ${manrope.variable} bg-background text-foreground antialiased`}>
-        <AppHeader user={session?.user ?? null} />
+    <html lang="pl" data-theme="light" suppressHydrationWarning>
+      <body className={`${inter.variable} ${manrope.variable} flex h-dvh min-h-screen flex-col bg-background text-foreground antialiased`}>
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {THEME_BOOTSTRAP_SCRIPT}
+        </Script>
+        <AppHeader
+          user={session?.user ?? null}
+          companies={session?.companies ?? []}
+          activeCompanyId={session?.activeCompanyId ?? null}
+          activeKsefEnvironment={session?.activeKsefEnvironment ?? 'TEST'}
+        />
         {children}
       </body>
     </html>
