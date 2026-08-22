@@ -8,6 +8,7 @@ import type { CompanyKsefCredentialStatus } from '../../../lib/api-types';
 import { getActiveKsefEnvironmentFromBrowser } from '../../../lib/ksef-environment';
 import { cn } from '../../../lib/cn';
 import { Button } from '../../../components/atoms/Button';
+import { Banner } from '../../../components/molecules/Banner';
 import { t } from '../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
@@ -140,26 +141,18 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
             </p>
 
             {!hasToken && (
-              <div className="rounded-xl border border-warning bg-warning px-4 py-3 text-sm text-warning-ink" role="alert">
+              <Banner tone="warning">
                 <p>{t.incoming.ksefSync.missingTokenWarning(activeEnvironment)}{' '}
                   <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
                     {t.incoming.ksefSync.goToSettings}
                   </Link>
                 </p>
-              </div>
+              </Banner>
             )}
 
-          {result !== null && (
-              <p className="rounded-xl bg-success px-4 py-2 text-sm text-success-ink" role="status">
-                {result}
-              </p>
-            )}
+          {result !== null && <Banner tone="success">{result}</Banner>}
 
-            {error !== null && (
-              <p className="rounded-xl bg-error px-4 py-2 text-sm text-error-ink" role="alert">
-                {error}
-              </p>
-            )}
+            {error !== null && <Banner tone="error">{error}</Banner>}
 
             <div className="flex justify-end gap-3 pt-1">
               <Button type="button" variant="ghost" onClick={handleClose} disabled={isSyncing}>

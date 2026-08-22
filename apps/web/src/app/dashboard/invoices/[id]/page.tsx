@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getActiveCompany, getCompanyKsefSettings, getInvoice } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
 import { Surface } from '../../../../components/atoms/Surface';
+import { Banner } from '../../../../components/molecules/Banner';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
 import { ErrorState } from '../../../../components/molecules/ErrorState';
 import { MetricCard } from '../../../../components/molecules/MetricCard';
@@ -57,8 +58,8 @@ export default async function InvoiceDetailPage({
   return (
     <div className="space-y-8">
       {invoice.invoiceType === 'KOR' && invoice.correctedInvoice && (
-        <Surface tone="glass" shape="organic" className="flex flex-wrap items-center gap-3 px-5 py-3 border-amber-400/20 bg-amber-400/10">
-          <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">{t.invoiceDetail.correctionBannerPrefix}</span>
+        <Banner tone="warning" className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold text-warning-ink">{t.invoiceDetail.correctionBannerPrefix}</span>
           <span className="text-sm font-medium text-foreground">{invoice.correctedInvoice.invoiceNumber ?? invoice.correctedInvoice.id}</span>
           <Link
             href={`/dashboard/invoices/${invoice.correctedInvoice.id}`}
@@ -66,7 +67,7 @@ export default async function InvoiceDetailPage({
           >
             {t.invoiceDetail.correctionBannerViewOriginal}
           </Link>
-        </Surface>
+        </Banner>
       )}
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
         <div className="space-y-3">
@@ -136,7 +137,7 @@ export default async function InvoiceDetailPage({
         </InfoSection>
       </div>
 
-      <Surface tone="glass" shape="organic" className="space-y-5 p-6">
+      <Surface tone="panel" className="space-y-5 p-6">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
           <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.lineItemsDescription}</p>
@@ -181,7 +182,7 @@ export default async function InvoiceDetailPage({
 
             <div className="grid gap-4 lg:hidden">
               {invoice.lines.map((line) => (
-                <Surface key={line.id} tone="glass" shape="organic" className="space-y-4 p-4">
+                <Surface key={line.id} tone="inset" className="space-y-4 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoiceDetail.mobile.lineItem(line.position)}</p>
@@ -211,7 +212,7 @@ export default async function InvoiceDetailPage({
       </Surface>
 
       {invoice.vatBreakdown.length > 0 ? (
-        <Surface tone="glass" shape="organic" className="space-y-5 p-6">
+        <Surface tone="panel" className="space-y-5 p-6">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.vatBreakdownTitle}</h2>
             <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.vatBreakdownDescription}</p>
@@ -230,7 +231,7 @@ export default async function InvoiceDetailPage({
       ) : null}
 
       {invoice.notes ? (
-        <Surface tone="glass" shape="organic" className="space-y-3 p-6 max-w-4xl">
+        <Surface tone="panel" className="space-y-3 p-6 max-w-4xl">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.notes}</h2>
           <p className="text-sm leading-6 text-muted">{invoice.notes}</p>
         </Surface>

@@ -48,7 +48,7 @@ export function NewContractorForm({ companyId }: { companyId: string }) {
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-2xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-2xl">
       {error ? <ErrorState message={error} /> : null}
 
       <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">

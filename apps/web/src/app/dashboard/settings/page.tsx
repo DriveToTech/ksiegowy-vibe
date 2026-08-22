@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getCompany, getCompanyBackupPolicy, getCompanyBackupStatus, getCompanyKsefSettings, getInvites, getMembers } from '../../../lib/api';
+import { Banner } from '../../../components/molecules/Banner';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { PageHeader } from '../../../components/molecules/PageHeader';
 import { getActiveCompanyRole, requireAuthSession } from '../../../lib/auth';
@@ -76,9 +77,9 @@ export default async function DashboardSettingsPage() {
         <KsefSettingsForm companyId={activeCompanyId} settings={ksefSettingsResult.ksefSettings} />
       ) : null}
       {isAdmin && !ksefSettingsResult.ksefSettings ? (
-        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error bg-error p-5 text-sm text-error-ink xl:max-w-4xl">
+        <Banner tone="error" className="xl:max-w-4xl">
           Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.
-        </div>
+        </Banner>
       ) : null}
       {isAdmin ? (
         <InvoiceNumberPatternForm companyId={activeCompanyId} currentPattern={company?.invoiceNumberPattern ?? null} />
@@ -92,9 +93,9 @@ export default async function DashboardSettingsPage() {
         />
       ) : null}
       {isAdmin && !backupSettings ? (
-        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error bg-error p-5 text-sm text-error-ink xl:max-w-4xl">
+        <Banner tone="error" className="xl:max-w-4xl">
           Nie udało się pobrać ustawień backupu firmy. Odśwież stronę i spróbuj ponownie.
-        </div>
+        </Banner>
       ) : null}
       <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline bg-surface-panel/55 p-5 backdrop-blur-xl xl:max-w-4xl">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.settings.serviceCatalogLink}</p>

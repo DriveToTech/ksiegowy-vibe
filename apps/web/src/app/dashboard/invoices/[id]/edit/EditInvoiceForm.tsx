@@ -122,7 +122,7 @@ export default function EditInvoiceForm({
       {error ? <ErrorState message={error} /> : null}
 
       {/* ── Section 1: Dane dokumentu ──────────────────────────────────────── */}
-      <Surface tone="glass" shape="organic" className="space-y-4 p-6">
+      <Surface tone="panel" className="space-y-4 p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label={t.newInvoice.issueDateLabel} htmlFor="issueDate" required>
             <Input
@@ -171,7 +171,7 @@ export default function EditInvoiceForm({
       </Surface>
 
       {/* ── Section 2: Pozycje faktury ─────────────────────────────────────── */}
-      <Surface tone="glass" shape="organic" className="space-y-5 p-6">
+      <Surface tone="panel" className="space-y-5 p-6">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           {t.invoiceDetail.sections.lineItemsTitle}
         </h2>
@@ -187,7 +187,7 @@ export default function EditInvoiceForm({
 
       {/* ── Section 3: Szczegóły płatności + Podsumowanie ─────────────────── */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Surface tone="glass" shape="organic" className="space-y-4 p-6">
+        <Surface tone="panel" className="space-y-4 p-6">
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
             {t.newInvoice.paymentDetailsTitle}
           </h2>
@@ -214,7 +214,7 @@ export default function EditInvoiceForm({
           </FormField>
         </Surface>
 
-        <Surface tone="glass" shape="organic" className="p-6">
+        <Surface tone="panel" className="p-6">
           <h2 className="mb-4 text-xl font-semibold tracking-tight text-foreground">
             {t.newInvoice.summaryTitle}
           </h2>
@@ -223,7 +223,7 @@ export default function EditInvoiceForm({
       </div>
 
       {/* ── Section 4: Uwagi do faktury ───────────────────────────────────── */}
-      <Surface tone="glass" shape="organic" className="space-y-3 p-6">
+      <Surface tone="panel" className="space-y-3 p-6">
         <div>
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
             {t.newInvoice.notesTitle}

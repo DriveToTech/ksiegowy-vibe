@@ -26,7 +26,7 @@ export function MetricCard({
   className,
 }: MetricCardProps) {
   return (
-    <Surface className={cn('p-5', className)} tone="glass" shape="organic">
+    <Surface className={cn('p-5', className)} tone="panel">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">{label}</p>

@@ -96,7 +96,7 @@ export default async function DashboardPage() {
         </div>
 
         {recent[0] ? (
-          <Surface tone="glass" shape="organic" className="p-5">
+          <Surface tone="panel" className="p-5">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.dashboard.lastActivityLabel}</p>
             <p className="mt-2 text-sm text-foreground">
               {t.dashboard.lastActivityDescription(recent[0].invoiceNumber ?? 'bez numeru', formatDate(recent[0].issueDate))
