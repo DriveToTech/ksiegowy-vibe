@@ -130,8 +130,8 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
   ];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-      <Surface tone="panel" className="overflow-hidden xl:mr-6">
+    <div className="grid gap-6 xl:grid-cols-2">
+      <Surface tone="panel" className="overflow-hidden">
         <div className="border-b border-outline px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -155,7 +155,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
         )}
       </Surface>
 
-      <Surface tone="panel" className="flex flex-col overflow-hidden xl:translate-y-8">
+      <Surface tone="panel" className="flex flex-col overflow-hidden">
         <div className="border-b border-outline px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
