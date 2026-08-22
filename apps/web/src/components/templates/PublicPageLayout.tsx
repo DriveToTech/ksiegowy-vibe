@@ -8,7 +8,7 @@ interface PublicPageLayoutProps {
 
 export function PublicPageLayout({ children, className }: PublicPageLayoutProps) {
   return (
-    <main className={cn('mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12', className)}>
+    <main className={cn('mx-auto flex min-h-full w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12', className)}>
       {children}
     </main>
   );

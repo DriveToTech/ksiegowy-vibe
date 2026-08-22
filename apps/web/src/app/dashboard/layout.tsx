@@ -5,7 +5,7 @@ import { requireAuthSession } from '../../lib/auth';
 export default async function DashboardLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  await requireAuthSession('/dashboard');
+  const session = await requireAuthSession('/dashboard');
 
-  return <DashboardShell>{children}</DashboardShell>;
+  return <DashboardShell session={session}>{children}</DashboardShell>;
 }
