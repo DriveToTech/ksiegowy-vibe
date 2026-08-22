@@ -496,10 +496,18 @@ export const t = {
 
   login: {
     tagline: "Dostęp do platformy",
-    headline: "Logowanie",
+    brandName: "Księgowy Vibe",
+    headline: "Faktury, OCR i KSeF bez chaosu starych systemów.",
     description:
-      "Zaloguj się przez Google OAuth2, aby przejść do pulpitu firmy.",
+      "Jedna przestrzeń robocza na dokumenty wychodzące i przychodzące, zbudowana wokół statusu rozliczenia w KSeF — zawsze wiesz, które faktury istnieją prawnie.",
+    featureBulletFa3: "Faktury strukturalne FA(3), rozliczane w kilka sekund",
+    featureBulletOffline24: "Kolejka offline24 z terminem na kolejny dzień roboczy",
+    featureBulletOcr: "OCR dla papieru i PDF, dopasowany do wpisów bankowych",
+    openSourceTag: "OPEN SOURCE · SAMODZIELNY HOSTING · AGPL",
+    formTitle: "Logowanie",
+    formSubtitle: "Zaloguj się przez Google OAuth2, aby przejść do pulpitu firmy.",
     googleButton: "Kontynuuj z Google",
+    ksefNote: "Uwierzytelnianie w KSeF odbywa się osobno dla każdej firmy, tokenem lub certyfikatem — nigdy hasłem do tego konta.",
   },
 
   invoiceActions: {
