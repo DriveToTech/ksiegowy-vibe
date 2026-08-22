@@ -13,6 +13,15 @@ export const t = {
     switchToDark: "Włącz ciemny motyw",
   },
 
+  dashboardRail: {
+    rejectedEyebrow: "Odrzucone przez KSeF",
+    rejectedCount: (n: number) => `${n} ${n === 1 ? 'faktura' : 'faktury'}`,
+    rejectedDescription: "Sprawdź przyczynę odrzucenia i wyślij ponownie po poprawie.",
+    rejectedLink: "Przejrzyj →",
+    jpkEyebrow: (month: string) => `JPK_V7M · ${month}`,
+    jpkDueIn: (days: number) => (days === 0 ? "Termin dziś" : `Termin za ${days} ${days === 1 ? 'dzień' : 'dni'}`),
+  },
+
   pagination: {
     previous: "Poprzednia",
     next: "Następna",
@@ -474,6 +483,7 @@ export const t = {
     companyContext: "Aktywna firma",
     ksefContext: "Środowisko KSeF",
     navAriaLabel: "Nawigacja główna",
+    searchPlaceholder: "Szukaj faktur, NIP, ref. KSeF…",
     nav: {
       dashboard: "Pulpit",
       login: "Logowanie",

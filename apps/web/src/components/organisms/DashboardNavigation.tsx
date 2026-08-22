@@ -10,6 +10,8 @@ interface NavigationItem {
   label: string;
   mobileLabel?: string;
   icon: 'overview' | 'outgoing' | 'incoming' | 'contractors' | 'settings';
+  badge?: string;
+  badgeTone?: 'muted' | 'warning';
 }
 
 interface DashboardNavigationProps {
@@ -50,9 +52,16 @@ export function DashboardNavigation({ items, mobile = false }: DashboardNavigati
                   : 'text-muted hover:bg-foreground/5 hover:text-foreground-secondary',
             )}
           >
-            <span className={cn('flex min-w-0 items-center gap-3', mobile ? 'flex-col justify-center gap-1' : '')}>
-              <AppIcon name={item.icon} className={mobile ? 'h-4 w-4' : 'h-4 w-4'} />
-              <span className={mobile ? 'w-full whitespace-nowrap' : ''}>{mobile ? item.mobileLabel ?? item.label : item.label}</span>
+            <span className={cn('flex min-w-0 items-center gap-3', mobile ? 'flex-col justify-center gap-1' : 'justify-between')}>
+              <span className="flex min-w-0 items-center gap-3">
+                <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
+                <span className={mobile ? 'w-full whitespace-nowrap' : 'truncate'}>{mobile ? item.mobileLabel ?? item.label : item.label}</span>
+              </span>
+              {!mobile && item.badge ? (
+                <span className={cn('font-mono text-[11px]', item.badgeTone === 'warning' ? 'text-warning-ink' : 'text-muted')}>
+                  {item.badge}
+                </span>
+              ) : null}
             </span>
           </Link>
         );
