@@ -128,6 +128,9 @@ test('settings page loads with members section', async ({ authenticatedPage: pag
   await page.goto('/dashboard/settings');
 
   await expect(page.getByRole('heading', { name: 'Ustawienia' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Zespół i role' }).click();
+
   await expect(page.getByRole('heading', { name: /Członkowie/ })).toBeVisible();
 });
 
