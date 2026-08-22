@@ -9,6 +9,7 @@ import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { Select } from '../atoms/Select';
 import { Surface } from '../atoms/Surface';
+import { CatalogueItemPicker } from '../molecules/CatalogueItemPicker';
 import { FormField } from '../molecules/FormField';
 
 export interface LineItem {
@@ -107,11 +108,6 @@ export function InvoiceLineItemsEditor({
     <>
       {/* Desktop table */}
       <div className="hidden xl:block">
-        {serviceTemplates.length > 0 ? (
-          <p className="mb-3 text-xs text-muted">
-            {t.newInvoice.catalogPickerButton}:
-          </p>
-        ) : null}
         <table className="w-full table-fixed text-sm">
           <colgroup>
             <col style={{ width: '24%' }} />
@@ -139,24 +135,14 @@ export function InvoiceLineItemsEditor({
               return (
                 <tr key={index} className="align-middle">
                   <td className="py-1 pr-1">
-                    {serviceTemplates.length > 0 ? (
-                      <Select
-                        aria-label={t.newInvoice.catalogPickerButton}
-                        value=""
-                        onChange={(e) => { if (e.target.value) applyTemplate(e.target.value, index); }}
-                        className="mb-1 text-xs"
-                      >
-                        <option value="">{t.newInvoice.catalogPickerDefault}</option>
-                        {serviceTemplates.map((tmpl) => (
-                          <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
-                        ))}
-                      </Select>
-                    ) : null}
-                    <Input
-                      type="text"
-                      aria-label={t.invoiceLineItemsEditor.itemNameAriaLabel}
+                    <CatalogueItemPicker
+                      serviceTemplates={serviceTemplates}
+                      contractorRates={contractorRates}
+                      contractorId={contractorId}
                       value={line.name}
-                      onChange={(e) => updateLine(index, 'name', e.target.value)}
+                      onNameChange={(name) => updateLine(index, 'name', name)}
+                      onTemplateSelect={(templateId) => applyTemplate(templateId, index)}
+                      ariaLabel={t.invoiceLineItemsEditor.itemNameAriaLabel}
                       placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
                     />
                   </td>
@@ -256,25 +242,15 @@ export function InvoiceLineItemsEditor({
               </div>
 
               <div className="grid gap-4">
-                {serviceTemplates.length > 0 ? (
-                  <FormField label={t.newInvoice.catalogPickerButton}>
-                    <Select
-                      value=""
-                      onChange={(e) => { if (e.target.value) applyTemplate(e.target.value, index); }}
-                    >
-                      <option value="">{t.newInvoice.catalogPickerDefault}</option>
-                      {serviceTemplates.map((tmpl) => (
-                        <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
-                      ))}
-                    </Select>
-                  </FormField>
-                ) : null}
                 <FormField label={t.invoiceLineItemsEditor.nameFieldLabel} required>
-                  <Input
-                    type="text"
-                    aria-label={t.invoiceLineItemsEditor.itemNameAriaLabel}
+                  <CatalogueItemPicker
+                    serviceTemplates={serviceTemplates}
+                    contractorRates={contractorRates}
+                    contractorId={contractorId}
                     value={line.name}
-                    onChange={(e) => updateLine(index, 'name', e.target.value)}
+                    onNameChange={(name) => updateLine(index, 'name', name)}
+                    onTemplateSelect={(templateId) => applyTemplate(templateId, index)}
+                    ariaLabel={t.invoiceLineItemsEditor.itemNameAriaLabel}
                     placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
                   />
                 </FormField>

@@ -24,7 +24,7 @@ export function CompanySwitcher({
     return (
       <span
         title={companies[0]?.name}
-        className="flex min-h-11 min-w-0 items-center truncate rounded-control bg-surface-raised px-3 text-sm font-semibold text-foreground"
+        className="flex min-h-11 min-w-0 items-center truncate rounded-control bg-surface-raised px-3 text-sm font-semibold text-foreground lg:h-8 lg:min-h-0 lg:border lg:border-outline lg:bg-secondary-surface lg:text-[13px]"
       >
         {companies[0]?.name}
       </span>
@@ -42,7 +42,7 @@ export function CompanySwitcher({
       onChange={handleChange}
       aria-label={t.companySwitcher.selectCompany}
       title={companies.find((company) => company.id === activeCompanyId)?.name}
-      className={compact ? 'min-w-0 sm:w-56' : 'max-w-full'}
+      className={compact ? 'min-w-0 sm:w-56 lg:h-8 lg:min-h-0' : 'max-w-full'}
     >
       {companies.map((c) => (
         <option key={c.id} value={c.id}>

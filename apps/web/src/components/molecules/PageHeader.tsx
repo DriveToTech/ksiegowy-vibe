@@ -17,19 +17,19 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header className={cn('flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between', className)}>
-      <div className="min-w-0 flex-1 space-y-3 lg:max-w-3xl">
-        {eyebrow ? (
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{eyebrow}</p>
-        ) : null}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+    <header className={cn('flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between', className)}>
+      <div className="min-w-0 flex-1 space-y-2 lg:max-w-3xl">
+        <div className="flex flex-col gap-1">
+          {eyebrow ? (
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted">{eyebrow}</p>
+          ) : null}
+          <h1 className="text-[25px] font-semibold tracking-[-0.02em] text-foreground">
             {title}
           </h1>
-          {description ? <p className="max-w-2xl text-sm text-muted sm:text-base">{description}</p> : null}
         </div>
+        {description ? <p className="max-w-2xl text-sm text-muted sm:text-base">{description}</p> : null}
       </div>
-      {actions ? <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:shrink-0 sm:justify-end lg:pt-6">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:shrink-0 sm:justify-end">{actions}</div> : null}
     </header>
   );
 }

@@ -10,8 +10,9 @@ const navigationItems = [
   { href: '/dashboard', label: t.nav.overview, mobileLabel: 'Start', icon: 'overview' as const },
   { href: '/dashboard/invoices', label: t.nav.outgoingInvoices, mobileLabel: 'Sprzedaż', icon: 'outgoing' as const },
   { href: '/dashboard/incoming', label: t.nav.incomingInvoices, mobileLabel: 'Zakupy', icon: 'incoming' as const },
-  { href: '/dashboard/contractors', label: t.nav.contractors, mobileLabel: 'Firmy', icon: 'contractors' as const },
-  { href: '/dashboard/settings', label: t.nav.settings, mobileLabel: 'Ustawienia', icon: 'settings' as const },
+  { href: '/dashboard/contractors', label: t.nav.contractors, mobileLabel: t.nav.contractors, icon: 'contractors' as const },
+  { href: '/dashboard/compliance', label: t.nav.compliance, mobileLabel: t.nav.compliance, icon: 'contractors' as const },
+  { href: '/dashboard/settings', label: t.nav.settings, mobileLabel: t.nav.settings, icon: 'settings' as const },
 ];
 
 const INCOMING_NEEDS_ACTION_STATUSES = new Set(['UPLOADED', 'OCR_PROCESSING', 'OCR_DONE', 'OCR_FAILED']);

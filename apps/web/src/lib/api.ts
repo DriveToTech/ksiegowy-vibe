@@ -17,7 +17,7 @@ import type {
   InvoiceDetail,
   InvoiceSummary,
   Member,
-  ServiceTemplate,
+  ServiceTemplate, ReportDetails,
 } from './api-types';
 
 export type {
@@ -118,8 +118,17 @@ export async function getCurrentUser(): Promise<AuthUser> {
   return data.user;
 }
 
-export async function getContractors(companyId: string): Promise<Contractor[]> {
-  return apiFetch<Contractor[]>(`/companies/${companyId}/contractors`);
+export async function getContractors(
+  companyId: string,
+  params?: { status?: 'active' | 'inactive' | 'all'; year?: number },
+): Promise<Contractor[]> {
+  const query = params
+    ? '?' + new URLSearchParams({
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.year !== undefined ? { year: String(params.year) } : {}),
+    }).toString()
+    : '';
+  return apiFetch<Contractor[]>(`/companies/${companyId}/contractors${query}`);
 }
 
 export async function getContractor(companyId: string, contractorId: string): Promise<Contractor> {
@@ -206,4 +215,12 @@ export async function getServiceTemplates(companyId: string, includeInactive = f
 
 export async function getContractorServiceRates(companyId: string, contractorId: string): Promise<ContractorServiceRate[]> {
   return apiFetch(`/companies/${companyId}/contractors/${contractorId}/service-rates`);
+}
+
+export async function getReport(companyId: string, reportId: string): Promise<ReportDetails> {
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
+
+  return apiFetch<ReportDetails>(`/compliance/${companyId}/reports/${reportId}`, {
+    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
+  });
 }

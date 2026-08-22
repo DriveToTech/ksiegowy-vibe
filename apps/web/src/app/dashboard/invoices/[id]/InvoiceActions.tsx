@@ -325,7 +325,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
           </Button>
         )}
         {isPaid && (
-          <span className="inline-flex min-h-11 items-center rounded-md bg-success px-4 text-sm font-semibold text-success-ink">
+          <span className="inline-flex min-h-11 items-center rounded-chip bg-success px-4 text-sm font-semibold text-success-ink">
             {t.invoiceActions.paid}
           </span>
         )}
