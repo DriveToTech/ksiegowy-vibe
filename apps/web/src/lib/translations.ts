@@ -480,6 +480,14 @@ export const t = {
     invalidLineNumberError:
       "Nieprawidłowa wartość liczbowa w ilości lub cenie pozycji faktury.",
     unknownSaveError: "Nieznany błąd podczas zapisu.",
+    buyerSectionEyebrow: "Nabywca",
+    datesSectionEyebrow: "Daty i płatność",
+    blockersTitle: (n: number) => `${n} ${n === 1 ? 'blokada' : 'blokady'}`,
+    blockers: {
+      noContractor: "Wybierz kontrahenta.",
+      noLineItems: "Dodaj co najmniej jedną pozycję z nazwą.",
+      invalidLinePrice: "Uzupełnij prawidłową cenę netto dla każdej pozycji.",
+    },
     editPageEyebrow: "Faktury",
     editPageTitle: "Edytuj szkic faktury",
     editPageDescription: "Wprowadź zmiany i zapisz szkic.",
