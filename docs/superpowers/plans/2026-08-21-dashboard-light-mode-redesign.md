@@ -72,6 +72,7 @@
 ## Task 1: Lock the light/dark theme contract with failing browser tests
 
 **Files:**
+
 - Modify: `apps/e2e/tests/dashboard.spec.ts`
 - Modify: `apps/e2e/playwright.config.ts`
 
@@ -151,6 +152,7 @@ Expected: FAIL because `<html>` has no `data-theme` attribute and no theme-switc
 ## Task 2: Implement light-first tokens and no-flash theme bootstrap
 
 **Files:**
+
 - Create: `apps/web/src/lib/theme.ts`
 - Create: `apps/web/src/components/organisms/ThemeSwitcher.tsx`
 - Modify: `apps/web/src/app/globals.css`
@@ -367,6 +369,7 @@ Expected: all commands PASS; reload retains dark, and an invalid stored value pr
 ## Task 3: Compose authenticated context in `AppHeader`
 
 **Files:**
+
 - Modify: `apps/e2e/tests/dashboard.spec.ts`
 - Modify: `apps/web/src/app/layout.tsx`
 - Modify: `apps/web/src/components/organisms/AppHeader.tsx`
@@ -499,6 +502,7 @@ Expected: PASS. Manually switch company/KSeF once against the mock and confirm U
 ## Task 4: Reduce `DashboardShell` to navigation and content
 
 **Files:**
+
 - Modify: `apps/e2e/tests/navigation.spec.ts`
 - Modify: `apps/web/src/app/dashboard/layout.tsx`
 - Modify: `apps/web/src/components/organisms/DashboardShell.tsx`
@@ -630,6 +634,7 @@ Expected: PASS; five desktop links and five mobile links retain existing destina
 ## Task 5: Put actions beside the content they affect
 
 **Files:**
+
 - Modify: `apps/e2e/tests/dashboard.spec.ts`
 - Modify: `apps/e2e/tests/incoming.spec.ts`
 - Modify: `apps/e2e/tests/contractors.spec.ts`
@@ -650,7 +655,7 @@ test('dashboard exposes contextual destinations without a persistent quick-actio
   await page.goto('/dashboard');
 
   const main = page.getByRole('main');
-  await expect(main.getByRole('link', { name: '+ Nowa faktura' })).toHaveAttribute('href', '/dashboard/invoices/new');
+  await expect(main.getByRole('link', { name: 'Nowa faktura' })).toHaveAttribute('href', '/dashboard/invoices/new');
   await expect(main.getByRole('link', { name: 'Przejdź do OCR' })).toHaveAttribute('href', '/dashboard/incoming');
   await expect(page.getByText('Szybkie działania')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Nawigacja dashboardu' }).getByRole('link', { name: 'Ustawienia' })).toHaveAttribute('href', '/dashboard/settings');
@@ -798,6 +803,7 @@ Expected: PASS. Outgoing invoice creation, incoming upload/sync, contractor crea
 ## Task 6: Verify responsive and accessibility behavior
 
 **Files:**
+
 - Modify: `apps/e2e/tests/dashboard.spec.ts`
 - Modify: `apps/e2e/tests/navigation.spec.ts`
 - Modify: `apps/web/src/app/globals.css`
@@ -856,7 +862,7 @@ test('mobile navigation does not cover a focused page action', async ({ authenti
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/dashboard');
 
-  const action = page.getByRole('main').getByRole('link', { name: '+ Nowa faktura' });
+  const action = page.getByRole('main').getByRole('link', { name: 'Nowa faktura' });
   await action.focus();
   await expect(action).toBeFocused();
 
@@ -919,6 +925,7 @@ Expected: PASS at 390, 1024, 1280, and 1536 CSS-pixel widths with no horizontal 
 ## Task 7: Add reviewed visual regression baselines
 
 **Files:**
+
 - Modify: `apps/e2e/tests/dashboard.spec.ts`
 - Modify: `apps/e2e/playwright.config.ts`
 - Create: `apps/e2e/tests/dashboard.spec.ts-snapshots/dashboard-light-desktop-chromium-linux.png`
@@ -1003,6 +1010,7 @@ Expected: PASS with zero unexpected pixel differences.
 ## Task 8: Update durable documentation
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `docs/superpowers/specs/2026-08-21-dashboard-light-mode-redesign-design.md`
 
@@ -1061,6 +1069,7 @@ Expected: no obsolete claim that quick actions remain in the sidebar. Historical
 ## Task 9: Final security review and verification
 
 **Files:**
+
 - Verify all files in the file map; no production code change is planned in this task.
 
 - [ ] **Step 1: Review client-side trust boundaries**
@@ -1136,12 +1145,14 @@ Expected: all three reviewed light/dark desktop/mobile baselines pass unchanged.
 
 Using one company, multiple companies including a long name, and both KSeF environments, verify:
 
-| Viewport | Theme | Required result |
-|---|---|---|
-| 390×844 | light and dark | Header uses at most two usable rows; company, KSeF, theme, and session controls remain reachable; actions wrap; bottom nav covers no focused control. |
-| 1024×768 | light and dark | Desktop sidebar appears with navigation only; main content has no horizontal overflow; sticky header fully covers scrolling content. |
-| 1280×800 | light and dark | Header control order is intact; contextual actions remain beside page content; panels and text pass contrast review. |
-| 1536×900 | light and dark | Content remains bounded/readable; no excessive glow/gradient treatment; navigation active state remains clear. |
+
+| Viewport | Theme          | Required result                                                                                                                                       |
+| -------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 390×844  | light and dark | Header uses at most two usable rows; company, KSeF, theme, and session controls remain reachable; actions wrap; bottom nav covers no focused control. |
+| 1024×768 | light and dark | Desktop sidebar appears with navigation only; main content has no horizontal overflow; sticky header fully covers scrolling content.                  |
+| 1280×800 | light and dark | Header control order is intact; contextual actions remain beside page content; panels and text pass contrast review.                                  |
+| 1536×900 | light and dark | Content remains bounded/readable; no excessive glow/gradient treatment; navigation active state remains clear.                                        |
+
 
 Also verify public home/login pages remain readable in the light default and continue to omit authenticated company/KSeF/session controls.
 
@@ -1168,3 +1179,4 @@ If any row or criterion is not demonstrably satisfied, fix the owning earlier ta
 - Next.js 15 root layouts: root layout owns `<html>`/`<body>` and may read request cookies/server session data while retaining Server Component boundaries.
 - Tailwind CSS 4 theme variables: regular semantic variables can feed `@theme inline` utility mappings; no configuration package is required.
 - Playwright visual comparisons: `toHaveScreenshot()` baselines are host-sensitive, so baselines are generated and checked in the pinned Linux Playwright image.
+

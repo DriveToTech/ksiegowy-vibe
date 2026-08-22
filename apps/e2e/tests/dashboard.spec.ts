@@ -22,17 +22,11 @@ test('authenticated header exposes company, KSeF, theme, and session controls in
   const header = page.getByRole('banner');
   await expect(header.getByRole('link', { name: 'Księgowy Vibe logo' })).toBeVisible();
   await expect(header.getByText('Test Company Sp. z o.o.', { exact: true })).toBeVisible();
-  await expect(header.getByLabel('Wybierz aktywne środowisko KSeF')).toHaveValue('TEST');
-  await expect(header.getByText('TEST', { exact: true }).first()).toBeVisible();
+  const ksefBadge = header.getByText('TEST', { exact: true }).first();
+  await expect(ksefBadge).toBeVisible();
+  await expect(ksefBadge).toHaveCSS('color', 'rgb(138, 83, 0)');
   await expect(header.getByRole('button', { name: 'Włącz ciemny motyw' })).toBeVisible();
   await expect(header.getByRole('button', { name: /Wyloguj/ })).toBeVisible();
-
-  const interactiveLabels = await header.locator('a, select, button').evaluateAll((elements) =>
-    elements.map((element) => element.getAttribute('aria-label') ?? element.textContent?.trim()),
-  );
-  expect(interactiveLabels.indexOf('Wybierz aktywne środowisko KSeF')).toBeLessThan(
-    interactiveLabels.findIndex((label) => label === 'Włącz ciemny motyw'),
-  );
 });
 
 test('authenticated mobile header fits its controls into two rows without horizontal overflow', async ({ authenticatedPage: page }) => {
@@ -233,7 +227,7 @@ test('shared controls and button variants meet contrast requirements in both the
   // color. Read the real rendered atom (not a hand-typed className) to confirm it's
   // actually wired rather than silently falling back to no background.
   const primaryButtonBackgroundImage = await page
-    .getByRole('link', { name: '+ Nowa faktura' })
+    .getByRole('link', { name: 'Nowa faktura' })
     .locator('button')
     .evaluate((element) => getComputedStyle(element).backgroundImage);
   expect(primaryButtonBackgroundImage).toContain('linear-gradient');
@@ -243,7 +237,7 @@ test('dashboard exposes contextual destinations without a persistent quick-actio
   await page.goto('/dashboard');
 
   const main = page.getByRole('main');
-  await expect(main.getByRole('link', { name: '+ Nowa faktura' })).toHaveAttribute('href', '/dashboard/invoices/new');
+  await expect(main.getByRole('link', { name: 'Nowa faktura' })).toHaveAttribute('href', '/dashboard/invoices/new');
   await expect(main.getByRole('link', { name: 'Przejdź do OCR' })).toHaveAttribute('href', '/dashboard/incoming');
   await expect(page.getByText('Szybkie działania')).toHaveCount(0);
   await expect(page.getByText('Najczęstsze skróty robocze')).toHaveCount(0);
@@ -339,7 +333,7 @@ test('mobile dashboard content and actions clear navigation at initial and mid-s
     navigationTop >= 0 && navigationBottom <= (layoutMeasurements?.viewportHeight ?? 0) && actualScrollTop >= 0,
   )).toBe(true);
   await expect(page.getByText('W trakcie rozliczenia')).toBeVisible();
-  await expect(page.getByRole('link', { name: '+ Nowa faktura' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Nowa faktura' })).toBeVisible();
 });
 
 test('dashboard redirects to onboarding when no company is configured', async ({ authenticatedPageNoCompany: page }) => {
@@ -366,11 +360,11 @@ for (const viewport of [
     }));
     expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
 
-    const themeBox = await page.getByRole('button', { name: 'Włącz ciemny motyw' }).boundingBox();
-    expect(themeBox?.width).toBeGreaterThanOrEqual(44);
-    expect(themeBox?.height).toBeGreaterThanOrEqual(44);
-
     if (viewport.width < 1024) {
+      const themeBox = await page.getByRole('button', { name: 'Włącz ciemny motyw' }).boundingBox();
+      expect(themeBox?.width).toBeGreaterThanOrEqual(44);
+      expect(themeBox?.height).toBeGreaterThanOrEqual(44);
+
       const logoutBox = await page.getByRole('button', { name: /Wyloguj/ }).boundingBox();
       expect(logoutBox?.width).toBeGreaterThanOrEqual(44);
       expect(logoutBox?.height).toBeGreaterThanOrEqual(44);
@@ -421,8 +415,8 @@ test('shared controls and dashboard surfaces meet contrast requirements in both 
       ['success badge', 'bg-success text-success-ink'],
       ['warning badge', 'bg-warning text-warning-ink'],
       ['danger badge', 'bg-error text-error-ink'],
-      ['KSeF TEST badge', 'border-success-ink/30 bg-success text-success-ink'],
-      ['KSeF PRODUCTION badge', 'border-warning-ink/30 bg-warning text-warning-ink'],
+      ['KSeF TEST badge', 'border-warning-ink/30 bg-warning text-warning-ink'],
+      ['KSeF PRODUCTION badge', 'border-success-ink/30 bg-success text-success-ink'],
       ['primary button', 'bg-primary text-primary-ink'],
       ['secondary button', 'bg-secondary-surface text-secondary-ink'],
       ['ghost button', 'bg-transparent text-primary'],
@@ -515,7 +509,7 @@ test('mobile navigation does not cover a focused page action', async ({ authenti
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/dashboard');
 
-  const action = page.getByRole('main').getByRole('link', { name: '+ Nowa faktura' });
+  const action = page.getByRole('main').getByRole('link', { name: 'Nowa faktura' });
   await action.focus();
   const actionBox = await action.boundingBox();
   const mobileNavigationBox = await page.getByRole('navigation', { name: 'Mobilna nawigacja dashboardu' }).boundingBox();

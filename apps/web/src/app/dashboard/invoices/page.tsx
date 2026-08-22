@@ -62,9 +62,9 @@ export default async function InvoicesPage({
         title={t.outgoingInvoices.pageTitle}
         description={t.outgoingInvoices.pageDescription}
         actions={
-          <Button href="/dashboard/invoices/new" variant="primaryQuiet" disabled={!hasContractors}>
-            {t.outgoingInvoices.addButton}
-          </Button>
+          <Link href="/dashboard/invoices/new" variant="primaryQuiet" disabled={!hasContractors}>
+              <Button>{t.dashboard.createInvoice}</Button>
+            </Link>
         }
       />
 

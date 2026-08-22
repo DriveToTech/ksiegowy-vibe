@@ -12,7 +12,7 @@ export function SessionActions() {
       method="post"
       onSubmit={() => setBusy(true)}
     >
-      <Button type="submit" variant="ghost" size="sm" className="min-h-11 min-w-11 lg:min-h-9 lg:min-w-0" disabled={busy}>
+      <Button type="submit" variant="ghost" size="sm" className="min-h-11 min-w-11 lg:h-8 lg:min-h-0 lg:min-w-0" disabled={busy}>
         {busy ? 'Wylogowywanie…' : 'Wyloguj'}
       </Button>
     </form>

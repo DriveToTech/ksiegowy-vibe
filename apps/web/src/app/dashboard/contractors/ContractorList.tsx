@@ -1,23 +1,29 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import type { Contractor } from '../../../lib/api-types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Contractor, ContractorSummary } from '../../../lib/api-types';
+import { getContractorSummary } from '../../../lib/api-client';
 import { Badge } from '../../../components/atoms/Badge';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Banner } from '../../../components/molecules/Banner';
 import { cn } from '../../../lib/cn';
+import { formatMoney } from '../../../lib/format';
 import { t } from '../../../lib/translations';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
+const PANEL_SHELL = 'flex flex-col rounded-inset border border-outline bg-surface-panel px-4 py-[15px]';
+
 export function ContractorList({
   contractors,
   canEdit,
+  companyId,
 }: {
   contractors: Contractor[];
   canEdit: boolean;
+  companyId: string;
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
@@ -42,6 +48,28 @@ export function ContractorList({
     : filtered[0]?.id ?? null;
   const selected = contractors.find((contractor) => contractor.id === effectiveSelectedId) ?? null;
   const missingNipCount = contractors.filter((contractor) => !contractor.nip).length;
+  const turnoverYear = contractors[0]?.turnoverYear ?? new Date().getFullYear();
+
+  const [summary, setSummary] = useState<ContractorSummary | null>(null);
+  const requestedContractorIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!effectiveSelectedId) {
+      requestedContractorIdRef.current = null;
+      setSummary(null);
+      return;
+    }
+    requestedContractorIdRef.current = effectiveSelectedId;
+    setSummary(null);
+    getContractorSummary(companyId, effectiveSelectedId, selected?.turnoverYear)
+      .catch(() => null)
+      .then((result) => {
+        if (requestedContractorIdRef.current === effectiveSelectedId) {
+          setSummary(result);
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, effectiveSelectedId]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_372px] lg:items-start">
@@ -88,10 +116,17 @@ export function ContractorList({
           <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
+                <colgroup>
+                  <col />
+                  <col className="w-[124px]" />
+                  <col className="w-[118px]" />
+                  <col className="w-[104px]" />
+                </colgroup>
                 <thead>
                   <tr className="bg-surface-muted text-left">
                     <HeaderCell>{t.contractors.columns.name}</HeaderCell>
                     <HeaderCell>{t.contractors.columns.nip}</HeaderCell>
+                    <HeaderCell className="text-right">{t.contractors.columns.turnover(turnoverYear)}</HeaderCell>
                     <HeaderCell className="text-right">{t.contractors.columns.status}</HeaderCell>
                     {canEdit ? <HeaderCell className="text-right lg:hidden">{t.contractors.actions.edit}</HeaderCell> : null}
                   </tr>
@@ -108,11 +143,14 @@ export function ContractorList({
                     >
                       <BodyCell className="font-medium text-foreground">{contractor.name}</BodyCell>
                       <BodyCell className={contractor.nip ? 'font-mono text-xs text-foreground-secondary' : 'font-mono text-xs text-error-ink'}>
-                        {contractor.nip ?? '—'}
+                        {contractor.nip ?? t.contractors.nipMissing}
                       </BodyCell>
+                      <BodyCell className="text-right tabular-nums">{formatMoney(contractor.turnover)}</BodyCell>
                       <BodyCell className="text-right">
-                        <Badge tone={contractor.isActive ? 'success' : 'draft'}>
-                          {contractor.isActive ? t.contractors.status.active : t.contractors.status.inactive}
+                        <Badge tone={contractor.nip ? (contractor.isActive ? 'success' : 'draft') : 'danger'}>
+                          {contractor.nip
+                            ? contractor.isActive ? t.contractors.status.active : t.contractors.status.inactive
+                            : t.contractors.status.blocked}
                         </Badge>
                       </BodyCell>
                       {canEdit ? (
@@ -137,7 +175,12 @@ export function ContractorList({
 
       <div className="hidden rounded-card border border-outline bg-chrome p-[22px] lg:block">
         {selected ? (
-          <ContractorDetail contractor={selected} canEdit={canEdit} onClose={() => setSelectedId(null)} />
+          <ContractorDetail
+            contractor={selected}
+            canEdit={canEdit}
+            summary={summary}
+            onClose={() => setSelectedId(null)}
+          />
         ) : (
           <p className="text-sm text-muted">{t.contractors.detail.selectPrompt}</p>
         )}
@@ -149,12 +192,16 @@ export function ContractorList({
 function ContractorDetail({
   contractor,
   canEdit,
+  summary,
   onClose,
 }: {
   contractor: Contractor;
   canEdit: boolean;
+  summary: ContractorSummary | null;
   onClose: () => void;
 }) {
+  const outstandingIsPositive = summary != null && summary.outstanding !== '0' && summary.outstanding !== '0.00';
+
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex items-start justify-between gap-3">
@@ -167,11 +214,13 @@ function ContractorDetail({
         </button>
       </div>
 
-      <div className="flex flex-col gap-2.5 rounded-card border border-outline bg-surface-panel p-4">
+      <div className={cn(PANEL_SHELL, 'gap-2.5')}>
         <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.contractors.detail.eyebrow}</p>
         <DetailRow label={t.contractors.detail.status}>
-          <Badge tone={contractor.isActive ? 'success' : 'draft'}>
-            {contractor.isActive ? t.contractors.status.active : t.contractors.status.inactive}
+          <Badge tone={contractor.nip ? (contractor.isActive ? 'success' : 'draft') : 'danger'}>
+            {contractor.nip
+              ? contractor.isActive ? t.contractors.status.active : t.contractors.status.inactive
+              : t.contractors.status.blocked}
           </Badge>
         </DetailRow>
         <DetailRow label={t.contractors.detail.address}>
@@ -181,6 +230,35 @@ function ContractorDetail({
         <DetailRow label={t.contractors.detail.phone}>{contractor.phone ?? '—'}</DetailRow>
         <DetailRow label={t.contractors.detail.bankAccount}>{contractor.bankAccount ?? '—'}</DetailRow>
         {contractor.notes ? <DetailRow label={t.contractors.detail.notes}>{contractor.notes}</DetailRow> : null}
+      </div>
+
+      <div className={cn(PANEL_SHELL, 'gap-[11px]')}>
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.contractors.detail.balanceEyebrow}</p>
+        <BalanceRow
+          label={t.contractors.detail.balanceOutstanding}
+          value={summary ? formatMoney(summary.outstanding) : '—'}
+          warn={outstandingIsPositive}
+        />
+        <BalanceRow
+          label={t.contractors.detail.balancePaidThisYear}
+          value={summary ? formatMoney(summary.paidThisYear) : '—'}
+        />
+      </div>
+
+      <div className={cn(PANEL_SHELL, 'gap-[10px]')}>
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.contractors.detail.recentDocuments}</p>
+        {summary && summary.recentDocuments.length > 0 ? (
+          summary.recentDocuments.map((document) => (
+            <div key={document.id} className="flex justify-between text-[12.5px]">
+              <Link href={`/dashboard/invoices/${document.id}`} className="font-mono text-[12px]">
+                {document.invoiceNumber ?? '—'}
+              </Link>
+              <span className="tabular-nums text-foreground-secondary">{formatMoney(document.totalGross)}</span>
+            </div>
+          ))
+        ) : (
+          <p className="text-[12.5px] text-muted">—</p>
+        )}
       </div>
 
       {canEdit ? (
@@ -206,10 +284,19 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+function BalanceRow({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <span className="text-[12.5px] text-muted">{label}</span>
+      <span className={cn('text-[19px] font-semibold tabular-nums', warn && 'text-warning-ink')}>{value}</span>
+    </div>
+  );
+}
+
 function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.13em] text-muted ${className}`}>{children}</th>;
+  return <th className={`px-[18px] py-[10px] font-mono text-[10px] uppercase tracking-[0.13em] text-muted ${className}`}>{children}</th>;
 }
 
 function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
+  return <td className={`px-[18px] py-3 align-middle text-[13px] ${className}`}>{children}</td>;
 }

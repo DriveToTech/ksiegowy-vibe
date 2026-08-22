@@ -282,12 +282,12 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
                 </>
               ) : null}
               {invoice.status === 'CONFIRMED' ? (
-                <span className="inline-flex min-h-11 items-center rounded-md bg-success px-4 text-sm font-semibold text-success-ink">
+                <span className="inline-flex min-h-11 items-center rounded-chip bg-success px-4 text-sm font-semibold text-success-ink">
                   {t.review.confirmed}
                 </span>
               ) : null}
               {invoice.status === 'REJECTED' ? (
-                <span className="inline-flex min-h-11 items-center rounded-md bg-error px-4 text-sm font-semibold text-error-ink">
+                <span className="inline-flex min-h-11 items-center rounded-chip bg-error px-4 text-sm font-semibold text-error-ink">
                   {t.review.rejected}
                 </span>
               ) : null}

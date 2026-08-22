@@ -79,13 +79,28 @@ ksiegowy-vibe/
 └── PLAN.md               # Implementation roadmap
 ```
 
-## Frontend Branding
+## Frontend Design System
+
+The visual system is **Aurora Solid** — opaque layered surfaces, no `blur()`/`backdrop-filter`, one shadow per page frame, Sora + IBM Plex Mono typography. Tokens live as CSS custom properties in `apps/web/src/app/globals.css` and are exposed to Tailwind v4 via `@theme inline`.
+
+Source of truth: **`spec/aurora-solid-redesign-plan.md`** (plan and phase history) and **`docs/specs/aurora-solid-tokens.md`** (the token spec: both themes, contrast findings, component states). `spec/stitch-ui-implementation-plan.md` and `spec/ui/00-06` describe the previous "Aeon Ethereal" system and are superseded historical record.
 
 - The web app root layout uses `apps/web/src/components/brand/assets/logo.png` as the favicon via Next.js metadata, so browser tab branding stays aligned with the shared brand asset.
-- The authenticated header is the sole global brand anchor and contains company, KSeF, theme, and session context.
-- The desktop dashboard sidebar contains navigation only; page actions live beside the content they affect.
-- Light mode is the default, with an explicit dark preference stored locally in the browser.
+- The 60px chrome bar is the sole global brand anchor and contains company, KSeF, theme, and session context.
+- The 226px desktop rail contains navigation plus contextual status widgets (JPK_V7M filing deadline, rejected-invoice count); page actions live beside the content they affect.
+- Light mode is the default, with an explicit dark preference stored locally in the browser. Both themes are held to WCAG AA on text and interactive boundaries.
 - Mobile retains persistent bottom navigation in a reserved shell region and scrollable main content, so content and focused controls are not covered while scrolling.
+
+## First-Run Flow
+
+A signed-in user with no company is redirected from `/dashboard` into the onboarding wizard at `/onboarding`, rather than seeing an empty dashboard:
+
+1. **Account** — already satisfied by sign-in.
+2. **Company data** — NIP register lookup (`GET /companies/lookup`) then create (`POST /companies`).
+3. **KSeF connection** — token per environment (`PATCH /companies/:id/ksef-settings`).
+4. **Invite your accountant** — optional (`POST /companies/:companyId/invites`); no email is sent, so the UI surfaces a copyable invite link.
+
+Progress is not stored separately — the wizard resumes by deriving the first incomplete step from the session and the company record, so "Save and finish later" is simply a link back to `/dashboard`. Invited users join an existing company through `POST /invites/:token/accept` and never enter this flow.
 
 ## Prerequisites
 
@@ -751,7 +766,8 @@ All company-scoped routes require a valid JWT and active company membership.
 | POST | `/companies/:companyId/invoices/:id/send-to-ksef` | Submit to KSeF |
 | GET/POST | `/companies/:companyId/incoming` | Incoming invoices + OCR upload |
 | POST | `/companies/:companyId/incoming/ksef-sync` | Sync incoming invoices from KSeF |
-| GET/POST/PATCH/DELETE | `/companies/:companyId/contractors` | Contractor CRUD |
+| GET/POST/PATCH/DELETE | `/companies/:companyId/contractors` | Contractor CRUD (list supports `status`/`year` query params, returns per-contractor `turnover`) |
+| GET | `/companies/:companyId/contractors/:id/summary` | Per-contractor financial summary: year turnover/paid, all-time outstanding, recent documents |
 | GET/POST/PATCH/DELETE | `/companies/:companyId/members` | User membership |
 | GET/POST | `/companies/:companyId/invites` | User invitations |
 | GET | `/companies/:companyId/reports` | VAT register + CSV export |

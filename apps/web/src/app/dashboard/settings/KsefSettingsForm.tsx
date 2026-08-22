@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompanyKsefEnvironment, CompanyKsefSettings } from '../../../lib/api-types';
 import { updateCompanyKsefCredential, updateCompanyKsefDefaultEnvironment } from '../../../lib/api-client';
+import { ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME, KSEF_ENVIRONMENT_COOKIE_MAX_AGE } from '../../../lib/ksef-environment';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
@@ -77,6 +78,7 @@ export function KsefSettingsForm({ companyId, settings, redirectTo }: KsefSettin
     updateCompanyKsefDefaultEnvironment(companyId, defaultEnvironment)
       .then(() => {
         setSuccess(`Domyślne środowisko KSeF zostało ustawione na ${defaultEnvironment}.`);
+        document.cookie = `${ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME}=${defaultEnvironment}; path=/; max-age=${KSEF_ENVIRONMENT_COOKIE_MAX_AGE}; SameSite=Lax`;
         router.refresh();
       })
       .catch((err: unknown) => {

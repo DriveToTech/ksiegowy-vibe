@@ -19,7 +19,7 @@ test('invoices list shows status filter tabs', async ({ authenticatedPage: page 
 test('invoices list shows new invoice button', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/invoices');
 
-  await expect(page.getByRole('link', { name: '+ Nowa faktura' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Nowa faktura' })).toBeVisible();
 });
 
 test('new invoice form loads', async ({ authenticatedPage: page }) => {

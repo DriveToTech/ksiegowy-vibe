@@ -4,6 +4,7 @@ export const t = {
     outgoingInvoices: "Faktury wychodzące",
     incomingInvoices: "Faktury przychodzące",
     contractors: "Kontrahenci",
+    compliance: "Raporty & JPK",
     settings: "Ustawienia",
   },
 
@@ -38,7 +39,7 @@ export const t = {
       "Dodaj firmę w ustawieniach, aby rozpocząć pracę z kontrahentami, fakturami i OCR.",
     goToSettings: "Przejdź do ustawień",
     goToIncoming: "Przejdź do OCR",
-    createInvoice: "+ Nowa faktura",
+    createInvoice: "Nowa faktura",
     metrics: {
       invoicesThisMonthLabel: "Faktury w tym miesiącu",
       invoicesThisMonthHint: "Dokumenty wystawione w bieżącym miesiącu.",
@@ -265,21 +266,24 @@ export const t = {
     pageTitle: "Kontrahenci",
     pageDescription:
       "Baza kontrahentów dostępnych dla wystawiania i rozliczania dokumentów.",
-    addButton: "Dodaj kontrahenta",
+    addButton: "Dodaj po NIP",
     searchPlaceholder: "Szukaj po nazwie lub NIP…",
     filterAll: "Wszyscy",
     filterActive: "Aktywni",
     filterInactive: "Nieaktywni",
+    nipMissing: "brak",
     columns: {
       name: "Nazwa",
       nip: "NIP",
       email: "Email",
       address: "Adres",
       status: "Status",
+      turnover: (year: number) => `Obrót ${year}`,
     },
     status: {
       active: "Aktywny",
       inactive: "Nieaktywny",
+      blocked: "Zablokowany",
     },
     emptyFiltered: "Brak wyników dla podanego filtra.",
     emptyList:
@@ -340,11 +344,41 @@ export const t = {
       status: "Status",
       editButton: "Edytuj",
       newInvoiceButton: "Nowa faktura",
+      balanceEyebrow: "Saldo",
+      balanceOutstanding: "Do zapłaty",
+      balancePaidThisYear: "Zapłacono w tym roku",
+      recentDocuments: "Ostatnie dokumenty",
+    },
+    addByNip: {
+      lookupButton: "Pobierz dane po NIP",
+      lookupButtonBusy: "Pobieranie…",
+      error: "Nie udało się pobrać danych kontrahenta po NIP.",
     },
     dataQuality: {
       title: "Jakość danych",
       missingNip: (n: number) => `${n} ${n === 1 ? 'kontrahent nie ma' : 'kontrahentów nie ma'} NIP — nie można ich e-fakturować.`,
     },
+  },
+
+  compliance: {
+    pageEyebrow: "Compliance",
+    pageTitle: "Raporty & JPK",
+    pageDescription: "Dolor sit ament consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    noCompanyTitle: "Brak aktywnej firmy",
+    noCompanyDescription:
+        "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na raportach i JPK.",
+    downloadXml: "Pobierz XML",
+    submitJPK: "Wyślij JPK_V7M",
+    errors: {
+      reportLoadFailed: "Nie udało się załdować raportu"
+    },
+    backButton: "Wróc"
+  },
+
+  complianceDetails: {
+    stepper: {
+      created: "Utworzono",
+    }
   },
 
   outgoingInvoices: {
@@ -355,7 +389,7 @@ export const t = {
     noCompanyTitle: "Brak aktywnej firmy",
     noCompanyDescription:
       "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na dokumentach sprzedażowych.",
-    addButton: "+ Nowa faktura",
+    addButton: "Nowa faktura",
     filters: {
       all: "Wszystkie",
       drafts: "Szkice",
@@ -500,8 +534,10 @@ export const t = {
     noContractorsDescription:
       "Ta forma wymaga wskazania kontrahenta. Dodaj go najpierw w module kontrahentów, a potem wróć do faktury.",
     addContractor: "Dodaj kontrahenta",
-    catalogPickerButton: "Wybierz z katalogu",
-    catalogPickerDefault: "— wybierz usługę —",
+    catalogueHint: (shown: number, total: number) => `${shown} z ${total} · ↓↑ aby poruszać się, ↵ aby wybrać`,
+    catalogueNoMatches: "Brak pasujących pozycji w katalogu.",
+    catalogueNothingFits: "Nic nie pasuje?",
+    catalogueSaveToCatalogue: "Przejdź do katalogu usług",
     saleDateLabel: "Data sprzedaży",
     issueDateLabel: "Data wystawienia",
     noContractorSelected:
@@ -583,10 +619,6 @@ export const t = {
       dashboard: "Pulpit",
       login: "Logowanie",
     },
-  },
-
-  ksefEnvironmentSwitcher: {
-    selectEnvironment: "Wybierz aktywne środowisko KSeF",
   },
 
   login: {

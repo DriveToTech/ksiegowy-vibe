@@ -35,7 +35,7 @@ export default async function DashboardContractorsPage() {
   const role = getActiveCompanyRole(session);
   const canEdit = role === 'ADMIN' || role === 'ACCOUNTANT';
 
-  const contractors = await getContractors(companyId).catch((error: unknown) => {
+  const contractors = await getContractors(companyId, { status: 'all' }).catch((error: unknown) => {
     throw error instanceof Error ? error : new Error(t.contractors.errors.loadFailed);
   });
 
@@ -52,7 +52,7 @@ export default async function DashboardContractorsPage() {
         ) : null}
       />
 
-      <ContractorList contractors={contractors} canEdit={canEdit} />
+      <ContractorList contractors={contractors} canEdit={canEdit} companyId={companyId} />
     </div>
   );
 }

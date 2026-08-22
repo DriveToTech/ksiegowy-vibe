@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { createContractor } from '../../../../lib/api-client';
+import { createContractor, lookupCompanyByNip } from '../../../../lib/api-client';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
 import { Surface } from '../../../../components/atoms/Surface';
@@ -21,10 +21,30 @@ export function NewContractorForm({ companyId }: { companyId: string }) {
     phone: '',
   });
   const [busy, setBusy] = useState(false);
+  const [lookupBusy, setLookupBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const setField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleLookup = () => {
+    setError(null);
+    setLookupBusy(true);
+    lookupCompanyByNip(form.nip)
+      .then((companyLookup) => {
+        setForm((current) => ({
+          ...current,
+          name: companyLookup.name,
+          nip: companyLookup.nip,
+          addressLine1: companyLookup.addressLine1,
+          addressLine2: companyLookup.addressLine2 ?? '',
+        }));
+      })
+      .catch((lookupError: unknown) => {
+        setError(lookupError instanceof Error ? lookupError.message : t.contractors.addByNip.error);
+      })
+      .finally(() => setLookupBusy(false));
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -61,12 +81,24 @@ export function NewContractorForm({ companyId }: { companyId: string }) {
           />
         </FormField>
         <FormField label={t.contractors.fields.nip} htmlFor="contractor-nip">
-          <Input
-            id="contractor-nip"
-            value={form.nip}
-            onChange={(e) => setField('nip', e.target.value.replace(/\D/g, '').slice(0, 10))}
-            inputMode="numeric"
-          />
+          <div className="space-y-3">
+            <Input
+              id="contractor-nip"
+              value={form.nip}
+              onChange={(e) => setField('nip', e.target.value.replace(/\D/g, '').slice(0, 10))}
+              inputMode="numeric"
+              disabled={lookupBusy}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleLookup}
+              disabled={lookupBusy || form.nip.length !== 10}
+            >
+              {lookupBusy ? t.contractors.addByNip.lookupButtonBusy : t.contractors.addByNip.lookupButton}
+            </Button>
+          </div>
         </FormField>
         <FormField label={t.contractors.fields.addressLine1} htmlFor="contractor-address">
           <Input
