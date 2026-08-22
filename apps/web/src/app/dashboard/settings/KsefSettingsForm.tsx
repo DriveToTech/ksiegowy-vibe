@@ -14,11 +14,12 @@ import { FormField } from '../../../components/molecules/FormField';
 interface KsefSettingsFormProps {
   companyId: string;
   settings: CompanyKsefSettings;
+  redirectTo?: string;
 }
 
 const KSEF_ENVIRONMENTS: CompanyKsefEnvironment[] = ['TEST', 'PRODUCTION'];
 
-export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps) {
+export function KsefSettingsForm({ companyId, settings, redirectTo }: KsefSettingsFormProps) {
   const router = useRouter();
   const [tokenByEnvironment, setTokenByEnvironment] = useState<Record<CompanyKsefEnvironment, string>>({
     TEST: '',
@@ -47,6 +48,13 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
 
     updateCompanyKsefCredential(companyId, environment, ksefToken)
       .then(() => {
+        // In the onboarding wizard, saving a working credential *is* the "Continue"
+        // action — the step is complete the moment hasToken becomes true.
+        if (redirectTo) {
+          router.push(redirectTo);
+          return;
+        }
+
         setSuccess(`Token KSeF dla środowiska ${environment} został zapisany.`);
         setTokenByEnvironment((currentValue) => ({
           ...currentValue,
