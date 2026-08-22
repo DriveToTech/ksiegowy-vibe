@@ -326,6 +326,11 @@ export const t = {
     noCompanyDescription:
       "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na dokumentach sprzedażowych.",
     addButton: "+ Nowa faktura",
+    filters: {
+      all: "Wszystkie",
+      drafts: "Szkice",
+    },
+    pageSummary: (shown: number, total: number, grossOnPage: string) => `${shown} z ${total} · suma brutto na stronie ${grossOnPage}`,
     metricCards: {
       totalLabel: "Wszystkie faktury",
       totalHint: "Łączna liczba dokumentów sprzedażowych.",
