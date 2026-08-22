@@ -87,7 +87,7 @@ export function MembersTab({
 
       <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:mr-10">
         <div>
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             {t.members.title(members.length)}
           </h2>
           <p className="mt-1 text-sm text-muted">Role członków zespołu i dostęp do pracy na dokumentach firmy.</p>
@@ -193,7 +193,7 @@ export function MembersTab({
       {invites.length > 0 ? (
         <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:translate-x-6">
           <div>
-            <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               {t.members.pendingInvites}
             </h2>
             <p className="mt-1 text-sm text-muted">Zaproszenia oczekujące na wykorzystanie przez nowych członków zespołu.</p>
@@ -219,7 +219,7 @@ export function MembersTab({
       {isAdmin ? (
         <Surface tone="glass" shape="organic" className="space-y-5 p-6 max-w-4xl">
           <div>
-            <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               {t.members.inviteSection}
             </h2>
             <p className="mt-1 text-sm text-muted">Wyślij nowe zaproszenie i przypisz poziom uprawnień przed dołączeniem do firmy.</p>

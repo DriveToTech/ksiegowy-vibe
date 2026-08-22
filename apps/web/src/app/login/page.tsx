@@ -27,7 +27,7 @@ export default async function LoginPage({
         <div className="space-y-6">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t.login.tagline}</p>
           <div className="space-y-2">
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">{t.login.headline}</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t.login.headline}</h1>
             <p className="text-sm text-muted">{t.login.description}</p>
           </div>
           <a href={`${apiUrl}/auth/google`} className="block">

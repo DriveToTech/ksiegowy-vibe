@@ -17,7 +17,7 @@ export default async function HomePage() {
       <div className="mx-auto max-w-3xl space-y-8 text-center">
         <div className="space-y-4">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t.home.tagline}</p>
-          <h1 className="font-display text-5xl font-semibold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+          <h1 className="text-5xl font-semibold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
             {t.home.headline}
           </h1>
           <p className="mx-auto max-w-xl text-lg text-muted">

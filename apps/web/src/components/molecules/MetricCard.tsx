@@ -30,7 +30,7 @@ export function MetricCard({
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">{label}</p>
-          <p className={cn('font-display text-3xl font-semibold tracking-tight', accentClasses[accent])}>
+          <p className={cn('text-3xl font-semibold tracking-tight', accentClasses[accent])}>
             {value}
           </p>
           {hint ? <p className="text-sm text-muted">{hint}</p> : null}

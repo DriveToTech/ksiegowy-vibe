@@ -94,7 +94,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
           <div className="w-full max-w-md rounded-2xl bg-surface-panel p-6 shadow-xl space-y-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h2 id="ksef-sync-title" className="font-display text-xl font-semibold tracking-tight text-foreground">
+              <h2 id="ksef-sync-title" className="text-xl font-semibold tracking-tight text-foreground">
                 {t.incoming.ksefSync.modalTitle}
               </h2>
               <EnvironmentBadge environment={activeEnvironment} />

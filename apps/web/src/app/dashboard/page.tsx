@@ -87,7 +87,7 @@ export default async function DashboardPage() {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">{t.dashboard.recentInvoices}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.dashboard.recentInvoices}</h2>
           {invoices.length > 5 ? (
             <Link href="/dashboard/invoices" className="text-sm font-semibold text-primary-strong transition hover:text-primary">
               {t.dashboard.seeAll}

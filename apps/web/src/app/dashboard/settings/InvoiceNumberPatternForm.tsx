@@ -103,7 +103,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
   return (
     <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Schemat numeracji faktur</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Schemat numeracji faktur</h2>
         <p className="mt-1 text-sm text-muted">
           Określ własny format numeru faktury. Schemat musi zawierać token <code className="rounded bg-surface px-1 text-xs">{'{SEQ}'}</code> (kolejny numer).
           Faktury korygujące (KOR) zawsze używają domyślnego formatu <code className="rounded bg-surface px-1 text-xs">KOR {'{SEQ}'}/{'{MONTH}'}/{'{YEAR}'}</code>.

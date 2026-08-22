@@ -68,7 +68,7 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
               <div>
                 <Link
                   href={`/dashboard/invoices/${invoice.id}`}
-                  className="font-display text-lg font-semibold tracking-tight text-primary-strong"
+                  className="text-lg font-semibold tracking-tight text-primary-strong"
                 >
                   {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
                 </Link>

@@ -61,7 +61,7 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
           <Surface key={invoice.id} tone="glass" shape="organic" className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-display text-lg font-semibold tracking-tight text-foreground">
+                <p className="text-lg font-semibold tracking-tight text-foreground">
                   {invoice.sellerName ?? 'Nieznany sprzedawca'}
                 </p>
                 <p className="mt-1 text-sm text-muted">{invoice.invoiceNumber ?? 'Brak numeru faktury'}</p>
