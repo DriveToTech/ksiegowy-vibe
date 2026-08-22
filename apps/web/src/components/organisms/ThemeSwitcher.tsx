@@ -37,7 +37,7 @@ export function ThemeSwitcher() {
       onClick={toggleTheme}
       aria-pressed={isDark}
       aria-label={isDark ? t.theme.switchToLight : t.theme.switchToDark}
-      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-outline bg-surface-panel px-3 text-sm font-semibold text-foreground transition hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-outline bg-chrome px-3 text-sm font-semibold text-foreground transition hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
       <span aria-hidden="true">{isDark ? '☀' : '☾'}</span>
       <span className="sr-only">{t.theme.label}</span>

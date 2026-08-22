@@ -165,7 +165,7 @@ export function ServiceCatalogManager({
       ) : null}
 
       {visibleTemplates.length === 0 && !showAddForm ? (
-        <p className="rounded-[1.5rem] border border-outline bg-surface-panel/40 p-6 text-center text-sm text-muted">
+        <p className="rounded-card border border-outline bg-surface-panel p-6 text-center text-sm text-muted">
           {t.serviceCatalog.emptyState}
         </p>
       ) : null}
@@ -190,14 +190,14 @@ export function ServiceCatalogManager({
                       <span className={`font-medium ${template.isActive ? 'text-foreground' : 'text-muted line-through'}`}>
                         {template.name}
                       </span>
-                      <span className="rounded-full bg-surface-raised/60 px-2 py-0.5 text-xs text-muted">
+                      <span className="rounded-full bg-surface-raised px-2 py-0.5 text-xs text-muted">
                         {template.unit}
                       </span>
-                      <span className="rounded-full bg-surface-raised/60 px-2 py-0.5 text-xs text-muted">
+                      <span className="rounded-full bg-surface-raised px-2 py-0.5 text-xs text-muted">
                         VAT {VAT_RATE_LABELS[template.vatRate as VatRate] ?? template.vatRate}
                       </span>
                       {!template.isActive ? (
-                        <span className="rounded-full bg-error-soft px-2 py-0.5 text-xs text-error-ink">
+                        <span className="rounded-full bg-error px-2 py-0.5 text-xs text-error-ink">
                           {t.serviceCatalog.inactive}
                         </span>
                       ) : null}
@@ -222,7 +222,7 @@ export function ServiceCatalogManager({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-error-ink hover:bg-error-soft"
+                          className="text-error-ink hover:bg-error"
                           onClick={() => handleDeactivate(template.id)}
                           disabled={submitting}
                         >

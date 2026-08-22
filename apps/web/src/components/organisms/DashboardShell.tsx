@@ -35,7 +35,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <div className="shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden">
           <nav
             aria-label="Mobilna nawigacja dashboardu"
-            className="mx-auto grid max-w-xl grid-cols-5 gap-2 rounded-full border border-outline bg-surface-panel p-2 backdrop-blur-[28px]"
+            className="mx-auto grid max-w-xl grid-cols-5 gap-2 rounded-inset border border-outline bg-chrome p-2"
           >
             <DashboardNavigation items={navigationItems} mobile />
           </nav>

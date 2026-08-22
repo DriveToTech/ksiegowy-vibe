@@ -7,21 +7,21 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'rounded-full bg-primary text-primary-ink shadow-[var(--shadow-aura)] hover:bg-primary-strong focus-visible:outline-primary disabled:brightness-100 disabled:opacity-60',
+    'rounded-control bg-[image:var(--primary-gradient)] text-primary-ink hover:brightness-105 focus-visible:outline-primary disabled:brightness-100 disabled:opacity-60',
   primaryQuiet:
-    'rounded-full bg-primary text-primary-ink hover:brightness-105 focus-visible:outline-primary disabled:brightness-100 disabled:opacity-60',
+    'rounded-control bg-primary text-primary-ink hover:brightness-105 focus-visible:outline-primary disabled:brightness-100 disabled:opacity-60',
   secondary:
-    'rounded-full bg-surface-panel/70 text-secondary-ink backdrop-blur-xl hover:bg-surface-raised/80 focus-visible:outline-secondary-ink disabled:opacity-60',
+    'rounded-control bg-secondary-surface text-secondary-ink hover:bg-surface-raised focus-visible:outline-secondary-ink disabled:opacity-60',
   ghost:
-    'rounded-full bg-transparent text-foreground hover:bg-surface-panel/70 focus-visible:outline-primary disabled:opacity-60',
+    'rounded-control bg-transparent text-primary hover:bg-secondary-surface focus-visible:outline-primary disabled:opacity-60',
   danger:
-    'rounded-full bg-error text-error-action-ink shadow-[var(--shadow-aura)] hover:brightness-105 focus-visible:outline-error disabled:opacity-60',
+    'rounded-control bg-error text-error-ink hover:brightness-105 focus-visible:outline-error disabled:opacity-60',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-9 px-3 text-sm',
-  md: 'h-11 px-4 text-sm',
-  lg: 'h-12 px-5 text-base',
+  sm: 'h-8 px-3 text-sm',
+  md: 'h-10 px-[17px] text-sm',
+  lg: 'h-[46px] px-[19px] text-base',
 };
 
 interface ButtonStyleProps {

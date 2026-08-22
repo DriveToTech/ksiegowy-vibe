@@ -256,7 +256,7 @@ export function CompanyBackupPolicyForm({
         </Banner>
       ) : null}
 
-      <div className="rounded-[1.4rem] border border-outline bg-surface-raised/45 p-4">
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Platform PostgreSQL backup</p>
@@ -264,7 +264,7 @@ export function CompanyBackupPolicyForm({
               {postgresqlStatus?.summary ?? 'Status platformowego backupu PostgreSQL jest chwilowo niedostępny.'}
             </p>
           </div>
-          <Badge tone={postgresqlStatus ? backupStatusBadgeTone[postgresqlStatus.status] : 'neutral'}>
+          <Badge tone={postgresqlStatus ? backupStatusBadgeTone[postgresqlStatus.status] : 'draft'}>
             {postgresqlStatus ? backupStatusLabel[postgresqlStatus.status] : 'Niedostępny'}
           </Badge>
         </div>
@@ -276,7 +276,7 @@ export function CompanyBackupPolicyForm({
         </p>
       </div>
 
-      <div className="rounded-[1.4rem] border border-outline bg-surface-raised/45 p-4">
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Google Drive backup firmy</p>
@@ -302,7 +302,7 @@ export function CompanyBackupPolicyForm({
           <div className="mt-3">
             <a
               href={googleDriveConnectUrl}
-              className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+              className="inline-flex h-10 items-center justify-center rounded-control bg-secondary-surface px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
             >
               Połącz ponownie Google Drive
             </a>
@@ -321,7 +321,7 @@ export function CompanyBackupPolicyForm({
         </p>
       </div>
 
-      <div className="rounded-[1.4rem] border border-outline bg-surface-raised/45 p-4">
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Polityka backupu Google Drive</p>
@@ -368,7 +368,7 @@ export function CompanyBackupPolicyForm({
         )}
 
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2 rounded-[1rem] border border-outline bg-surface/40 px-4 py-3">
+          <div className="md:col-span-2 rounded-control border border-outline bg-surface-raised px-4 py-3">
             <label className="inline-flex items-center gap-3 text-sm text-foreground">
               <input
                 type="checkbox"
@@ -473,7 +473,7 @@ export function CompanyBackupPolicyForm({
         </div>
 
         {lastRunResult ? (
-          <div className="mt-4 rounded-[1rem] border border-outline bg-surface/40 p-4 text-sm">
+          <div className="mt-4 rounded-control border border-outline bg-surface-raised p-4 text-sm">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Wynik ostatniego uruchomienia</p>
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               <ReadOnlyItem label="Backup run ID" value={lastRunResult.backupRunId} />
@@ -487,14 +487,14 @@ export function CompanyBackupPolicyForm({
         ) : null}
       </div>
 
-      <details className="rounded-[1.4rem] border border-outline bg-surface-raised/35 p-4">
+      <details className="rounded-card border border-outline bg-surface-raised p-4">
         <summary className="cursor-pointer list-none text-sm font-semibold text-foreground marker:hidden">
           Zaawansowane szczegóły statusu backupu
         </summary>
         <div className="mt-4 space-y-4 border-t border-outline pt-4">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Status ogólny</p>
-            <Badge tone={backupStatus ? overallStatusBadgeTone[backupStatus.overallStatus] : 'neutral'}>
+            <Badge tone={backupStatus ? overallStatusBadgeTone[backupStatus.overallStatus] : 'draft'}>
               {backupStatus ? overallStatusLabel[backupStatus.overallStatus] : 'Niedostępny'}
             </Badge>
           </div>
@@ -579,12 +579,12 @@ const backupStatusLabel: Record<PlatformPostgresqlBackupStatus, string> = {
   UNAVAILABLE: 'Niedostępny',
 };
 
-const backupStatusBadgeTone: Record<PlatformPostgresqlBackupStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
+const backupStatusBadgeTone: Record<PlatformPostgresqlBackupStatus, 'success' | 'warning' | 'danger' | 'draft'> = {
   FRESH: 'success',
   STALE: 'warning',
   MISSING: 'danger',
   INCOMPLETE: 'danger',
-  UNAVAILABLE: 'neutral',
+  UNAVAILABLE: 'draft',
 };
 
 const overallStatusLabel: Record<CompanyBackupOverallStatus, string> = {
@@ -594,11 +594,11 @@ const overallStatusLabel: Record<CompanyBackupOverallStatus, string> = {
   UNKNOWN: 'Nieznany',
 };
 
-const overallStatusBadgeTone: Record<CompanyBackupOverallStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
+const overallStatusBadgeTone: Record<CompanyBackupOverallStatus, 'success' | 'warning' | 'danger' | 'draft'> = {
   HEALTHY: 'success',
   DEGRADED: 'warning',
   CRITICAL: 'danger',
-  UNKNOWN: 'neutral',
+  UNKNOWN: 'draft',
 };
 
 const postgresqlReasonCodeLabel: Record<PlatformPostgresqlBackupReasonCode, string> = {

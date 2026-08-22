@@ -111,7 +111,7 @@ export function ContractorServiceRates({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-error-ink hover:bg-error-soft"
+                    className="text-error-ink hover:bg-error"
                     onClick={() => handleDelete(rate.id)}
                     disabled={submitting}
                   >
@@ -125,7 +125,7 @@ export function ContractorServiceRates({
       ) : null}
 
       {showForm ? (
-        <div className="grid gap-3 rounded-[1.5rem] border border-outline bg-surface-raised/20 p-4 sm:grid-cols-[1fr_1fr_auto]">
+        <div className="grid gap-3 rounded-card border border-outline bg-surface-raised p-4 sm:grid-cols-[1fr_1fr_auto]">
           <FormField label={t.contractorRates.fields.service}>
             <Select
               value={selectedTemplateId}

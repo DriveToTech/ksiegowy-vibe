@@ -41,7 +41,7 @@ export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironm
   }, []);
 
   return (
-    <header ref={headerReference} data-sticky-header className="sticky top-0 z-40 border-b border-outline bg-surface-panel/95 backdrop-blur-sm">
+    <header ref={headerReference} data-sticky-header className="sticky top-0 z-40 border-b border-outline bg-chrome">
       <div className="app-header-content mx-auto max-w-7xl gap-x-3 gap-y-2 px-4 py-3 sm:px-6 lg:gap-3 lg:px-8">
         <div data-app-header-brand className="min-w-0 space-y-1">
           <Link href="/" className="inline-flex">
@@ -71,7 +71,7 @@ export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironm
                   className="h-10 w-10 shrink-0 rounded-full border border-outline object-cover"
                 />
               ) : (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-outline bg-surface-raised/75 text-sm font-semibold text-foreground">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-outline bg-surface-raised text-sm font-semibold text-foreground">
                   {(user.name ?? user.email).slice(0, 1).toUpperCase()}
                 </div>
               )}

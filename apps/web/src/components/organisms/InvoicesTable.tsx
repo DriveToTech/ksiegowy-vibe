@@ -16,7 +16,7 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
       <Surface tone="panel" className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto px-3 py-3">
           <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-            <thead className="sticky top-0 z-10 bg-surface-panel text-left text-muted">
+            <thead className="sticky top-0 z-10 bg-surface-muted text-left text-muted">
               <tr>
                 <HeaderCell>{t.invoicesTable.numberColumn}</HeaderCell>
                 <HeaderCell>{t.invoicesTable.dateColumn}</HeaderCell>
@@ -31,7 +31,7 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
             </thead>
             <tbody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id} className="bg-transparent transition hover:bg-surface-raised/32">
+                <tr key={invoice.id} className="bg-transparent transition hover:bg-surface-row-hover">
                   <BodyCell>
                     <Link
                       href={`/dashboard/invoices/${invoice.id}`}
@@ -107,7 +107,7 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
 }
 
 function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-3 text-xs font-semibold uppercase tracking-[0.06em] ${className}`}>{children}</th>;
+  return <th className={`px-3 py-3 font-mono text-[11px] uppercase tracking-[0.14em] ${className}`}>{children}</th>;
 }
 
 function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {

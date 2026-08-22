@@ -55,7 +55,7 @@ function ProductionConfirmPanel({
         <h3 className="text-base font-semibold text-warning-ink">{t.invoiceActions.productionConfirmTitle}</h3>
         <p className="text-sm text-muted">{t.invoiceActions.productionConfirmDescription}</p>
       </div>
-      <dl className="grid gap-3 rounded-2xl bg-surface-raised/50 p-4 text-sm sm:grid-cols-3">
+      <dl className="grid gap-3 rounded-card bg-surface-raised p-4 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-xs font-medium uppercase tracking-[0.14em] text-muted">{t.invoiceActions.productionConfirmInvoiceNumberLabel}</dt>
           <dd className="mt-1 font-semibold text-foreground">{invoiceNumber ?? t.invoiceActions.productionConfirmInvoiceNumberFallback}</dd>
@@ -286,7 +286,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
             </Button>
             <Link
               href={`/dashboard/invoices/${invoiceId}/edit`}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink backdrop-blur-xl transition hover:bg-surface-raised/80"
+              className="inline-flex h-11 items-center justify-center rounded-control bg-secondary-surface px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
             >
               {t.invoiceActions.editInvoice}
             </Link>
@@ -335,7 +335,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
               href={pdfUrl(companyId, invoiceId)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink backdrop-blur-xl transition hover:bg-surface-raised/80"
+              className="inline-flex h-11 items-center justify-center rounded-control bg-secondary-surface px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
             >
               {t.invoiceActions.downloadPdf}
             </a>
@@ -425,7 +425,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
                 id="correctionMode"
                 value={correctionMode}
                 onChange={(e) => setCorrectionMode(e.target.value as 'cancellation' | 'formal')}
-                className="w-full rounded-xl border border-outline bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <option value="cancellation">{t.invoiceActions.correctionModeCancellation}</option>
                 <option value="formal">{t.invoiceActions.correctionModeFormal}</option>
@@ -465,7 +465,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
                 id="correctionImpactType"
                 value={correctionImpactType}
                 onChange={(e) => setCorrectionImpactType(e.target.value)}
-                className="w-full rounded-xl border border-outline bg-surface-panel px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <option value="">{t.invoiceActions.correctionImpactTypePlaceholder}</option>
                 <option value="1">{t.invoiceActions.correctionImpactType1}</option>

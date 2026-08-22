@@ -201,13 +201,13 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
             </div>
 
             {invoice.ksefReference && (
-              <div className="rounded-md bg-surface-raised/40 px-4 py-3">
+              <div className="rounded-control bg-surface-raised px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.review.ksefReferenceLabel}</p>
                 <p className="mt-1 break-all font-mono text-sm text-foreground">{invoice.ksefReference}</p>
               </div>
             )}
 
-            <div className="rounded-md bg-surface-raised/40 px-4 py-3">
+            <div className="rounded-control bg-surface-raised px-4 py-3">
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.review.fields.environment}</p>
               <div className="mt-2">
                 <InvoiceEnvironmentChip environment={invoice.environment} />
@@ -287,7 +287,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
                 </span>
               ) : null}
               {invoice.status === 'REJECTED' ? (
-                <span className="inline-flex min-h-11 items-center rounded-md bg-error-soft px-4 text-sm font-semibold text-error-ink">
+                <span className="inline-flex min-h-11 items-center rounded-md bg-error px-4 text-sm font-semibold text-error-ink">
                   {t.review.rejected}
                 </span>
               ) : null}

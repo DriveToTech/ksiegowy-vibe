@@ -7,6 +7,7 @@ import { updateContractor } from '../../../../../lib/api-client';
 import { Button } from '../../../../../components/atoms/Button';
 import { Input } from '../../../../../components/atoms/Input';
 import { Surface } from '../../../../../components/atoms/Surface';
+import { Banner } from '../../../../../components/molecules/Banner';
 import { FormField } from '../../../../../components/molecules/FormField';
 import { ErrorState } from '../../../../../components/molecules/ErrorState';
 import { t } from '../../../../../lib/translations';
@@ -68,11 +69,7 @@ export function EditContractorForm({
   return (
     <Surface tone="panel" className="space-y-5 p-6 xl:max-w-2xl">
       {error ? <ErrorState message={error} /> : null}
-      {success ? (
-        <div className="rounded-[1.25rem] border border-outline bg-success px-4 py-3 text-sm font-medium text-success-ink">
-          {t.contractors.success.updated}
-        </div>
-      ) : null}
+      {success ? <Banner tone="success">{t.contractors.success.updated}</Banner> : null}
 
       <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
         <FormField label={t.contractors.fields.name} htmlFor="edit-name" required>

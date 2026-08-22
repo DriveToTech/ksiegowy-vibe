@@ -41,13 +41,13 @@ export function DashboardNavigation({ items, mobile = false }: DashboardNavigati
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               mobile
-                ? 'min-h-16 min-w-0 rounded-full px-1 py-3 text-center text-[10px] font-medium leading-tight transition'
-                : 'min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition',
+                ? 'min-h-16 min-w-0 rounded-inset px-1 py-3 text-center text-[10px] font-medium leading-tight transition'
+                : 'min-h-11 rounded-control border border-transparent px-4 py-2 text-sm font-medium transition',
               isActive
-                ? 'bg-primary-soft text-primary-soft-ink ring-1 ring-inset ring-primary/30'
+                ? 'bg-[image:var(--nav-active)] border-[var(--nav-active-border)] text-foreground'
                 : mobile
-                  ? 'bg-surface-raised text-muted hover:text-foreground'
-                  : 'text-muted hover:bg-surface-raised hover:text-foreground',
+                  ? 'bg-surface-raised text-muted hover:text-foreground-secondary'
+                  : 'text-muted hover:bg-foreground/5 hover:text-foreground-secondary',
             )}
           >
             <span className={cn('flex min-w-0 items-center gap-3', mobile ? 'flex-col justify-center gap-1' : '')}>
