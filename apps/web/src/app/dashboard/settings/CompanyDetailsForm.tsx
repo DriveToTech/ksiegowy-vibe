@@ -7,6 +7,7 @@ import { createCompany, lookupCompanyByNip, refreshBrowserSession, updateCompany
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface CompanyDetailsFormProps {
@@ -103,7 +104,7 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
 
   if (!isCreateMode && !canEdit) {
     return (
-      <Surface tone="glass" shape="organic" className="space-y-5 p-6">
+      <Surface tone="panel" className="space-y-5 p-6">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">Dane firmy</h2>
           <p className="mt-1 text-sm text-muted">Masz dostęp podglądowy do ustawień tej firmy.</p>
@@ -123,7 +124,7 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
   }
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6">
+    <Surface tone="panel" className="space-y-5 p-6">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           {isCreateMode ? 'Skonfiguruj firmę' : 'Dane firmy'}
@@ -135,16 +136,8 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
         </p>
       </div>
 
-      {error ? (
-        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      ) : null}
-      {success ? (
-        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {error ? <Banner tone="error">{error}</Banner> : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
       <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
         <FormField label="Nazwa firmy" htmlFor="company-name" required>

@@ -8,6 +8,7 @@ import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface KsefSettingsFormProps {
@@ -77,7 +78,7 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">Integracja KSeF</h2>
         <p className="mt-1 text-sm text-muted">
@@ -86,16 +87,8 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
         </p>
       </div>
 
-      {error ? (
-        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      ) : null}
-      {success ? (
-        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {error ? <Banner tone="error">{error}</Banner> : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
       <form onSubmit={(event) => void handleSaveDefaultEnvironment(event)} className="rounded-[1.5rem] border border-outline bg-surface-raised/30 p-4">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">

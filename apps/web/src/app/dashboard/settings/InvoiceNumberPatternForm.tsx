@@ -6,6 +6,7 @@ import { updateCompany } from '../../../lib/api-client';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface InvoiceNumberPatternFormProps {
@@ -101,7 +102,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">Schemat numeracji faktur</h2>
         <p className="mt-1 text-sm text-muted">
@@ -110,16 +111,8 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
         </p>
       </div>
 
-      {error ? (
-        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      ) : null}
-      {success ? (
-        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {error ? <Banner tone="error">{error}</Banner> : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted">Szablony</p>
@@ -174,9 +167,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
             </p>
           </div>
         ) : (
-          <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink">
-            Schemat musi zawierać token {'{SEQ}'}.
-          </Surface>
+          <Banner tone="error">Schemat musi zawierać token {'{SEQ}'}.</Banner>
         )}
 
         <div className="flex flex-wrap gap-3">

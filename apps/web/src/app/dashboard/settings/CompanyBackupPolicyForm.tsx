@@ -20,6 +20,7 @@ import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface CompanyBackupPolicyFormProps {
@@ -224,7 +225,7 @@ export function CompanyBackupPolicyForm({
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">Kopie zapasowe</h2>
         <p className="mt-1 text-sm text-muted">
@@ -233,30 +234,26 @@ export function CompanyBackupPolicyForm({
       </div>
 
       {error ? (
-        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
+        <Banner tone="error">
           <p>{error.message}</p>
           {error.code === 'REAUTHORIZATION_REQUIRED' ? (
             <div className="mt-3">
               <a
                 href={googleDriveConnectUrl}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+                className="inline-flex h-10 items-center justify-center rounded-control bg-surface-panel px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
               >
                 Połącz ponownie Google Drive
               </a>
             </div>
           ) : null}
-        </Surface>
+        </Banner>
       ) : null}
-      {success ? (
-        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
       {hasBackupStatusError ? (
-        <Surface className="border-outline bg-surface-muted/50 px-4 py-3 text-sm text-muted" role="status">
+        <Banner tone="info">
           Nie udało się pobrać wskaźników statusu backupu. Ustawienia polityki Google Drive nadal możesz edytować.
-        </Surface>
+        </Banner>
       ) : null}
 
       <div className="rounded-[1.4rem] border border-outline bg-surface-raised/45 p-4">
@@ -355,19 +352,19 @@ export function CompanyBackupPolicyForm({
             />
           </div>
         ) : (
-          <div className="mt-4 rounded-[1rem] border border-warning bg-warning px-4 py-3 text-sm text-warning-ink">
+          <Banner tone="warning" className="mt-4">
             {requiresGoogleDriveReauthorization
               ? 'Google Drive wymaga ponownego połączenia. Backup ręczny i automatyczny pozostają wstrzymane do czasu odnowienia autoryzacji.'
               : 'Google Drive nie jest jeszcze podłączony. Najpierw połącz konto, aby uruchamiać backup ręczny i harmonogram.'}
             <div className="mt-3">
               <a
                 href={googleDriveConnectUrl}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+                className="inline-flex h-10 items-center justify-center rounded-control bg-surface-panel px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
               >
                 {requiresGoogleDriveReauthorization ? 'Połącz ponownie Google Drive' : 'Połącz Google Drive'}
               </a>
             </div>
-          </div>
+          </Banner>
         )}
 
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-5 grid gap-4 md:grid-cols-2">

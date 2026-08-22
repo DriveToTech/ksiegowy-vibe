@@ -23,7 +23,7 @@ export default async function LoginPage({
 
   return (
     <PublicPageLayout className="items-center justify-center">
-      <Surface tone="glass" shape="organic" className="mx-auto w-full max-w-md p-8 sm:p-10">
+      <Surface tone="panel" className="mx-auto w-full max-w-md p-8 sm:p-10">
         <div className="space-y-6">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t.login.tagline}</p>
           <div className="space-y-2">

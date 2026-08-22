@@ -66,7 +66,7 @@ export function EditContractorForm({
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-2xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-2xl">
       {error ? <ErrorState message={error} /> : null}
       {success ? (
         <div className="rounded-[1.25rem] border border-outline bg-success px-4 py-3 text-sm font-medium text-success-ink">

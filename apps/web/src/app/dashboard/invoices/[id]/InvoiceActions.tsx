@@ -10,6 +10,7 @@ import { cn } from '../../../../lib/cn';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
 import { Surface } from '../../../../components/atoms/Surface';
+import { Banner } from '../../../../components/molecules/Banner';
 import { formatMoney } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 
@@ -267,16 +268,12 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
         <EnvironmentBadge environment={activeEnvironment} />
       </div>
       {error && (
-        <Surface tone="glass" shape="organic" className="border-error bg-error px-4 py-3 text-error-ink" role="alert">
+        <Banner tone="error">
           <p className="text-sm font-semibold">{errorTitle}</p>
           {errorDetail && <p className="mt-1 text-sm opacity-85">{errorDetail}</p>}
-        </Surface>
+        </Banner>
       )}
-      {success && (
-        <Surface tone="glass" shape="organic" className="border-success bg-success px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      )}
+      {success && <Banner tone="success">{success}</Banner>}
       <div className="flex flex-wrap gap-3">
         {status === 'DRAFT' && (
           <>
@@ -350,7 +347,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
       </div>
 
       {pendingProductionAction === 'ksef' && (
-        <Surface tone="glass" shape="organic" className="border-warning bg-warning p-5">
+        <Banner tone="warning" className="p-5">
           <ProductionConfirmPanel
             invoiceNumber={invoiceNumber}
             totalGross={totalGross}
@@ -360,21 +357,21 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
             onCancel={() => setPendingProductionAction(null)}
             onConfirm={performSubmitKsef}
           />
-        </Surface>
+        </Banner>
       )}
 
       {!hasToken && (
-        <Surface tone="glass" shape="organic" className="border-warning bg-warning px-4 py-3 text-sm text-warning-ink" role="alert">
+        <Banner tone="warning">
           <p>{t.invoiceActions.missingTokenWarning(activeEnvironment)}{' '}
             <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
               {t.invoiceActions.goToSettings}
             </Link>
           </p>
-        </Surface>
+        </Banner>
       )}
 
       {showPayment && (
-        <Surface tone="glass" shape="organic" className="space-y-4 p-4">
+        <Surface tone="panel" className="space-y-4 p-4">
           <form onSubmit={handleRecordPayment} className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="min-w-[180px] flex-1">
               <label className="mb-2 block text-sm font-semibold text-foreground">
@@ -403,7 +400,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
       )}
 
       {showCorrectionModal && pendingProductionAction === 'correct' && (
-        <Surface tone="glass" shape="organic" className="border-warning bg-warning p-5">
+        <Banner tone="warning" className="p-5">
           <ProductionConfirmPanel
             invoiceNumber={invoiceNumber}
             totalGross={totalGross}
@@ -413,11 +410,11 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
             onCancel={() => setPendingProductionAction(null)}
             onConfirm={performCorrect}
           />
-        </Surface>
+        </Banner>
       )}
 
       {showCorrectionModal && pendingProductionAction !== 'correct' && (
-        <Surface tone="glass" shape="organic" className="space-y-4 p-5">
+        <Surface tone="panel" className="space-y-4 p-5">
           <h3 className="text-base font-semibold text-foreground">{t.invoiceActions.correctionModalTitle}</h3>
           <form onSubmit={handleCorrect} className="space-y-4">
             <div>

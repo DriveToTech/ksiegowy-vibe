@@ -13,7 +13,7 @@ interface InvoicesTableProps {
 export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps) {
   return (
     <>
-      <Surface tone="glass" shape="default" className="hidden overflow-hidden lg:block">
+      <Surface tone="panel" className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto px-3 py-3">
           <table className="min-w-full border-separate border-spacing-y-2 text-sm">
             <thead className="sticky top-0 z-10 bg-surface-panel text-left text-muted">
@@ -63,7 +63,7 @@ export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps)
 
       <div className="grid gap-4 lg:hidden">
         {invoices.map((invoice) => (
-          <Surface key={invoice.id} tone="glass" shape="organic" className="space-y-4 p-5">
+          <Surface key={invoice.id} tone="panel" className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <Link

@@ -7,6 +7,7 @@ import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { FormField } from '../../../components/molecules/FormField';
 import { t } from '../../../lib/translations';
@@ -74,18 +75,10 @@ export function MembersTab({
 
   return (
     <div className="space-y-6">
-      {error && (
-        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      )}
-      {success && (
-        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      )}
+      {error && <Banner tone="error">{error}</Banner>}
+      {success && <Banner tone="success">{success}</Banner>}
 
-      <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:mr-10">
+      <Surface tone="panel" className="space-y-5 p-6 xl:mr-10">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             {t.members.title(members.length)}
@@ -151,7 +144,7 @@ export function MembersTab({
 
             <div className="grid gap-4 lg:hidden">
               {members.map((member) => (
-                <Surface key={member.userId} tone="glass" shape="organic" className="space-y-4 p-4">
+                <Surface key={member.userId} tone="inset" className="space-y-4 p-4">
                   <div className="space-y-1">
                     <p className="font-semibold text-foreground">{member.user.email}</p>
                     <p className="text-sm text-muted">{member.user.name ?? '—'}</p>
@@ -191,7 +184,7 @@ export function MembersTab({
       </Surface>
 
       {invites.length > 0 ? (
-        <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:translate-x-6">
+        <Surface tone="panel" className="space-y-5 p-6 xl:translate-x-6">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               {t.members.pendingInvites}
@@ -201,7 +194,7 @@ export function MembersTab({
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {invites.map((invite) => (
-              <Surface key={invite.id} tone="glass" shape="organic" className="space-y-3 p-4">
+              <Surface key={invite.id} tone="inset" className="space-y-3 p-4">
                 <div>
                   <p className="font-semibold text-foreground">{invite.email}</p>
                   <p className="mt-1 text-sm text-muted">{t.members.roles[invite.role]}</p>
@@ -217,7 +210,7 @@ export function MembersTab({
       ) : null}
 
       {isAdmin ? (
-        <Surface tone="glass" shape="organic" className="space-y-5 p-6 max-w-4xl">
+        <Surface tone="panel" className="space-y-5 p-6 max-w-4xl">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               {t.members.inviteSection}

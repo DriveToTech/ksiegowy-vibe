@@ -9,7 +9,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
-    <Surface tone="glass" shape="organic" className="p-8 text-center sm:p-10">
+    <Surface tone="panel" className="p-8 text-center sm:p-10">
       <div className="mx-auto max-w-xl space-y-3">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
         <p className="text-sm text-muted sm:text-base">{description}</p>

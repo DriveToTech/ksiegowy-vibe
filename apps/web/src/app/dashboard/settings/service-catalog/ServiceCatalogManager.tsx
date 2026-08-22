@@ -173,7 +173,7 @@ export function ServiceCatalogManager({
       {visibleTemplates.length > 0 ? (
         <div className="space-y-2">
           {visibleTemplates.map((template) => (
-            <Surface key={template.id} tone="glass" shape="organic" className="p-4">
+            <Surface key={template.id} tone="panel" className="p-4">
               {editingId === template.id ? (
                 <TemplateForm
                   form={form}
@@ -267,7 +267,7 @@ function TemplateForm({
   submitLabel: string;
 }) {
   return (
-    <Surface tone="glass" shape="organic" className="space-y-4 p-4">
+    <Surface tone="panel" className="space-y-4 p-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label={t.serviceCatalog.fields.name} required>
           <Input

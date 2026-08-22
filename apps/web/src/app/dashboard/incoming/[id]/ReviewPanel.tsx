@@ -131,7 +131,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-      <Surface tone="glass" shape="organic" className="overflow-hidden xl:mr-6">
+      <Surface tone="panel" className="overflow-hidden xl:mr-6">
         <div className="border-b border-outline px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -155,7 +155,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
         )}
       </Surface>
 
-      <Surface tone="glass" shape="organic" className="flex flex-col overflow-hidden xl:translate-y-8">
+      <Surface tone="panel" className="flex flex-col overflow-hidden xl:translate-y-8">
         <div className="border-b border-outline px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -325,7 +325,7 @@ function InfoCard({
   rows: Array<{ label: string; value: string }>;
 }) {
   return (
-    <Surface tone="glass" shape="organic" className="space-y-3 p-4">
+    <Surface tone="panel" className="space-y-3 p-4">
       <h3 className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{title}</h3>
       <div className="space-y-2 text-sm">
         {rows.map((row) => (

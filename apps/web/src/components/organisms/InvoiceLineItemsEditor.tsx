@@ -238,7 +238,7 @@ export function InvoiceLineItemsEditor({
         {lines.map((line, index) => {
           const { net, vat, gross } = calcLine(line);
           return (
-            <Surface key={index} tone="glass" shape="organic" className="space-y-4 p-4">
+            <Surface key={index} tone="inset" className="space-y-4 p-4">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
                   {t.invoiceLineItemsEditor.positionLabel(index + 1)}

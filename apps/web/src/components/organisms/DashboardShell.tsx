@@ -20,7 +20,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
     <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:px-8 lg:py-6">
         <aside className="hidden lg:block">
-          <Surface tone="base" className="sticky top-24 p-4">
+          <Surface tone="chrome" className="sticky top-24 p-4">
             <p className="px-3 pb-3 text-xs font-medium uppercase tracking-wider text-muted">Workspace</p>
             <nav aria-label="Nawigacja dashboardu" className="flex flex-col gap-1">
               <DashboardNavigation items={navigationItems} />
