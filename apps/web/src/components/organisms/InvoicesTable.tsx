@@ -1,117 +1,131 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { InvoiceSummary } from '../../lib/api-types';
 import { formatDate, formatMoney } from '../../lib/format';
 import { t } from '../../lib/translations';
-import { Surface } from '../atoms/Surface';
-import { InvoiceEnvironmentChip, InvoiceStatusChip, KsefStatusChip } from '../molecules/StatusChip';
+import { Badge } from '../atoms/Badge';
+import { InvoiceEnvironmentChip, KsefStatusChip } from '../molecules/StatusChip';
 
 interface InvoicesTableProps {
   invoices: InvoiceSummary[];
+  showNet?: boolean;
   compact?: boolean;
+  header?: ReactNode;
 }
 
-export function InvoicesTable({ invoices, compact = false }: InvoicesTableProps) {
+/**
+ * The list endpoint (GET /companies/:id/invoices) does not select
+ * paymentReceived/paymentDueDate — only the single-invoice detail endpoint
+ * does — so DRAFT and rejected-blocked are the only payment states this
+ * table can derive honestly from the data it has. Paid/unpaid needs those
+ * two fields added to the list serializer (flagged separately as an API gap).
+ */
+function paymentBadge(invoice: InvoiceSummary): { label: string; tone: 'draft' | 'primary' } | null {
+  if (invoice.status === 'DRAFT') return { label: t.invoicesTable.paymentDraft, tone: 'draft' };
+  if (invoice.ksefStatus === 'rejected') return { label: t.invoicesTable.paymentBlocked, tone: 'draft' };
+  return null;
+}
+
+export function InvoicesTable({ invoices, showNet = true, compact = false, header }: InvoicesTableProps) {
   return (
     <>
-      <Surface tone="panel" className="hidden overflow-hidden lg:block">
-        <div className="overflow-x-auto px-3 py-3">
-          <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-            <thead className="sticky top-0 z-10 bg-surface-muted text-left text-muted">
-              <tr>
+      <div className="hidden overflow-hidden rounded-card border border-outline bg-surface-panel lg:block">
+        {header ? <div className="flex items-center justify-between border-b border-outline px-5 py-3.5">{header}</div> : null}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="bg-surface-muted text-left">
                 <HeaderCell>{t.invoicesTable.numberColumn}</HeaderCell>
                 <HeaderCell>{t.invoicesTable.dateColumn}</HeaderCell>
                 <HeaderCell>{t.invoicesTable.contractorColumn}</HeaderCell>
-                <HeaderCell className="hidden xl:table-cell">{t.invoicesTable.environmentColumn}</HeaderCell>
-                {!compact ? <HeaderCell className="hidden text-right 2xl:table-cell">{t.invoicesTable.netColumn}</HeaderCell> : null}
-                {!compact ? <HeaderCell className="hidden text-right 2xl:table-cell">{t.invoicesTable.vatColumn}</HeaderCell> : null}
+                {showNet ? <HeaderCell className="text-right">{t.invoicesTable.netColumn}</HeaderCell> : null}
                 <HeaderCell className="text-right">{t.invoicesTable.grossColumn}</HeaderCell>
-                <HeaderCell>{t.invoicesTable.statusColumn}</HeaderCell>
-                <HeaderCell className="hidden xl:table-cell">{t.invoicesTable.ksefColumn}</HeaderCell>
+                <HeaderCell className="text-center">{t.invoicesTable.paymentColumn}</HeaderCell>
+                <HeaderCell className="hidden text-right xl:table-cell">{t.invoicesTable.ksefColumn}</HeaderCell>
               </tr>
             </thead>
             <tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className="bg-transparent transition hover:bg-surface-row-hover">
-                  <BodyCell>
-                    <Link
-                      href={`/dashboard/invoices/${invoice.id}`}
-                      className="inline-flex min-h-11 items-center font-semibold text-primary-strong transition hover:text-primary"
-                    >
-                      {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
-                    </Link>
-                  </BodyCell>
-                  <BodyCell>{formatDate(invoice.issueDate)}</BodyCell>
-                  <BodyCell>{invoice.contractor?.name ?? '—'}</BodyCell>
-                  <BodyCell className="hidden xl:table-cell">
-                    <InvoiceEnvironmentChip environment={invoice.environment} />
-                  </BodyCell>
-                  {!compact ? <BodyCell className="hidden text-right tabular-nums 2xl:table-cell">{formatMoney(invoice.totalNet)}</BodyCell> : null}
-                  {!compact ? <BodyCell className="hidden text-right tabular-nums 2xl:table-cell">{formatMoney(invoice.totalVat)}</BodyCell> : null}
-                  <BodyCell className="text-right tabular-nums">{formatMoney(invoice.totalGross)}</BodyCell>
-                  <BodyCell>
-                    <InvoiceStatusChip status={invoice.status} />
-                  </BodyCell>
-                  <BodyCell className="hidden xl:table-cell">
-                    <KsefStatusChip status={invoice.ksefStatus} />
-                  </BodyCell>
-                </tr>
-              ))}
+              {invoices.map((invoice) => {
+                const payment = paymentBadge(invoice);
+                return (
+                  <tr key={invoice.id} className="border-t border-outline transition hover:bg-surface-row-hover">
+                    <BodyCell>
+                      <Link
+                        href={`/dashboard/invoices/${invoice.id}`}
+                        className="inline-flex min-h-11 items-center font-mono text-[12px] font-medium text-foreground transition hover:text-primary"
+                      >
+                        {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
+                      </Link>
+                    </BodyCell>
+                    <BodyCell className="text-muted">{formatDate(invoice.issueDate)}</BodyCell>
+                    <BodyCell className="max-w-0 truncate">{invoice.contractor?.name ?? '—'}</BodyCell>
+                    {showNet ? <BodyCell className="text-right tabular-nums text-foreground-secondary">{formatMoney(invoice.totalNet)}</BodyCell> : null}
+                    <BodyCell className="text-right tabular-nums font-medium">{formatMoney(invoice.totalGross)}</BodyCell>
+                    <BodyCell className="text-center">
+                      {payment ? <Badge tone={payment.tone}>{payment.label}</Badge> : <span className="text-muted">—</span>}
+                    </BodyCell>
+                    <BodyCell className="hidden text-right xl:table-cell">
+                      <KsefStatusChip status={invoice.ksefStatus} />
+                    </BodyCell>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </Surface>
+      </div>
 
       <div className="grid gap-4 lg:hidden">
-        {invoices.map((invoice) => (
-          <Surface key={invoice.id} tone="panel" className="space-y-4 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <Link
-                  href={`/dashboard/invoices/${invoice.id}`}
-                  className="text-lg font-semibold tracking-tight text-primary-strong"
-                >
-                  {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
-                </Link>
-                <p className="mt-1 text-sm text-muted">{invoice.contractor?.name ?? t.invoicesTable.noContractorFallback}</p>
-              </div>
-              <InvoiceStatusChip status={invoice.status} />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <DetailItem label={t.invoicesTable.dateColumn} value={formatDate(invoice.issueDate)} />
-              <DetailItem label={t.invoicesTable.grossColumn} value={formatMoney(invoice.totalGross)} align="right" />
-              {!compact ? <DetailItem label={t.invoicesTable.netColumn} value={formatMoney(invoice.totalNet)} /> : null}
-              {!compact ? <DetailItem label={t.invoicesTable.vatColumn} value={formatMoney(invoice.totalVat)} align="right" /> : null}
-              <div className="space-y-1">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoicesTable.environmentColumn}</p>
-                <InvoiceEnvironmentChip environment={invoice.environment} />
-              </div>
-              <div className="sm:col-span-2 flex items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoicesTable.ksefColumn}</p>
-                  <KsefStatusChip status={invoice.ksefStatus} />
+        {header ? <div className="flex items-center justify-between">{header}</div> : null}
+        {invoices.map((invoice) => {
+          const payment = paymentBadge(invoice);
+          return (
+            <div key={invoice.id} className="space-y-4 rounded-card border border-outline bg-surface-panel p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Link
+                    href={`/dashboard/invoices/${invoice.id}`}
+                    className="font-mono text-base font-medium text-foreground"
+                  >
+                    {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
+                  </Link>
+                  <p className="mt-1 text-sm text-muted">{invoice.contractor?.name ?? t.invoicesTable.noContractorFallback}</p>
                 </div>
-                <Link
-                  href={`/dashboard/invoices/${invoice.id}`}
-                  className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-strong transition hover:text-primary"
-                >
-                  {t.invoicesTable.detailsLink}
-                </Link>
+                <KsefStatusChip status={invoice.ksefStatus} />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailItem label={t.invoicesTable.dateColumn} value={formatDate(invoice.issueDate)} />
+                <DetailItem label={t.invoicesTable.grossColumn} value={formatMoney(invoice.totalGross)} align="right" />
+                {!compact ? <DetailItem label={t.invoicesTable.netColumn} value={formatMoney(invoice.totalNet)} /> : null}
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoicesTable.environmentColumn}</p>
+                  <InvoiceEnvironmentChip environment={invoice.environment} />
+                </div>
+                <div className="sm:col-span-2 flex items-center justify-between gap-3">
+                  {payment ? <Badge tone={payment.tone}>{payment.label}</Badge> : <span />}
+                  <Link
+                    href={`/dashboard/invoices/${invoice.id}`}
+                    className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-strong transition hover:text-primary"
+                  >
+                    {t.invoicesTable.detailsLink}
+                  </Link>
+                </div>
               </div>
             </div>
-          </Surface>
-        ))}
+          );
+        })}
       </div>
     </>
   );
 }
 
 function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-3 font-mono text-[11px] uppercase tracking-[0.14em] ${className}`}>{children}</th>;
+  return <th className={`px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.13em] text-muted ${className}`}>{children}</th>;
 }
 
 function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-4 align-middle text-foreground ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3 align-middle text-foreground ${className}`}>{children}</td>;
 }
 
 function DetailItem({
