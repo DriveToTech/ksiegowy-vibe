@@ -342,11 +342,11 @@ test('mobile dashboard content and actions clear navigation at initial and mid-s
   await expect(page.getByRole('link', { name: '+ Nowa faktura' })).toBeVisible();
 });
 
-test('dashboard shows empty state when no company is configured', async ({ authenticatedPageNoCompany: page }) => {
+test('dashboard redirects to onboarding when no company is configured', async ({ authenticatedPageNoCompany: page }) => {
   await page.goto('/dashboard');
 
-  await expect(page.getByText('Brak skonfigurowanej firmy')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Przejdź do ustawień' })).toBeVisible();
+  await expect(page).toHaveURL(/\/onboarding\/company$/);
+  await expect(page.getByRole('heading', { name: 'Skonfiguruj firmę' })).toBeVisible();
 });
 
 for (const viewport of [
