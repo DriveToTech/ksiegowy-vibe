@@ -11,8 +11,8 @@ import { Button } from '../../../components/atoms/Button';
 import { t } from '../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
-  TEST: 'border-success/30 bg-success/15 text-success-ink',
-  PRODUCTION: 'border-warning/40 bg-warning/15 text-warning-ink',
+  TEST: 'border-success bg-success text-success-ink',
+  PRODUCTION: 'border-warning bg-warning text-warning-ink',
 };
 
 function EnvironmentBadge({ environment }: { environment: string }) {
@@ -140,7 +140,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
             </p>
 
             {!hasToken && (
-              <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-ink" role="alert">
+              <div className="rounded-xl border border-warning bg-warning px-4 py-3 text-sm text-warning-ink" role="alert">
                 <p>{t.incoming.ksefSync.missingTokenWarning(activeEnvironment)}{' '}
                   <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
                     {t.incoming.ksefSync.goToSettings}
@@ -150,13 +150,13 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
             )}
 
           {result !== null && (
-              <p className="rounded-xl bg-success-soft/20 px-4 py-2 text-sm text-success-ink" role="status">
+              <p className="rounded-xl bg-success px-4 py-2 text-sm text-success-ink" role="status">
                 {result}
               </p>
             )}
 
             {error !== null && (
-              <p className="rounded-xl bg-error-soft/20 px-4 py-2 text-sm text-error-ink" role="alert">
+              <p className="rounded-xl bg-error px-4 py-2 text-sm text-error-ink" role="alert">
                 {error}
               </p>
             )}

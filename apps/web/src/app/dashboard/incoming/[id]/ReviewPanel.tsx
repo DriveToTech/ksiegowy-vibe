@@ -132,7 +132,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
       <Surface tone="glass" shape="organic" className="overflow-hidden xl:mr-6">
-        <div className="border-b border-outline/20 px-5 py-4">
+        <div className="border-b border-outline px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-foreground">{t.review.documentPanel}</p>
@@ -156,7 +156,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
       </Surface>
 
       <Surface tone="glass" shape="organic" className="flex flex-col overflow-hidden xl:translate-y-8">
-        <div className="border-b border-outline/20 px-5 py-4">
+        <div className="border-b border-outline px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-foreground">{t.review.ocrPanel}</p>
@@ -253,7 +253,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
           </section>
         </div>
 
-        <div className="border-t border-outline/20 px-5 py-4">
+        <div className="border-t border-outline px-5 py-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             {error ? <p className="text-sm text-error-ink">{error}</p> : <div />}
 
@@ -282,7 +282,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
                 </>
               ) : null}
               {invoice.status === 'CONFIRMED' ? (
-                <span className="inline-flex min-h-11 items-center rounded-md bg-success/25 px-4 text-sm font-semibold text-success-ink">
+                <span className="inline-flex min-h-11 items-center rounded-md bg-success px-4 text-sm font-semibold text-success-ink">
                   {t.review.confirmed}
                 </span>
               ) : null}

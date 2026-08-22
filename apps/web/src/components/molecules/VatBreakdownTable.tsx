@@ -85,7 +85,7 @@ export function VatBreakdownTable({ lines, totals }: VatBreakdownTableProps) {
           )}
         </tbody>
         <tfoot>
-          <tr className="border-t border-outline/30">
+          <tr className="border-t border-outline">
             <td className="pt-3 font-semibold text-foreground">Razem</td>
             <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatMoney(totals.net)}</td>
             <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatMoney(totals.vat)}</td>
@@ -94,7 +94,7 @@ export function VatBreakdownTable({ lines, totals }: VatBreakdownTableProps) {
         </tfoot>
       </table>
 
-      <div className="mt-5 space-y-1.5 border-t border-outline/30 pt-4 text-sm">
+      <div className="mt-5 space-y-1.5 border-t border-outline pt-4 text-sm">
         <div className="flex items-center justify-between">
           <span className="text-muted">Kwota do zapłaty</span>
           <span className="font-semibold tabular-nums text-foreground">{formatMoney(totals.gross)}</span>

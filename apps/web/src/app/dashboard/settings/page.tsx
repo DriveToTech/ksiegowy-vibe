@@ -76,7 +76,7 @@ export default async function DashboardSettingsPage() {
         <KsefSettingsForm companyId={activeCompanyId} settings={ksefSettingsResult.ksefSettings} />
       ) : null}
       {isAdmin && !ksefSettingsResult.ksefSettings ? (
-        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error/30 bg-error-soft/45 p-5 text-sm text-error-ink xl:max-w-4xl">
+        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error bg-error p-5 text-sm text-error-ink xl:max-w-4xl">
           Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.
         </div>
       ) : null}
@@ -92,7 +92,7 @@ export default async function DashboardSettingsPage() {
         />
       ) : null}
       {isAdmin && !backupSettings ? (
-        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error/30 bg-error-soft/45 p-5 text-sm text-error-ink xl:max-w-4xl">
+        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error bg-error p-5 text-sm text-error-ink xl:max-w-4xl">
           Nie udało się pobrać ustawień backupu firmy. Odśwież stronę i spróbuj ponownie.
         </div>
       ) : null}

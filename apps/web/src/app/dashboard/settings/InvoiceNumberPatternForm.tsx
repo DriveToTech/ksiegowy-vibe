@@ -111,12 +111,12 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
       </div>
 
       {error ? (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
+        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
           {error}
         </Surface>
       ) : null}
       {success ? (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
+        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
           {success}
         </Surface>
       ) : null}
@@ -129,7 +129,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
               key={preset.pattern}
               type="button"
               onClick={() => setPattern(preset.pattern)}
-              className="rounded-full border border-outline/20 bg-surface px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
+              className="rounded-full border border-outline bg-surface px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
             >
               {preset.label}
             </button>
@@ -157,7 +157,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
                 type="button"
                 title={description}
                 onClick={() => insertToken(token)}
-                className="rounded-full border border-outline/20 bg-surface px-3 py-1 text-xs font-mono font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
+                className="rounded-full border border-outline bg-surface px-3 py-1 text-xs font-mono font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
               >
                 {label}
               </button>
@@ -174,7 +174,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
             </p>
           </div>
         ) : (
-          <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink">
+          <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink">
             Schemat musi zawierać token {'{SEQ}'}.
           </Surface>
         )}
@@ -191,7 +191,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
         </div>
       </form>
 
-      <div className="border-t border-outline/10 pt-4">
+      <div className="border-t border-outline pt-4">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Aktualny schemat</p>
         <p className="mt-1 font-mono text-sm text-foreground">
           {isDefault ? `${DEFAULT_PATTERN} (domyślny)` : currentPattern}

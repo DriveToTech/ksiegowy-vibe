@@ -136,12 +136,12 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
       </div>
 
       {error ? (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
+        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
           {error}
         </Surface>
       ) : null}
       {success ? (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
+        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
           {success}
         </Surface>
       ) : null}

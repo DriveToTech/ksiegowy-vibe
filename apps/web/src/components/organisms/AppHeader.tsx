@@ -68,10 +68,10 @@ export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironm
                 <img
                   src={user.avatarUrl}
                   alt={user.name ?? user.email}
-                  className="h-10 w-10 shrink-0 rounded-full border border-outline/20 object-cover"
+                  className="h-10 w-10 shrink-0 rounded-full border border-outline object-cover"
                 />
               ) : (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-outline/20 bg-surface-raised/75 text-sm font-semibold text-foreground">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-outline bg-surface-raised/75 text-sm font-semibold text-foreground">
                   {(user.name ?? user.email).slice(0, 1).toUpperCase()}
                 </div>
               )}
