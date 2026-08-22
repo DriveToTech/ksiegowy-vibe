@@ -129,6 +129,43 @@ const invoices = new Map([
 ]);
 
 /**
+ * Companies created through the onboarding wizard's "no company" flow.
+ * Keyed by companyId. `ownerToken` is the auth_token the user held *before*
+ * the post-creation session refresh — company-scoped endpoints below only
+ * accept the `${ownerToken}::refreshed` token, mirroring the real backend's
+ * JWT-staleness behaviour (a JWT minted before the company existed doesn't
+ * carry its claim, so company-scoped calls 403 until the session is refreshed).
+ * @type {Map<string, { company: Record<string, unknown>, ownerToken: string, ksefCredentials: Record<'TEST' | 'PRODUCTION', boolean> }>}
+ */
+const onboardingCompanies = new Map();
+
+/**
+ * @param {string} token
+ * @returns {{ id: string, company: Record<string, unknown> } | null}
+ */
+function findOnboardingCompanyByToken(token) {
+  const baseToken = token.endsWith('::refreshed') ? token.slice(0, -'::refreshed'.length) : token;
+  for (const [id, entry] of onboardingCompanies) {
+    if (entry.ownerToken === baseToken) return { id, company: entry.company };
+  }
+  return null;
+}
+
+/**
+ * @param {string} companyId
+ * @param {string | undefined} authToken
+ * @returns {{ status: 200, entry: { company: Record<string, unknown>, ownerToken: string, ksefCredentials: Record<'TEST' | 'PRODUCTION', boolean> } } | { status: 403 | 404, body: Record<string, unknown> }}
+ */
+function requireActivatedOnboardingCompany(companyId, authToken) {
+  const entry = onboardingCompanies.get(companyId);
+  if (!entry) return { status: 404, body: { error: 'Not found' } };
+  if (authToken !== `${entry.ownerToken}::refreshed`) {
+    return { status: 403, body: { error: 'Forbidden', message: 'Sesja jest nieaktualna. Odśwież stronę.' } };
+  }
+  return { status: 200, entry };
+}
+
+/**
  * @param {http.IncomingMessage} req
  * @returns {Record<string, string>}
  */
@@ -150,8 +187,9 @@ function parseCookies(req) {
  * @param {http.IncomingMessage} req
  * @param {number} status
  * @param {unknown} data
+ * @param {Record<string, string>} [extraHeaders]
  */
-function respond(req, res, status, data) {
+function respond(req, res, status, data, extraHeaders = {}) {
   const origin = req.headers['origin'];
   res.writeHead(status, {
     'Content-Type': 'application/json',
@@ -159,6 +197,7 @@ function respond(req, res, status, data) {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Headers': 'Content-Type, x-ksef-environment',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    ...extraHeaders,
   });
   res.end(JSON.stringify(data));
 }
@@ -195,7 +234,7 @@ const server = http.createServer((req, res) => {
   const method = req.method ?? 'GET';
   const cookies = parseCookies(req);
   const authToken = cookies['auth_token'];
-  const isNoCompanyToken = authToken === 'no-company-token';
+  const isTestCompanyToken = authToken === 'test-token';
 
   if (method === 'OPTIONS') {
     return respond(req, res, 204, {});
@@ -205,23 +244,131 @@ const server = http.createServer((req, res) => {
     return respond(req, res, 200, { status: 'ok' });
   }
 
+  if (url === '/auth/refresh' && method === 'POST') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const refreshedToken = authToken.endsWith('::refreshed') ? authToken : `${authToken}::refreshed`;
+    return respond(req, res, 200, { ok: true }, { 'Set-Cookie': `auth_token=${refreshedToken}; Path=/; SameSite=Lax` });
+  }
+
   if (url === '/auth/me' && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const onboardingCompany = isTestCompanyToken ? null : findOnboardingCompanyByToken(authToken);
     return respond(req, res, 200, {
       authenticated: true,
       user: TEST_USER,
-      companies: isNoCompanyToken ? [] : [{ id: 'test-company-id', role: 'ADMIN' }],
+      companies: isTestCompanyToken
+        ? [{ id: TEST_COMPANY.id, role: 'ADMIN' }]
+        : onboardingCompany
+          ? [{ id: onboardingCompany.id, role: 'ADMIN' }]
+          : [],
+    });
+  }
+
+  if (url === '/companies/lookup' && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const nip = new URLSearchParams(rawUrl.split('?')[1] ?? '').get('nip') ?? '';
+    return respond(req, res, 200, {
+      name: `Firma z rejestru ${nip}`,
+      nip,
+      addressLine1: 'ul. Rejestrowa 10, 00-950 Warszawa',
+      addressLine2: null,
+      vatStatus: 'ACTIVE',
     });
   }
 
   if (url === '/companies' && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
-    return respond(req, res, 200, isNoCompanyToken ? [] : [TEST_COMPANY]);
+    const onboardingCompany = isTestCompanyToken ? null : findOnboardingCompanyByToken(authToken);
+    return respond(req, res, 200, isTestCompanyToken ? [TEST_COMPANY] : onboardingCompany ? [onboardingCompany.company] : []);
+  }
+
+  if (url === '/companies' && method === 'POST') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    return readJsonBody(req)
+      .then((body) => {
+        const companyId = `onboarding-company-${authToken}`;
+        const now = new Date().toISOString();
+        const company = {
+          id: companyId,
+          name: typeof body.name === 'string' ? body.name : '',
+          nip: typeof body.nip === 'string' ? body.nip : '',
+          addressLine1: typeof body.addressLine1 === 'string' ? body.addressLine1 : '',
+          addressLine2: typeof body.addressLine2 === 'string' ? body.addressLine2 : null,
+          email: typeof body.email === 'string' ? body.email : null,
+          phone: typeof body.phone === 'string' ? body.phone : null,
+          bankName: typeof body.bankName === 'string' ? body.bankName : null,
+          bankAccount: typeof body.bankAccount === 'string' ? body.bankAccount : null,
+          vatStatus: 'ACTIVE',
+          ksefEnv: 'TEST',
+          invoiceNumberPattern: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        onboardingCompanies.set(companyId, { company, ownerToken: authToken, ksefCredentials: { TEST: false, PRODUCTION: false } });
+        return respond(req, res, 201, company);
+      })
+      .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
+  }
+
+  const ksefSettingsMatch = url.match(/^\/companies\/([^/]+)\/ksef-settings$/);
+  if (ksefSettingsMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, companyId] = ksefSettingsMatch;
+    const access = requireActivatedOnboardingCompany(companyId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    return respond(req, res, 200, {
+      defaultEnvironment: 'TEST',
+      credentials: [
+        { environment: 'TEST', hasToken: access.entry.ksefCredentials.TEST },
+        { environment: 'PRODUCTION', hasToken: access.entry.ksefCredentials.PRODUCTION },
+      ],
+    });
+  }
+
+  const ksefCredentialMatch = url.match(/^\/companies\/([^/]+)\/ksef-credentials\/(TEST|PRODUCTION)$/);
+  if (ksefCredentialMatch && method === 'PUT') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, companyId, environment] = ksefCredentialMatch;
+    const access = requireActivatedOnboardingCompany(companyId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    return readJsonBody(req)
+      .then((body) => {
+        if (typeof body.ksefToken !== 'string' || body.ksefToken.length === 0) {
+          return respond(req, res, 400, { error: 'ksefToken is required' });
+        }
+        access.entry.ksefCredentials[/** @type {'TEST' | 'PRODUCTION'} */ (environment)] = true;
+        return respond(req, res, 200, {});
+      })
+      .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
+  }
+
+  const onboardingInviteMatch = url.match(/^\/companies\/([^/]+)\/invites$/);
+  if (onboardingInviteMatch && method === 'POST') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, companyId] = onboardingInviteMatch;
+    const access = requireActivatedOnboardingCompany(companyId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    return readJsonBody(req)
+      .then((body) => {
+        const invite = {
+          id: `invite-${Date.now()}`,
+          email: typeof body.email === 'string' ? body.email : '',
+          role: typeof body.role === 'string' ? body.role : 'VIEWER',
+          token: `invite-token-${Date.now()}`,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+        return respond(req, res, 201, invite);
+      })
+      .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
   }
 
   if (/^\/companies\/[^/]+$/.test(url) && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
-    return respond(req, res, 200, TEST_COMPANY);
+    const [, companyId] = url.match(/^\/companies\/([^/]+)$/) ?? [];
+    if (companyId === TEST_COMPANY.id) return respond(req, res, 200, TEST_COMPANY);
+    const onboardingEntry = companyId ? onboardingCompanies.get(companyId) : undefined;
+    if (onboardingEntry) return respond(req, res, 200, onboardingEntry.company);
+    return respond(req, res, 404, { error: 'Not found' });
   }
 
   if (/^\/companies\/[^/]+\/invoices$/.test(url) && method === 'GET') {
