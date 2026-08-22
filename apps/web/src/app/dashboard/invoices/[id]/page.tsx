@@ -3,13 +3,42 @@ import { getActiveCompany, getCompanyKsefSettings, getInvoice } from '../../../.
 import { Button } from '../../../../components/atoms/Button';
 import { Surface } from '../../../../components/atoms/Surface';
 import { Banner } from '../../../../components/molecules/Banner';
+import { ClearanceStepper, type ClearanceStep } from '../../../../components/molecules/ClearanceStepper';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
 import { ErrorState } from '../../../../components/molecules/ErrorState';
-import { MetricCard } from '../../../../components/molecules/MetricCard';
-import { InvoiceEnvironmentChip, InvoiceStatusChip, KsefStatusChip } from '../../../../components/molecules/StatusChip';
 import { formatDate, formatMoney } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 import InvoiceActions from './InvoiceActions';
+
+function buildClearanceSteps(invoice: {
+  createdAt: string;
+  ksefStatus: string;
+  status: string;
+  paymentReceived: string;
+  totalGross: string;
+  paymentDueDate: string | null;
+}): ClearanceStep[] {
+  const isPaid = parseFloat(invoice.paymentReceived) >= parseFloat(invoice.totalGross) && parseFloat(invoice.totalGross) > 0;
+
+  const sentState: ClearanceStep['state'] = invoice.ksefStatus === 'not_submitted' ? 'pending' : 'done';
+  const clearanceState: ClearanceStep['state'] =
+    invoice.ksefStatus === 'rejected' ? 'error' : invoice.ksefStatus === 'accepted' ? 'done' : 'pending';
+
+  return [
+    { label: t.invoiceDetail.stepper.created, meta: formatDate(invoice.createdAt), state: 'done' },
+    { label: t.invoiceDetail.stepper.sent, meta: sentState === 'done' ? t.invoiceDetail.stepper.doneMeta : t.invoiceDetail.stepper.pendingMeta, state: sentState },
+    {
+      label: invoice.ksefStatus === 'rejected' ? t.invoiceDetail.stepper.rejected : t.invoiceDetail.stepper.accepted,
+      meta: clearanceState === 'pending' ? t.invoiceDetail.stepper.pendingMeta : t.invoiceDetail.stepper.doneMeta,
+      state: clearanceState,
+    },
+    {
+      label: t.invoiceDetail.stepper.paid,
+      meta: isPaid ? t.invoiceDetail.stepper.doneMeta : t.invoiceDetail.stepper.due(formatDate(invoice.paymentDueDate)),
+      state: isPaid ? 'done' : 'pending',
+    },
+  ];
+}
 
 export default async function InvoiceDetailPage({
   params,
@@ -55,8 +84,15 @@ export default async function InvoiceDetailPage({
   const ksefSettings = await getCompanyKsefSettings(companyId).catch(() => null);
   const ksefCredentialStatuses = ksefSettings?.credentials ?? undefined;
 
+  const isPaid = parseFloat(invoice.paymentReceived) >= parseFloat(invoice.totalGross) && parseFloat(invoice.totalGross) > 0;
+  const clearanceSteps = buildClearanceSteps(invoice);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <Link href="/dashboard/invoices" className="text-sm font-medium text-muted transition hover:text-foreground">
+        {t.invoiceDetail.backToInvoices}
+      </Link>
+
       {invoice.invoiceType === 'KOR' && invoice.correctedInvoice && (
         <Banner tone="warning" className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-semibold text-warning-ink">{t.invoiceDetail.correctionBannerPrefix}</span>
@@ -69,51 +105,61 @@ export default async function InvoiceDetailPage({
           </Link>
         </Banner>
       )}
+
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-        <div className="space-y-3">
-          <Link href="/dashboard/invoices" className="text-sm font-medium text-muted transition hover:text-foreground">
-            {t.invoiceDetail.backToInvoices}
-          </Link>
-          <div className="space-y-3">
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              {invoice.invoiceNumber ?? t.invoiceDetail.draftTitle}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3">
-              <InvoiceStatusChip status={invoice.status} />
-              <KsefStatusChip status={invoice.ksefStatus} />
-              <InvoiceEnvironmentChip environment={invoice.environment} />
-              <span className="text-sm text-muted">{t.invoiceDetail.issuedOn(formatDate(invoice.issueDate))}</span>
+        <div className="space-y-2">
+          <p className="font-mono text-[26px] font-medium tracking-[-0.01em] text-foreground">
+            {invoice.invoiceNumber ?? t.invoiceDetail.draftTitle}
+          </p>
+          <p className="text-sm text-muted">
+            {t.invoiceDetail.issuedOn(formatDate(invoice.issueDate))}
+            {invoice.saleDate ? ` · ${t.invoiceDetail.fields.saleDate.toLowerCase()} ${formatDate(invoice.saleDate)}` : ''}
+            {invoice.paymentDueDate ? ` · ${t.invoiceDetail.fields.paymentDueDate.toLowerCase()} ${formatDate(invoice.paymentDueDate)}` : ''}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-start gap-1 xl:items-end">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.invoiceDetail.metrics.gross}</p>
+          <p className="text-[34px] font-semibold tracking-[-0.03em] tabular-nums text-foreground">{formatMoney(invoice.totalGross)}</p>
+          <p className={`text-sm ${isPaid ? 'text-success-ink' : 'text-warning-ink'}`}>
+            {isPaid ? t.invoiceDetail.paidLabel : t.invoiceDetail.unpaidLabel} · {formatMoney(invoice.paymentReceived)} {t.invoiceDetail.receivedSuffix}
+          </p>
+        </div>
+      </div>
+
+      <InvoiceActions
+        companyId={companyId}
+        invoiceId={id}
+        invoiceNumber={invoice.invoiceNumber}
+        invoiceType={invoice.invoiceType}
+        status={invoice.status}
+        ksefStatus={invoice.ksefStatus}
+        totalGross={invoice.totalGross}
+        paymentReceived={invoice.paymentReceived}
+        ksefCredentialStatuses={ksefCredentialStatuses}
+      />
+
+      <Surface tone="panel" className="space-y-5 p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">{t.invoiceDetail.sections.clearanceTitle}</h2>
+          <span className="inline-flex items-center gap-1.5 rounded-chip border border-warning-ink/30 bg-warning px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-warning-ink">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-warning-ink" />
+            {invoice.environment}
+          </span>
+        </div>
+        <ClearanceStepper steps={clearanceSteps} />
+        {invoice.ksefReference ? (
+          <div className="flex flex-col gap-3 rounded-inset bg-surface-raised p-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.invoiceDetail.fields.ksefReference}</p>
+              <p className="font-mono text-sm text-foreground">{invoice.ksefReference}</p>
             </div>
+            <p className="text-xs text-muted sm:ml-auto sm:max-w-xs">{t.invoiceDetail.ksefReferenceHint}</p>
           </div>
-        </div>
+        ) : null}
+      </Surface>
 
-        <div className="w-full max-w-2xl">
-        <InvoiceActions
-          companyId={companyId}
-          invoiceId={id}
-          invoiceNumber={invoice.invoiceNumber}
-          invoiceType={invoice.invoiceType}
-          status={invoice.status}
-          ksefStatus={invoice.ksefStatus}
-          totalGross={invoice.totalGross}
-          paymentReceived={invoice.paymentReceived}
-          ksefCredentialStatuses={ksefCredentialStatuses}
-        />
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,0.95fr)_minmax(0,1.1fr)_minmax(0,1fr)]">
-        <MetricCard label={t.invoiceDetail.metrics.net} value={formatMoney(invoice.totalNet)} />
-        <MetricCard label={t.invoiceDetail.metrics.vat} value={formatMoney(invoice.totalVat)} />
-        <MetricCard label={t.invoiceDetail.metrics.gross} value={formatMoney(invoice.totalGross)} accent="primary" />
-        <MetricCard
-          label={t.invoiceDetail.metrics.paid}
-          value={formatMoney(invoice.paymentReceived)}
-          hint={`${t.invoiceDetail.metrics.paymentMethodPrefix} ${paymentMethodLabel}`}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)]">
+      <div className="grid gap-4 lg:grid-cols-3">
         <InfoSection title={t.invoiceDetail.sections.seller}>
           <InfoRow label={t.invoiceDetail.fields.name} value={invoice.sellerName} />
           <InfoRow label={t.invoiceDetail.fields.nip} value={invoice.sellerNip} />
@@ -125,22 +171,17 @@ export default async function InvoiceDetailPage({
         </InfoSection>
 
         <InfoSection title={t.invoiceDetail.sections.documentDetails}>
-          <InfoRow label={t.invoiceDetail.fields.issueDate} value={formatDate(invoice.issueDate)} />
-          <InfoRow label={t.invoiceDetail.fields.saleDate} value={formatDate(invoice.saleDate)} />
           <InfoRow label={t.invoiceDetail.fields.paymentMethod} value={paymentMethodLabel} />
-          <InfoRow label={t.invoiceDetail.fields.paymentDueDate} value={formatDate(invoice.paymentDueDate)} />
           <InfoRow label={t.invoiceDetail.fields.currency} value={invoice.currency} />
-          <InfoRow label={t.invoiceDetail.fields.environment} value={invoice.environment} />
           <InfoRow label={t.invoiceDetail.fields.correctionMode} value={correctionModeLabel} />
           <InfoRow label={t.invoiceDetail.fields.correctedInvoiceNumber} value={invoice.correctedInvoiceNumber} />
-          <InfoRow label={t.invoiceDetail.fields.ksefReference} value={invoice.ksefReference} />
         </InfoSection>
       </div>
 
-      <Surface tone="panel" className="space-y-5 p-6">
+      <Surface tone="panel" className="space-y-5 p-5">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
-          <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.lineItemsDescription}</p>
+          <h2 className="text-sm font-semibold text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
+          <p className="mt-1 text-xs text-muted">{t.invoiceDetail.sections.lineItemsDescription}</p>
         </div>
 
         {invoice.lines.length === 0 ? (
@@ -148,32 +189,30 @@ export default async function InvoiceDetailPage({
         ) : (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-                <thead className="text-left text-muted">
-                  <tr>
-                    <HeaderCell className="w-14">{t.invoiceDetail.table.position}</HeaderCell>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-outline text-left">
+                    <HeaderCell className="w-10">{t.invoiceDetail.table.position}</HeaderCell>
                     <HeaderCell>{t.invoiceDetail.table.name}</HeaderCell>
-                    <HeaderCell className="w-24">{t.invoiceDetail.table.unit}</HeaderCell>
-                    <HeaderCell className="w-28 text-right">{t.invoiceDetail.table.quantity}</HeaderCell>
-                    <HeaderCell className="w-40 text-right">{t.invoiceDetail.table.unitNetPrice}</HeaderCell>
-                    <HeaderCell className="w-24">{t.invoiceDetail.table.vatRate}</HeaderCell>
-                    <HeaderCell className="w-40 text-right">{t.invoiceDetail.table.netValue}</HeaderCell>
-                    <HeaderCell className="w-40 text-right">{t.invoiceDetail.table.vatValue}</HeaderCell>
-                    <HeaderCell className="w-40 text-right">{t.invoiceDetail.table.grossValue}</HeaderCell>
+                    <HeaderCell className="w-20">{t.invoiceDetail.table.unit}</HeaderCell>
+                    <HeaderCell className="w-20 text-right">{t.invoiceDetail.table.quantity}</HeaderCell>
+                    <HeaderCell className="w-32 text-right">{t.invoiceDetail.table.unitNetPrice}</HeaderCell>
+                    <HeaderCell className="w-20 text-right">{t.invoiceDetail.table.vatRate}</HeaderCell>
+                    <HeaderCell className="w-32 text-right">{t.invoiceDetail.table.netValue}</HeaderCell>
+                    <HeaderCell className="w-32 text-right">{t.invoiceDetail.table.grossValue}</HeaderCell>
                   </tr>
                 </thead>
                 <tbody>
                   {invoice.lines.map((line) => (
-                    <tr key={line.id} className="bg-surface-raised transition hover:bg-surface-row-hover">
-                      <BodyCell>{line.position}</BodyCell>
+                    <tr key={line.id} className="border-b border-outline tabular-nums last:border-b-0">
+                      <BodyCell className="text-muted">{line.position}</BodyCell>
                       <BodyCell>{line.name}</BodyCell>
-                      <BodyCell>{line.unit ?? t.invoiceDetail.notAvailable}</BodyCell>
-                      <BodyCell className="text-right tabular-nums">{line.quantity}</BodyCell>
-                      <BodyCell className="text-right tabular-nums">{formatMoney(line.unitNetPrice)}</BodyCell>
-                      <BodyCell>{line.vatRate}%</BodyCell>
-                      <BodyCell className="text-right tabular-nums">{formatMoney(line.netValue)}</BodyCell>
-                      <BodyCell className="text-right tabular-nums">{formatMoney(line.vatValue)}</BodyCell>
-                      <BodyCell className="text-right font-semibold tabular-nums">{formatMoney(line.grossValue)}</BodyCell>
+                      <BodyCell className="text-muted">{line.unit ?? t.invoiceDetail.notAvailable}</BodyCell>
+                      <BodyCell className="text-right">{line.quantity}</BodyCell>
+                      <BodyCell className="text-right">{formatMoney(line.unitNetPrice)}</BodyCell>
+                      <BodyCell className="text-right">{line.vatRate}%</BodyCell>
+                      <BodyCell className="text-right">{formatMoney(line.netValue)}</BodyCell>
+                      <BodyCell className="text-right font-semibold">{formatMoney(line.grossValue)}</BodyCell>
                     </tr>
                   ))}
                 </tbody>
@@ -204,7 +243,7 @@ export default async function InvoiceDetailPage({
           </>
         )}
 
-        <div className="grid gap-4 rounded-card bg-surface-raised p-4 sm:grid-cols-3">
+        <div className="grid gap-4 rounded-inset bg-surface-raised p-4 sm:grid-cols-3">
           <TotalItem label={t.invoiceDetail.metrics.net} value={formatMoney(invoice.totalNet)} />
           <TotalItem label={t.invoiceDetail.metrics.vat} value={formatMoney(invoice.totalVat)} />
           <TotalItem label={t.invoiceDetail.metrics.gross} value={formatMoney(invoice.totalGross)} bold />
@@ -212,15 +251,15 @@ export default async function InvoiceDetailPage({
       </Surface>
 
       {invoice.vatBreakdown.length > 0 ? (
-        <Surface tone="panel" className="space-y-5 p-6">
+        <Surface tone="panel" className="space-y-5 p-5">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.vatBreakdownTitle}</h2>
-            <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.vatBreakdownDescription}</p>
+            <h2 className="text-sm font-semibold text-foreground">{t.invoiceDetail.sections.vatBreakdownTitle}</h2>
+            <p className="mt-1 text-xs text-muted">{t.invoiceDetail.sections.vatBreakdownDescription}</p>
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
             {invoice.vatBreakdown.map((row) => (
-              <div key={row.id} className="space-y-3 border-t border-outline pt-3 first:border-t-0 first:pt-0">
+              <div key={row.id} className="space-y-3 border-t border-outline pt-3 first:border-t-0 first:pt-0 md:border-t-0">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoiceDetail.vatBreakdownRate(row.vatRate)}</p>
                 <InfoMetric label={t.invoiceDetail.metrics.net} value={formatMoney(row.netAmount)} />
                 <InfoMetric label={t.invoiceDetail.metrics.vat} value={formatMoney(row.vatAmount)} strong />
@@ -231,9 +270,9 @@ export default async function InvoiceDetailPage({
       ) : null}
 
       {invoice.notes ? (
-        <Surface tone="panel" className="space-y-3 p-6 max-w-4xl">
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.notes}</h2>
-          <p className="text-sm leading-6 text-muted">{invoice.notes}</p>
+        <Surface tone="panel" className="max-w-4xl space-y-3 p-5">
+          <h2 className="text-sm font-semibold text-foreground">{t.invoiceDetail.sections.notes}</h2>
+          <p className="text-sm leading-relaxed text-foreground-secondary">{invoice.notes}</p>
         </Surface>
       ) : null}
     </div>
@@ -242,10 +281,10 @@ export default async function InvoiceDetailPage({
 
 function InfoSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-4 border-t border-outline pt-4 first:border-t-0 first:pt-0">
-      <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{title}</h2>
+    <Surface tone="panel" className="space-y-3 p-5">
+      <h2 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{title}</h2>
       {children}
-    </section>
+    </Surface>
   );
 }
 
@@ -253,8 +292,8 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   if (!value) return null;
 
   return (
-    <div className="text-sm">
-      <span className="text-muted">{label}: </span>
+    <div className="flex items-center justify-between text-[12.5px]">
+      <span className="text-muted">{label}</span>
       <span className="font-medium text-foreground">{value}</span>
     </div>
   );
@@ -263,7 +302,7 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 function TotalItem({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="text-right">
-      <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{label}</div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.13em] text-muted">{label}</div>
       <div className={bold ? 'mt-1 text-lg font-semibold tabular-nums text-foreground' : 'mt-1 text-sm font-medium tabular-nums text-foreground'}>
         {value}
       </div>
@@ -273,13 +312,13 @@ function TotalItem({ label, value, bold = false }: { label: string; value: strin
 
 function HeaderCell({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
   return (
-    <th className={`px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${className}`}>{children}</th>
+    <th className={`px-4 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted ${className}`}>{children}</th>
   );
 }
 
 function BodyCell({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
   return (
-    <td className={`px-4 py-4 align-middle ${className}`}>{children}</td>
+    <td className={`px-4 py-3 align-middle text-foreground ${className}`}>{children}</td>
   );
 }
 

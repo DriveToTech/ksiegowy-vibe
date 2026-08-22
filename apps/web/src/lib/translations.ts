@@ -635,6 +635,20 @@ export const t = {
     issuedOn: (date: string) => `Wystawiona ${date}`,
     correctionBannerPrefix: "Korekta faktury:",
     correctionBannerViewOriginal: "Zobacz oryginał",
+    paidLabel: "Opłacona",
+    unpaidLabel: "Nieopłacona",
+    receivedSuffix: "otrzymano",
+    ksefReferenceHint: "Numer referencyjny KSeF nadany po przyjęciu faktury.",
+    stepper: {
+      created: "Utworzona",
+      sent: "Wysłana do KSeF",
+      accepted: "Przyjęta — legalnie wystawiona",
+      rejected: "Odrzucona przez KSeF",
+      paid: "Opłacona",
+      doneMeta: "Zrealizowano",
+      pendingMeta: "Oczekuje",
+      due: (date: string) => `Termin ${date}`,
+    },
     metrics: {
       net: "Netto",
       vat: "VAT",
@@ -649,6 +663,7 @@ export const t = {
       OTHER: "Inna",
     } as Record<string, string>,
     sections: {
+      clearanceTitle: "Rozliczenie w KSeF",
       seller: "Sprzedawca",
       buyer: "Nabywca",
       documentDetails: "Szczegóły dokumentu",
