@@ -605,6 +605,33 @@ export const t = {
     ksefNote: "Uwierzytelnianie w KSeF odbywa się osobno dla każdej firmy, tokenem lub certyfikatem — nigdy hasłem do tego konta.",
   },
 
+  onboarding: {
+    settingUp: (companyName: string) => `Konfigurowanie: ${companyName}`,
+    settingUpGeneric: "Konfigurowanie konta",
+    saveAndFinishLater: "Zapisz i dokończ później",
+    ksefReminder: "Każdy podatnik VAT musi być w stanie odbierać faktury z KSeF. Ukończ krok 3, zanim wystawisz pierwszy dokument.",
+    steps: {
+      account: { title: "Konto", hint: "E-mail potwierdzony" },
+      company: { title: "Dane firmy", hint: "Pobrane z rejestru NIP" },
+      ksef: { title: "Połączenie z KSeF", hint: "Token lub certyfikat" },
+      team: { title: "Zaproś księgowego", hint: "Opcjonalnie" },
+    },
+    ksef: {
+      loadError: "Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.",
+    },
+    team: {
+      title: "Zaproś księgowego",
+      description: "Wyślij zaproszenie do księgowego lub biura rachunkowego. Otrzyma dostęp z rolą Księgowy.",
+      emailLabel: "Adres e-mail *",
+      emailPlaceholder: "ksiegowy@example.com",
+      sendInvite: "Wyślij zaproszenie",
+      sending: "Wysyłanie…",
+      error: "Nie udało się utworzyć zaproszenia.",
+      linkReady: (expiresAt: string) => `Zaproszenie utworzone, wygasa ${expiresAt}. Nie wysyłamy e-maila — przekaż ten link ręcznie:`,
+      finish: "Zakończ i przejdź do panelu",
+    },
+  },
+
   invoiceActions: {
     issue: "Wystaw fakturę",
     issueCorrection: "Wystaw korektę",
