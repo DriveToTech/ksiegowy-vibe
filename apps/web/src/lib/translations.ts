@@ -165,6 +165,10 @@ export const t = {
     goToSettings: "Przejdź do ustawień",
     environmentLabel: "Środowisko KSeF",
   },
+  queue: {
+    eyebrow: "Kolejka",
+    empty: "Brak innych dokumentów w kolejce.",
+  },
   },
 
   review: {
@@ -217,6 +221,15 @@ export const t = {
     noCompany: "Brak firmy. Skonfiguruj firmę aby zobaczyć ustawienia.",
     goToSettings: "Przejdź do ustawień",
     serviceCatalogLink: "Katalog usług",
+    sectionsEyebrow: "Sekcje",
+    sections: {
+      company: "Firma",
+      ksef: "Integracja KSeF",
+      numbering: "Numeracja",
+      products: "Usługi i towary",
+      team: "Zespół i role",
+      backup: "Kopie zapasowe",
+    },
   },
 
   members: {
@@ -315,6 +328,23 @@ export const t = {
       active: "Aktywni",
       inactive: "Nieaktywni",
     },
+    detail: {
+      eyebrow: "Kontrahent",
+      close: "Zamknij",
+      selectPrompt: "Wybierz kontrahenta z listy, aby zobaczyć szczegóły.",
+      address: "Adres",
+      email: "Email",
+      phone: "Telefon",
+      bankAccount: "Rachunek bankowy",
+      notes: "Notatki",
+      status: "Status",
+      editButton: "Edytuj",
+      newInvoiceButton: "Nowa faktura",
+    },
+    dataQuality: {
+      title: "Jakość danych",
+      missingNip: (n: number) => `${n} ${n === 1 ? 'kontrahent nie ma' : 'kontrahentów nie ma'} NIP — nie można ich e-fakturować.`,
+    },
   },
 
   outgoingInvoices: {
@@ -404,6 +434,21 @@ export const t = {
       saveFailed: "Błąd zapisu.",
       deleteFailed: "Błąd usuwania.",
       updateFailed: "Błąd aktualizacji.",
+    },
+    columns: {
+      name: "Nazwa",
+      unit: "J.m.",
+      vatRate: "VAT",
+      status: "Status",
+    },
+    detail: {
+      eyebrow: "Usługa",
+      close: "Zamknij",
+      selectPrompt: "Wybierz pozycję z listy, aby zobaczyć szczegóły.",
+      unit: "Jednostka",
+      vatRate: "Stawka VAT",
+      description: "Opis",
+      status: "Status",
     },
   },
 
