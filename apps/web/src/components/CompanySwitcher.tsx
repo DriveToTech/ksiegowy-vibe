@@ -24,7 +24,7 @@ export function CompanySwitcher({
     return (
       <span
         title={companies[0]?.name}
-        className="flex min-h-11 min-w-0 items-center truncate rounded-md bg-surface-raised px-3 text-sm font-semibold text-foreground"
+        className="flex min-h-11 min-w-0 items-center truncate rounded-control bg-surface-raised px-3 text-sm font-semibold text-foreground"
       >
         {companies[0]?.name}
       </span>

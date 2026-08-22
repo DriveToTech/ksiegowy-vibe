@@ -45,15 +45,15 @@ export function ContractorList({
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-1 rounded-full border border-outline bg-surface-panel/40 p-1">
+        <div className="flex items-center gap-1 rounded-control border border-outline bg-surface-panel p-1">
           {(['all', 'active', 'inactive'] as StatusFilter[]).map((filter) => (
             <button
               key={filter}
               type="button"
               onClick={() => setStatusFilter(filter)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-control px-3 py-1.5 text-xs font-semibold transition ${
                 statusFilter === filter
-                  ? 'bg-primary text-primary-ink shadow-sm'
+                  ? 'bg-primary text-primary-ink'
                   : 'text-muted hover:text-foreground'
               }`}
             >
@@ -69,13 +69,13 @@ export function ContractorList({
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <p className="rounded-[1.5rem] border border-outline bg-surface-panel/40 p-6 text-center text-sm text-muted">
+        <p className="rounded-card border border-outline bg-surface-panel p-6 text-center text-sm text-muted">
           {search.trim() || statusFilter !== 'all'
             ? t.contractors.emptyFiltered
             : t.contractors.emptyList}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[1.75rem] border border-outline bg-surface-panel/55 backdrop-blur-xl">
+        <div className="overflow-x-auto rounded-card border border-outline bg-surface-panel">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-outline">
@@ -101,7 +101,7 @@ export function ContractorList({
               {filtered.map((contractor, index) => (
                 <tr
                   key={contractor.id}
-                  className={`border-b border-outline transition hover:bg-surface-raised/30 ${
+                  className={`border-b border-outline transition hover:bg-surface-row-hover ${
                     index === filtered.length - 1 ? 'border-b-0' : ''
                   }`}
                 >
@@ -122,7 +122,7 @@ export function ContractorList({
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         contractor.isActive
                           ? 'bg-success text-success-ink'
-                          : 'bg-surface-raised/60 text-muted'
+                          : 'bg-draft text-draft-ink'
                       }`}
                     >
                       {contractor.isActive

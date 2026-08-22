@@ -10,11 +10,11 @@ export default function InvoicesLoading() {
         <div className="h-11 w-44 animate-pulse rounded-full bg-surface-panel lg:mt-6" />
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <div className="h-32 animate-pulse rounded-[2.5rem_1.5rem_2rem_1.25rem] bg-surface-panel" />
-        <div className="h-32 animate-pulse rounded-[2.5rem_1.5rem_2rem_1.25rem] bg-surface-panel" />
-        <div className="h-32 animate-pulse rounded-[2.5rem_1.5rem_2rem_1.25rem] bg-surface-panel" />
+        <div className="h-32 animate-pulse rounded-card bg-surface-panel" />
+        <div className="h-32 animate-pulse rounded-card bg-surface-panel" />
+        <div className="h-32 animate-pulse rounded-card bg-surface-panel" />
       </div>
-      <div className="h-96 animate-pulse rounded-[2.5rem_1.5rem_2rem_1.25rem] bg-surface-panel" />
+      <div className="h-96 animate-pulse rounded-card bg-surface-panel" />
     </div>
   );
 }

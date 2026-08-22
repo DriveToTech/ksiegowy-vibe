@@ -69,7 +69,7 @@ export default async function DashboardContractorsPage() {
 
 function SummaryCard({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline bg-surface-panel/55 p-4 backdrop-blur-xl">
+    <div className="rounded-card border border-outline bg-surface-panel p-4">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{label}</p>
       <p className={strong ? 'mt-2 text-lg font-semibold text-primary' : 'mt-2 text-lg font-semibold text-foreground'}>{value}</p>
     </div>

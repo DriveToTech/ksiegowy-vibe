@@ -90,7 +90,7 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
       {error ? <Banner tone="error">{error}</Banner> : null}
       {success ? <Banner tone="success">{success}</Banner> : null}
 
-      <form onSubmit={(event) => void handleSaveDefaultEnvironment(event)} className="rounded-[1.5rem] border border-outline bg-surface-raised/30 p-4">
+      <form onSubmit={(event) => void handleSaveDefaultEnvironment(event)} className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <FormField label="Domyślne środowisko firmy" htmlFor="company-default-ksef-environment">
             <Select
@@ -120,7 +120,7 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
             <form
               key={environment}
               onSubmit={(event) => void handleSaveCredential(event, environment)}
-              className="rounded-[1.75rem_1.25rem_2rem_1.25rem] border border-outline bg-surface-panel/55 p-5 backdrop-blur-xl"
+              className="rounded-card border border-outline bg-surface-panel p-5"
             >
               <div className="space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">

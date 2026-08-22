@@ -1,14 +1,15 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
-type BadgeTone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger';
+type BadgeTone = 'draft' | 'offline24' | 'primary' | 'success' | 'warning' | 'danger';
 
 const toneClasses: Record<BadgeTone, string> = {
-  neutral: 'bg-surface-muted/85 text-foreground backdrop-blur-xl',
-  primary: 'bg-primary-soft/95 text-primary backdrop-blur-xl',
-  success: 'bg-success text-success-ink backdrop-blur-xl',
-  warning: 'bg-warning text-warning-ink backdrop-blur-xl',
-  danger: 'bg-error text-error-ink backdrop-blur-xl',
+  draft: 'bg-draft text-draft-ink',
+  offline24: 'bg-neutral-status text-neutral-status-ink',
+  primary: 'bg-primary-soft text-primary',
+  success: 'bg-success text-success-ink',
+  warning: 'bg-warning text-warning-ink',
+  danger: 'bg-error text-error-ink',
 };
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -16,11 +17,11 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: BadgeTone;
 }
 
-export function Badge({ children, className, tone = 'neutral', ...props }: BadgeProps) {
+export function Badge({ children, className, tone = 'draft', ...props }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex min-h-7 items-center whitespace-nowrap rounded-full px-3 text-xs font-semibold tracking-[0.01em]',
+        'inline-flex min-h-7 items-center whitespace-nowrap rounded-chip px-3 font-mono text-[10px] tracking-[0.08em]',
         toneClasses[tone],
         className,
       )}

@@ -13,7 +13,7 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
       <Surface tone="panel" className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto px-3 py-3">
           <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-            <thead className="sticky top-0 z-10 bg-surface-panel text-left text-muted">
+            <thead className="sticky top-0 z-10 bg-surface-muted text-left text-muted">
               <tr>
                 <HeaderCell>Sprzedawca</HeaderCell>
                 <HeaderCell className="hidden 2xl:table-cell">NIP</HeaderCell>
@@ -28,7 +28,7 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
             </thead>
             <tbody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id} className="bg-transparent transition hover:bg-surface-raised/32">
+                <tr key={invoice.id} className="bg-transparent transition hover:bg-surface-row-hover">
                   <BodyCell>{invoice.sellerName ?? '—'}</BodyCell>
                   <BodyCell className="hidden 2xl:table-cell">{invoice.sellerNip ?? '—'}</BodyCell>
                   <BodyCell>{invoice.invoiceNumber ?? '—'}</BodyCell>
@@ -103,7 +103,7 @@ export function IncomingInvoicesTable({ invoices }: IncomingInvoicesTableProps) 
 }
 
 function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-3 text-xs font-semibold uppercase tracking-[0.06em] ${className}`}>{children}</th>;
+  return <th className={`px-3 py-3 font-mono text-[11px] uppercase tracking-[0.14em] ${className}`}>{children}</th>;
 }
 
 function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {

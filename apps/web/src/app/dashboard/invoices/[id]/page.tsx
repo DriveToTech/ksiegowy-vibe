@@ -164,7 +164,7 @@ export default async function InvoiceDetailPage({
                 </thead>
                 <tbody>
                   {invoice.lines.map((line) => (
-                    <tr key={line.id} className="bg-surface-raised/22 transition hover:bg-surface-raised/40">
+                    <tr key={line.id} className="bg-surface-raised transition hover:bg-surface-row-hover">
                       <BodyCell>{line.position}</BodyCell>
                       <BodyCell>{line.name}</BodyCell>
                       <BodyCell>{line.unit ?? t.invoiceDetail.notAvailable}</BodyCell>
@@ -204,7 +204,7 @@ export default async function InvoiceDetailPage({
           </>
         )}
 
-        <div className="grid gap-4 rounded-[2rem_1.25rem_2.25rem_1.5rem] bg-surface-raised/50 p-4 backdrop-blur-xl sm:grid-cols-3">
+        <div className="grid gap-4 rounded-card bg-surface-raised p-4 sm:grid-cols-3">
           <TotalItem label={t.invoiceDetail.metrics.net} value={formatMoney(invoice.totalNet)} />
           <TotalItem label={t.invoiceDetail.metrics.vat} value={formatMoney(invoice.totalVat)} />
           <TotalItem label={t.invoiceDetail.metrics.gross} value={formatMoney(invoice.totalGross)} bold />

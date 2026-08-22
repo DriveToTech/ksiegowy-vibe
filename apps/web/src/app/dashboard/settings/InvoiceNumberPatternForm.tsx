@@ -159,7 +159,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
         </div>
 
         {preview ? (
-          <div className="rounded-xl border border-outline bg-surface-panel/55 px-4 py-3">
+          <div className="rounded-inset border border-outline bg-surface-panel px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Podgląd</p>
             <p className="mt-1 font-mono text-base font-semibold text-foreground">{preview}</p>
             <p className="mt-0.5 text-xs text-muted">

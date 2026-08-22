@@ -16,8 +16,13 @@ interface KsefEnvironmentSwitcherProps {
 }
 
 const environmentToneClasses: Record<KsefEnvironment, string> = {
-  TEST: 'border-success bg-success text-success-ink',
-  PRODUCTION: 'border-warning bg-warning text-warning-ink',
+  TEST: 'border-success-ink/30 bg-success text-success-ink',
+  PRODUCTION: 'border-warning-ink/30 bg-warning text-warning-ink',
+};
+
+const environmentDotClasses: Record<KsefEnvironment, string> = {
+  TEST: 'bg-success-ink',
+  PRODUCTION: 'bg-warning-ink',
 };
 
 export function KsefEnvironmentSwitcher({ activeEnvironment, compact = false }: KsefEnvironmentSwitcherProps) {
@@ -36,10 +41,11 @@ export function KsefEnvironmentSwitcher({ activeEnvironment, compact = false }: 
         </p>
         <span
           className={cn(
-            'inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.08em] sm:px-3 sm:text-xs sm:tracking-[0.14em]',
+            'inline-flex shrink-0 items-center gap-1.5 rounded-control border px-2 py-1 font-mono text-[10px] tracking-[0.08em] sm:px-3 sm:text-xs sm:tracking-[0.14em]',
             environmentToneClasses[activeEnvironment],
           )}
         >
+          <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', environmentDotClasses[activeEnvironment])} />
           {activeEnvironment}
         </span>
       </div>

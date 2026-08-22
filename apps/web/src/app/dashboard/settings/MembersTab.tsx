@@ -95,7 +95,7 @@ export function MembersTab({
           <>
             <div className="hidden overflow-x-auto lg:block">
               <table className="min-w-full border-collapse text-sm">
-                <thead className="bg-surface-muted/75 text-left text-muted">
+                <thead className="bg-surface-muted text-left text-muted">
                   <tr>
                     <HeaderCell>{t.members.columns.email}</HeaderCell>
                     <HeaderCell>{t.members.columns.name}</HeaderCell>
@@ -105,7 +105,7 @@ export function MembersTab({
                 </thead>
                 <tbody>
                   {members.map((member) => (
-                    <tr key={member.userId} className="border-t border-outline hover:bg-surface-raised/35">
+                    <tr key={member.userId} className="border-t border-outline hover:bg-surface-row-hover">
                       <BodyCell>{member.user.email}</BodyCell>
                       <BodyCell>{member.user.name ?? '—'}</BodyCell>
                       <BodyCell>
@@ -128,7 +128,7 @@ export function MembersTab({
                           {member.userId !== currentUserId ? (
                             <Button
                               variant="ghost"
-                              className="text-error-ink hover:bg-error-soft"
+                              className="text-error-ink hover:bg-error"
                               onClick={() => handleRemove(member.userId, member.user.email)}
                             >
                               {t.members.remove}
@@ -169,7 +169,7 @@ export function MembersTab({
                     {isAdmin && member.userId !== currentUserId ? (
                       <Button
                         variant="ghost"
-                        className="w-full text-error-ink hover:bg-error-soft"
+                        className="w-full text-error-ink hover:bg-error"
                         onClick={() => handleRemove(member.userId, member.user.email)}
                       >
                         {t.members.remove}

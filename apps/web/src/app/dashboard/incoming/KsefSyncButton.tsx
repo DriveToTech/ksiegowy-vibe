@@ -89,10 +89,10 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
           role="dialog"
           aria-modal="true"
           aria-labelledby="ksef-sync-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(8,10,20,0.72)] p-4"
           onClick={(event) => { if (event.target === event.currentTarget) handleClose(); }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-surface-panel p-6 shadow-xl space-y-5">
+          <div className="w-full max-w-md rounded-card border border-outline-strong bg-surface-panel p-6 space-y-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h2 id="ksef-sync-title" className="text-xl font-semibold tracking-tight text-foreground">
@@ -116,7 +116,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   value={dateFrom}
                   max={dateTo}
                   onChange={(event) => setDateFrom(event.target.value)}
-                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
               </div>
 
@@ -131,7 +131,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   min={dateFrom}
                   max={today()}
                   onChange={(event) => setDateTo(event.target.value)}
-                  className="w-full rounded-xl border border-outline bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
             </div>
             </div>

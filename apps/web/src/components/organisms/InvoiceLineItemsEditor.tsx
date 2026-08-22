@@ -203,7 +203,7 @@ export function InvoiceLineItemsEditor({
                     </Select>
                   </td>
                   <td className="px-1 py-1">
-                    <div className="flex h-11 w-full items-center justify-end rounded-[1rem] border border-outline bg-surface-raised/30 px-3 font-semibold tabular-nums text-foreground">
+                    <div className="flex h-11 w-full items-center justify-end rounded-control border border-outline bg-surface-raised px-3 font-semibold tabular-nums text-foreground">
                       {formatMoney(gross)}
                     </div>
                   </td>
@@ -214,7 +214,7 @@ export function InvoiceLineItemsEditor({
                           type="button"
                           aria-label={t.invoiceLineItemsEditor.removeLineAriaLabel}
                           onClick={() => removeLine(index)}
-                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-3 text-muted transition hover:bg-error-soft hover:text-error-ink"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-control p-3 text-muted transition hover:bg-error hover:text-error-ink"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M18 6L6 18M6 6l12 12" />
@@ -247,7 +247,7 @@ export function InvoiceLineItemsEditor({
                   <Button
                     type="button"
                     variant="ghost"
-                    className="text-error-ink hover:bg-error-soft"
+                    className="text-error-ink hover:bg-error"
                     onClick={() => removeLine(index)}
                   >
                     {t.invoiceLineItemsEditor.removeButton}
@@ -324,7 +324,7 @@ export function InvoiceLineItemsEditor({
                   </FormField>
                 </div>
 
-                <div className="grid gap-3 rounded-[1.75rem_1.25rem_2rem_1.25rem] bg-surface-raised/50 p-4 backdrop-blur-xl sm:grid-cols-3">
+                <div className="grid gap-3 rounded-card bg-surface-raised p-4 sm:grid-cols-3">
                   <MobileTotalItem label={t.invoiceDetail.metrics.net} value={formatMoney(net)} />
                   <MobileTotalItem label={t.invoiceDetail.metrics.vat} value={formatMoney(vat)} />
                   <MobileTotalItem label={t.invoiceDetail.metrics.gross} value={formatMoney(gross)} bold />
