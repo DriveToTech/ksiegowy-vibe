@@ -1,24 +1,27 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import type { ServiceTemplate, VatRate } from '../../../../lib/api-client';
 import {
   createServiceTemplate,
   updateServiceTemplate,
   deleteServiceTemplate,
 } from '../../../../lib/api-client';
+import { Badge } from '../../../../components/atoms/Badge';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
 import { Select } from '../../../../components/atoms/Select';
-import { Surface } from '../../../../components/atoms/Surface';
+import { Banner } from '../../../../components/molecules/Banner';
 import { FormField } from '../../../../components/molecules/FormField';
-import { ErrorState } from '../../../../components/molecules/ErrorState';
+import { cn } from '../../../../lib/cn';
 import { t } from '../../../../lib/translations';
 
 const VAT_RATES: VatRate[] = ['23', '8', '5', '0', 'zw', 'np', 'oo'];
 const VAT_RATE_LABELS: Record<VatRate, string> = {
   '23': '23%', '8': '8%', '5': '5%', '0': '0%', zw: 'zw.', np: 'np.', oo: 'oo.',
 };
+
+type StatusFilter = 'active' | 'archived' | 'all';
 
 interface FormState {
   name: string;
@@ -31,6 +34,15 @@ function emptyForm(): FormState {
   return { name: '', unit: 'szt.', vatRate: '23', description: '' };
 }
 
+function formFromTemplate(template: ServiceTemplate): FormState {
+  return {
+    name: template.name,
+    unit: template.unit,
+    vatRate: template.vatRate as VatRate,
+    description: template.description ?? '',
+  };
+}
+
 export function ServiceCatalogManager({
   companyId,
   initialTemplates,
@@ -39,279 +51,228 @@ export function ServiceCatalogManager({
   initialTemplates: ServiceTemplate[];
 }) {
   const [templates, setTemplates] = useState<ServiceTemplate[]>(initialTemplates);
-  const [showInactive, setShowInactive] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(initialTemplates[0]?.id ?? null);
+  const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
-  const [showAddForm, setShowAddForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const visibleTemplates = showInactive ? templates : templates.filter((template) => template.isActive);
+  const filtered = useMemo(() => templates.filter((template) => {
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && template.isActive) ||
+      (statusFilter === 'archived' && !template.isActive);
+    const matchesSearch = search.trim() === '' || template.name.toLowerCase().includes(search.trim().toLowerCase());
+    return matchesStatus && matchesSearch;
+  }), [templates, statusFilter, search]);
 
-  const updateForm = useCallback(<K extends keyof FormState>(field: K, value: FormState[K]) => {
+  const effectiveSelectedId = filtered.some((template) => template.id === selectedId) ? selectedId : filtered[0]?.id ?? null;
+  const selected = !isCreating ? templates.find((template) => template.id === effectiveSelectedId) ?? null : null;
+  const activeForm = isCreating ? form : selected ? formFromTemplate(selected) : form;
+
+  const updateField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-  }, []);
-
-  const handleAdd = () => {
-    setError(null);
-    setEditingId(null);
-    setForm(emptyForm());
-    setShowAddForm(true);
   };
 
-  const handleEdit = (template: ServiceTemplate) => {
+  const selectRow = (id: string) => {
+    setIsCreating(false);
+    setSelectedId(id);
     setError(null);
-    setShowAddForm(false);
-    setEditingId(template.id);
-    setForm({
-      name: template.name,
-      unit: template.unit,
-      vatRate: template.vatRate as VatRate,
-      description: template.description ?? '',
-    });
   };
 
-  const handleCancelForm = () => {
-    setShowAddForm(false);
-    setEditingId(null);
+  const startCreate = () => {
+    setIsCreating(true);
+    setSelectedId(null);
     setForm(emptyForm());
     setError(null);
   };
 
-  const handleSubmitAdd = () => {
-    if (!form.name.trim()) { setError(t.serviceCatalog.errors.nameRequired); return; }
+  const handleSave = () => {
+    if (!activeForm.name.trim()) { setError(t.serviceCatalog.errors.nameRequired); return; }
     setSubmitting(true);
     setError(null);
-    createServiceTemplate(companyId, {
-      name: form.name.trim(),
-      unit: form.unit.trim() || 'szt.',
-      vatRate: form.vatRate,
-      description: form.description.trim() || undefined,
-    })
-      .then((created) => {
-        setTemplates((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-        setShowAddForm(false);
-        setForm(emptyForm());
+
+    const payload = {
+      name: activeForm.name.trim(),
+      unit: activeForm.unit.trim() || 'szt.',
+      vatRate: activeForm.vatRate,
+      description: activeForm.description.trim() || undefined,
+    };
+
+    const request = isCreating || !selected
+      ? createServiceTemplate(companyId, payload)
+      : updateServiceTemplate(companyId, selected.id, payload);
+
+    request
+      .then((saved) => {
+        setTemplates((prev) => (isCreating || !selected
+          ? [...prev, saved].sort((a, b) => a.name.localeCompare(b.name))
+          : prev.map((template) => (template.id === saved.id ? saved : template))));
+        setIsCreating(false);
+        setSelectedId(saved.id);
       })
       .catch((err) => setError(err instanceof Error ? err.message : t.serviceCatalog.errors.saveFailed))
       .finally(() => setSubmitting(false));
   };
 
-  const handleSubmitEdit = (id: string) => {
-    if (!form.name.trim()) { setError(t.serviceCatalog.errors.nameRequired); return; }
+  const handleArchive = () => {
+    if (!selected) return;
     setSubmitting(true);
     setError(null);
-    updateServiceTemplate(companyId, id, {
-      name: form.name.trim(),
-      unit: form.unit.trim() || 'szt.',
-      vatRate: form.vatRate,
-      description: form.description.trim() || undefined,
-    })
-      .then((updated) => {
-        setTemplates((prev) => prev.map((template) => (template.id === id ? updated : template)));
-        setEditingId(null);
-        setForm(emptyForm());
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : t.serviceCatalog.errors.saveFailed))
-      .finally(() => setSubmitting(false));
-  };
-
-  const handleDeactivate = (id: string) => {
-    setSubmitting(true);
-    setError(null);
-    deleteServiceTemplate(companyId, id)
-      .then(() => setTemplates((prev) => prev.map((template) => (template.id === id ? { ...template, isActive: false } : template))))
+    deleteServiceTemplate(companyId, selected.id)
+      .then(() => setTemplates((prev) => prev.map((template) => (template.id === selected.id ? { ...template, isActive: false } : template))))
       .catch((err) => setError(err instanceof Error ? err.message : t.serviceCatalog.errors.deleteFailed))
       .finally(() => setSubmitting(false));
   };
 
-  const handleReactivate = (id: string) => {
+  const handleRestore = () => {
+    if (!selected) return;
     setSubmitting(true);
     setError(null);
-    updateServiceTemplate(companyId, id, { isActive: true })
-      .then((updated) => setTemplates((prev) => prev.map((template) => (template.id === id ? updated : template))))
+    updateServiceTemplate(companyId, selected.id, { isActive: true })
+      .then((updated) => setTemplates((prev) => prev.map((template) => (template.id === selected.id ? updated : template))))
       .catch((err) => setError(err instanceof Error ? err.message : t.serviceCatalog.errors.updateFailed))
       .finally(() => setSubmitting(false));
   };
 
   return (
-    <div className="space-y-4">
-      {error ? <ErrorState message={error} /> : null}
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_372px] lg:items-start">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1 sm:max-w-xs">
+            <Input
+              type="search"
+              placeholder={t.contractors.searchPlaceholder}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-1 rounded-control border border-outline bg-surface-panel p-1">
+            {(['all', 'active', 'archived'] as StatusFilter[]).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setStatusFilter(filter)}
+                className={cn(
+                  'rounded-control px-3 py-1.5 text-xs font-semibold transition',
+                  statusFilter === filter ? 'bg-primary text-primary-ink' : 'text-muted hover:text-foreground',
+                )}
+              >
+                {filter === 'all' ? t.contractors.filterAll : filter === 'active' ? t.contractors.filterActive : t.serviceCatalog.inactive}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={handleAdd} disabled={showAddForm}>
-          {t.serviceCatalog.addButton}
-        </Button>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
-          <input
-            type="checkbox"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-            className="h-4 w-4 rounded border-outline"
-          />
-          {t.serviceCatalog.showInactive}
-        </label>
+        {filtered.length === 0 ? (
+          <p className="rounded-card border border-outline bg-surface-panel p-6 text-center text-sm text-muted">
+            {t.serviceCatalog.emptyState}
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>
+                  <tr className="bg-surface-muted text-left">
+                    <HeaderCell>{t.serviceCatalog.columns.name}</HeaderCell>
+                    <HeaderCell>{t.serviceCatalog.columns.unit}</HeaderCell>
+                    <HeaderCell className="text-right">{t.serviceCatalog.columns.vatRate}</HeaderCell>
+                    <HeaderCell className="text-right">{t.serviceCatalog.columns.status}</HeaderCell>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((template) => (
+                    <tr
+                      key={template.id}
+                      onClick={() => selectRow(template.id)}
+                      className={cn(
+                        'cursor-pointer border-t border-outline transition hover:bg-surface-row-hover',
+                        !isCreating && template.id === effectiveSelectedId && 'bg-surface-row-hover',
+                      )}
+                    >
+                      <BodyCell className={template.isActive ? 'font-medium text-foreground' : 'text-muted line-through'}>
+                        {template.name}
+                      </BodyCell>
+                      <BodyCell className="text-muted">{template.unit}</BodyCell>
+                      <BodyCell className="text-right text-foreground-secondary">
+                        {VAT_RATE_LABELS[template.vatRate as VatRate] ?? template.vatRate}
+                      </BodyCell>
+                      <BodyCell className="text-right">
+                        <Badge tone={template.isActive ? 'success' : 'draft'}>
+                          {template.isActive ? t.contractors.status.active : t.serviceCatalog.inactive}
+                        </Badge>
+                      </BodyCell>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
-      {showAddForm ? (
-        <TemplateForm
-          form={form}
-          onChange={updateForm}
-          onSubmit={handleSubmitAdd}
-          onCancel={handleCancelForm}
-          submitting={submitting}
-          submitLabel={t.serviceCatalog.actions.add}
-        />
-      ) : null}
-
-      {visibleTemplates.length === 0 && !showAddForm ? (
-        <p className="rounded-card border border-outline bg-surface-panel p-6 text-center text-sm text-muted">
-          {t.serviceCatalog.emptyState}
-        </p>
-      ) : null}
-
-      {visibleTemplates.length > 0 ? (
-        <div className="space-y-2">
-          {visibleTemplates.map((template) => (
-            <Surface key={template.id} tone="panel" className="p-4">
-              {editingId === template.id ? (
-                <TemplateForm
-                  form={form}
-                  onChange={updateForm}
-                  onSubmit={() => handleSubmitEdit(template.id)}
-                  onCancel={handleCancelForm}
-                  submitting={submitting}
-                  submitLabel={t.serviceCatalog.actions.save}
-                />
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`font-medium ${template.isActive ? 'text-foreground' : 'text-muted line-through'}`}>
-                        {template.name}
-                      </span>
-                      <span className="rounded-full bg-surface-raised px-2 py-0.5 text-xs text-muted">
-                        {template.unit}
-                      </span>
-                      <span className="rounded-full bg-surface-raised px-2 py-0.5 text-xs text-muted">
-                        VAT {VAT_RATE_LABELS[template.vatRate as VatRate] ?? template.vatRate}
-                      </span>
-                      {!template.isActive ? (
-                        <span className="rounded-full bg-error px-2 py-0.5 text-xs text-error-ink">
-                          {t.serviceCatalog.inactive}
-                        </span>
-                      ) : null}
-                    </div>
-                    {template.description ? (
-                      <p className="mt-1 text-sm text-muted">{template.description}</p>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {template.isActive ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(template)}
-                          disabled={submitting}
-                        >
-                          {t.serviceCatalog.actions.edit}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-error-ink hover:bg-error"
-                          onClick={() => handleDeactivate(template.id)}
-                          disabled={submitting}
-                        >
-                          {t.serviceCatalog.actions.deactivate}
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleReactivate(template.id)}
-                        disabled={submitting}
-                      >
-                        {t.serviceCatalog.actions.restore}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Surface>
-          ))}
+      <div className="rounded-card border border-outline bg-chrome p-[22px]">
+        <div className="mb-3.5 flex items-start justify-between gap-3">
+          <p className="text-[17px] font-semibold leading-tight text-foreground">
+            {isCreating ? t.serviceCatalog.addButton : selected?.name ?? t.serviceCatalog.detail.eyebrow}
+          </p>
+          <Button type="button" variant="secondary" size="sm" onClick={startCreate} disabled={isCreating}>
+            {t.serviceCatalog.addButton}
+          </Button>
         </div>
-      ) : null}
+
+        {error ? <Banner tone="error" className="mb-3.5">{error}</Banner> : null}
+
+        {!isCreating && !selected ? (
+          <p className="text-sm text-muted">{t.serviceCatalog.detail.selectPrompt}</p>
+        ) : (
+          <div className="flex flex-col gap-3.5">
+            <FormField label={t.serviceCatalog.fields.name} required>
+              <Input value={activeForm.name} onChange={(e) => updateField('name', e.target.value)} placeholder={t.serviceCatalog.fields.namePlaceholder} />
+            </FormField>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label={t.serviceCatalog.detail.unit}>
+                <Input value={activeForm.unit} onChange={(e) => updateField('unit', e.target.value)} placeholder="szt." />
+              </FormField>
+              <FormField label={t.serviceCatalog.detail.vatRate}>
+                <Select value={activeForm.vatRate} onChange={(e) => updateField('vatRate', e.target.value as VatRate)}>
+                  {VAT_RATES.map((rate) => <option key={rate} value={rate}>{VAT_RATE_LABELS[rate]}</option>)}
+                </Select>
+              </FormField>
+            </div>
+            <FormField label={t.serviceCatalog.detail.description}>
+              <Input value={activeForm.description} onChange={(e) => updateField('description', e.target.value)} placeholder={t.serviceCatalog.fields.descriptionPlaceholder} />
+            </FormField>
+
+            <div className="mt-auto flex gap-2 pt-2">
+              {!isCreating && selected ? (
+                selected.isActive ? (
+                  <Button type="button" variant="danger" className="flex-1" onClick={handleArchive} disabled={submitting}>
+                    {t.serviceCatalog.actions.deactivate}
+                  </Button>
+                ) : (
+                  <Button type="button" variant="secondary" className="flex-1" onClick={handleRestore} disabled={submitting}>
+                    {t.serviceCatalog.actions.restore}
+                  </Button>
+                )
+              ) : null}
+              <Button type="button" className="flex-1" onClick={handleSave} disabled={submitting}>
+                {submitting ? t.serviceCatalog.actions.saving : t.serviceCatalog.actions.save}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function TemplateForm({
-  form,
-  onChange,
-  onSubmit,
-  onCancel,
-  submitting,
-  submitLabel,
-}: {
-  form: FormState;
-  onChange: <K extends keyof FormState>(field: K, value: FormState[K]) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
-  submitting: boolean;
-  submitLabel: string;
-}) {
-  return (
-    <Surface tone="panel" className="space-y-4 p-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label={t.serviceCatalog.fields.name} required>
-          <Input
-            type="text"
-            value={form.name}
-            onChange={(e) => onChange('name', e.target.value)}
-            placeholder={t.serviceCatalog.fields.namePlaceholder}
-          />
-        </FormField>
-        <FormField label={t.serviceCatalog.fields.unit}>
-          <Input
-            type="text"
-            value={form.unit}
-            onChange={(e) => onChange('unit', e.target.value)}
-            placeholder="szt."
-          />
-        </FormField>
-        <FormField label={t.serviceCatalog.fields.vatRate}>
-          <Select
-            value={form.vatRate}
-            onChange={(e) => onChange('vatRate', e.target.value as VatRate)}
-          >
-            {VAT_RATES.map((rate) => (
-              <option key={rate} value={rate}>{VAT_RATE_LABELS[rate]}</option>
-            ))}
-          </Select>
-        </FormField>
-        <FormField label={t.serviceCatalog.fields.description}>
-          <Input
-            type="text"
-            value={form.description}
-            onChange={(e) => onChange('description', e.target.value)}
-            placeholder={t.serviceCatalog.fields.descriptionPlaceholder}
-          />
-        </FormField>
-      </div>
-      <div className="flex items-center gap-3">
-        <Button type="button" onClick={onSubmit} disabled={submitting}>
-          {submitting ? t.serviceCatalog.actions.saving : submitLabel}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
-          {t.serviceCatalog.actions.cancel}
-        </Button>
-      </div>
-    </Surface>
-  );
+function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <th className={`px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.13em] text-muted ${className}`}>{children}</th>;
+}
+
+function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
 }
