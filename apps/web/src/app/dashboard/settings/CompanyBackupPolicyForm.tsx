@@ -226,7 +226,7 @@ export function CompanyBackupPolicyForm({
   return (
     <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Kopie zapasowe</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Kopie zapasowe</h2>
         <p className="mt-1 text-sm text-muted">
           Platformowy backup PostgreSQL jest zarządzany operacyjnie (tylko podgląd). Backup plików firmowych do Google Drive konfigurujesz na poziomie firmy.
         </p>

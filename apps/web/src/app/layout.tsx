@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
-import { Inter, Manrope } from 'next/font/google';
+import { Sora, IBM_Plex_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
 import brandLogo from '../components/brand/assets/logo.png';
 import { AppHeader } from '../components/organisms/AppHeader';
@@ -9,15 +9,17 @@ import { THEME_BOOTSTRAP_SCRIPT } from '../lib/theme';
 
 import './globals.css';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
+const sora = Sora({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-sora',
   display: 'swap',
 });
 
-const manrope = Manrope({
-  subsets: ['latin'],
-  variable: '--font-manrope',
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400', '500', '600'],
+  variable: '--font-ibm-plex-mono',
   display: 'swap',
 });
 
@@ -36,7 +38,7 @@ export default async function RootLayout({
 
   return (
     <html lang="pl" data-theme="light" suppressHydrationWarning>
-      <body className={`${inter.variable} ${manrope.variable} flex h-dvh min-h-screen flex-col bg-background text-foreground antialiased`}>
+      <body className={`${sora.variable} ${ibmPlexMono.variable} flex h-dvh min-h-screen flex-col bg-background text-foreground antialiased`}>
         <Script id="theme-bootstrap" strategy="beforeInteractive">
           {THEME_BOOTSTRAP_SCRIPT}
         </Script>

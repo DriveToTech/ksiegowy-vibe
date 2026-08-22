@@ -105,7 +105,7 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
     return (
       <Surface tone="glass" shape="organic" className="space-y-5 p-6">
         <div>
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Dane firmy</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">Dane firmy</h2>
           <p className="mt-1 text-sm text-muted">Masz dostęp podglądowy do ustawień tej firmy.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -125,7 +125,7 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
   return (
     <Surface tone="glass" shape="organic" className="space-y-5 p-6">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           {isCreateMode ? 'Skonfiguruj firmę' : 'Dane firmy'}
         </h2>
         <p className="mt-1 text-sm text-muted">

@@ -74,7 +74,7 @@ export default async function InvoiceDetailPage({
             {t.invoiceDetail.backToInvoices}
           </Link>
           <div className="space-y-3">
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               {invoice.invoiceNumber ?? t.invoiceDetail.draftTitle}
             </h1>
             <div className="flex flex-wrap items-center gap-3">
@@ -138,7 +138,7 @@ export default async function InvoiceDetailPage({
 
       <Surface tone="glass" shape="organic" className="space-y-5 p-6">
         <div>
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
           <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.lineItemsDescription}</p>
         </div>
 
@@ -213,7 +213,7 @@ export default async function InvoiceDetailPage({
       {invoice.vatBreakdown.length > 0 ? (
         <Surface tone="glass" shape="organic" className="space-y-5 p-6">
           <div>
-            <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.vatBreakdownTitle}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.vatBreakdownTitle}</h2>
             <p className="mt-1 text-sm text-muted">{t.invoiceDetail.sections.vatBreakdownDescription}</p>
           </div>
 
@@ -231,7 +231,7 @@ export default async function InvoiceDetailPage({
 
       {invoice.notes ? (
         <Surface tone="glass" shape="organic" className="space-y-3 p-6 max-w-4xl">
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.notes}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.invoiceDetail.sections.notes}</h2>
           <p className="text-sm leading-6 text-muted">{invoice.notes}</p>
         </Surface>
       ) : null}

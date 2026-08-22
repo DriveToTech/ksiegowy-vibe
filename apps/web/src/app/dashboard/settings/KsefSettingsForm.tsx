@@ -79,7 +79,7 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
   return (
     <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Integracja KSeF</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Integracja KSeF</h2>
         <p className="mt-1 text-sm text-muted">
           Token API do uwierzytelniania w Krajowym Systemie e-Faktur. Przechowywany szyfrowany (AES-256).
           Jeśli nie zostanie ustawiony, system użyje zmiennej środowiskowej <code className="text-xs">KSEF_AUTH_TOKEN</code> (tylko środowisko lokalne/testowe).
@@ -133,7 +133,7 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Środowisko</p>
-                    <h3 className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground">{environment}</h3>
+                    <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{environment}</h3>
                     <p className="mt-2 text-sm text-muted">
                       {environment === 'TEST'
                         ? 'Środowisko testowe Ministerstwa Finansów do bezpiecznych prób i integracji.'

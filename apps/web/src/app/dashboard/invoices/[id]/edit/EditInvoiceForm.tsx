@@ -172,7 +172,7 @@ export default function EditInvoiceForm({
 
       {/* ── Section 2: Pozycje faktury ─────────────────────────────────────── */}
       <Surface tone="glass" shape="organic" className="space-y-5 p-6">
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           {t.invoiceDetail.sections.lineItemsTitle}
         </h2>
 
@@ -188,7 +188,7 @@ export default function EditInvoiceForm({
       {/* ── Section 3: Szczegóły płatności + Podsumowanie ─────────────────── */}
       <div className="grid gap-6 md:grid-cols-2">
         <Surface tone="glass" shape="organic" className="space-y-4 p-6">
-          <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
             {t.newInvoice.paymentDetailsTitle}
           </h2>
 
@@ -215,7 +215,7 @@ export default function EditInvoiceForm({
         </Surface>
 
         <Surface tone="glass" shape="organic" className="p-6">
-          <h2 className="mb-4 font-display text-xl font-semibold tracking-tight text-foreground">
+          <h2 className="mb-4 text-xl font-semibold tracking-tight text-foreground">
             {t.newInvoice.summaryTitle}
           </h2>
           <VatBreakdownTable lines={lines} totals={totals} />
@@ -225,7 +225,7 @@ export default function EditInvoiceForm({
       {/* ── Section 4: Uwagi do faktury ───────────────────────────────────── */}
       <Surface tone="glass" shape="organic" className="space-y-3 p-6">
         <div>
-          <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
             {t.newInvoice.notesTitle}
           </h2>
           <p className="mt-1 text-sm text-muted">
