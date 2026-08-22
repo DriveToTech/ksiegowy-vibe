@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Contractor, ContractorServiceRate, InvoiceDetail, ServiceTemplate, VatRate } from '../../../../../lib/api-types';
 import { updateDraft } from '../../../../../lib/api-client';
 import { Button } from '../../../../../components/atoms/Button';
@@ -68,6 +68,16 @@ export default function EditInvoiceForm({
     { net: 0, vat: 0, gross: 0 },
   );
 
+  const blockers = useMemo(() => {
+    const items: string[] = [];
+    if (!contractorId) items.push(t.newInvoice.blockers.noContractor);
+    const namedLines = lines.filter((l) => l.name.trim());
+    if (namedLines.length === 0) items.push(t.newInvoice.blockers.noLineItems);
+    const unpricedLines = namedLines.filter((l) => !l.unitNetPrice.trim() || parseDecimalValue(l.unitNetPrice) === null);
+    if (unpricedLines.length > 0) items.push(t.newInvoice.blockers.invalidLinePrice);
+    return items;
+  }, [contractorId, lines]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -118,141 +128,133 @@ export default function EditInvoiceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      {error ? <ErrorState message={error} /> : null}
+    <form onSubmit={handleSubmit} noValidate className="grid gap-6 lg:grid-cols-[1fr_340px] lg:items-start">
+      <div className="space-y-6">
+        {error ? <ErrorState message={error} /> : null}
 
-      {/* ── Section 1: Dane dokumentu ──────────────────────────────────────── */}
-      <Surface tone="panel" className="space-y-4 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField label={t.newInvoice.issueDateLabel} htmlFor="issueDate" required>
-            <Input
-              id="issueDate"
-              type="date"
-              value={issueDate}
-              onChange={(e) => setIssueDate(e.target.value)}
-              required
-            />
-          </FormField>
+          <Surface tone="panel" className="space-y-3 p-5">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.newInvoice.buyerSectionEyebrow}</p>
+            <FormField label={t.newInvoice.contractorLabel} htmlFor="contractorId" required className="space-y-1.5">
+              <Select
+                id="contractorId"
+                value={contractorId}
+                onChange={(e) => setContractorId(e.target.value)}
+                required
+              >
+                <option value="">{t.newInvoice.contractorPlaceholder}</option>
+                {contractors.map((contractor) => (
+                  <option key={contractor.id} value={contractor.id}>
+                    {contractor.name} ({contractor.nip ?? t.newInvoice.noNipFallback})
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            {selectedContractor ? (
+              <p className="text-xs leading-relaxed text-muted">
+                {selectedContractor.nip ? `${t.invoiceDetail.fields.nip}: ${selectedContractor.nip}` : null}
+                {selectedContractor.addressLine1 ? ` · ${selectedContractor.addressLine1}` : null}
+              </p>
+            ) : null}
+          </Surface>
 
-          <FormField label={t.newInvoice.saleDateLabel} htmlFor="saleDate">
-            <Input
-              id="saleDate"
-              type="date"
-              value={saleDate}
-              onChange={(e) => setSaleDate(e.target.value)}
-            />
-          </FormField>
-
-          <FormField label={t.newInvoice.contractorLabel} htmlFor="contractorId" required>
-            <Select
-              id="contractorId"
-              value={contractorId}
-              onChange={(e) => setContractorId(e.target.value)}
-              required
-            >
-              <option value="">{t.newInvoice.contractorPlaceholder}</option>
-              {contractors.map((contractor) => (
-                <option key={contractor.id} value={contractor.id}>
-                  {contractor.name} ({contractor.nip ?? t.newInvoice.noNipFallback})
-                </option>
-              ))}
-            </Select>
-          </FormField>
+          <Surface tone="panel" className="space-y-3 p-5">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.newInvoice.datesSectionEyebrow}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label={t.newInvoice.issueDateLabel} htmlFor="issueDate" required className="space-y-1.5">
+                <Input
+                  id="issueDate"
+                  type="date"
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
+                  required
+                />
+              </FormField>
+              <FormField label={t.newInvoice.saleDateLabel} htmlFor="saleDate" className="space-y-1.5">
+                <Input
+                  id="saleDate"
+                  type="date"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                />
+              </FormField>
+              <FormField label={t.invoiceDetail.fields.paymentMethod} htmlFor="paymentMethod" className="space-y-1.5">
+                <Select
+                  id="paymentMethod"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as 'BANK_TRANSFER' | 'CASH')}
+                >
+                  <option value="BANK_TRANSFER">{t.invoiceDetail.paymentMethods.BANK_TRANSFER}</option>
+                  <option value="CASH">{t.invoiceDetail.paymentMethods.CASH}</option>
+                </Select>
+              </FormField>
+              <FormField label={t.invoiceDetail.fields.paymentDueDate} htmlFor="paymentDueDate" required className="space-y-1.5">
+                <Input
+                  id="paymentDueDate"
+                  type="date"
+                  value={paymentDueDate}
+                  onChange={(e) => setPaymentDueDate(e.target.value)}
+                  required
+                />
+              </FormField>
+            </div>
+          </Surface>
         </div>
 
-        {selectedContractor ? (
-          <div className="rounded-control border border-outline bg-surface-raised px-4 py-2.5 text-sm">
-            <span className="font-medium text-foreground">{selectedContractor.name}</span>
-            {selectedContractor.nip ? (
-              <span className="ml-3 text-muted">{t.invoiceDetail.fields.nip}: {selectedContractor.nip}</span>
-            ) : null}
-          </div>
-        ) : null}
-      </Surface>
-
-      {/* ── Section 2: Pozycje faktury ─────────────────────────────────────── */}
-      <Surface tone="panel" className="space-y-5 p-6">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-          {t.invoiceDetail.sections.lineItemsTitle}
-        </h2>
-
-        <InvoiceLineItemsEditor
-          lines={lines}
-          onLinesChange={setLines}
-          serviceTemplates={serviceTemplates}
-          contractorRates={contractorRates}
-          contractorId={contractorId}
-        />
-      </Surface>
-
-      {/* ── Section 3: Szczegóły płatności + Podsumowanie ─────────────────── */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Surface tone="panel" className="space-y-4 p-6">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            {t.newInvoice.paymentDetailsTitle}
-          </h2>
-
-          <FormField label={t.invoiceDetail.fields.paymentMethod} htmlFor="paymentMethod">
-            <Select
-              id="paymentMethod"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as 'BANK_TRANSFER' | 'CASH')}
-            >
-              <option value="BANK_TRANSFER">{t.invoiceDetail.paymentMethods.BANK_TRANSFER}</option>
-              <option value="CASH">{t.invoiceDetail.paymentMethods.CASH}</option>
-            </Select>
-          </FormField>
-
-          <FormField label={t.invoiceDetail.fields.paymentDueDate} htmlFor="paymentDueDate" required>
-            <Input
-              id="paymentDueDate"
-              type="date"
-              value={paymentDueDate}
-              onChange={(e) => setPaymentDueDate(e.target.value)}
-              required
-            />
-          </FormField>
+        <Surface tone="panel" className="space-y-4 p-5">
+          <h2 className="text-sm font-semibold text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
+          <InvoiceLineItemsEditor
+            lines={lines}
+            onLinesChange={setLines}
+            serviceTemplates={serviceTemplates}
+            contractorRates={contractorRates}
+            contractorId={contractorId}
+          />
         </Surface>
 
-        <Surface tone="panel" className="p-6">
-          <h2 className="mb-4 text-xl font-semibold tracking-tight text-foreground">
-            {t.newInvoice.summaryTitle}
-          </h2>
-          <VatBreakdownTable lines={lines} totals={totals} />
+        <Surface tone="panel" className="space-y-3 p-5">
+          <h2 className="text-sm font-semibold text-foreground">{t.newInvoice.notesTitle}</h2>
+          <Textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={t.newInvoice.notesPlaceholder}
+            rows={4}
+          />
         </Surface>
       </div>
 
-      {/* ── Section 4: Uwagi do faktury ───────────────────────────────────── */}
-      <Surface tone="panel" className="space-y-3 p-6">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            {t.newInvoice.notesTitle}
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            {t.newInvoice.notesPdfHint}{' '}
-            <span className="font-medium text-foreground">{t.newInvoice.notesKsefHint}</span>
-          </p>
-        </div>
-        <Textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder={t.newInvoice.notesPlaceholder}
-          rows={4}
-        />
-      </Surface>
+      <div className="flex flex-col gap-4 lg:sticky lg:top-0">
+        <Surface tone="panel" className="p-5">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">{t.newInvoice.summaryTitle}</h2>
+          <VatBreakdownTable lines={lines} totals={totals} />
+        </Surface>
 
-      {/* ── Actions ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-4">
-        <Button type="submit" size="lg" disabled={submitting}>
-          {submitting ? t.newInvoice.savingButton : t.newInvoice.saveChangesButton}
-        </Button>
-        <Link
-          href={`/dashboard/invoices/${invoice.id}`}
-          className="text-sm font-medium text-muted transition hover:text-foreground"
-        >
-          {t.newInvoice.cancelButton}
-        </Link>
+        {blockers.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-inset border border-error-ink/30 bg-error px-3.5 py-3">
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true" className="h-[7px] w-[7px] rounded-[2px] bg-error-ink" />
+              <p className="text-sm font-medium text-error-ink">{t.newInvoice.blockersTitle(blockers.length)}</p>
+            </div>
+            <ul className="list-inside list-disc space-y-1 text-xs leading-relaxed text-foreground-secondary">
+              {blockers.map((blocker) => (
+                <li key={blocker}>{blocker}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="flex flex-col gap-2">
+          <Button type="submit" size="lg" disabled={submitting || blockers.length > 0}>
+            {submitting ? t.newInvoice.savingButton : t.newInvoice.saveChangesButton}
+          </Button>
+          <Link
+            href={`/dashboard/invoices/${invoice.id}`}
+            className="text-center text-sm font-medium text-muted transition hover:text-foreground"
+          >
+            {t.newInvoice.cancelButton}
+          </Link>
+        </div>
       </div>
     </form>
   );
