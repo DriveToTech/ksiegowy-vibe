@@ -19,7 +19,7 @@ test('contractors list shows search and filter controls', async ({ authenticated
 test('contractors list shows contractor from mock', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/contractors');
 
-  await expect(page.getByText('Acme Sp. z o.o.')).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Acme Sp. z o.o.' })).toBeVisible();
 });
 
 test('new contractor form loads', async ({ authenticatedPage: page }) => {
