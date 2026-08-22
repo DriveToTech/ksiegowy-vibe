@@ -108,9 +108,9 @@ export default async function InvoiceDetailPage({
 
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
         <div className="space-y-2">
-          <p className="font-mono text-[26px] font-medium tracking-[-0.01em] text-foreground">
+          <h1 className="font-mono text-[26px] font-medium tracking-[-0.01em] text-foreground">
             {invoice.invoiceNumber ?? t.invoiceDetail.draftTitle}
-          </p>
+          </h1>
           <p className="text-sm text-muted">
             {t.invoiceDetail.issuedOn(formatDate(invoice.issueDate))}
             {invoice.saleDate ? ` · ${t.invoiceDetail.fields.saleDate.toLowerCase()} ${formatDate(invoice.saleDate)}` : ''}

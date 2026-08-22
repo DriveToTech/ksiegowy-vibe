@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getIncomingInvoices, getInvoices } from '../../lib/api';
+import { getContractors, getIncomingInvoices, getInvoices } from '../../lib/api';
 import { Button } from '../../components/atoms/Button';
 import { EmptyState } from '../../components/molecules/EmptyState';
 import { PageHeader } from '../../components/molecules/PageHeader';
@@ -42,42 +42,12 @@ export default async function DashboardPage() {
     );
   }
 
-  const [invoicesResult, incomingResult] = await Promise.all([
+  const [invoicesResult, incomingResult, contractorCount] = await Promise.all([
     getInvoices(companyId, { limit: '100' }),
     getIncomingInvoices(companyId, { limit: '100' }).catch(() => ({ data: [], total: 0, page: 1, limit: 100 })),
+    getContractors(companyId).then((list) => list.length).catch(() => 0),
   ]);
   const invoices = invoicesResult.data;
-
-  if (invoices.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow={t.dashboard.pageEyebrow}
-          title={t.dashboard.pageTitle}
-          description={t.dashboard.pageDescription}
-          actions={
-            <>
-              <Link href="/dashboard/incoming">
-                <Button variant="secondary">{t.dashboard.goToIncoming}</Button>
-              </Link>
-              <Link href="/dashboard/invoices/new">
-                <Button>{t.dashboard.createInvoice}</Button>
-              </Link>
-            </>
-          }
-        />
-        <EmptyState
-          title={t.dashboard.emptyInvoicesTitle}
-          description={t.dashboard.emptyInvoicesDescription}
-          action={
-            <Link href="/dashboard/contractors">
-              <Button variant="secondary">{t.dashboard.addContractor}</Button>
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
 
   const now = new Date();
 
@@ -218,21 +188,35 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <InvoicesTable
-        invoices={recent}
-        showNet={false}
-        compact
-        header={
-          <>
-            <h2 className="text-sm font-semibold text-foreground">{t.dashboard.recentDocuments.title}</h2>
-            {invoicesResult.total > recent.length ? (
-              <Link href="/dashboard/invoices" className="text-xs font-semibold text-primary transition hover:text-primary-strong">
-                {t.dashboard.recentDocuments.seeAll(invoicesResult.total)}
-              </Link>
-            ) : null}
-          </>
-        }
-      />
+      <div className="space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">{t.dashboard.recentDocuments.title}</h2>
+        {recent.length === 0 ? (
+          <EmptyState
+            title={t.dashboard.emptyInvoicesTitle}
+            description={contractorCount > 0 ? t.dashboard.emptyInvoicesDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
+            action={
+              contractorCount === 0 ? (
+                <Link href="/dashboard/contractors">
+                  <Button variant="secondary">{t.dashboard.addContractor}</Button>
+                </Link>
+              ) : undefined
+            }
+          />
+        ) : (
+          <InvoicesTable
+            invoices={recent}
+            showNet={false}
+            compact
+            header={
+              invoicesResult.total > recent.length ? (
+                <Link href="/dashboard/invoices" className="ml-auto text-xs font-semibold text-primary transition hover:text-primary-strong">
+                  {t.dashboard.recentDocuments.seeAll(invoicesResult.total)}
+                </Link>
+              ) : undefined
+            }
+          />
+        )}
+      </div>
     </div>
   );
 }

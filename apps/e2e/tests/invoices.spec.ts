@@ -6,12 +6,14 @@ test('invoices list page loads', async ({ authenticatedPage: page }) => {
   await expect(page.getByRole('heading', { name: 'Faktury sprzedażowe' })).toBeVisible();
 });
 
-test('invoices list shows metric cards', async ({ authenticatedPage: page }) => {
+test('invoices list shows status filter tabs', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/invoices');
 
-  await expect(page.getByText('Wszystkie faktury')).toBeVisible();
-  await expect(page.getByText('Szkice')).toBeVisible();
-  await expect(page.getByText('Przyjęte w KSeF')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Wszystkie' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Szkice' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Szkice' }).click();
+  await expect(page).toHaveURL(/status=DRAFT/);
 });
 
 test('invoices list shows new invoice button', async ({ authenticatedPage: page }) => {
@@ -30,7 +32,7 @@ test('new invoice form has line items and payment sections', async ({ authentica
   await page.goto('/dashboard/invoices/new');
 
   await expect(page.getByRole('heading', { name: 'Pozycje faktury' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Szczegóły płatności' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Daty i płatność' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Podsumowanie' })).toBeVisible();
 });
 
@@ -80,9 +82,9 @@ test('accepted invoice can create formal correction draft and shows corrected in
 
   await expect(page).toHaveURL(/\/dashboard\/invoices\/kor-draft-1$/);
   await expect(page.getByText('Korekta faktury:')).toBeVisible();
-  await expect(page.getByText('Prawidłowy numer faktury:')).toBeVisible();
+  await expect(page.getByText('Prawidłowy numer faktury', { exact: true })).toBeVisible();
   await expect(page.getByText('FV 15/04/2026', { exact: true })).toBeVisible();
-  await expect(page.getByText('Tryb korekty:')).toBeVisible();
+  await expect(page.getByText('Tryb korekty', { exact: true })).toBeVisible();
   await expect(page.getByText('Korekta formalna bez zmiany kwot')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wystaw korektę' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Zobacz oryginał' })).toBeVisible();

@@ -134,7 +134,7 @@ export default function EditInvoiceForm({
 
         <div className="grid gap-4 md:grid-cols-2">
           <Surface tone="panel" className="space-y-3 p-5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.newInvoice.buyerSectionEyebrow}</p>
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.newInvoice.buyerSectionEyebrow}</h2>
             <FormField label={t.newInvoice.contractorLabel} htmlFor="contractorId" required className="space-y-1.5">
               <Select
                 id="contractorId"
@@ -159,7 +159,7 @@ export default function EditInvoiceForm({
           </Surface>
 
           <Surface tone="panel" className="space-y-3 p-5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.newInvoice.datesSectionEyebrow}</p>
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.newInvoice.datesSectionEyebrow}</h2>
             <div className="grid grid-cols-2 gap-3">
               <FormField label={t.newInvoice.issueDateLabel} htmlFor="issueDate" required className="space-y-1.5">
                 <Input
