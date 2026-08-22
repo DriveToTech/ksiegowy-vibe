@@ -13,9 +13,10 @@ import { FormField } from '../../../components/molecules/FormField';
 interface CompanyDetailsFormProps {
   company: Company | null;
   canEdit: boolean;
+  redirectTo?: string;
 }
 
-export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps) {
+export function CompanyDetailsForm({ company, canEdit, redirectTo = '/dashboard' }: CompanyDetailsFormProps) {
   const router = useRouter();
   const [form, setForm] = useState({
     name: company?.name ?? '',
@@ -80,7 +81,7 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
         });
 
         document.cookie = `active_company=${created.id}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-        await refreshBrowserSession('/dashboard');
+        await refreshBrowserSession(redirectTo);
         return;
       }
 
