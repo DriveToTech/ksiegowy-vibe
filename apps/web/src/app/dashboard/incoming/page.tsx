@@ -57,18 +57,23 @@ export default async function IncomingPage({
       ) : (
         <>
           <IncomingInvoicesTable invoices={result.data} />
-          <div className="flex items-center justify-between gap-4">
-            <Link href={`/dashboard/incoming?page=${page - 1}`}>
-              <Button variant="secondary" size="sm" disabled={page <= 1}>
-                {t.pagination.previous}
-              </Button>
-            </Link>
-            <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)} · {t.incoming.total(result.total)}</p>
-            <Link href={`/dashboard/incoming?page=${page + 1}`}>
-              <Button variant="secondary" size="sm" disabled={page >= totalPages}>
-                {t.pagination.next}
-              </Button>
-            </Link>
+          <div className="flex flex-col gap-3 rounded-control border border-outline bg-surface-raised px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
+              {t.incoming.total(result.total)}
+            </p>
+            <div className="flex items-center justify-between gap-4 sm:justify-end">
+              <Link href={`/dashboard/incoming?page=${page - 1}`}>
+                <Button variant="secondary" size="sm" disabled={page <= 1}>
+                  {t.pagination.previous}
+                </Button>
+              </Link>
+              <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)}</p>
+              <Link href={`/dashboard/incoming?page=${page + 1}`}>
+                <Button variant="secondary" size="sm" disabled={page >= totalPages}>
+                  {t.pagination.next}
+                </Button>
+              </Link>
+            </div>
           </div>
         </>
       )}
