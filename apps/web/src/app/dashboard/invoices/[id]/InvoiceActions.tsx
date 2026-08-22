@@ -14,8 +14,8 @@ import { formatMoney } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
-  TEST: 'border-success/30 bg-success/15 text-success-ink',
-  PRODUCTION: 'border-warning/40 bg-warning/15 text-warning-ink',
+  TEST: 'border-success bg-success text-success-ink',
+  PRODUCTION: 'border-warning bg-warning text-warning-ink',
 };
 
 function EnvironmentBadge({ environment }: { environment: string }) {
@@ -267,13 +267,13 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
         <EnvironmentBadge environment={activeEnvironment} />
       </div>
       {error && (
-        <Surface tone="glass" shape="organic" className="border-error/20 bg-error-soft/70 px-4 py-3 text-error-ink" role="alert">
+        <Surface tone="glass" shape="organic" className="border-error bg-error px-4 py-3 text-error-ink" role="alert">
           <p className="text-sm font-semibold">{errorTitle}</p>
           {errorDetail && <p className="mt-1 text-sm opacity-85">{errorDetail}</p>}
         </Surface>
       )}
       {success && (
-        <Surface tone="glass" shape="organic" className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
+        <Surface tone="glass" shape="organic" className="border-success bg-success px-4 py-3 text-sm text-success-ink">
           {success}
         </Surface>
       )}
@@ -328,7 +328,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
           </Button>
         )}
         {isPaid && (
-          <span className="inline-flex min-h-11 items-center rounded-md bg-success/25 px-4 text-sm font-semibold text-success-ink">
+          <span className="inline-flex min-h-11 items-center rounded-md bg-success px-4 text-sm font-semibold text-success-ink">
             {t.invoiceActions.paid}
           </span>
         )}
@@ -350,7 +350,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
       </div>
 
       {pendingProductionAction === 'ksef' && (
-        <Surface tone="glass" shape="organic" className="border-warning/40 bg-warning/10 p-5">
+        <Surface tone="glass" shape="organic" className="border-warning bg-warning p-5">
           <ProductionConfirmPanel
             invoiceNumber={invoiceNumber}
             totalGross={totalGross}
@@ -364,7 +364,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
       )}
 
       {!hasToken && (
-        <Surface tone="glass" shape="organic" className="border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-ink" role="alert">
+        <Surface tone="glass" shape="organic" className="border-warning bg-warning px-4 py-3 text-sm text-warning-ink" role="alert">
           <p>{t.invoiceActions.missingTokenWarning(activeEnvironment)}{' '}
             <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
               {t.invoiceActions.goToSettings}
@@ -403,7 +403,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
       )}
 
       {showCorrectionModal && pendingProductionAction === 'correct' && (
-        <Surface tone="glass" shape="organic" className="border-warning/40 bg-warning/10 p-5">
+        <Surface tone="glass" shape="organic" className="border-warning bg-warning p-5">
           <ProductionConfirmPanel
             invoiceNumber={invoiceNumber}
             totalGross={totalGross}

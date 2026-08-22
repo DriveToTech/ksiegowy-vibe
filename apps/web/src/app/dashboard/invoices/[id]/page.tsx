@@ -219,7 +219,7 @@ export default async function InvoiceDetailPage({
 
           <div className="grid gap-3 md:grid-cols-3">
             {invoice.vatBreakdown.map((row) => (
-              <div key={row.id} className="space-y-3 border-t border-outline/30 pt-3 first:border-t-0 first:pt-0">
+              <div key={row.id} className="space-y-3 border-t border-outline pt-3 first:border-t-0 first:pt-0">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoiceDetail.vatBreakdownRate(row.vatRate)}</p>
                 <InfoMetric label={t.invoiceDetail.metrics.net} value={formatMoney(row.netAmount)} />
                 <InfoMetric label={t.invoiceDetail.metrics.vat} value={formatMoney(row.vatAmount)} strong />
@@ -241,7 +241,7 @@ export default async function InvoiceDetailPage({
 
 function InfoSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-4 border-t border-outline/30 pt-4 first:border-t-0 first:pt-0">
+    <section className="space-y-4 border-t border-outline pt-4 first:border-t-0 first:pt-0">
       <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{title}</h2>
       {children}
     </section>

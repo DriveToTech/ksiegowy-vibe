@@ -75,12 +75,12 @@ export function MembersTab({
   return (
     <div className="space-y-6">
       {error && (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
+        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
           {error}
         </Surface>
       )}
       {success && (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
+        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
           {success}
         </Surface>
       )}
@@ -112,7 +112,7 @@ export function MembersTab({
                 </thead>
                 <tbody>
                   {members.map((member) => (
-                    <tr key={member.userId} className="border-t border-outline/10 hover:bg-surface-raised/35">
+                    <tr key={member.userId} className="border-t border-outline hover:bg-surface-raised/35">
                       <BodyCell>{member.user.email}</BodyCell>
                       <BodyCell>{member.user.name ?? '—'}</BodyCell>
                       <BodyCell>

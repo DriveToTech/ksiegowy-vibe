@@ -34,14 +34,16 @@ html[data-theme='light'] {
   --nav-active-border: rgba(109, 58, 224, 0.30);
   --secondary-surface: rgba(20, 23, 49, 0.05);
   --secondary-ink: #141731;
-  --success: var(--color-emerald-100);
-  --success-soft: var(--color-emerald-50);
-  --success-ink: var(--color-emerald-900);
-  --warning: var(--color-amber-100);
-  --warning-ink: var(--color-amber-950);
-  --error: var(--color-rose-600);
-  --error-soft: var(--color-rose-100);
-  --error-ink: var(--color-rose-950);
+  --success: #DDEAE5;
+  --success-ink: #0F6B45;
+  --warning: #EFE7DB;
+  --warning-ink: #8A5300;
+  --error: #F3DCD9;
+  --error-ink: #B32410;
+  --neutral-status: #E1E2E9;
+  --neutral-status-ink: #454C73;
+  --draft: #ECECEF;
+  --draft-ink: rgba(20, 23, 49, 0.70);
   --shadow-frame: 0 24px 64px rgba(20, 23, 49, 0.14);
 }
 
@@ -75,14 +77,16 @@ html[data-theme='dark'] {
   --nav-active-border: rgba(167, 139, 250, 0.34);
   --secondary-surface: rgba(236, 238, 247, 0.06);
   --secondary-ink: #ECEEF7;
-  --success: #123526;
-  --success-soft: #0d2a20;
-  --success-ink: #8ef0b5;
-  --warning: #2b2737;
-  --warning-ink: #ffe08a;
-  --error: #d73357;
-  --error-soft: #3f0f1f;
-  --error-ink: #ffb2b9;
+  --success: #1A2D3A;
+  --success-ink: #58CF9A;
+  --warning: #302B31;
+  --warning-ink: #F5BE5A;
+  --error: #342334;
+  --error-ink: #F07A6A;
+  --neutral-status: #242842;
+  --neutral-status-ink: #B6BCE0;
+  --draft: #22253A;
+  --draft-ink: rgba(236, 238, 247, 0.60);
   --shadow-frame: 0 30px 90px rgba(0, 0, 0, 0.6);
 }
 
@@ -112,13 +116,15 @@ html[data-theme='dark'] {
   --color-secondary-surface: var(--secondary-surface);
   --color-secondary-ink: var(--secondary-ink);
   --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
   --color-success-ink: var(--success-ink);
   --color-warning: var(--warning);
   --color-warning-ink: var(--warning-ink);
   --color-error: var(--error);
-  --color-error-soft: var(--error-soft);
   --color-error-ink: var(--error-ink);
+  --color-neutral-status: var(--neutral-status);
+  --color-neutral-status-ink: var(--neutral-status-ink);
+  --color-draft: var(--draft);
+  --color-draft-ink: var(--draft-ink);
   --radius-chip: 6px;
   --radius-control: 9px;
   --radius-inset: 12px;

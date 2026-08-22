@@ -66,7 +66,7 @@ export function ContractorServiceRates({
   };
 
   return (
-    <div className="mt-4 space-y-3 border-t border-outline/20 pt-4">
+    <div className="mt-4 space-y-3 border-t border-outline pt-4">
       <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
         {t.contractorRates.sectionTitle}
       </p>
@@ -94,7 +94,7 @@ export function ContractorServiceRates({
           </thead>
           <tbody>
             {rates.map((rate) => (
-              <tr key={rate.id} className="border-t border-outline/10 align-top">
+              <tr key={rate.id} className="border-t border-outline align-top">
                 <td className="py-2">
                   <span className="font-medium text-foreground">{rate.serviceTemplate.name}</span>
                   {rate.serviceTemplate.description ? (
@@ -125,7 +125,7 @@ export function ContractorServiceRates({
       ) : null}
 
       {showForm ? (
-        <div className="grid gap-3 rounded-[1.5rem] border border-outline/20 bg-surface-raised/20 p-4 sm:grid-cols-[1fr_1fr_auto]">
+        <div className="grid gap-3 rounded-[1.5rem] border border-outline bg-surface-raised/20 p-4 sm:grid-cols-[1fr_1fr_auto]">
           <FormField label={t.contractorRates.fields.service}>
             <Select
               value={selectedTemplateId}

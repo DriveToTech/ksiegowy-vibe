@@ -16,8 +16,8 @@ interface KsefEnvironmentSwitcherProps {
 }
 
 const environmentToneClasses: Record<KsefEnvironment, string> = {
-  TEST: 'border-success/30 bg-success/15 text-success-ink',
-  PRODUCTION: 'border-warning/40 bg-warning/15 text-warning-ink',
+  TEST: 'border-success bg-success text-success-ink',
+  PRODUCTION: 'border-warning bg-warning text-warning-ink',
 };
 
 export function KsefEnvironmentSwitcher({ activeEnvironment, compact = false }: KsefEnvironmentSwitcherProps) {

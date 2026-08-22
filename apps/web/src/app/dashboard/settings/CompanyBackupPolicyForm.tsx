@@ -233,7 +233,7 @@ export function CompanyBackupPolicyForm({
       </div>
 
       {error ? (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
+        <Surface className="border-error bg-error px-4 py-3 text-sm text-error-ink" role="alert">
           <p>{error.message}</p>
           {error.code === 'REAUTHORIZATION_REQUIRED' ? (
             <div className="mt-3">
@@ -248,18 +248,18 @@ export function CompanyBackupPolicyForm({
         </Surface>
       ) : null}
       {success ? (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
+        <Surface className="border-success bg-success px-4 py-3 text-sm text-success-ink">
           {success}
         </Surface>
       ) : null}
 
       {hasBackupStatusError ? (
-        <Surface className="border-outline/20 bg-surface-muted/50 px-4 py-3 text-sm text-muted" role="status">
+        <Surface className="border-outline bg-surface-muted/50 px-4 py-3 text-sm text-muted" role="status">
           Nie udało się pobrać wskaźników statusu backupu. Ustawienia polityki Google Drive nadal możesz edytować.
         </Surface>
       ) : null}
 
-      <div className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/45 p-4">
+      <div className="rounded-[1.4rem] border border-outline bg-surface-raised/45 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Platform PostgreSQL backup</p>
@@ -279,7 +279,7 @@ export function CompanyBackupPolicyForm({
         </p>
       </div>
 
-      <div className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/45 p-4">
+      <div className="rounded-[1.4rem] border border-outline bg-surface-raised/45 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Google Drive backup firmy</p>
@@ -324,7 +324,7 @@ export function CompanyBackupPolicyForm({
         </p>
       </div>
 
-      <div className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/45 p-4">
+      <div className="rounded-[1.4rem] border border-outline bg-surface-raised/45 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Polityka backupu Google Drive</p>
@@ -355,7 +355,7 @@ export function CompanyBackupPolicyForm({
             />
           </div>
         ) : (
-          <div className="mt-4 rounded-[1rem] border border-warning/30 bg-warning/20 px-4 py-3 text-sm text-warning-ink">
+          <div className="mt-4 rounded-[1rem] border border-warning bg-warning px-4 py-3 text-sm text-warning-ink">
             {requiresGoogleDriveReauthorization
               ? 'Google Drive wymaga ponownego połączenia. Backup ręczny i automatyczny pozostają wstrzymane do czasu odnowienia autoryzacji.'
               : 'Google Drive nie jest jeszcze podłączony. Najpierw połącz konto, aby uruchamiać backup ręczny i harmonogram.'}
@@ -371,7 +371,7 @@ export function CompanyBackupPolicyForm({
         )}
 
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2 rounded-[1rem] border border-outline/20 bg-surface/40 px-4 py-3">
+          <div className="md:col-span-2 rounded-[1rem] border border-outline bg-surface/40 px-4 py-3">
             <label className="inline-flex items-center gap-3 text-sm text-foreground">
               <input
                 type="checkbox"
@@ -476,7 +476,7 @@ export function CompanyBackupPolicyForm({
         </div>
 
         {lastRunResult ? (
-          <div className="mt-4 rounded-[1rem] border border-outline/20 bg-surface/40 p-4 text-sm">
+          <div className="mt-4 rounded-[1rem] border border-outline bg-surface/40 p-4 text-sm">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Wynik ostatniego uruchomienia</p>
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               <ReadOnlyItem label="Backup run ID" value={lastRunResult.backupRunId} />
@@ -490,7 +490,7 @@ export function CompanyBackupPolicyForm({
         ) : null}
       </div>
 
-      <details className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/35 p-4">
+      <details className="rounded-[1.4rem] border border-outline bg-surface-raised/35 p-4">
         <summary className="cursor-pointer list-none text-sm font-semibold text-foreground marker:hidden">
           Zaawansowane szczegóły statusu backupu
         </summary>

@@ -165,7 +165,7 @@ export function ServiceCatalogManager({
       ) : null}
 
       {visibleTemplates.length === 0 && !showAddForm ? (
-        <p className="rounded-[1.5rem] border border-outline/20 bg-surface-panel/40 p-6 text-center text-sm text-muted">
+        <p className="rounded-[1.5rem] border border-outline bg-surface-panel/40 p-6 text-center text-sm text-muted">
           {t.serviceCatalog.emptyState}
         </p>
       ) : null}

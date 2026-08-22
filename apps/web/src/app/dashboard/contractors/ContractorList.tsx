@@ -45,7 +45,7 @@ export function ContractorList({
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-1 rounded-full border border-outline/20 bg-surface-panel/40 p-1">
+        <div className="flex items-center gap-1 rounded-full border border-outline bg-surface-panel/40 p-1">
           {(['all', 'active', 'inactive'] as StatusFilter[]).map((filter) => (
             <button
               key={filter}
@@ -69,7 +69,7 @@ export function ContractorList({
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <p className="rounded-[1.5rem] border border-outline/20 bg-surface-panel/40 p-6 text-center text-sm text-muted">
+        <p className="rounded-[1.5rem] border border-outline bg-surface-panel/40 p-6 text-center text-sm text-muted">
           {search.trim() || statusFilter !== 'all'
             ? t.contractors.emptyFiltered
             : t.contractors.emptyList}
@@ -101,7 +101,7 @@ export function ContractorList({
               {filtered.map((contractor, index) => (
                 <tr
                   key={contractor.id}
-                  className={`border-b border-outline/10 transition hover:bg-surface-raised/30 ${
+                  className={`border-b border-outline transition hover:bg-surface-raised/30 ${
                     index === filtered.length - 1 ? 'border-b-0' : ''
                   }`}
                 >
@@ -121,7 +121,7 @@ export function ContractorList({
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         contractor.isActive
-                          ? 'bg-success/15 text-success-ink'
+                          ? 'bg-success text-success-ink'
                           : 'bg-surface-raised/60 text-muted'
                       }`}
                     >

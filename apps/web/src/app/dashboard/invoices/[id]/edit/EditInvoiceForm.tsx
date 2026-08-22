@@ -161,7 +161,7 @@ export default function EditInvoiceForm({
         </div>
 
         {selectedContractor ? (
-          <div className="rounded-[1rem] border border-outline/30 bg-surface-raised/30 px-4 py-2.5 text-sm">
+          <div className="rounded-[1rem] border border-outline bg-surface-raised/30 px-4 py-2.5 text-sm">
             <span className="font-medium text-foreground">{selectedContractor.name}</span>
             {selectedContractor.nip ? (
               <span className="ml-3 text-muted">{t.invoiceDetail.fields.nip}: {selectedContractor.nip}</span>
