@@ -39,8 +39,6 @@ export default async function DashboardContractorsPage() {
     throw error instanceof Error ? error : new Error(t.contractors.errors.loadFailed);
   });
 
-  const activeCount = contractors.filter((c) => c.isActive).length;
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -54,24 +52,7 @@ export default async function DashboardContractorsPage() {
         ) : null}
       />
 
-      {contractors.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-3 xl:max-w-2xl">
-          <SummaryCard label={t.contractors.summary.total} value={String(contractors.length)} />
-          <SummaryCard label={t.contractors.summary.active} value={String(activeCount)} strong />
-          <SummaryCard label={t.contractors.summary.inactive} value={String(contractors.length - activeCount)} />
-        </div>
-      ) : null}
-
       <ContractorList contractors={contractors} canEdit={canEdit} />
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="rounded-card border border-outline bg-surface-panel p-4">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{label}</p>
-      <p className={strong ? 'mt-2 text-lg font-semibold text-primary' : 'mt-2 text-lg font-semibold text-foreground'}>{value}</p>
     </div>
   );
 }
