@@ -118,7 +118,7 @@ test('danger button text meets WCAG AA in both themes', async ({ authenticatedPa
     };
 
     const button = document.createElement('button');
-    button.className = 'bg-error text-error-action-ink';
+    button.className = 'bg-error text-error-ink';
     document.body.append(button);
     const ratios: number[] = [];
 
@@ -167,14 +167,19 @@ test('shared controls and button variants meet contrast requirements in both the
         (Math.min(backgroundLuminance, foregroundLuminance) + 0.05);
     };
     const probes = [
-      ['primary button', 'rounded-full bg-primary text-primary-ink'],
-      ['primary quiet button', 'rounded-full bg-primary text-primary-ink'],
-      ['secondary button', 'rounded-full bg-surface-panel/70 text-secondary-ink'],
-      ['ghost button', 'rounded-full bg-surface-panel text-foreground'],
-      ['danger button', 'rounded-full bg-error text-error-action-ink'],
-      ['success status', 'bg-success/85 text-success-ink'],
-      ['warning status', 'bg-warning/85 text-warning-ink'],
-      ['error status', 'bg-error-soft/90 text-error-ink'],
+      // Primary is tested here as its flat --primary/--primary-ink pair, the same ink
+      // token the real gradient fill (--primary-gradient) uses at both stops — canvas
+      // contrast sampling can't average a two-stop gradient, so this is a proxy; the
+      // gradient's own AA contrast at both stops is verified in
+      // docs/specs/aurora-solid-tokens.md §7, and the gradient actually being wired on
+      // the real button is asserted separately below.
+      ['primary button', 'rounded-control bg-primary text-primary-ink'],
+      ['secondary button', 'rounded-control bg-secondary-surface text-secondary-ink'],
+      ['ghost button', 'rounded-control bg-transparent text-primary'],
+      ['danger button', 'rounded-control bg-error text-error-ink'],
+      ['success status', 'bg-success text-success-ink'],
+      ['warning status', 'bg-warning text-warning-ink'],
+      ['error status', 'bg-error text-error-ink'],
       ['surface', 'bg-surface-panel text-foreground'],
     ];
     const container = document.createElement('div');
@@ -222,7 +227,15 @@ test('shared controls and button variants meet contrast requirements in both the
   });
 
   expect(results.filter(({ contrast }) => contrast < 4.5)).toEqual([]);
-  expect(results.find(({ name }) => name === 'primary button')?.backgroundImage).toBe('none');
+
+  // Aurora's primary button fill is the --primary-gradient two-stop gradient, not a flat
+  // color. Read the real rendered atom (not a hand-typed className) to confirm it's
+  // actually wired rather than silently falling back to no background.
+  const primaryButtonBackgroundImage = await page
+    .getByRole('link', { name: '+ Nowa faktura' })
+    .locator('button')
+    .evaluate((element) => getComputedStyle(element).backgroundImage);
+  expect(primaryButtonBackgroundImage).toContain('linear-gradient');
 });
 
 test('dashboard exposes contextual destinations without a persistent quick-action panel', async ({ authenticatedPage: page }) => {
@@ -396,23 +409,23 @@ test('shared controls and dashboard surfaces meet contrast requirements in both 
       alpha: 1,
     });
     const probeClassNames = [
-      ['input', 'h-11 w-full rounded-[1rem] border border-outline bg-surface-raised/65 text-sm text-foreground'],
-      ['select', 'h-11 w-full rounded-[1rem] border border-outline bg-surface-raised/65 text-sm font-medium text-foreground'],
-      ['textarea', 'min-h-28 w-full rounded-[1.25rem] border border-outline bg-surface-raised/65 text-sm text-foreground'],
-      ['floating label input', 'h-14 w-full rounded-[1rem] border border-outline bg-surface-raised/65 text-sm text-foreground'],
-      ['floating label select', 'h-14 w-full rounded-[1rem] border border-outline bg-surface-raised/65 text-sm font-medium text-foreground'],
-      ['neutral badge', 'bg-surface-muted/85 text-foreground'],
-      ['primary badge', 'bg-primary-soft/95 text-primary'],
-      ['success badge', 'bg-success/85 text-success-ink'],
-      ['warning badge', 'bg-warning/85 text-warning-ink'],
-      ['danger badge', 'bg-error-soft/90 text-error-ink'],
-      ['KSeF TEST badge', 'border-success/30 bg-success/15 text-success-ink'],
-      ['KSeF PRODUCTION badge', 'border-warning/40 bg-warning/15 text-warning-ink'],
+      ['input', 'h-11 w-full rounded-control border border-outline-control bg-surface-raised text-sm text-foreground'],
+      ['select', 'h-11 w-full rounded-control border border-outline-control bg-surface-raised text-sm font-medium text-foreground'],
+      ['textarea', 'min-h-28 w-full rounded-control border border-outline-control bg-surface-raised text-sm text-foreground'],
+      ['floating label input', 'h-14 w-full rounded-control border border-outline-control bg-surface-raised text-sm text-foreground'],
+      ['floating label select', 'h-14 w-full rounded-control border border-outline-control bg-surface-raised text-sm font-medium text-foreground'],
+      ['draft badge', 'bg-draft text-draft-ink'],
+      ['offline24 badge', 'bg-neutral-status text-neutral-status-ink'],
+      ['primary badge', 'bg-primary-soft text-primary'],
+      ['success badge', 'bg-success text-success-ink'],
+      ['warning badge', 'bg-warning text-warning-ink'],
+      ['danger badge', 'bg-error text-error-ink'],
+      ['KSeF TEST badge', 'border-success-ink/30 bg-success text-success-ink'],
+      ['KSeF PRODUCTION badge', 'border-warning-ink/30 bg-warning text-warning-ink'],
       ['primary button', 'bg-primary text-primary-ink'],
-      ['primary quiet button', 'bg-primary text-primary-ink'],
-      ['secondary button', 'bg-surface-panel/70 text-secondary-ink'],
-      ['ghost button', 'bg-transparent text-foreground'],
-      ['danger button', 'bg-error text-error-action-ink'],
+      ['secondary button', 'bg-secondary-surface text-secondary-ink'],
+      ['ghost button', 'bg-transparent text-primary'],
+      ['danger button', 'bg-error text-error-ink'],
       ['surface', 'bg-surface-panel text-foreground'],
     ];
     const probeContainer = document.createElement('div');

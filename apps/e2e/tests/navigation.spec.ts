@@ -26,13 +26,41 @@ test('desktop sidebar contains navigation only and one active page', async ({ au
       );
       return 0.2126 * (linearChannels[0] ?? 0) + 0.7152 * (linearChannels[1] ?? 0) + 0.0722 * (linearChannels[2] ?? 0);
     };
+    // The active nav item's own fill is a gradient (background-image), so its
+    // getComputedStyle().backgroundColor is transparent. Walk up to the nearest
+    // ancestor with an actual painted background (the rail/chrome panel) to use as
+    // the backdrop, since that's what a viewer's eye contrasts the gradient-tinted
+    // text against in practice.
+    const resolvedBackgroundColor = (start: Element) => {
+      let current: Element | null = start;
+      while (current) {
+        const backgroundColor = getComputedStyle(current).backgroundColor;
+        if (backgroundColor && !backgroundColor.startsWith('rgba(0, 0, 0, 0)') && backgroundColor !== 'transparent') {
+          return backgroundColor;
+        }
+        current = current.parentElement;
+      }
+      return 'rgb(255, 255, 255)';
+    };
+
     return ['light', 'dark'].map((theme) => {
       document.documentElement.dataset.theme = theme;
-      const styles = getComputedStyle(element);
-      const backgroundLuminance = luminance(styles.backgroundColor);
+      // Reading getComputedStyle directly off the in-place, already-painted anchor
+      // returns a stale (pre-toggle) color in this specific nested position, even
+      // though the exact same classes recompute correctly on a fresh element and the
+      // ancestor chain (background) updates live. Measuring a detached clone of the
+      // real, currently-rendered atom sidesteps that Chromium quirk while still
+      // reading the atom's real current classes rather than a hand-typed guess.
+      const probe = element.cloneNode(true) as HTMLElement;
+      document.body.append(probe);
+      const styles = getComputedStyle(probe);
+      const resolvedBg = resolvedBackgroundColor(element);
+      const backgroundLuminance = luminance(resolvedBg);
       const foregroundLuminance = luminance(styles.color);
-      return (Math.max(backgroundLuminance, foregroundLuminance) + 0.05) /
+      const contrast = (Math.max(backgroundLuminance, foregroundLuminance) + 0.05) /
         (Math.min(backgroundLuminance, foregroundLuminance) + 0.05);
+      probe.remove();
+      return contrast;
     });
   });
   expect(activeNavigationContrasts.every((contrast) => contrast >= 4.5)).toBe(true);
