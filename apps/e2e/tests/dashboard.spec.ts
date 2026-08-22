@@ -6,13 +6,14 @@ test('dashboard redirects unauthenticated users to login', async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
-test('dashboard loads with all metric cards', async ({ authenticatedPage: page }) => {
+test('dashboard loads with the KSeF clearance KPI grid', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard');
 
   await expect(page.getByRole('heading', { name: 'Panel operacyjny' })).toBeVisible();
-  await expect(page.getByText('Faktury w tym miesiącu')).toBeVisible();
-  await expect(page.getByText('Oczekuje na KSeF')).toBeVisible();
-  await expect(page.getByText('Łączna sprzedaż')).toBeVisible();
+  await expect(page.getByText('Przyjęte')).toBeVisible();
+  await expect(page.getByText('W trakcie rozliczenia')).toBeVisible();
+  await expect(page.getByText('Odrzucone')).toBeVisible();
+  await expect(page.getByText('Nie wysłane')).toBeVisible();
 });
 
 test('authenticated header exposes company, KSeF, theme, and session controls in order', async ({ authenticatedPage: page }) => {
@@ -337,7 +338,7 @@ test('mobile dashboard content and actions clear navigation at initial and mid-s
   expect(layoutMeasurements?.measurements.every(({ navigationTop, navigationBottom, actualScrollTop }) =>
     navigationTop >= 0 && navigationBottom <= (layoutMeasurements?.viewportHeight ?? 0) && actualScrollTop >= 0,
   )).toBe(true);
-  await expect(page.getByText('OCZEKUJE NA KSEF')).toBeVisible();
+  await expect(page.getByText('W trakcie rozliczenia')).toBeVisible();
   await expect(page.getByRole('link', { name: '+ Nowa faktura' })).toBeVisible();
 });
 
@@ -528,7 +529,7 @@ test('scrolling and focusing content accounts for the wrapped mobile sticky head
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/dashboard');
 
-  const target = page.getByRole('heading', { name: 'Ostatnie faktury' });
+  const target = page.getByRole('heading', { name: 'Ostatnie dokumenty' });
   await target.evaluate((element) => {
     element.setAttribute('tabindex', '-1');
     element.scrollIntoView({ block: 'start' });
