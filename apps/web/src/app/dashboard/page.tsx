@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getContractors, getIncomingInvoices, getInvoices } from '../../lib/api';
 import { Button } from '../../components/atoms/Button';
 import { EmptyState } from '../../components/molecules/EmptyState';
@@ -22,24 +23,7 @@ export default async function DashboardPage() {
   const companyId = session.activeCompanyId;
 
   if (!companyId) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow={t.dashboard.pageEyebrow}
-          title={t.dashboard.pageTitle}
-          description={t.dashboard.pageDescription}
-        />
-        <EmptyState
-          title={t.dashboard.noCompanyTitle}
-          description={t.dashboard.noCompanyDescription}
-          action={
-            <Link href="/dashboard/settings">
-              <Button>{t.dashboard.goToSettings}</Button>
-            </Link>
-          }
-        />
-      </div>
-    );
+    redirect('/onboarding');
   }
 
   const [invoicesResult, incomingResult, contractorCount] = await Promise.all([
