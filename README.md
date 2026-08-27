@@ -17,6 +17,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
+| [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
 | [Backup Restore Drill](docs/backup-restore-drill.md) | Repeatable restore drill steps with evidence capture |
 
@@ -150,13 +151,13 @@ On first run this builds both Docker images (takes a few minutes). Subsequent st
 #### 3. Run database migrations
 
 ```bash
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
 ```
 
 #### 4. (Optional) Seed initial data
 
 ```bash
-docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
+pnpm db:seed
 ```
 
 See [Seed Scripts](#seed-scripts) for available options including KSeF test data.
@@ -251,6 +252,7 @@ pnpm dev
 
 | Variable | Description |
 |----------|-------------|
+| `POSTGRES_HOST_PORT` | Host port for the Docker PostgreSQL service; defaults to `5432`, while the container remains on `5432` |
 | `OPENROUTER_API_KEY` | Required for incoming invoice OCR |
 | `GDRIVE_CLIENT_ID` | Google Drive backup |
 | `GDRIVE_CLIENT_SECRET` | Google Drive backup |
@@ -671,7 +673,7 @@ pnpm tsx scripts/seed.ts --email your@email.com
 pnpm tsx scripts/seed.ts --reset
 
 # Docker
-docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
+pnpm db:seed
 ```
 
 Creates:
@@ -890,7 +892,7 @@ The script fails fast on missing configuration, requires a real browser API URL 
 ```bash
 cp .env.example .env        # fill in secrets
 docker compose up -d --build
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
 ```
 
 File uploads are persisted via a bind mount at `./storage` on the host.
