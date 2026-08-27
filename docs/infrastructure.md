@@ -60,6 +60,18 @@ File: [`docker-compose.yml`](../docker-compose.yml)
 | `./ops/backup/rclone/rclone.conf` (bind mount fallback) | Placeholder rclone config used in local-only PostgreSQL backup mode |
 | `./storage` (read-only bind in `backup-gdrive-scheduled`) | Scheduled company Google Drive backup source files |
 
+The PostgreSQL container always listens on `5432` inside the Compose network.
+Set `POSTGRES_HOST_PORT` to change only the host-published port when another
+local process or Colima forwarding already uses host port `5432`:
+
+```bash
+export POSTGRES_HOST_PORT=55432
+docker compose up -d postgres api
+```
+
+Containers continue using `postgres:5432`; host tools use
+`localhost:55432`.
+
 ### Starting the stack
 
 For mixed local/Docker development commands and env values, use [Development Run Modes](./development-run-modes.md). In particular, when the API runs locally, set `POSTGRESQL_BACKUP_ARTIFACTS_PATH` to the correct absolute repo path for `backups/postgresql`; otherwise backup freshness in company settings can show PostgreSQL source as unavailable because a relative fallback resolves from `apps/api`.
@@ -154,8 +166,8 @@ Requirement mode `auto` uses env-level enablement signals only. It does not guar
 ### First-run database setup
 
 ```bash
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
-docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm db:seed
 ```
 
 ---
@@ -386,10 +398,6 @@ PostgreSQL stores all application state: companies, users, invoices, contractors
 Migrations are managed by Prisma and live in `apps/api/prisma/migrations/`. Run on deploy:
 
 ```bash
-# Docker
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
-
-# Bare Node.js
 pnpm --filter @ksiegowy/api exec prisma migrate deploy
 ```
 
@@ -436,7 +444,7 @@ PostgreSQL backward compatibility rule: when `BACKUP_DESTINATION_ROOT` is unset,
 
 Backup runs are audited in the `BackupRun` table.
 
-Restore procedures are documented in [File Restore Runbook](./restore-files.md), [PostgreSQL Restore Runbook](./restore-postgresql.md), and [Backup Restore Drill](./backup-restore-drill.md).
+Restore procedures are documented in [File Restore Runbook](./restore-files.md), [PostgreSQL Restore Runbook](./restore-postgresql.md), and [Backup Restore Drill](./backup-restore-drill.md). For a failed Prisma migration or migration-history mismatch, use the [Production Migration Recovery](./production-migration-recovery.md) runbook. It requires an isolated clone before any production ledger or schema change.
 
 In Docker Compose runtime, `api` reads PostgreSQL local artifact freshness from `POSTGRESQL_BACKUP_ARTIFACTS_PATH=/app/backups/postgresql` backed by a read-only bind mount from `./backups/postgresql`.
 
@@ -524,6 +532,7 @@ This slice keeps backup scheduling flows separate intentionally:
 - [ ] Set `CORS_ORIGIN` to your production domain
 - [ ] Set `NEXT_PUBLIC_API_URL` to your production browser-facing API URL, for example `https://app.example.com/backend`
 - [ ] Run `prisma migrate deploy` after every release
+- [ ] Keep the [Production Migration Recovery](./production-migration-recovery.md) procedure available to the release operator; never use `migrate reset` or in-place database cleanup in production
 - [ ] Mount `./storage` on durable storage (not ephemeral container filesystem)
 - [ ] Confirm backup credentials are configured (Google Drive or iCloud)
 - [ ] Configure PostgreSQL backup env vars (`DB_BACKUP_*`) for local-only mode or remote mode

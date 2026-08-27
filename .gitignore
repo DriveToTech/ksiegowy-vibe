@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build artifacts
 dist/
@@ -41,3 +42,4 @@ apps/api/storage/**/outgoing/**
 # AI
 .claude/
 .opencode/
+.superpowers/
