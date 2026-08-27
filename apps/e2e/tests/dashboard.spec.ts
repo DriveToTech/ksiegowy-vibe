@@ -339,7 +339,7 @@ test('mobile dashboard content and actions clear navigation at initial and mid-s
 test('dashboard redirects to onboarding when no company is configured', async ({ authenticatedPageNoCompany: page }) => {
   await page.goto('/dashboard');
 
-  await expect(page).toHaveURL(/\/onboarding\/company$/);
+  await expect(page).toHaveURL(/\/onboarding$/);
   await expect(page.getByRole('heading', { name: 'Skonfiguruj firmę' })).toBeVisible();
 });
 
@@ -522,6 +522,7 @@ test('mobile navigation does not cover a focused page action', async ({ authenti
 test('scrolling and focusing content accounts for the wrapped mobile sticky header', async ({ authenticatedPage: page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/dashboard');
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--app-header-height'))).toMatch(/\d/);
 
   const target = page.getByRole('heading', { name: 'Ostatnie dokumenty' });
   await target.evaluate((element) => {
