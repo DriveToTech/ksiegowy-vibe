@@ -4,6 +4,7 @@ import {
   KSEF_ENVIRONMENT_HEADER_NAME,
 } from './ksef-environment';
 import type {
+  Commitment,
   CompanyBackupRunResult,
   CompanyBackupScheduleMode,
   CompanyBackupSettings,
@@ -12,14 +13,23 @@ import type {
   Contractor,
   ContractorServiceRate,
   ContractorSummary,
+  CreateCommitmentBody,
   CreateCompanyBody,
   CreateDraftBody,
+  CreateHouseholdTransactionBody,
+  CreateHouseholdTransferBody,
+  HouseholdAccount,
+  HouseholdAccountType,
+  HouseholdAccountVisibility,
+  HouseholdSummary,
+  HouseholdTransaction,
   InvoiceDetail,
   KsefIncomingSyncResult,
   KsefSubmitResponse,
   Member,
   MemberRole,
   ServiceTemplate,
+  UpdateCommitmentBody,
 } from './api-types';
 
 export class ApiClientError extends Error {
@@ -41,6 +51,12 @@ interface ApiClientErrorResponseBody {
 
 export type {
   BackupErrorCode,
+  BudgetEnvelope,
+  Commitment,
+  CommitmentBillingFrequency,
+  CommitmentCoverBreakdownEntry,
+  CommitmentStatus,
+  CommitmentType,
   CompanyBackupRunResult,
   CompanyBackupScheduleMode,
   CompanyBackupSettings,
@@ -50,8 +66,21 @@ export type {
   Contractor,
   ContractorServiceRate,
   ContractorSummary,
+  CreateCommitmentBody,
   CreateCompanyBody,
   CreateDraftBody,
+  CreateHouseholdTransactionBody,
+  CreateHouseholdTransferBody,
+  HouseholdAccount,
+  HouseholdAccountType,
+  HouseholdAccountVisibility,
+  HouseholdCategory,
+  HouseholdDashboard,
+  HouseholdMember,
+  HouseholdRole,
+  HouseholdSummary,
+  HouseholdTransaction,
+  HouseholdTransactionCategorizationSource,
   IncomingInvoiceDetail,
   IncomingInvoiceStatus,
   IncomingInvoiceSummary,
@@ -64,6 +93,7 @@ export type {
   MemberRole,
   PaymentMethod,
   ServiceTemplate,
+  UpdateCommitmentBody,
   VatRate,
 } from './api-types';
 
@@ -110,7 +140,9 @@ function getKsefEnvironmentHeaders(): Record<string, string> {
   };
 }
 
-export async function refreshBrowserSession(nextPath = '/dashboard'): Promise<void> {
+// '/' rather than a hardcoded protected route: the home page resolves the
+// mode-aware landing path via landingPathForSession() once a session exists.
+export async function refreshBrowserSession(nextPath = '/'): Promise<void> {
   window.location.assign(`/api/session/refresh?next=${encodeURIComponent(nextPath)}`);
 }
 
@@ -422,6 +454,93 @@ export async function getContractorSummary(
 ): Promise<ContractorSummary> {
   const params = year ? `?${new URLSearchParams({ year: String(year) }).toString()}` : '';
   return clientFetch<ContractorSummary>(`/companies/${companyId}/contractors/${contractorId}/summary${params}`);
+}
+
+// ─── Household (personal mode) mutations ────────────────────────────────────
+// Routes live under apps/api/src/routes/household/* — see lib/api.ts for the
+// matching note on the read-side helpers.
+
+export async function createHousehold(body: { name: string }): Promise<HouseholdSummary> {
+  return clientFetch<HouseholdSummary>('/households', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createHouseholdAccount(
+  householdId: string,
+  body: {
+    name: string;
+    type: HouseholdAccountType;
+    visibility: HouseholdAccountVisibility;
+    accountNumberMask?: string;
+    openingBalance?: string;
+    creditLimit?: string;
+    statementDay?: number;
+  },
+): Promise<HouseholdAccount> {
+  return clientFetch<HouseholdAccount>(`/households/${householdId}/accounts`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createHouseholdTransaction(
+  householdId: string,
+  body: CreateHouseholdTransactionBody,
+): Promise<HouseholdTransaction> {
+  return clientFetch<HouseholdTransaction>(`/households/${householdId}/transactions`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateHouseholdTransaction(
+  householdId: string,
+  transactionId: string,
+  body: Partial<CreateHouseholdTransactionBody>,
+): Promise<HouseholdTransaction> {
+  return clientFetch<HouseholdTransaction>(`/households/${householdId}/transactions/${transactionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteHouseholdTransaction(householdId: string, transactionId: string): Promise<void> {
+  await clientFetch(`/households/${householdId}/transactions/${transactionId}`, { method: 'DELETE' });
+}
+
+/**
+ * Matches POST /households/:id/transfers' actual body (see
+ * transactions.routes.ts's createTransferBodySchema) — returns the two
+ * linked transaction rows the backend creates (source leg, destination leg).
+ */
+export async function createHouseholdTransfer(
+  householdId: string,
+  body: CreateHouseholdTransferBody,
+): Promise<[HouseholdTransaction, HouseholdTransaction]> {
+  return clientFetch<[HouseholdTransaction, HouseholdTransaction]>(`/households/${householdId}/transfers`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createCommitment(householdId: string, body: CreateCommitmentBody): Promise<Commitment> {
+  return clientFetch<Commitment>(`/households/${householdId}/commitments`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateCommitment(
+  householdId: string,
+  commitmentId: string,
+  body: UpdateCommitmentBody,
+): Promise<Commitment> {
+  return clientFetch<Commitment>(`/households/${householdId}/commitments/${commitmentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
 }
 
 export async function updateContractor(

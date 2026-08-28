@@ -1,25 +1,22 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
-import type { Company } from '../../lib/api-types';
 import type { AuthenticatedUser } from '../../lib/auth';
-import type { KsefEnvironment } from '../../lib/ksef-environment';
 import { t } from '../../lib/translations';
 import { BrandImage } from '../brand/BrandImage';
-import { CompanySwitcher } from '../CompanySwitcher';
-import { KsefEnvironmentBadge } from '../KsefEnvironmentBadge';
 import { SessionActions } from './SessionActions';
 import { ThemeSwitcher } from './ThemeSwitcher';
 
 interface AppHeaderProps {
   user: AuthenticatedUser | null;
-  companies: Company[];
-  activeCompanyId: string | null;
-  activeKsefEnvironment: KsefEnvironment;
+  switcher: ReactNode;
+  modeSwitch?: ReactNode;
+  ksefBadge?: ReactNode;
 }
 
-export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironment }: AppHeaderProps) {
+export function AppHeader({ user, switcher, modeSwitch, ksefBadge }: AppHeaderProps) {
   const headerReference = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -51,12 +48,11 @@ export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironm
         </div>
         {user ? (
           <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:items-center lg:gap-[18px]">
+            {modeSwitch ? <div data-app-header-mode className="min-w-0">{modeSwitch}</div> : null}
             <div data-app-header-company className="min-w-0 lg:max-w-64 lg:shrink">
-              <CompanySwitcher companies={companies} activeCompanyId={activeCompanyId} compact />
+              {switcher}
             </div>
-            <div data-app-header-ksef className="min-w-0">
-              <KsefEnvironmentBadge environment={activeKsefEnvironment} />
-            </div>
+            {ksefBadge ? <div data-app-header-ksef className="min-w-0">{ksefBadge}</div> : null}
             <div className="hidden min-w-0 flex-1 lg:flex">
               <div className="flex h-[34px] w-full max-w-[300px] items-center justify-between rounded-control border border-outline bg-secondary-surface px-3 text-[13px] text-muted">
                 <span className="truncate">{t.header.searchPlaceholder}</span>

@@ -2,6 +2,11 @@ import type { PrismaClient } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../app.js';
 import type { AuthConfig } from '../lib/auth-config.js';
+import type { BuildAppOptions } from '../app.js';
+
+const householdDatabase = {
+  $disconnect: vi.fn(async () => undefined)
+} as unknown as NonNullable<BuildAppOptions['householdDatabaseClient']>;
 
 const authConfig: AuthConfig = {
   nodeEnv: 'test',
@@ -43,6 +48,7 @@ describe('ready route', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig
     });
 

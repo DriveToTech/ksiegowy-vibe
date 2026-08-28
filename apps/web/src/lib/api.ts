@@ -5,6 +5,8 @@ import { ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME, KSEF_ENVIRONMENT_HEADER_NAME } fro
 import type {
   AuthUser,
   BackupRunStatus,
+  BudgetEnvelope,
+  Commitment,
   Company,
   CompanyKsefSettings,
   CompanyBackupStatusReadModel,
@@ -12,6 +14,11 @@ import type {
   Contractor,
   ContractorServiceRate,
   DashboardSummary,
+  HouseholdAccount,
+  HouseholdCategory,
+  HouseholdDashboard,
+  HouseholdMember,
+  HouseholdTransaction,
   IncomingInvoiceDetail,
   IncomingInvoiceSummary,
   Invite,
@@ -156,6 +163,14 @@ export async function getDashboardSummary(companyId: string): Promise<DashboardS
   });
 }
 
+export async function getDashboardSummary(companyId: string): Promise<DashboardSummary> {
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
+
+  return apiFetch<DashboardSummary>(`/companies/${companyId}/dashboard-summary`, {
+    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
+  });
+}
+
 export async function getInvoice(companyId: string, invoiceId: string): Promise<InvoiceDetail> {
   const activeKsefEnvironment = await getActiveKsefEnvironment();
 
@@ -225,4 +240,65 @@ export async function getServiceTemplates(companyId: string, includeInactive = f
 
 export async function getContractorServiceRates(companyId: string, contractorId: string): Promise<ContractorServiceRate[]> {
   return apiFetch(`/companies/${companyId}/contractors/${contractorId}/service-rates`);
+}
+// ─── Household (personal mode) API helpers ──────────────────────────────────
+// Routes live under apps/api/src/routes/household/* — paths and response
+// shapes here are confirmed against those route files, not guessed. Every
+// call here is from a dynamic (cookies()-using) server component, so a
+// missing endpoint fails at request time, not at build time.
+
+export async function getHouseholdAccounts(householdId: string): Promise<HouseholdAccount[]> {
+  return apiFetch<HouseholdAccount[]>(`/households/${householdId}/accounts`);
+}
+
+export async function getHouseholdDashboard(householdId: string): Promise<HouseholdDashboard> {
+  return apiFetch<HouseholdDashboard>(`/households/${householdId}/dashboard`);
+}
+
+export async function getHouseholdTransactions(
+  householdId: string,
+  params?: Record<string, string>,
+): Promise<{ data: HouseholdTransaction[]; total: number; page: number; limit: number; moneyIn: string; moneyOut: string }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/households/${householdId}/transactions${qs}`);
+}
+
+export async function getHouseholdTransaction(householdId: string, transactionId: string): Promise<HouseholdTransaction> {
+  return apiFetch<HouseholdTransaction>(`/households/${householdId}/transactions/${transactionId}`);
+}
+
+export async function getHouseholdCategories(householdId: string): Promise<HouseholdCategory[]> {
+  return apiFetch<HouseholdCategory[]>(`/households/${householdId}/categories`);
+}
+
+export async function getHouseholdEnvelopes(householdId: string): Promise<BudgetEnvelope[]> {
+  return apiFetch<BudgetEnvelope[]>(`/households/${householdId}/envelopes`);
+}
+
+export async function getHouseholdCommitments(householdId: string): Promise<Commitment[]> {
+  return apiFetch<Commitment[]>(`/households/${householdId}/commitments`);
+}
+
+export async function getHouseholdCommitment(householdId: string, commitmentId: string): Promise<Commitment> {
+  return apiFetch<Commitment>(`/households/${householdId}/commitments/${commitmentId}`);
+}
+
+export interface CommitmentAmortizationScheduleEntry {
+  month: number;
+  payment: string;
+  principalPortion: string;
+  interestPortion: string;
+  remainingBalance: string;
+}
+
+/** Loan-only. Only ever call this for a fully-specified LOAN commitment. */
+export async function getHouseholdCommitmentAmortizationSchedule(
+  householdId: string,
+  commitmentId: string,
+): Promise<CommitmentAmortizationScheduleEntry[]> {
+  return apiFetch<CommitmentAmortizationScheduleEntry[]>(`/households/${householdId}/commitments/${commitmentId}/amortization-schedule`);
+}
+
+export async function getHouseholdMembers(householdId: string): Promise<HouseholdMember[]> {
+  return apiFetch<HouseholdMember[]>(`/households/${householdId}/members`);
 }

@@ -22,6 +22,7 @@
     "@fastify/oauth2": "^8.2.0",
     "@fastify/sensible": "^6.0.4",
     "@ksiegowy/fa3-xml": "workspace:*",
+    "@ksiegowy/household-service": "workspace:*",
     "@ksiegowy/ksef-client": "workspace:*",
     "@ksiegowy/pdf-templates": "workspace:*",
     "@ksiegowy/shared-utils": "workspace:*",

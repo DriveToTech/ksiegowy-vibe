@@ -13,7 +13,10 @@ fi
 postgres_host="${POSTGRES_HOST:-postgres}"
 postgres_port="${POSTGRES_PORT:-5432}"
 postgres_user="${POSTGRES_USER:?POSTGRES_USER is required}"
-postgres_database="${POSTGRES_DB:?POSTGRES_DB is required}"
+business_postgres_database="${POSTGRES_DB:?POSTGRES_DB is required}"
+household_postgres_database="${HOUSEHOLD_POSTGRES_DB:?HOUSEHOLD_POSTGRES_DB is required}"
+backup_database_labels=(business household)
+backup_database_names=("${business_postgres_database}" "${household_postgres_database}")
 backup_environment_name="${DB_BACKUP_ENVIRONMENT_NAME:-local}"
 backup_retention_days="${DB_BACKUP_RETENTION_DAYS:-14}"
 backup_local_retention_days="${DB_BACKUP_LOCAL_RETENTION_DAYS:-14}"
@@ -87,13 +90,6 @@ if ! [[ "${postgres_ready_timeout_seconds}" =~ ^[0-9]+$ ]] || [[ "${postgres_rea
 fi
 
 timestamp_utc="$(date -u +%Y%m%dT%H%M%SZ)"
-backup_file_name="postgresql-${backup_environment_name}-${timestamp_utc}.sql.gz"
-checksum_file_name="${backup_file_name}.sha256"
-manifest_file_name="postgresql-${backup_environment_name}-${timestamp_utc}.manifest.json"
-
-backup_file_path="${backup_output_directory}/${backup_file_name}"
-checksum_file_path="${backup_output_directory}/${checksum_file_name}"
-manifest_file_path="${backup_output_directory}/${manifest_file_name}"
 
 echo "[backup-postgres] Starting PostgreSQL logical backup for environment ${backup_environment_name}."
 
@@ -107,7 +103,7 @@ mkdir -p "${backup_output_directory}"
 
 readiness_deadline=$((SECONDS + postgres_ready_timeout_seconds))
 
-until pg_isready --host="${postgres_host}" --port="${postgres_port}" --username="${postgres_user}" --dbname="${postgres_database}" >/dev/null 2>&1; do
+until pg_isready --host="${postgres_host}" --port="${postgres_port}" --username="${postgres_user}" --dbname="${business_postgres_database}" >/dev/null 2>&1; do
   if [[ "${SECONDS}" -ge "${readiness_deadline}" ]]; then
     echo "[backup-postgres] PostgreSQL is not ready after ${postgres_ready_timeout_seconds}s."
     exit 1
@@ -119,30 +115,50 @@ done
 
 echo "[backup-postgres] PostgreSQL is ready."
 
-pg_dump \
-  --host="${postgres_host}" \
-  --port="${postgres_port}" \
-  --username="${postgres_user}" \
-  --dbname="${postgres_database}" \
-  --clean \
-  --if-exists \
-  --no-owner \
-  --no-privileges \
-  | gzip -9 > "${backup_file_path}"
+# Two databases (business, household) are dumped separately, sharing one timestamp,
+# so a restore can target either one independently — see run-postgres-restore.sh's
+# DB_RESTORE_DATABASE_LABEL.
+artifact_file_names=()
 
-backup_checksum="$(sha256sum "${backup_file_path}" | cut -d ' ' -f 1)"
-backup_size_bytes="$(wc -c < "${backup_file_path}" | tr -d ' ')"
+for database_index in "${!backup_database_labels[@]}"; do
+  database_label="${backup_database_labels[$database_index]}"
+  database_name="${backup_database_names[$database_index]}"
 
-printf '%s  %s\n' "${backup_checksum}" "${backup_file_name}" > "${checksum_file_path}"
+  backup_file_name="postgresql-${database_label}-${backup_environment_name}-${timestamp_utc}.sql.gz"
+  checksum_file_name="${backup_file_name}.sha256"
+  manifest_file_name="postgresql-${database_label}-${backup_environment_name}-${timestamp_utc}.manifest.json"
 
-cat <<EOF > "${manifest_file_path}"
+  backup_file_path="${backup_output_directory}/${backup_file_name}"
+  checksum_file_path="${backup_output_directory}/${checksum_file_name}"
+  manifest_file_path="${backup_output_directory}/${manifest_file_name}"
+
+  echo "[backup-postgres] Dumping database '${database_name}' (${database_label})."
+
+  pg_dump \
+    --host="${postgres_host}" \
+    --port="${postgres_port}" \
+    --username="${postgres_user}" \
+    --dbname="${database_name}" \
+    --clean \
+    --if-exists \
+    --no-owner \
+    --no-privileges \
+    | gzip -9 > "${backup_file_path}"
+
+  backup_checksum="$(sha256sum "${backup_file_path}" | cut -d ' ' -f 1)"
+  backup_size_bytes="$(wc -c < "${backup_file_path}" | tr -d ' ')"
+
+  printf '%s  %s\n' "${backup_checksum}" "${backup_file_name}" > "${checksum_file_path}"
+
+  cat <<EOF > "${manifest_file_path}"
 {
   "backupType": "postgresql-logical",
+  "databaseLabel": "${database_label}",
   "environmentName": "${backup_environment_name}",
   "createdAtUtc": "${timestamp_utc}",
   "postgresHost": "${postgres_host}",
   "postgresPort": "${postgres_port}",
-  "postgresDatabase": "${postgres_database}",
+  "postgresDatabase": "${database_name}",
   "artifact": {
     "fileName": "${backup_file_name}",
     "sizeBytes": ${backup_size_bytes},
@@ -150,6 +166,11 @@ cat <<EOF > "${manifest_file_path}"
   }
 }
 EOF
+
+  artifact_file_names+=("${backup_file_name}" "${checksum_file_name}" "${manifest_file_name}")
+
+  echo "[backup-postgres] Completed dump for '${database_label}': ${backup_file_path}"
+done
 
 backup_destination_path=""
 
@@ -166,8 +187,6 @@ if [[ "${remote_upload_enabled}" == "true" && -z "${backup_destination_path}" ]]
   echo "[backup-postgres] Remote upload requires BACKUP_DESTINATION_ROOT for the canonical destination layout, or legacy DB_BACKUP_REMOTE_BASE_PATH for backward-compatible PostgreSQL destinations."
   exit 1
 fi
-
-artifact_file_names=("${backup_file_name}" "${checksum_file_name}" "${manifest_file_name}")
 
 verify_remote_artifact_set() {
   local remote_directory="$1"
@@ -260,7 +279,7 @@ else
 fi
 
 echo "[backup-postgres] Applying local retention (${backup_local_retention_days} days) in ${backup_output_directory}."
-find "${backup_output_directory}" -maxdepth 1 -type f -name "postgresql-${backup_environment_name}-*" -mtime +$((backup_local_retention_days - 1)) -delete
+find "${backup_output_directory}" -maxdepth 1 -type f -name "postgresql-*-${backup_environment_name}-*" -mtime +$((backup_local_retention_days - 1)) -delete
 
 echo "[backup-postgres] Backup finished successfully."
-echo "[backup-postgres] Local artifacts: ${backup_file_path}, ${checksum_file_path}, ${manifest_file_path}."
+echo "[backup-postgres] Local artifacts (${#artifact_file_names[@]} files) in ${backup_output_directory}: ${artifact_file_names[*]}."

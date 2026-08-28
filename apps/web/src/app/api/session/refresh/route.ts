@@ -5,7 +5,9 @@ import { API_BASE } from '../../../../lib/api-base';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const authToken = request.cookies.get('auth_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
-  const next = request.nextUrl.searchParams.get('next') ?? '/dashboard';
+  // '/' rather than a hardcoded protected route: the home page resolves the
+  // mode-aware landing path via landingPathForSession() once a session exists.
+  const next = request.nextUrl.searchParams.get('next') ?? '/';
 
   // Use APP_URL as the redirect origin to avoid the localhost/127.0.0.1 mismatch.
   // When a browser resolves localhost to 127.0.0.1, request.url reflects that IP,
@@ -34,6 +36,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     redirectResponse.cookies.delete('auth_token');
     redirectResponse.cookies.delete('refresh_token');
     redirectResponse.cookies.delete('active_company');
+    redirectResponse.cookies.delete('active_mode');
+    redirectResponse.cookies.delete('active_household');
     return redirectResponse;
   }
 

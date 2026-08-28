@@ -1,7 +1,12 @@
 import type { KsefEnvironment, PrismaClient } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../../app.js';
+import type { BuildAppOptions } from '../../app.js';
 import type { AccessTokenPayload, AuthConfig } from '../../lib/auth-config.js';
+
+const householdDatabase = {
+  $disconnect: vi.fn(async () => undefined)
+} as unknown as NonNullable<BuildAppOptions['householdDatabaseClient']>;
 import {
   buildInvoiceKsefStateInclude,
   getCorrectionAmountPrefix,
@@ -305,6 +310,7 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig,
     });
 
@@ -390,6 +396,7 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig,
     });
 

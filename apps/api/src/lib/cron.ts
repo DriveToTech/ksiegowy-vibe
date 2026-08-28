@@ -1,6 +1,8 @@
 import cron from 'node-cron';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
+import type { HouseholdDatabase } from '@ksiegowy/household-service';
+import { generateDueCommitmentTransactions, runRenewalReminderSweep } from '@ksiegowy/household-service';
 import { ICloudBackupProvider } from '../services/backup/icloud.js';
 import { retryOfflineQueue } from '../services/ksef.service.js';
 
@@ -29,6 +31,39 @@ export function scheduleDailyBackup(
   });
 
   logger.info('KSeF offline queue retry cron scheduled (hourly)');
+}
+
+/**
+ * Schedules the two daily household jobs: idempotent recurring-transaction
+ * generation from ACTIVE commitments, and the renewal-reminder sweep that
+ * feeds the dashboard's "upcoming" query. Both call directly into
+ * @ksiegowy/household-service — cron lives in apps/api, but never contains
+ * household business logic itself.
+ */
+export function scheduleDailyHouseholdJobs(householdDatabase: HouseholdDatabase, logger: FastifyBaseLogger): void {
+  cron.schedule('0 3 * * *', () => {
+    generateDueCommitmentTransactions(householdDatabase)
+      .then((result) => {
+        logger.info(result, 'Household commitment generation cron completed');
+      })
+      .catch((err: unknown) => {
+        logger.error({ err }, 'Household commitment generation cron failed unexpectedly');
+      });
+  });
+
+  logger.info('Household commitment generation cron scheduled at 03:00 AM');
+
+  cron.schedule('30 3 * * *', () => {
+    runRenewalReminderSweep(householdDatabase)
+      .then((result) => {
+        logger.info(result, 'Household renewal reminder sweep completed');
+      })
+      .catch((err: unknown) => {
+        logger.error({ err }, 'Household renewal reminder sweep failed unexpectedly');
+      });
+  });
+
+  logger.info('Household renewal reminder sweep cron scheduled at 03:30 AM');
 }
 
 async function runBackup(

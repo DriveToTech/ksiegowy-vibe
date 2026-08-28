@@ -12,6 +12,9 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Generated Prisma clients
+services/**/src/generated/
+
 # Environment
 .env
 .env.*

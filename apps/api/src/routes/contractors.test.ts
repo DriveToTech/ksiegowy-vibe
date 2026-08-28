@@ -2,7 +2,12 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
 import { buildApp } from '../app.js';
+import type { BuildAppOptions } from '../app.js';
 import type { AccessTokenPayload, AuthConfig } from '../lib/auth-config.js';
+
+const householdDatabase = {
+  $disconnect: vi.fn(async () => undefined)
+} as unknown as NonNullable<BuildAppOptions['householdDatabaseClient']>;
 
 const authConfig: AuthConfig = {
   nodeEnv: 'test',
@@ -80,7 +85,7 @@ describe('GET /companies/:companyId/contractors', () => {
       invoice: { groupBy: invoiceGroupBy },
     } as unknown as PrismaClient;
 
-    const app = await buildApp({ logger: false, prismaClient: prisma, authConfig });
+    const app = await buildApp({ logger: false, prismaClient: prisma, householdDatabaseClient: householdDatabase, authConfig });
     const authToken = signAccessToken(app, {
       sub: 'user-1',
       email: 'test@example.com',
@@ -133,7 +138,7 @@ describe('GET /companies/:companyId/contractors', () => {
       invoice: { groupBy: invoiceGroupBy },
     } as unknown as PrismaClient;
 
-    const app = await buildApp({ logger: false, prismaClient: prisma, authConfig });
+    const app = await buildApp({ logger: false, prismaClient: prisma, householdDatabaseClient: householdDatabase, authConfig });
     const authToken = signAccessToken(app, {
       sub: 'user-1',
       email: 'test@example.com',
@@ -181,7 +186,7 @@ describe('GET /companies/:companyId/contractors/:id/summary', () => {
       invoice: { aggregate: invoiceAggregate, findMany: invoiceFindMany },
     } as unknown as PrismaClient;
 
-    const app = await buildApp({ logger: false, prismaClient: prisma, authConfig });
+    const app = await buildApp({ logger: false, prismaClient: prisma, householdDatabaseClient: householdDatabase, authConfig });
     const authToken = signAccessToken(app, {
       sub: 'user-1',
       email: 'test@example.com',
@@ -217,7 +222,7 @@ describe('GET /companies/:companyId/contractors/:id/summary', () => {
       contractor: { findUnique: contractorFindUnique },
     } as unknown as PrismaClient;
 
-    const app = await buildApp({ logger: false, prismaClient: prisma, authConfig });
+    const app = await buildApp({ logger: false, prismaClient: prisma, householdDatabaseClient: householdDatabase, authConfig });
     const authToken = signAccessToken(app, {
       sub: 'user-1',
       email: 'test@example.com',

@@ -23,5 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   response.cookies.delete('auth_token');
   response.cookies.delete('refresh_token');
   response.cookies.delete('active_company');
+  response.cookies.delete('active_mode');
+  response.cookies.delete('active_household');
   return response;
 }

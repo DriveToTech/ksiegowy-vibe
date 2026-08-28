@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listHouseholdsForUser } from '@ksiegowy/household-service';
 import type { AccessTokenPayload, AuthCompanyClaim, RefreshTokenPayload } from '../../lib/auth-config.js';
 
 type AppPrisma = FastifyInstance['prisma'];
@@ -64,9 +65,22 @@ const authMeResponseSchema = {
         },
         required: ['id', 'role']
       }
+    },
+    households: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          id: { type: 'string' },
+          role: { type: 'string', enum: ['OWNER', 'MEMBER'] },
+          name: { type: 'string' }
+        },
+        required: ['id', 'role', 'name']
+      }
     }
   },
-  required: ['authenticated', 'user', 'companies']
+  required: ['authenticated', 'user', 'companies', 'households']
 } as const;
 
 const authRefreshResponseSchema = {
@@ -425,10 +439,17 @@ export const authRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
       throw fastify.httpErrors.unauthorized(message);
     });
 
+    // Live query, not JWT-derived — see plan's Cross-Cutting section: a
+    // households claim would let a removed member keep private-account
+    // visibility for up to the access-token TTL. `name` is included directly
+    // so the frontend session loader doesn't need a second round trip.
+    const households = await listHouseholdsForUser(fastify.householdDatabase, user.sub);
+
     return {
       authenticated: true,
       user: session.user,
-      companies: session.companies
+      companies: session.companies,
+      households: households.map((membership) => ({ id: membership.householdId, role: membership.role, name: membership.name }))
     };
   });
 };

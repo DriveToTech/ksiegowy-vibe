@@ -9,7 +9,16 @@ interface NavigationItem {
   href: string;
   label: string;
   mobileLabel?: string;
-  icon: 'overview' | 'outgoing' | 'incoming' | 'contractors' | 'settings';
+  icon:
+    | 'overview'
+    | 'outgoing'
+    | 'incoming'
+    | 'contractors'
+    | 'settings'
+    | 'householdHome'
+    | 'householdLedger'
+    | 'householdBudget'
+    | 'householdCommitments';
   badge?: string;
   badgeTone?: 'muted' | 'warning';
 }
@@ -17,23 +26,24 @@ interface NavigationItem {
 interface DashboardNavigationProps {
   items: NavigationItem[];
   mobile?: boolean;
+  rootHref?: string;
 }
 
-function isActivePath(pathname: string, href: string): boolean {
-  if (href === '/dashboard') {
+function isActivePath(pathname: string, href: string, rootHref: string): boolean {
+  if (href === rootHref) {
     return pathname === href;
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function DashboardNavigation({ items, mobile = false }: DashboardNavigationProps) {
+export function DashboardNavigation({ items, mobile = false, rootHref = '/dashboard' }: DashboardNavigationProps) {
   const pathname = usePathname();
 
   return (
     <>
       {items.map((item) => {
-        const isActive = isActivePath(pathname, item.href);
+        const isActive = isActivePath(pathname, item.href, rootHref);
 
         return (
           <Link

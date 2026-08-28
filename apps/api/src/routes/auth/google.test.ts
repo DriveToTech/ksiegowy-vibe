@@ -47,6 +47,20 @@ const prisma = {
   }
 } as unknown as NonNullable<BuildAppOptions['prismaClient']>;
 
+const householdDatabase = {
+  $disconnect: vi.fn(async () => undefined),
+  householdMembership: {
+    findMany: vi.fn(async ({ where }: { where: { userId: string } }) => {
+      if (where.userId !== 'user_123') {
+        return [];
+      }
+
+      return [{ householdId: 'household_1', role: 'OWNER', household: { name: 'Kowalski Family' } }];
+    }),
+    updateMany: vi.fn(async () => ({ count: 1 }))
+  }
+} as unknown as NonNullable<BuildAppOptions['householdDatabaseClient']>;
+
 const signAccessToken = (app: Awaited<ReturnType<typeof buildApp>>, payload: AccessTokenPayload): string => {
   return (app.jwt as unknown as { access: { sign: (value: AccessTokenPayload) => string } }).access.sign(payload);
 };
@@ -64,6 +78,7 @@ describe('auth routes', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig: baseAuthConfig
     });
 
@@ -86,6 +101,7 @@ describe('auth routes', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig: baseAuthConfig
     });
 
@@ -120,7 +136,8 @@ describe('auth routes', () => {
         name: 'Maciej',
         avatarUrl: null
       },
-      companies: [{ id: 'company_1', role: 'ADMIN' }]
+      companies: [{ id: 'company_1', role: 'ADMIN' }],
+      households: [{ id: 'household_1', role: 'OWNER', name: 'Kowalski Family' }]
     });
 
     await app.close();
@@ -130,6 +147,7 @@ describe('auth routes', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig: baseAuthConfig
     });
 

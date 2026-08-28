@@ -120,6 +120,7 @@ query_single_value() {
 }
 
 check_postgresql_backup_freshness() {
+  local database_label="$1"
   local latest_postgresql_artifact_path=""
   local latest_postgresql_timestamp=""
   local sql_file_path
@@ -134,9 +135,9 @@ check_postgresql_backup_freshness() {
   local artifact_age_hours
 
   shopt -s nullglob
-  for sql_file_path in "${backup_output_directory}/postgresql-${backup_environment_name}-"*.sql.gz; do
+  for sql_file_path in "${backup_output_directory}/postgresql-${database_label}-${backup_environment_name}-"*.sql.gz; do
     sql_file_name="$(basename "${sql_file_path}")"
-    sql_file_timestamp="${sql_file_name#postgresql-${backup_environment_name}-}"
+    sql_file_timestamp="${sql_file_name#postgresql-${database_label}-${backup_environment_name}-}"
     sql_file_timestamp="${sql_file_timestamp%.sql.gz}"
 
     if [[ -z "${latest_postgresql_timestamp}" || "${sql_file_timestamp}" > "${latest_postgresql_timestamp}" ]]; then
@@ -147,24 +148,24 @@ check_postgresql_backup_freshness() {
   shopt -u nullglob
 
   if [[ -z "${latest_postgresql_artifact_path}" ]]; then
-    echo "[verify-backups] Missing PostgreSQL backup artifact for environment ${backup_environment_name}."
+    echo "[verify-backups] Missing PostgreSQL backup artifact for database '${database_label}', environment ${backup_environment_name}."
     failure_count=$((failure_count + 1))
     return
   fi
 
-  checksum_file_name="postgresql-${backup_environment_name}-${latest_postgresql_timestamp}.sql.gz.sha256"
-  manifest_file_name="postgresql-${backup_environment_name}-${latest_postgresql_timestamp}.manifest.json"
+  checksum_file_name="postgresql-${database_label}-${backup_environment_name}-${latest_postgresql_timestamp}.sql.gz.sha256"
+  manifest_file_name="postgresql-${database_label}-${backup_environment_name}-${latest_postgresql_timestamp}.manifest.json"
   checksum_file_path="${backup_output_directory}/${checksum_file_name}"
   manifest_file_path="${backup_output_directory}/${manifest_file_name}"
 
   if [[ ! -f "${checksum_file_path}" || ! -f "${manifest_file_path}" ]]; then
-    echo "[verify-backups] Latest PostgreSQL backup set is incomplete for timestamp ${latest_postgresql_timestamp}."
+    echo "[verify-backups] Latest PostgreSQL backup set for database '${database_label}' is incomplete for timestamp ${latest_postgresql_timestamp}."
     failure_count=$((failure_count + 1))
     return
   fi
 
   if ! (cd "${backup_output_directory}" && sha256sum -c "${checksum_file_name}" >/dev/null); then
-    echo "[verify-backups] Checksum validation failed for latest PostgreSQL backup set (${latest_postgresql_timestamp})."
+    echo "[verify-backups] Checksum validation failed for latest PostgreSQL backup set for database '${database_label}' (${latest_postgresql_timestamp})."
     failure_count=$((failure_count + 1))
     return
   fi
@@ -174,12 +175,12 @@ check_postgresql_backup_freshness() {
   artifact_age_hours=$(((current_epoch - latest_postgresql_artifact_epoch) / 3600))
 
   if [[ "${artifact_age_hours}" -gt "${postgresql_backup_max_age_hours}" ]]; then
-    echo "[verify-backups] PostgreSQL backup is stale. Latest artifact age: ${artifact_age_hours}h, max: ${postgresql_backup_max_age_hours}h."
+    echo "[verify-backups] PostgreSQL backup for database '${database_label}' is stale. Latest artifact age: ${artifact_age_hours}h, max: ${postgresql_backup_max_age_hours}h."
     failure_count=$((failure_count + 1))
     return
   fi
 
-  echo "[verify-backups] PostgreSQL backup freshness is OK. Latest complete set (${latest_postgresql_timestamp}) age: ${artifact_age_hours}h."
+  echo "[verify-backups] PostgreSQL backup freshness for database '${database_label}' is OK. Latest complete set (${latest_postgresql_timestamp}) age: ${artifact_age_hours}h."
 }
 
 check_file_backup_provider_freshness() {
@@ -220,7 +221,8 @@ check_file_backup_provider_freshness() {
 }
 
 if [[ "${is_postgresql_backup_required}" == "true" ]]; then
-  check_postgresql_backup_freshness
+  check_postgresql_backup_freshness "business"
+  check_postgresql_backup_freshness "household"
 else
   echo "[verify-backups] PostgreSQL backup check skipped (not required)."
 fi

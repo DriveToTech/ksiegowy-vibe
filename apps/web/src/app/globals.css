@@ -90,6 +90,40 @@ html[data-theme='dark'] {
   --shadow-frame: 0 30px 90px rgba(0, 0, 0, 0.6);
 }
 
+/*
+ * Personal mode (household budgeting) accent tokens — green, everywhere, so
+ * the subject of the money on screen is never ambiguous. Structural tokens
+ * (surfaces, borders, text) are untouched; only the primary/nav-active family
+ * is overridden. Two blocks, light then dark, because html[data-theme='dark']
+ * and html[data-mode='personal'] are both (0,1,1)-specificity attribute
+ * selectors on <html> — without the combined dark+personal block below,
+ * source order alone would decide the cascade and dark mode would silently
+ * lose its green accents to the light-green values.
+ */
+html[data-mode='personal'] {
+  --primary: #0F6B45;
+  --primary-strong: #0B5636;
+  --primary-gradient: linear-gradient(140deg, #2FAE7C, #2E86C8);
+  --brand-gradient: linear-gradient(140deg, #2FAE7C, #2E86C8);
+  --primary-ink: #FFFFFF;
+  --primary-soft: rgba(15, 107, 69, 0.14);
+  --primary-soft-ink: #0F6B45;
+  --nav-active: linear-gradient(100deg, rgba(15, 107, 69, 0.16), rgba(46, 134, 200, 0.09));
+  --nav-active-border: rgba(15, 107, 69, 0.30);
+}
+
+html[data-theme='dark'][data-mode='personal'] {
+  --primary: #58CF9A;
+  --primary-strong: #7FE0B5;
+  --primary-gradient: linear-gradient(140deg, #58CF9A, #5EB8F0);
+  --brand-gradient: linear-gradient(140deg, #58CF9A, #5EB8F0);
+  --primary-ink: #0C0D1C;
+  --primary-soft: rgba(88, 207, 154, 0.14);
+  --primary-soft-ink: #58CF9A;
+  --nav-active: linear-gradient(100deg, rgba(88, 207, 154, 0.2), rgba(94, 184, 240, 0.1));
+  --nav-active-border: rgba(88, 207, 154, 0.32);
+}
+
 @theme inline {
   --font-sans: var(--font-sora);
   --font-mono: var(--font-ibm-plex-mono);
@@ -175,6 +209,19 @@ body {
   grid-row: 1;
 }
 
+/*
+ * Fifth slot, added for the business/household mode switch (ModeSwitch).
+ * It applies to both modes, so it can't reuse the KSeF-badge slot (business
+ * only). Simplest fit in the existing 2-column mobile grid: its own full-width
+ * row underneath the switcher/badge row, rather than reshaping the grid to
+ * fit five slots into two columns cleanly — ux-ui-architect should confirm
+ * this placement or propose a tighter one.
+ */
+[data-app-header-mode] {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
 @media (min-width: 1024px) {
   .app-header-content {
     display: flex;
@@ -185,6 +232,7 @@ body {
   [data-app-header-brand],
   [data-app-header-company],
   [data-app-header-ksef],
+  [data-app-header-mode],
   [data-app-header-theme-session] {
     grid-column: auto;
     grid-row: auto;

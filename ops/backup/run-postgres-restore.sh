@@ -7,14 +7,30 @@ restore_confirmed="${DB_RESTORE_CONFIRMED:-}"
 postgres_host="${POSTGRES_HOST:-postgres}"
 postgres_port="${POSTGRES_PORT:-5432}"
 postgres_user="${POSTGRES_USER:?POSTGRES_USER is required}"
-postgres_database="${POSTGRES_DB:?POSTGRES_DB is required}"
+restore_database_label="${DB_RESTORE_DATABASE_LABEL:-business}"
 restore_environment_name="${DB_RESTORE_ENVIRONMENT_NAME:-production}"
 restore_artifact_name="${DB_RESTORE_ARTIFACT_NAME:-}"
 postgres_ready_timeout_seconds="${DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS:-120}"
 backup_input_directory="/backup-output"
 
+# Each database is restored independently: the business and household databases
+# were dumped separately (see run-postgres-backup.sh), so a full recovery is two
+# runs of this script, once per DB_RESTORE_DATABASE_LABEL.
+case "${restore_database_label}" in
+  business)
+    postgres_database="${POSTGRES_DB:?POSTGRES_DB is required}"
+    ;;
+  household)
+    postgres_database="${HOUSEHOLD_POSTGRES_DB:?HOUSEHOLD_POSTGRES_DB is required}"
+    ;;
+  *)
+    echo "[restore-postgres] Invalid DB_RESTORE_DATABASE_LABEL '${restore_database_label}'. Use 'business' or 'household'."
+    exit 1
+    ;;
+esac
+
 if [[ "${restore_confirmed}" != "yes" ]]; then
-  echo "[restore-postgres] DANGER: This will DESTROY and replace all data in '${postgres_database}' on ${postgres_host}:${postgres_port}."
+  echo "[restore-postgres] DANGER: This will DESTROY and replace all data in '${postgres_database}' (${restore_database_label}) on ${postgres_host}:${postgres_port}."
   echo "[restore-postgres] Set DB_RESTORE_CONFIRMED=yes to proceed."
   exit 1
 fi
@@ -22,9 +38,9 @@ fi
 if [[ -n "${restore_artifact_name}" ]]; then
   backup_file_name="${restore_artifact_name}"
 else
-  backup_file_name="$(ls -t "${backup_input_directory}"/postgresql-"${restore_environment_name}"-*.sql.gz 2>/dev/null | head -1 | xargs -r basename)"
+  backup_file_name="$(ls -t "${backup_input_directory}"/postgresql-"${restore_database_label}"-"${restore_environment_name}"-*.sql.gz 2>/dev/null | head -1 | xargs -r basename)"
   if [[ -z "${backup_file_name}" ]]; then
-    echo "[restore-postgres] No artifacts found for environment '${restore_environment_name}' in ${backup_input_directory}."
+    echo "[restore-postgres] No artifacts found for database '${restore_database_label}', environment '${restore_environment_name}' in ${backup_input_directory}."
     exit 1
   fi
 fi
