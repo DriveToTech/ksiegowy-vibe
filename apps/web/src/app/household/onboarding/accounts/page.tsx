@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getHouseholdAccounts } from '../../../../lib/api';
 import { requireAuthSession } from '../../../../lib/auth';
-import { formatMoney } from '../../../../lib/format';
+import { accountBadge, formatMoney } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 import { Button } from '../../../../components/atoms/Button';
 import { AccountForm } from '../../(app)/settings/accounts/AccountForm';
@@ -25,19 +25,25 @@ export default async function HouseholdOnboardingAccountsPage() {
 
       {accounts.length > 0 ? (
         <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
-          {accounts.map((account, index) => (
-            <div key={account.id} className={index > 0 ? 'flex items-center justify-between border-t border-outline px-4 py-3' : 'flex items-center justify-between px-4 py-3'}>
-              <span className="text-sm font-medium text-foreground">{account.name}</span>
-              <span className="tabular-nums text-sm text-muted">{formatMoney(account.balance)}</span>
-            </div>
-          ))}
+          {accounts.map((account, index) => {
+            const badge = accountBadge(account);
+            return (
+              <div key={account.id} className={index > 0 ? 'flex items-center justify-between gap-3 border-t border-outline px-4 py-3' : 'flex items-center justify-between gap-3 px-4 py-3'}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-sm font-medium text-foreground">{account.name}</span>
+                  <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-chip px-2 py-0.5 font-mono text-[10px] tracking-[0.08em] ${badge.toneClass}`}>{badge.label}</span>
+                </span>
+                <span className="shrink-0 tabular-nums text-sm text-muted">{formatMoney(account.balance)}</span>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 
       <AccountForm householdId={session.activeHouseholdId} />
 
       <Link href="/household">
-        <Button variant="secondary">{t.household.onboarding.finish}</Button>
+        <Button variant={accounts.length > 0 ? 'primary' : 'secondary'}>{t.household.onboarding.finish}</Button>
       </Link>
     </div>
   );

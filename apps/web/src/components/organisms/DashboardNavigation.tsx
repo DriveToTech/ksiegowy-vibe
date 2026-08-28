@@ -53,7 +53,7 @@ export function DashboardNavigation({ items, mobile = false, rootHref = '/dashbo
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               mobile
-                ? 'min-h-16 min-w-0 rounded-inset px-1 py-3 text-center text-[10px] font-medium leading-tight transition'
+                ? 'flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-inset px-1 py-2 text-center text-[10px] font-medium leading-tight transition'
                 : 'min-h-11 rounded-control border border-transparent px-4 py-2 text-sm font-medium transition',
               isActive
                 ? 'bg-[image:var(--nav-active)] border-[var(--nav-active-border)] text-foreground'
@@ -62,17 +62,24 @@ export function DashboardNavigation({ items, mobile = false, rootHref = '/dashbo
                   : 'text-muted hover:bg-foreground/5 hover:text-foreground-secondary',
             )}
           >
-            <span className={cn('flex min-w-0 items-center gap-3', mobile ? 'flex-col justify-center gap-1' : 'justify-between')}>
-              <span className="flex min-w-0 items-center gap-3">
+            {mobile ? (
+              <>
                 <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
-                <span className={mobile ? 'w-full whitespace-nowrap' : 'truncate'}>{mobile ? item.mobileLabel ?? item.label : item.label}</span>
-              </span>
-              {!mobile && item.badge ? (
-                <span className={cn('font-mono text-[11px]', item.badgeTone === 'warning' ? 'text-warning-ink' : 'text-muted')}>
-                  {item.badge}
+                <span className="w-full truncate">{item.mobileLabel ?? item.label}</span>
+              </>
+            ) : (
+              <span className="flex min-w-0 items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </span>
-              ) : null}
-            </span>
+                {item.badge ? (
+                  <span className={cn('font-mono text-[11px]', item.badgeTone === 'warning' ? 'text-warning-ink' : 'text-muted')}>
+                    {item.badge}
+                  </span>
+                ) : null}
+              </span>
+            )}
           </Link>
         );
       })}

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { HouseholdAccount } from '../../lib/api-types';
-import { formatMoney } from '../../lib/format';
+import { accountBadge, formatMoney } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { cn } from '../../lib/cn';
 
@@ -159,17 +159,4 @@ export function AccountPicker({ accounts, value, onChange, id, className }: Acco
       ) : null}
     </div>
   );
-}
-
-function accountBadge(account: HouseholdAccount): { label: string; toneClass: string } {
-  if (account.visibility === 'PRIVATE') {
-    return { label: t.household.accountPicker.visibilityLabels.PRIVATE, toneClass: 'bg-surface-raised text-muted' };
-  }
-  if (account.type === 'CREDIT_CARD') {
-    return { label: t.household.accountPicker.typeLabels.CREDIT_CARD, toneClass: 'bg-warning text-warning-ink' };
-  }
-  if (account.type === 'CASH') {
-    return { label: t.household.accountPicker.typeLabels.CASH, toneClass: 'bg-surface-raised text-muted' };
-  }
-  return { label: t.household.accountPicker.visibilityLabels.SHARED, toneClass: 'bg-success text-success-ink' };
 }

@@ -23,7 +23,7 @@ export default async function HouseholdTransactionDetailPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={t.household.ledger.pageEyebrow} title={transaction.payee} />
+      <PageHeader eyebrow={t.household.ledger.pageEyebrow} eyebrowHref="/household/ledger" title={transaction.payee} hideTitle />
       <TransactionDetailView
         householdId={householdId}
         transaction={transaction}

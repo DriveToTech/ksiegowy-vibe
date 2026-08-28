@@ -70,6 +70,8 @@ const listTransactionsQuerySchema = {
     dateTo: { type: 'string', format: 'date' },
     tag: { type: 'string' },
     excludeTransfers: { type: 'boolean' },
+    search: { type: 'string' },
+    direction: { type: 'string', enum: ['in', 'out'] },
     page: { type: 'integer', minimum: 1, default: 1 },
     limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 }
   }
@@ -201,6 +203,8 @@ interface ListTransactionsQuery {
   dateTo?: string;
   tag?: string;
   excludeTransfers?: boolean;
+  search?: string;
+  direction?: 'in' | 'out';
   page?: number;
   limit?: number;
 }

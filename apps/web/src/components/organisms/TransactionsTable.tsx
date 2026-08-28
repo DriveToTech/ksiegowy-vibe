@@ -26,30 +26,35 @@ export function TransactionsTable({ transactions, categories, accounts }: Transa
             <thead>
               <tr className="bg-surface-muted text-left">
                 <HeaderCell>{t.household.ledger.columns.date}</HeaderCell>
-                <HeaderCell>{t.household.ledger.columns.payee}</HeaderCell>
+                <HeaderCell className="w-full">{t.household.ledger.columns.payee}</HeaderCell>
                 <HeaderCell>{t.household.ledger.columns.category}</HeaderCell>
                 <HeaderCell>{t.household.ledger.columns.account}</HeaderCell>
                 <HeaderCell className="text-right">{t.household.ledger.columns.amount}</HeaderCell>
-                <HeaderCell className="text-right">{t.household.ledger.columns.tag}</HeaderCell>
               </tr>
             </thead>
             <tbody>
               {transactions.map((transaction) => {
                 const category = categoryName(transaction.categoryId);
+                const isTransfer = Boolean(transaction.transferGroupId);
                 return (
                   <tr key={transaction.id} className="border-t border-outline transition hover:bg-surface-row-hover">
-                    <BodyCell className="text-muted">{formatDate(transaction.date)}</BodyCell>
-                    <BodyCell className="max-w-0 truncate">
+                    <BodyCell className="whitespace-nowrap text-muted">{formatDate(transaction.date)}</BodyCell>
+                    <BodyCell>
                       <Link href={`/household/ledger/${transaction.id}`} className="font-medium text-foreground transition hover:text-primary">
                         {transaction.payee}
                       </Link>
                     </BodyCell>
-                    <BodyCell>
-                      {category ? <span className="text-foreground-secondary">{category}</span> : <Badge tone="warning">{t.household.ledger.uncategorized}</Badge>}
+                    <BodyCell className="whitespace-nowrap">
+                      {category ? (
+                        <span className="text-foreground-secondary">{category}</span>
+                      ) : isTransfer ? (
+                        <Badge tone="primary">{t.household.transactionDetail.transfer}</Badge>
+                      ) : (
+                        <Badge tone="warning">{t.household.ledger.uncategorized}</Badge>
+                      )}
                     </BodyCell>
-                    <BodyCell className="text-muted">{accountName(transaction.accountId)}</BodyCell>
-                    <BodyCell className={`text-right tabular-nums font-medium ${amountToneClass(transaction.amount)}`}>{formatMoney(transaction.amount)}</BodyCell>
-                    <BodyCell className="text-right font-mono text-[10px] text-muted">{transaction.tag ?? '—'}</BodyCell>
+                    <BodyCell className="whitespace-nowrap text-muted">{accountName(transaction.accountId)}</BodyCell>
+                    <BodyCell className={`whitespace-nowrap text-right tabular-nums font-medium ${amountToneClass(transaction.amount)}`}>{formatMoney(transaction.amount)}</BodyCell>
                   </tr>
                 );
               })}
@@ -61,6 +66,7 @@ export function TransactionsTable({ transactions, categories, accounts }: Transa
       <div className="grid gap-4 lg:hidden">
         {transactions.map((transaction) => {
           const category = categoryName(transaction.categoryId);
+          const isTransfer = Boolean(transaction.transferGroupId);
           return (
             <div key={transaction.id} className="space-y-4 rounded-card border border-outline bg-surface-panel p-5">
               <div className="flex items-start justify-between gap-3">
@@ -77,7 +83,13 @@ export function TransactionsTable({ transactions, categories, accounts }: Transa
                 <DetailItem label={t.household.ledger.columns.date} value={formatDate(transaction.date)} />
                 <div className="space-y-1">
                   <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.household.ledger.columns.category}</p>
-                  {category ? <p className="mt-1 text-sm font-semibold text-foreground">{category}</p> : <Badge tone="warning">{t.household.ledger.uncategorized}</Badge>}
+                  {category ? (
+                    <p className="mt-1 text-sm font-semibold text-foreground">{category}</p>
+                  ) : isTransfer ? (
+                    <Badge tone="primary">{t.household.transactionDetail.transfer}</Badge>
+                  ) : (
+                    <Badge tone="warning">{t.household.ledger.uncategorized}</Badge>
+                  )}
                 </div>
                 <div className="sm:col-span-2 flex justify-end">
                   <Link href={`/household/ledger/${transaction.id}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-strong transition hover:text-primary">

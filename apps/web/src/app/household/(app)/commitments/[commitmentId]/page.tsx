@@ -26,7 +26,7 @@ export default async function CommitmentDetailPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={t.household.commitments.types[commitment.type]} title={commitment.name} />
+      <PageHeader eyebrow={t.household.commitments.types[commitment.type]} eyebrowHref="/household/commitments" title={commitment.name} hideTitle />
       <CommitmentDetailView
         householdId={householdId}
         commitment={commitment}
