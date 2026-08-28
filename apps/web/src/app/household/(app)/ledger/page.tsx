@@ -26,6 +26,8 @@ export default async function HouseholdLedgerPage({
   if (query.categoryId) filterParams.categoryId = query.categoryId;
   if (query.dateFrom) filterParams.dateFrom = query.dateFrom;
   if (query.dateTo) filterParams.dateTo = query.dateTo;
+  if (query.search) filterParams.search = query.search;
+  if (query.direction) filterParams.direction = query.direction;
 
   const [transactionsResult, categories, accounts] = await Promise.all([
     getHouseholdTransactions(householdId, filterParams).catch(() => ({ data: [], total: 0, page: 1, limit: PAGE_SIZE, moneyIn: '0.00', moneyOut: '0.00' })),
@@ -33,7 +35,7 @@ export default async function HouseholdLedgerPage({
     getHouseholdAccounts(householdId).catch(() => []),
   ]);
 
-  const hasFilters = Boolean(query.accountId || query.categoryId || query.dateFrom || query.dateTo);
+  const hasFilters = Boolean(query.accountId || query.categoryId || query.dateFrom || query.dateTo || query.search || query.direction);
   const totalPages = Math.max(1, Math.ceil(transactionsResult.total / transactionsResult.limit));
   const fromIndex = transactionsResult.total === 0 ? 0 : (transactionsResult.page - 1) * transactionsResult.limit + 1;
   const toIndex = Math.min(transactionsResult.total, transactionsResult.page * transactionsResult.limit);

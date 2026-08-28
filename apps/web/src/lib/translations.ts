@@ -848,6 +848,7 @@ export const t = {
   },
 
   household: {
+    searchPlaceholder: "Szukaj płatności, polis…",
     dashboard: {
       pageEyebrow: "Gospodarstwo domowe",
       pageTitle: "Start",
@@ -887,7 +888,6 @@ export const t = {
         category: "Kategoria",
         account: "Konto",
         amount: "Kwota",
-        tag: "Tag",
       },
       emptyTitle: "Brak zarejestrowanych płatności",
       emptyDescription: "Dodaj pierwszą płatność ręcznie albo zaimportuj wyciąg z konta.",
@@ -938,6 +938,7 @@ export const t = {
         note: "Notatka",
       },
       manageAccounts: "Zarządzaj kontami",
+      payerPlaceholder: "Wybierz…",
       notePlaceholder: "Tylko domownicy to widzą…",
       isRecurring: "Ta płatność się powtarza",
       isRecurringHint: "Włączenie zmienia płatność w zobowiązanie — pojawi się w rejestrze i w prognozie.",
@@ -996,6 +997,7 @@ export const t = {
         billingFrequency: "Cykl rozliczeniowy",
         nextDueDate: "Następny termin",
         provider: "Ubezpieczyciel",
+        providerGeneric: "Dostawca / instytucja",
         policyNumber: "Numer polisy",
         insuredObject: "Przedmiot ubezpieczenia",
         sumInsured: "Suma ubezpieczenia",

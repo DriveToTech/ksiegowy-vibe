@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { Commitment, HouseholdAccount } from '../../lib/api-types';
 import { updateCommitment } from '../../lib/api-client';
 import type { CommitmentAmortizationScheduleEntry } from '../../lib/api';
-import { formatDate, formatMoney } from '../../lib/format';
+import { formatDate, formatMoney, isDueSoonOrOverdue } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { Badge } from '../atoms/Badge';
 import { Button } from '../atoms/Button';
@@ -86,7 +86,7 @@ export function CommitmentDetailView({ householdId, commitment, account, amortiz
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="primary">{t.household.commitments.types[commitment.type]}</Badge>
               <Badge tone={statusTone[status]}>{t.household.commitments.statuses[status]}</Badge>
-              <Badge tone={commitment.isAutomatic ? 'success' : 'warning'}>
+              <Badge tone={commitment.isAutomatic ? 'success' : 'draft'}>
                 {commitment.isAutomatic ? t.household.commitmentDetail.automaticLabel : t.household.commitmentDetail.manualLabel}
               </Badge>
             </div>
@@ -94,7 +94,8 @@ export function CommitmentDetailView({ householdId, commitment, account, amortiz
             <p className="text-sm text-muted">
               {t.household.commitments.frequencies[commitment.billingFrequency]}
               {' · '}
-              {t.household.commitments.columns.next}: {formatDate(commitment.nextDueDate)}
+              {t.household.commitments.columns.next}:{' '}
+              <span className={isDueSoonOrOverdue(commitment.nextDueDate) ? 'font-medium text-warning-ink' : undefined}>{formatDate(commitment.nextDueDate)}</span>
             </p>
           </div>
           <div className="space-y-1 text-right">
@@ -104,14 +105,22 @@ export function CommitmentDetailView({ householdId, commitment, account, amortiz
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-3 border-t border-outline pt-5">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-outline pt-5">
+          {status !== 'CANCELLED' ? (
+            <Button
+              variant="danger"
+              size="sm"
+              className="mr-auto border border-error bg-transparent text-error-ink hover:bg-error/10"
+              onClick={() => changeStatus('CANCELLED')}
+              disabled={updating}
+            >
+              {t.household.commitmentDetail.endAction}
+            </Button>
+          ) : null}
           {status === 'ACTIVE' ? (
             <Button variant="secondary" onClick={() => changeStatus('PAUSED')} disabled={updating}>{t.household.commitmentDetail.pauseAction}</Button>
           ) : status === 'PAUSED' ? (
             <Button variant="secondary" onClick={() => changeStatus('ACTIVE')} disabled={updating}>{t.household.commitmentDetail.resumeAction}</Button>
-          ) : null}
-          {status !== 'CANCELLED' ? (
-            <Button variant="danger" onClick={() => changeStatus('CANCELLED')} disabled={updating}>{t.household.commitmentDetail.endAction}</Button>
           ) : null}
         </div>
       </div>

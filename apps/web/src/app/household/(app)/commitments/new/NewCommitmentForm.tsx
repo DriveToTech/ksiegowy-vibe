@@ -25,7 +25,7 @@ function todayIso(): string {
 export function NewCommitmentForm({ householdId, accounts }: { householdId: string; accounts: HouseholdAccount[] }) {
   const router = useRouter();
 
-  const [type, setType] = useState<CommitmentType>('OTHER');
+  const [type, setType] = useState<CommitmentType>('INSURANCE');
   const [name, setName] = useState('');
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
   const [amount, setAmount] = useState('');
@@ -66,7 +66,7 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
       billingFrequency,
       nextDueDate,
       isAutomatic,
-      provider: type === 'INSURANCE' ? provider.trim() || undefined : undefined,
+      provider: provider.trim() || undefined,
       policyNumber: type === 'INSURANCE' ? policyNumber.trim() || undefined : undefined,
       insuredObject: type === 'INSURANCE' ? insuredObject.trim() || undefined : undefined,
       sumInsured: type === 'INSURANCE' && sumInsured ? sumInsured : undefined,
@@ -104,7 +104,7 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
               'flex flex-col items-center gap-1.5 rounded-card border px-3 py-3.5 text-center text-[12.5px] font-medium transition',
               type === value
                 ? 'border-primary bg-primary-soft text-foreground font-semibold'
-                : 'border-outline bg-surface-raised text-muted hover:text-foreground-secondary',
+                : 'border-outline bg-surface-raised text-foreground-secondary hover:text-foreground',
             )}
           >
             {t.household.commitments.types[value]}
@@ -117,11 +117,11 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
           <FormField label={t.household.commitmentForm.fields.name} required>
             <Input value={name} onChange={(event) => setName(event.target.value)} />
           </FormField>
+          <FormField label={type === 'INSURANCE' ? t.household.commitmentForm.fields.provider : t.household.commitmentForm.fields.providerGeneric} required={type === 'INSURANCE'}>
+            <Input value={provider} onChange={(event) => setProvider(event.target.value)} />
+          </FormField>
           {type === 'INSURANCE' ? (
             <>
-              <FormField label={t.household.commitmentForm.fields.provider} required>
-                <Input value={provider} onChange={(event) => setProvider(event.target.value)} />
-              </FormField>
               <FormField label={t.household.commitmentForm.fields.policyNumber}>
                 <Input value={policyNumber} onChange={(event) => setPolicyNumber(event.target.value)} />
               </FormField>

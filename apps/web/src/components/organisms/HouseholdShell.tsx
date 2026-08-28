@@ -38,6 +38,7 @@ export async function HouseholdShell({ children, session, householdId }: Househo
           user={session.user}
           switcher={<HouseholdSwitcher households={session.households} activeHouseholdId={session.activeHouseholdId} compact />}
           modeSwitch={<ModeSwitch activeMode={session.activeMode} />}
+          searchPlaceholder={t.household.searchPlaceholder}
         />
 
         <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[226px_1fr] lg:overflow-hidden">

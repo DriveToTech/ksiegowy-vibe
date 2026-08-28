@@ -39,6 +39,8 @@ export interface ListHouseholdTransactionsFilter {
   dateTo?: string;
   tag?: string;
   excludeTransfers?: boolean;
+  search?: string;
+  direction?: 'in' | 'out';
   page?: number;
   limit?: number;
 }
@@ -215,13 +217,28 @@ export const listTransactions = async (
   if (filter.dateFrom) dateFilter.gte = new Date(filter.dateFrom);
   if (filter.dateTo) dateFilter.lte = new Date(filter.dateTo);
 
+  const search = filter.search?.trim();
+  const searchedAmount = search ? Number(search.replace(',', '.')) : NaN;
+
   const where = {
     householdId,
     accountId: filter.accountId ? filter.accountId : { in: accountIds },
     ...(filter.categoryId ? { categoryId: filter.categoryId } : {}),
     ...(filter.tag ? { tag: filter.tag } : {}),
     ...(filter.excludeTransfers ? { transferGroupId: null } : {}),
-    ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {})
+    ...(filter.direction === 'in' ? { amount: { gte: '0' } } : {}),
+    ...(filter.direction === 'out' ? { amount: { lt: '0' } } : {}),
+    ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+    ...(search
+      ? {
+          OR: [
+            { payee: { contains: search, mode: 'insensitive' as const } },
+            { note: { contains: search, mode: 'insensitive' as const } },
+            { bankDescription: { contains: search, mode: 'insensitive' as const } },
+            ...(Number.isFinite(searchedAmount) ? [{ amount: searchedAmount.toString() }, { amount: (-searchedAmount).toString() }] : [])
+          ]
+        }
+      : {})
   };
 
   const [data, matchingTransactions] = await Promise.all([
@@ -231,12 +248,16 @@ export const listTransactions = async (
       take: limit,
       skip: (page - 1) * limit
     }),
-    prisma.householdTransaction.findMany({ where, select: { amount: true } })
+    prisma.householdTransaction.findMany({ where, select: { amount: true, transferGroupId: true } })
   ]);
 
+  // moneyIn/moneyOut are an income/expense aggregate, so transfer legs are
+  // always excluded regardless of the `excludeTransfers` row-display filter —
+  // a transfer between your own accounts is not income or spending.
   let moneyIn = 0;
   let moneyOut = 0;
   for (const transaction of matchingTransactions) {
+    if (transaction.transferGroupId) continue;
     const amount = Number(transaction.amount);
     if (amount >= 0) {
       moneyIn += amount;

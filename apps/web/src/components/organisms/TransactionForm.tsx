@@ -22,6 +22,17 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Direction is visually unmistakable: money out gets a warning/red tint,
+ * money in and transfer keep the household's green "active" identity.
+ */
+function directionActiveClass(value: Direction): string {
+  if (value === 'out') {
+    return 'bg-error/15 border border-error text-error-ink font-semibold';
+  }
+  return 'bg-[image:var(--nav-active)] border border-[var(--nav-active-border)] font-semibold text-foreground';
+}
+
 interface TransactionFormProps {
   householdId: string;
   accounts: HouseholdAccount[];
@@ -138,13 +149,16 @@ export function TransactionForm({ householdId, accounts, categories, members = [
       {/* Amount is the hero of the form, not one of many equal-weight fields. */}
       <div className="flex flex-col gap-4 rounded-inset bg-surface-raised p-5 sm:flex-row sm:items-end sm:justify-between">
         <FormField label={t.household.transactionForm.fields.amount} required className="max-w-[220px]">
-          <Input
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            inputMode="decimal"
-            placeholder="0,00"
-            className="h-14 text-2xl font-semibold tabular-nums"
-          />
+          <div className="relative">
+            <Input
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              inputMode="decimal"
+              placeholder="0,00"
+              className="h-14 pr-11 text-2xl font-semibold tabular-nums"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-base font-medium text-muted">zł</span>
+          </div>
         </FormField>
 
         {!isEdit ? (
@@ -156,7 +170,7 @@ export function TransactionForm({ householdId, accounts, categories, members = [
                 onClick={() => setDirection(value)}
                 className={cn(
                   'min-h-9 flex-1 rounded-[7px] px-4 text-sm font-medium transition',
-                  direction === value ? 'bg-[image:var(--nav-active)] border border-[var(--nav-active-border)] font-semibold text-foreground' : 'border border-transparent text-muted',
+                  direction === value ? directionActiveClass(value) : 'border border-transparent text-muted',
                 )}
               >
                 {value === 'in' ? t.household.transactionForm.directionIn : value === 'out' ? t.household.transactionForm.directionOut : t.household.transactionForm.directionTransfer}
@@ -172,7 +186,7 @@ export function TransactionForm({ householdId, accounts, categories, members = [
                 onClick={() => setDirection(value)}
                 className={cn(
                   'min-h-9 flex-1 rounded-[7px] px-4 text-sm font-medium transition',
-                  direction === value ? 'bg-[image:var(--nav-active)] border border-[var(--nav-active-border)] font-semibold text-foreground' : 'border border-transparent text-muted',
+                  direction === value ? directionActiveClass(value) : 'border border-transparent text-muted',
                 )}
               >
                 {value === 'in' ? t.household.transactionForm.directionIn : t.household.transactionForm.directionOut}
@@ -194,7 +208,7 @@ export function TransactionForm({ householdId, accounts, categories, members = [
             {members.length > 0 ? (
               <FormField label={t.household.transactionForm.fields.payer} className="sm:col-span-2">
                 <Select value={payerUserId} onChange={(event) => setPayerUserId(event.target.value)}>
-                  <option value="">—</option>
+                  <option value="">{t.household.transactionForm.payerPlaceholder}</option>
                   {members.map((member) => (
                     <option key={member.userId} value={member.userId}>{member.displayName ?? member.userEmail}</option>
                   ))}
@@ -280,7 +294,9 @@ export function TransactionForm({ householdId, accounts, categories, members = [
         <Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder={t.household.transactionForm.notePlaceholder} />
       </FormSection>
 
-      <div className="flex justify-end gap-3 border-t border-outline pt-5">
+      {/* Sticky, not just bottom-of-form: the form is taller than one viewport,
+          so Save/Cancel stay reachable without scrolling all the way down. */}
+      <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-3 rounded-b-card border-t border-outline bg-surface-panel px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
         <Button type="button" variant="secondary" onClick={() => router.back()}>
           {t.household.transactionForm.cancel}
         </Button>

@@ -155,7 +155,7 @@ describe('listTransactions()', () => {
         accountId: { in: ['account-shared'] },
         transferGroupId: null
       },
-      select: { amount: true }
+      select: { amount: true, transferGroupId: true }
     });
   });
 
@@ -197,6 +197,25 @@ describe('listTransactions()', () => {
       moneyIn: '100.00',
       moneyOut: '40.50'
     });
+  });
+
+  it('excludes transfer legs from moneyIn/moneyOut even when the rows themselves are not filtered out', async () => {
+    const allMatchingAmounts = [
+      { amount: '300.00' },
+      { amount: '-300.00', transferGroupId: 'transfer-group-1' },
+      { amount: '300.00', transferGroupId: 'transfer-group-1' },
+      { amount: '-120.50' }
+    ];
+    const findMany = vi.fn(async (args: { select?: unknown }) => (args.select ? allMatchingAmounts : []));
+    const prisma = {
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-shared' }]) },
+      householdTransaction: { findMany }
+    } as unknown as PrismaClient;
+
+    const result = await listTransactions(prisma, 'household-1', 'user-1');
+
+    expect(result.moneyIn).toBe('300.00');
+    expect(result.moneyOut).toBe('120.50');
   });
 });
 

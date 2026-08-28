@@ -14,9 +14,10 @@ interface AppHeaderProps {
   switcher: ReactNode;
   modeSwitch?: ReactNode;
   ksefBadge?: ReactNode;
+  searchPlaceholder?: string;
 }
 
-export function AppHeader({ user, switcher, modeSwitch, ksefBadge }: AppHeaderProps) {
+export function AppHeader({ user, switcher, modeSwitch, ksefBadge, searchPlaceholder = t.header.searchPlaceholder }: AppHeaderProps) {
   const headerReference = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export function AppHeader({ user, switcher, modeSwitch, ksefBadge }: AppHeaderPr
             {ksefBadge ? <div data-app-header-ksef className="min-w-0">{ksefBadge}</div> : null}
             <div className="hidden min-w-0 flex-1 lg:flex">
               <div className="flex h-[34px] w-full max-w-[300px] items-center justify-between rounded-control border border-outline bg-secondary-surface px-3 text-[13px] text-muted">
-                <span className="truncate">{t.header.searchPlaceholder}</span>
+                <span className="truncate">{searchPlaceholder}</span>
                 <span className="font-mono text-[11px] text-muted">⌘K</span>
               </div>
             </div>

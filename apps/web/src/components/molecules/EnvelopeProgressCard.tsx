@@ -18,7 +18,7 @@ export function EnvelopeProgressCard({ envelopes }: EnvelopeProgressCardProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-card border border-outline bg-surface-panel p-5">
+    <div className="flex flex-col gap-4 self-start rounded-card border border-outline bg-surface-panel p-5">
       <h2 className="text-sm font-semibold text-foreground">{t.household.dashboard.envelopesTitle}</h2>
       <div className="flex flex-col gap-3">
         {envelopes.map((envelope) => {

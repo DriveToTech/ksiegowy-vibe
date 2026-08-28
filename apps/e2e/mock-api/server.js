@@ -863,6 +863,17 @@ const server = http.createServer((req, res) => {
     return respond(req, res, 200, access.entry.commitments);
   }
 
+  const householdCommitmentDetailMatch = url.match(/^\/households\/([^/]+)\/commitments\/([^/]+)$/);
+  if (householdCommitmentDetailMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, commitmentId] = householdCommitmentDetailMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const commitment = access.entry.commitments.find((item) => item.id === commitmentId);
+    if (!commitment) return respond(req, res, 404, { error: 'Not found' });
+    return respond(req, res, 200, commitment);
+  }
+
   if (householdCommitmentsMatch && method === 'POST') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
     const [, householdId] = householdCommitmentsMatch;
@@ -911,7 +922,8 @@ const server = http.createServer((req, res) => {
     const params = new URLSearchParams(rawUrl.split('?')[1] ?? '');
     const limit = params.has('limit') ? Number.parseInt(params.get('limit'), 10) : 50;
     const sorted = [...access.entry.transactions].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-    return respond(req, res, 200, { data: sorted.slice(0, limit), total: sorted.length, page: 1, limit });
+    const { moneyIn, moneyOut } = moneySummary(access.entry);
+    return respond(req, res, 200, { data: sorted.slice(0, limit), total: sorted.length, page: 1, limit, moneyIn, moneyOut });
   }
 
   if (householdTransactionsMatch && method === 'POST') {
@@ -944,6 +956,17 @@ const server = http.createServer((req, res) => {
         return respond(req, res, 201, transaction);
       })
       .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
+  }
+
+  const householdTransactionDetailMatch = url.match(/^\/households\/([^/]+)\/transactions\/([^/]+)$/);
+  if (householdTransactionDetailMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, transactionId] = householdTransactionDetailMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const transaction = access.entry.transactions.find((item) => item.id === transactionId);
+    if (!transaction) return respond(req, res, 404, { error: 'Not found' });
+    return respond(req, res, 200, transaction);
   }
 
   const householdTransfersMatch = url.match(/^\/households\/([^/]+)\/transfers$/);

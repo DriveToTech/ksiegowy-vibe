@@ -43,7 +43,11 @@ export default async function HouseholdDashboardPage() {
         <SafeToSpendCard amount={dashboard.safeToSpend} />
         <StatCard label={t.household.dashboard.moneyInLabel} value={formatMoney(dashboard.moneyIn)} />
         <StatCard label={t.household.dashboard.moneyOutLabel} value={formatMoney(dashboard.moneyOut)} />
-        <NetWorthChart netWorth={dashboard.netWorth} changePercent={dashboard.netWorthChangePercent} />
+        <NetWorthChart
+          netWorth={dashboard.netWorth}
+          changePercent={dashboard.netWorthChangePercent}
+          hasPriorActivity={parseFloat(dashboard.moneyIn) !== 0 || parseFloat(dashboard.moneyOut) !== 0}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">

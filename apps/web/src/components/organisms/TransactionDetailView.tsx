@@ -87,8 +87,16 @@ export function TransactionDetailView({ householdId, transaction, accounts, cate
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-3 border-t border-outline pt-5">
-          <Button variant="danger" onClick={handleDelete} disabled={deleting}>{t.household.transactionDetail.deleteAction}</Button>
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-outline pt-5">
+          <Button
+            variant="danger"
+            size="sm"
+            className="mr-auto border border-error bg-transparent text-error-ink hover:bg-error/10"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {t.household.transactionDetail.deleteAction}
+          </Button>
           <Button onClick={() => setMode('edit')}>{t.household.transactionDetail.editAction}</Button>
         </div>
       </div>

@@ -30,7 +30,7 @@ export default async function HouseholdCommitmentsPage() {
       />
 
       {commitments.length > 0 ? (
-        <div className="rounded-card border border-outline bg-surface-panel p-5">
+        <div className="max-w-xs rounded-card border border-outline bg-surface-panel p-5">
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.household.commitments.fixedMonthlyLabel}</p>
           <p className="mt-1 text-[22px] font-semibold tracking-[-0.02em] tabular-nums text-foreground">{formatMoney(fixedMonthlyTotal)}</p>
         </div>
