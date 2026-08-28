@@ -342,6 +342,7 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://user:pass@localhost:5432/ksiegowy` |
+| `HOUSEHOLD_DATABASE_URL` | Household (personal mode) PostgreSQL connection string — separate database, read by `@ksiegowy/household-service`, e.g. `postgresql://user:pass@localhost:5432/ksiegowy_household?connection_limit=5` |
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
 | `GOOGLE_REDIRECT_URI` | OAuth2 redirect URI, e.g. `http://localhost:3001/auth/google/callback` |
@@ -454,9 +455,9 @@ PostgreSQL backups are now handled by a separate one-shot Docker Compose service
 
 - local-only mode writes artifacts to `./backups/postgresql` and skips remote upload
 - remote mode also uploads artifacts through `rclone` to one or two configured remotes
-- Option A keeps one shared PostgreSQL database unchanged, so each PostgreSQL backup remains a full logical dump of the shared database
+- The Postgres instance holds two databases — business (`POSTGRES_DB`) and household/personal-mode (`HOUSEHOLD_POSTGRES_DB`, see [Household database separation](#household-database-separation) below) — dumped independently in the same backup run, sharing one timestamp but distinct filenames (`<database-label>` is `business` or `household`)
 
-Each canonical-root remote backup set is stored in its own timestamped directory under the configured base path, for example:
+Each canonical-root remote backup set is stored in its own timestamped directory under the configured base path, holding both databases' artifact sets, for example:
 
 ```
 <remote>:ksiegowy-vibe-backups/postgresql/production/20260415T031500Z/
@@ -464,9 +465,18 @@ Each canonical-root remote backup set is stored in its own timestamped directory
 
 with files:
 
-- `postgresql-production-20260415T031500Z.sql.gz`
-- `postgresql-production-20260415T031500Z.sql.gz.sha256`
-- `postgresql-production-20260415T031500Z.manifest.json`
+- `postgresql-business-production-20260415T031500Z.sql.gz`
+- `postgresql-business-production-20260415T031500Z.sql.gz.sha256`
+- `postgresql-business-production-20260415T031500Z.manifest.json`
+- `postgresql-household-production-20260415T031500Z.sql.gz`
+- `postgresql-household-production-20260415T031500Z.sql.gz.sha256`
+- `postgresql-household-production-20260415T031500Z.manifest.json`
+
+Restore targets one database at a time via `DB_RESTORE_DATABASE_LABEL=business|household` (default `business`) — see [PostgreSQL Restore Runbook](./restore-postgresql.md).
+
+### Household database separation
+
+Personal-mode (household) data lives in a second Postgres database (`HOUSEHOLD_POSTGRES_DB`, default `ksiegowy_household`) in the same Postgres instance as the business database — not a shared schema. Locally/in Docker Compose it is created on first container start by `ops/postgres/init-household-db.sh`, mounted into `/docker-entrypoint-initdb.d/` (Postgres only runs these scripts once, against an empty data directory — same lifecycle as `POSTGRES_DB` itself). The `@ksiegowy/household-service` package (`services/household/`) owns this database's Prisma schema, migrations, and generated client; `apps/api` connects to it via `HOUSEHOLD_DATABASE_URL` (`fastify.householdDatabase`), separately from the business `DATABASE_URL`/`fastify.prisma`. CI creates the equivalent test database explicitly (`CREATE DATABASE`) before running migrations, since GitHub Actions starts service containers before the checkout step that would provide the init script.
 
 > Encryption note: this implementation does not cryptographically enforce remote encryption itself. Operators must use encrypted backup destinations (for example `rclone crypt` or provider/storage encryption with strict IAM and private access).
 > Operator note: local-only mode uses a bundled placeholder `rclone.conf` file. Remote mode requires `DB_BACKUP_RCLONE_CONFIG_PATH` to point to a real host `rclone.conf` file.

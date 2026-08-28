@@ -22,8 +22,12 @@ export default async function DashboardPage() {
   const session = await requireAuthSession('/dashboard');
   const companyId = session.activeCompanyId;
 
+  // Straight to the company wizard, not the generic /onboarding choice
+  // screen: arriving at /dashboard already states the user's intent (they
+  // may well have a household too, e.g. via ModeSwitch) — see the equivalent
+  // fix on the household side in app/household/(app)/layout.tsx.
   if (!companyId) {
-    redirect('/onboarding');
+    redirect('/onboarding/company');
   }
 
   const [invoicesResult, incomingResult, contractorCount] = await Promise.all([

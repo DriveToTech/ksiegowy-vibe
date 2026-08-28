@@ -24,9 +24,12 @@ export default async function OnboardingLayout({ children }: Readonly<{ children
     redirect('/dashboard');
   }
 
-  const completed = new Set<'company' | 'ksef'>();
-  if (company) completed.add('company');
-  if (hasKsefToken) completed.add('ksef');
+  const steps = [
+    { key: 'account', title: t.onboarding.steps.account.title, hint: t.onboarding.steps.account.hint, path: '/onboarding/account', done: true },
+    { key: 'company', title: t.onboarding.steps.company.title, hint: t.onboarding.steps.company.hint, path: '/onboarding/company', done: Boolean(company) },
+    { key: 'ksef', title: t.onboarding.steps.ksef.title, hint: t.onboarding.steps.ksef.hint, path: '/onboarding/ksef', done: hasKsefToken },
+    { key: 'team', title: t.onboarding.steps.team.title, hint: t.onboarding.steps.team.hint, path: '/onboarding/team', done: false },
+  ];
 
   return (
     <main className="flex min-h-full w-full items-center justify-center p-4 sm:p-6 lg:p-10">
@@ -45,7 +48,7 @@ export default async function OnboardingLayout({ children }: Readonly<{ children
 
         <div className="grid flex-1 grid-cols-1 lg:grid-cols-[300px_1fr]">
           <aside className="flex flex-col gap-3 border-b border-outline p-6 lg:border-b-0 lg:border-r lg:p-[34px]">
-            <OnboardingStepRail completed={completed} />
+            <OnboardingStepRail steps={steps} footer={t.onboarding.ksefReminder} />
           </aside>
           <div className="flex flex-col gap-5 p-6 lg:p-[34px_44px]">{children}</div>
         </div>

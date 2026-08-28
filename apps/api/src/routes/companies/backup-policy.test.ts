@@ -62,6 +62,10 @@ const prisma = {
   },
 } as unknown as NonNullable<BuildAppOptions['prismaClient']>;
 
+const householdDatabase = {
+  $disconnect: vi.fn(async () => undefined),
+} as unknown as NonNullable<BuildAppOptions['householdDatabaseClient']>;
+
 const signAccessToken = (app: Awaited<ReturnType<typeof buildApp>>, payload: AccessTokenPayload): string => {
   return (app.jwt as unknown as { access: { sign: (value: AccessTokenPayload) => string } }).access.sign(payload);
 };
@@ -79,6 +83,7 @@ describe('company backup policy routes', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig: baseAuthConfig,
     });
 

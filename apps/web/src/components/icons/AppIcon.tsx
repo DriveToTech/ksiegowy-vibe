@@ -1,6 +1,16 @@
 import type { SVGProps } from 'react';
 
-type IconName = 'overview' | 'outgoing' | 'incoming' | 'contractors' | 'settings' | 'upload';
+type IconName =
+  | 'overview'
+  | 'outgoing'
+  | 'incoming'
+  | 'contractors'
+  | 'settings'
+  | 'upload'
+  | 'householdHome'
+  | 'householdLedger'
+  | 'householdBudget'
+  | 'householdCommitments';
 
 interface AppIconProps extends SVGProps<SVGSVGElement> {
   name: IconName;
@@ -54,6 +64,38 @@ export function AppIcon({ name, ...props }: AppIconProps) {
           <path d="M12 16V6" />
           <path d="M8.5 9.5 12 6l3.5 3.5" />
           <path d="M5 18.5h14" />
+        </svg>
+      );
+    case 'householdHome':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M4 13.5L12 5l8 8.5" />
+          <path d="M6.5 11.5V20h11v-8.5" />
+        </svg>
+      );
+    case 'householdLedger':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M12 4v9" />
+          <path d="M8.5 9.5 12 13l3.5-3.5" />
+          <path d="M5 18.5h14" />
+        </svg>
+      );
+    case 'householdBudget':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <rect x="4" y="6" width="16" height="12" rx="2.5" />
+          <path d="M4 10.5h16" />
+          <path d="M8 14.2h4" />
+        </svg>
+      );
+    case 'householdCommitments':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M6 4.5h9l3 3V19.5H6Z" />
+          <path d="M9 10h6" />
+          <path d="M9 13.5h6" />
+          <path d="M9 17h3.5" />
         </svg>
       );
     default:

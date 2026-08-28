@@ -15,6 +15,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Infrastructure](docs/infrastructure.md) | Docker setup, CI/CD pipelines, environment variables, data persistence, and deployment checklist |
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
+| [Household Mode (Personal Budgeting)](docs/household-mode.md) | Backend spec for the household bounded context: account visibility, categorization rules, statement import, envelopes, commitment cron flow |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
@@ -32,6 +33,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 - **VAT Reporting** — VAT register with CSV export
 - **Backup** — Platform-managed PostgreSQL + iCloud backup, plus company-admin Google Drive backup policy (manual, invoice-issued trigger, daily/weekly schedule via host cron one-shot job)
 - **Authentication** — Google OAuth2 with JWT (httpOnly cookies)
+- **Personal Mode (Household Budgeting)** — Multi-user household ledger with signed transactions, account-to-account transfers, shared/private account visibility, budget envelopes with computed spend, and a commitments register (insurance/loans/subscriptions/utilities) with idempotent recurring-transaction generation. Backed by `@ksiegowy/household-service` and its own database. See [household mode docs](docs/household-mode.md).
 
 ## Tech Stack
 
@@ -53,7 +55,8 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 
 - This repository is a `pnpm` workspace monorepo. Use `pnpm` for root-level and package-scoped commands.
 - Run commands for a single package with `pnpm --filter <package-name> ...`, for example `pnpm --filter @ksiegowy/api test`.
-- Package scripts are defined in each workspace package such as `apps/api/package.json`, `apps/web/package.json`, and `packages/*/package.json`.
+- Package scripts are defined in each workspace package such as `apps/api/package.json`, `apps/web/package.json`, `packages/*/package.json`, and `services/*/package.json`.
+- `services/*` holds framework-agnostic domain/business-logic packages (one per bounded context, e.g. `@ksiegowy/household-service`) — no Fastify import, consumed by `apps/api` as a thin HTTP layer. Distinct from `packages/*` (generic cross-cutting utilities).
 
 ## Project Structure
 
@@ -241,6 +244,7 @@ pnpm dev
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
+| `HOUSEHOLD_DATABASE_URL` | Household (personal mode) PostgreSQL connection string — separate database, read by `@ksiegowy/household-service` |
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
 | `GOOGLE_REDIRECT_URI` | Google OAuth2 redirect URI (e.g. `http://localhost:3001/auth/google/callback`) |
@@ -297,11 +301,11 @@ It runs only as its own manual or externally scheduled job. Starting Docker Comp
 - `BACKUP_DESTINATION_ROOT` is the canonical remote backup root for company Google Drive file backups and for PostgreSQL remote publishing only when you explicitly set it.
 - The backup job waits for PostgreSQL readiness before starting `pg_dump`.
 - Local retention cleanup is applied after each successful run (`DB_BACKUP_LOCAL_RETENTION_DAYS`).
-- Option A keeps one shared PostgreSQL database unchanged. Every PostgreSQL logical backup still contains the whole shared database, not a per-company slice.
-- Each run creates:
-  - `postgresql-<environment>-<timestamp>.sql.gz`
-  - `postgresql-<environment>-<timestamp>.sql.gz.sha256`
-  - `postgresql-<environment>-<timestamp>.manifest.json`
+- The Postgres instance holds two databases — business (`POSTGRES_DB`) and household/personal-mode (`HOUSEHOLD_POSTGRES_DB`) — each backed up as a full logical dump, not a per-company or per-household slice.
+- Each run creates one artifact set per database, sharing one timestamp (`<database-label>` is `business` or `household`):
+  - `postgresql-<database-label>-<environment>-<timestamp>.sql.gz`
+  - `postgresql-<database-label>-<environment>-<timestamp>.sql.gz.sha256`
+  - `postgresql-<database-label>-<environment>-<timestamp>.manifest.json`
 
 Canonical remote destinations:
 
@@ -371,16 +375,17 @@ pnpm backup:postgres:download
 # 2. Inspect what was downloaded
 ls -lh backups/postgresql/
 
-# 3. Stop the API, restore, start API
+# 3. Stop the API, restore each database, start API
 docker compose stop api
-DB_RESTORE_CONFIRMED=yes pnpm restore:postgres
+DB_RESTORE_CONFIRMED=yes DB_RESTORE_DATABASE_LABEL=business pnpm restore:postgres
+DB_RESTORE_CONFIRMED=yes DB_RESTORE_DATABASE_LABEL=household pnpm restore:postgres
 docker compose start api
 ```
 
-To restore a specific artifact instead of the latest:
+`DB_RESTORE_DATABASE_LABEL` defaults to `business`. To restore a specific artifact instead of the latest for that label:
 
 ```bash
-DB_RESTORE_CONFIRMED=yes DB_RESTORE_ARTIFACT_NAME=postgresql-production-20260531T201833Z.sql.gz pnpm restore:postgres
+DB_RESTORE_CONFIRMED=yes DB_RESTORE_DATABASE_LABEL=business DB_RESTORE_ARTIFACT_NAME=postgresql-business-production-20260531T201833Z.sql.gz pnpm restore:postgres
 ```
 
 See [`docs/restore-postgresql.md`](docs/restore-postgresql.md) for the full runbook including manual fallback steps.
@@ -779,6 +784,28 @@ All company-scoped routes require a valid JWT and active company membership.
 | POST | `/companies/:companyId/backup-policy/run` | Company ADMIN immediate Google Drive backup run |
 | GET | `/backup/gdrive/connect` | Start Google Drive OAuth connection flow |
 | GET | `/backup/gdrive/callback` | Complete Google Drive OAuth callback |
+
+All household routes below require a valid JWT and a live `HouseholdMembership` check (no JWT claim — see [household mode docs](docs/household-mode.md)).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET/POST | `/households` | List the user's households / create a household (seeds default categories + OWNER membership) |
+| GET | `/households/:householdId` | Household details |
+| GET/POST | `/households/:householdId/accounts` | Accounts visible to the caller, with computed balance |
+| GET/PATCH | `/households/:householdId/accounts/:accountId` | Single account |
+| GET/POST | `/households/:householdId/categories` | Category CRUD |
+| GET/POST | `/households/:householdId/categorization-rules` | Explicit opt-in categorization rules |
+| GET/POST | `/households/:householdId/transactions` | Ledger list/create |
+| GET/PATCH/DELETE | `/households/:householdId/transactions/:transactionId` | Single transaction |
+| PATCH | `/households/:householdId/transactions/:transactionId/recategorize` | Recategorize (with opt-in rule creation) |
+| POST | `/households/:householdId/transfers` | Account-to-account transfer (two linked transactions) |
+| POST | `/households/:householdId/statement-imports/preview` \| `/confirm` | CSV statement import, two-step |
+| GET/POST | `/households/:householdId/envelopes` | Budget envelopes with computed spend |
+| GET | `/households/:householdId/envelopes/safe-to-spend` | Total remaining budget across envelopes |
+| GET/POST | `/households/:householdId/commitments` | Commitments register (insurance/loan/subscription/utility) |
+| GET | `/households/:householdId/commitments/upcoming` | Commitments due soon |
+| GET | `/households/:householdId/commitments/:commitmentId/amortization-schedule` | Loan amortization schedule (computed on read) |
+| GET | `/households/:householdId/dashboard` | Aggregate: accounts, safe-to-spend, envelopes, upcoming commitments, 6-month chart |
 
 ## KSeF Integration
 

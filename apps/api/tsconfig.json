@@ -24,6 +24,9 @@
     },
     {
       "path": "../../packages/pdf-templates"
+    },
+    {
+      "path": "../../services/household"
     }
   ]
 }

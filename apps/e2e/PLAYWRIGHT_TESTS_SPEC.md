@@ -16,13 +16,16 @@ The middleware (`apps/web/src/middleware.ts`) protects `/dashboard/*` by checkin
 
 ```
 apps/e2e/tests/
-  smoke.spec.ts              ← existing (home + login page loads)
+  smoke.spec.ts                            ← existing (home + login page loads)
   fixtures/
-    auth.ts                  ← shared auth fixture (inject JWT cookie)
-  dashboard.spec.ts          ← dashboard overview tests
-  contractors.spec.ts        ← contractor list and form tests
-  invoices.spec.ts           ← invoice list and form tests
-  navigation.spec.ts         ← sidebar navigation tests
+    auth.ts                                ← shared auth fixture (inject auth cookie)
+  dashboard.spec.ts                        ← dashboard overview tests
+  contractors.spec.ts                      ← contractor list and form tests
+  invoices.spec.ts                         ← invoice list and form tests
+  navigation.spec.ts                       ← sidebar navigation tests
+  onboarding.spec.ts                       ← company onboarding wizard tests
+  household-onboarding-entrypoint.spec.ts  ← company-vs-household entrypoint choice
+  household-ledger.spec.ts                 ← household ledger/envelope/commitment journey
 ```
 
 ## Files to Create / Modify
@@ -36,6 +39,10 @@ apps/e2e/tests/
 | `tests/contractors.spec.ts` | Create | Contractor list, create form               |
 | `tests/invoices.spec.ts`    | Create | Invoice list, new invoice form             |
 | `tests/navigation.spec.ts`  | Create | Sidebar navigation and routing             |
+| `mock-api/server.js`        | Modify | Household fixtures + route handlers (Phase 1 personal mode) |
+| `tests/fixtures/auth.ts`    | Modify | Add static-household owner/member page fixtures |
+| `tests/household-onboarding-entrypoint.spec.ts` | Create | Company-vs-household entrypoint choice |
+| `tests/household-ledger.spec.ts` | Create | Household ledger/envelope/commitment journey |
 
 
 ---
@@ -108,6 +115,56 @@ apps/e2e/tests/
 
 ---
 
+---
+
+### `household-onboarding-entrypoint.spec.ts`
+
+Covers the Phase 1 company-vs-household entrypoint at `/onboarding`: a signed-in user with
+neither a company nor a household picks a side, and the household path leads into the
+household onboarding wizard's first step.
+
+| Test | Setup | Assertion |
+| --- | --- | --- |
+| entrypoint choice screen renders | `onboardingPage` (no company, no household), navigate to `/onboarding` | heading "Co chcesz skonfigurować najpierw?"; links to `/onboarding/company` and `/household/onboarding/household` visible |
+| household path leads into the household wizard | click "Rozpocznij konfigurację domu" | URL becomes `/household/onboarding/household`; heading "Nazwij swoje gospodarstwo domowe" visible |
+
+The company path (`-> /onboarding/company`) and the "no company at all" auto-redirect from
+`/dashboard` are already covered by `onboarding.spec.ts` — intentionally not duplicated here.
+
+---
+
+### `household-ledger.spec.ts`
+
+Covers the Phase 1 household journey from create household through account, a categorized
+transaction, envelope progress, a commitment, and a transfer excluded from income/spend sums.
+
+| Test | Setup | Assertion |
+| --- | --- | --- |
+| create household -> account -> transaction -> envelope + commitment on dashboard, transfer excluded | `onboardingPage`, full flow: create household, add two accounts, add a categorized expense, add a commitment, seed one transfer between the two accounts via a direct API call | ledger shows the transaction and both transfer legs; dashboard "Wpływy"/"Wydatki" stat cards and the Groceries envelope's spent total are unaffected by the transfer; "Nadchodzące płatności" shows the new commitment |
+| a PRIVATE account is omitted from another member's view | `authenticatedHouseholdOwnerPage` + `authenticatedHouseholdMemberPage` (static `TEST_HOUSEHOLD` fixture, two separate browser contexts) | owner's `/household/settings/accounts` shows both the SHARED and their own PRIVATE account with a "Prywatne" badge; the other member's same page shows the SHARED account only — the PRIVATE account and badge are absent entirely, not shown redacted |
+
+**Known frontend gaps surfaced while building this spec** (not test bugs — flagged for
+frontend-engineer, worked around rather than silently assumed away):
+
+- No "add budget envelope" form exists anywhere in the Phase 1 frontend
+  (`app/household/(app)/envelopes/page.tsx` only ever reads `GET .../envelopes`). The mock API
+  pre-seeds one Groceries envelope per household so "a categorized transaction updates envelope
+  progress" is still exercised end to end — this is a mock-only accommodation, not a claim that
+  the real backend auto-seeds envelopes (it doesn't; see `household.service.ts`'s
+  `createHousehold`, which only seeds categories + the owner membership).
+- No UI exists to create a transfer between accounts (`createTransfer` / `POST
+  .../transfers` exists only in `apps/api`'s household routes, with no corresponding
+  `lib/api-client.ts` export or form). The transfer step is seeded with a direct
+  `page.request.post` call carrying the real request contract instead of a UI action; the
+  ledger and dashboard assertions that follow it are real UI checks.
+- `FormField` (`components/molecules/FormField.tsx`) renders a visible `<label>` but never
+  wires `htmlFor`/`id` to its control, so `getByLabel()` cannot resolve any household form
+  field except `AccountPicker` (which sets its own `aria-label`). The tests fall back to CSS
+  label-adjacency selectors (`label:has-text("...") + input`) and `getByPlaceholder()` where a
+  placeholder happens to exist — this is a real accessibility gap (these fields are not
+  associated with their labels for screen readers either), worth fixing in `FormField` itself
+  rather than only working around in tests.
+
 ## Implementation Notes
 
 - **JWT signing**: Use `jsonwebtoken` package. Add as devDependency to `apps/e2e/package.json` if not present.
@@ -117,6 +174,20 @@ apps/e2e/tests/
 - **Selector priority**: `getByRole` &gt; `getByLabel` &gt; `getByPlaceholder` &gt; `getByText`. Avoid CSS selectors.
 - **Navigation selectors**: Scope dashboard sidebar navigation clicks to the `Nawigacja dashboardu` landmark so tests only target primary navigation links, not similarly named quick actions.
 - **Test isolation**: Each test navigates independently. No shared state between tests.
+- **Household mock fixtures**: `mock-api/server.js` keeps household state in a `households` `Map`
+  keyed by household id, each entry holding its own accounts/categories/transactions/
+  commitments/envelopes and a `members` map from auth token to member record — mirroring the
+  real backend's live-membership-lookup model (no JWT `households` claim). `TEST_HOUSEHOLD` is a
+  static fixture pre-populated with one SHARED and one PRIVATE account plus two members (an
+  OWNER and "Anna", a second MEMBER), for tests that only read fixture state and want it stable
+  across parallel runs. Household-creation flows (`POST /households`) instead use the same
+  unique-per-test-id token pattern as `onboardingPage`, since each test mutates its own
+  household and a shared token would let parallel runs collide.
+- **Two simultaneous household actors**: `authenticatedHouseholdOwnerPage` and
+  `authenticatedHouseholdMemberPage` each open their own `browser.newContext()` rather than
+  reusing the test's shared `page` fixture — cookies live at the browser-context level, so two
+  fixtures both requesting `{ page }` would silently overwrite the same cookie jar when used
+  together in one test.
 
 ## Running Tests
 
@@ -126,6 +197,9 @@ pnpm test:e2e
 
 # Run a specific file
 pnpm --filter @ksiegowy/e2e exec playwright test tests/contractors.spec.ts
+
+# Run tests by file-name filter (passed through `test`'s script)
+pnpm --filter @ksiegowy/e2e test -- household-ledger household-onboarding-entrypoint
 
 # UI mode for debugging
 pnpm --filter @ksiegowy/e2e test:ui

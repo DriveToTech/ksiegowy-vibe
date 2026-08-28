@@ -1,5 +1,5 @@
 import { buildApp } from './app.js';
-import { scheduleDailyBackup } from './lib/cron.js';
+import { scheduleDailyBackup, scheduleDailyHouseholdJobs } from './lib/cron.js';
 
 const API_DEFAULT_PORT = 3001;
 
@@ -34,6 +34,7 @@ const start = async (): Promise<void> => {
 
   const storageBase = process.env['STORAGE_BASE_PATH'] ?? './storage';
   scheduleDailyBackup(app.prisma, app.log, storageBase);
+  scheduleDailyHouseholdJobs(app.householdDatabase, app.log);
 };
 
 void start();

@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { CompanySwitcher } from '../CompanySwitcher';
+import { KsefEnvironmentBadge } from '../KsefEnvironmentBadge';
+import { ModeSwitch } from '../ModeSwitch';
 import { getIncomingInvoices, getInvoices } from '../../lib/api';
 import type { AuthSession } from '../../lib/auth';
 import { t } from '../../lib/translations';
@@ -78,9 +81,9 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
       <div className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col lg:overflow-hidden lg:rounded-frame lg:border lg:border-outline lg:shadow-frame lg:bg-background">
         <AppHeader
           user={session.user}
-          companies={session.companies}
-          activeCompanyId={session.activeCompanyId}
-          activeKsefEnvironment={session.activeKsefEnvironment}
+          switcher={<CompanySwitcher companies={session.companies} activeCompanyId={session.activeCompanyId} compact />}
+          ksefBadge={<KsefEnvironmentBadge environment={session.activeKsefEnvironment} />}
+          modeSwitch={<ModeSwitch activeMode={session.activeMode} />}
         />
 
         <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[226px_1fr] lg:overflow-hidden">

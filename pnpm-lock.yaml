@@ -59,6 +59,9 @@ importers:
       '@ksiegowy/fa3-xml':
         specifier: workspace:*
         version: link:../../packages/fa3-xml
+      '@ksiegowy/household-service':
+        specifier: workspace:*
+        version: link:../../services/household
       '@ksiegowy/ksef-client':
         specifier: workspace:*
         version: link:../../packages/ksef-client
@@ -205,6 +208,22 @@ importers:
         version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)
 
   packages/types: {}
+
+  services/household:
+    dependencies:
+      '@prisma/client':
+        specifier: ^6.6.0
+        version: 6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.19.15
+      prisma:
+        specifier: ^6.6.0
+        version: 6.19.2(typescript@5.9.3)
+      vitest:
+        specifier: ^3.1.1
+        version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)
 
 packages:
 

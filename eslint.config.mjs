@@ -6,7 +6,7 @@ import nextPlugin from '@next/eslint-plugin-next';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/.next/**'],
+    ignores: ['**/dist/**', '**/.next/**', '**/generated/**'],
   },
   eslint.configs.recommended,
   tseslint.configs.recommended,

@@ -878,3 +878,141 @@ When the selected environment has no token configured:
 - The shell displays a persistent environment badge (`TEST` or `PRODUCTION`) visible without opening settings.
 - `PRODUCTION` actions require explicit confirmation with stronger language.
 - The environment switcher persists the user's selection in a cookie (`active_ksef_environment`) that survives page refreshes.
+
+---
+
+## Household Data Model (Personal Mode)
+
+Schema source: [`services/household/prisma/schema.prisma`](../services/household/prisma/schema.prisma)
+Database: PostgreSQL 17, **separate database** (`ksiegowy_household`) from the business schema above — no cross-database foreign keys or joins are possible.
+
+```mermaid
+erDiagram
+    Household {
+        string id PK
+        string name
+        string currency
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    HouseholdMembership {
+        string id PK
+        string householdId FK
+        string userId "plain string, not a relation — User lives in the business database"
+        string userEmail "identity snapshot, refreshed on the member's own login"
+        string displayName "identity snapshot"
+        HouseholdMembershipRole role "OWNER | MEMBER"
+    }
+
+    HouseholdAccount {
+        string id PK
+        string householdId FK
+        string name
+        HouseholdAccountType type "CURRENT | SAVINGS | CREDIT_CARD | CASH"
+        string accountNumberMask "display-only disambiguator, never used to move money"
+        HouseholdAccountVisibility visibility "SHARED | PRIVATE"
+        string ownerUserId "required iff PRIVATE"
+        decimal openingBalance "balance is openingBalance + SUM(transactions), never stored"
+        decimal creditLimit
+        int statementDay
+    }
+
+    HouseholdCategory {
+        string id PK
+        string householdId FK
+        string name
+        string parentCategoryId FK "one level of grouping"
+    }
+
+    HouseholdTransaction {
+        string id PK
+        string householdId FK
+        string accountId FK
+        string categoryId FK
+        string payee
+        string payerUserId "who spent it — may differ from the account owner"
+        string bankDescription "raw import/bank-line text"
+        decimal amount "signed: positive=in, negative=out"
+        date date
+        string tag
+        string note
+        boolean isRecurring
+        string commitmentId FK "set when cron-generated"
+        HouseholdTransactionCategorizationSource categorizationSource "MANUAL | RULE | IMPORT"
+        string importBatchId
+        string transferGroupId "two rows share this for a transfer between accounts"
+    }
+
+    BudgetEnvelope {
+        string id PK
+        string householdId FK
+        string categoryId FK, UK
+        decimal monthlyLimit "spent is computed at read time, not stored"
+    }
+
+    Commitment {
+        string id PK
+        string householdId FK
+        string accountId FK
+        CommitmentType type "INSURANCE | LOAN | SUBSCRIPTION | UTILITY | OTHER"
+        string name
+        decimal amount
+        CommitmentBillingFrequency billingFrequency "WEEKLY | MONTHLY | QUARTERLY | YEARLY"
+        date nextDueDate
+        CommitmentStatus status "ACTIVE | PAUSED | CANCELLED"
+        boolean isAutomatic "standing order/direct debit vs. paid manually — default true"
+        string provider "insurance-only"
+        string policyNumber "insurance-only"
+        decimal sumInsured "insurance-only"
+        json coverBreakdown "insurance-only — {label, amount}[]"
+        decimal principal "loan-only"
+        decimal outstandingBalance "loan-only"
+        decimal interestRate "loan-only — decimal fraction (0.0740 = 7.40%), amortization schedule computed on read"
+        int termMonths "loan-only"
+        datetime lastUsedAt "subscription-only — drives the unused nudge"
+    }
+
+    CategorizationRule {
+        string id PK
+        string householdId FK
+        CategorizationRuleMatchType matchType "EXACT | SUBSTRING"
+        string payeePattern
+        string categoryId FK
+    }
+
+    Household ||--o{ HouseholdMembership : "has"
+    Household ||--o{ HouseholdAccount : "has"
+    Household ||--o{ HouseholdCategory : "has"
+    Household ||--o{ HouseholdTransaction : "has"
+    Household ||--o{ BudgetEnvelope : "has"
+    Household ||--o{ Commitment : "has"
+    Household ||--o{ CategorizationRule : "has"
+    HouseholdAccount ||--o{ HouseholdTransaction : "posts"
+    HouseholdAccount ||--o{ Commitment : "bills to"
+    HouseholdCategory ||--o| BudgetEnvelope : "budgets"
+    HouseholdCategory ||--o{ HouseholdTransaction : "categorizes"
+    HouseholdCategory ||--o{ CategorizationRule : "targets"
+    HouseholdCategory ||--o{ HouseholdCategory : "parent of"
+    Commitment ||--o{ HouseholdTransaction : "generates"
+```
+
+### Why a separate database
+
+Household (personal-mode budgeting) is deliberately isolated from the business/bookkeeping schema at the storage-engine level, not just a separate schema namespace: a household-side migration or bug cannot touch `Company`/`Invoice` tables, and if household ever becomes its own product, extraction is a connection-string change, not a data migration. The one designed cross-domain link — "what the company pays you arrives as one income line" — is a single application-level operation (business side computes a payout figure; household side receives a manually-confirmed `HouseholdTransaction`), never a SQL-level join.
+
+### User identity without a cross-database relation
+
+`HouseholdMembership.userId` is a plain `String`, validated at the application layer against the authenticated session (JWT `sub`) — Prisma cannot declare a relation to a model (`User`) that doesn't exist in this schema. The display-name/email gap this creates is solved by an **identity snapshot** on `HouseholdMembership` (`userEmail`, `displayName`), written at invite/join time and refreshed on that member's own next authenticated request — not by syncing the `User` table, which would need real replication machinery to guard a table with two to five rows per household.
+
+### Private-account visibility
+
+A single function, `visibleAccountIds(householdId, userId)` in `household-account.service.ts`, is the only place any query builds an account-visibility filter. A `PRIVATE` account owned by someone else is **omitted** from that member's account list and every aggregate (dashboard sums, envelope spend, reports) — never returned with a redacted balance.
+
+### Transfers
+
+Moving money between two `HouseholdAccount`s is modeled as two `HouseholdTransaction` rows sharing one `transferGroupId` (negative on the source, positive on the destination) rather than a `type` enum on a single row. Every income/expense/envelope/report query filters `transferGroupId IS NULL`, so a transfer is automatically excluded from spend and income totals without special-casing.
+
+### Commitment idempotency
+
+`@@unique([commitmentId, date])` on `HouseholdTransaction` (with a nullable `commitmentId`, so manual transactions are unaffected — Postgres treats `NULL`s as distinct) makes the daily commitment-generation cron idempotent at the database level: a restart, retry, or double-run cannot double-charge a commitment. See [`docs/household-mode.md`](./household-mode.md) for the full cron flow.

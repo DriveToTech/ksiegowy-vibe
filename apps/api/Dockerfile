@@ -28,6 +28,7 @@ COPY packages/shared-utils/package.json      packages/shared-utils/package.json
 COPY packages/fa3-xml/package.json           packages/fa3-xml/package.json
 COPY packages/ksef-client/package.json       packages/ksef-client/package.json
 COPY packages/pdf-templates/package.json     packages/pdf-templates/package.json
+COPY services/household/package.json         services/household/package.json
 COPY apps/api/package.json                   apps/api/package.json
 
 # Skip Puppeteer's bundled Chromium download — the system chromium package is
@@ -47,6 +48,7 @@ COPY packages/shared-utils/  packages/shared-utils/
 COPY packages/fa3-xml/       packages/fa3-xml/
 COPY packages/ksef-client/   packages/ksef-client/
 COPY packages/pdf-templates/ packages/pdf-templates/
+COPY services/household/     services/household/
 COPY apps/api/               apps/api/
 
 # Generate Prisma client (reads schema only, no database required).
@@ -61,6 +63,7 @@ RUN pnpm --filter @ksiegowy/shared-utils  run build
 RUN pnpm --filter @ksiegowy/fa3-xml       run build
 RUN pnpm --filter @ksiegowy/ksef-client   run build
 RUN pnpm --filter @ksiegowy/pdf-templates run build
+RUN pnpm --filter @ksiegowy/household-service run build
 
 # Compile the API with swc (Rust-based transpiler) instead of tsc.
 # swc uses ~10x less memory than tsc because it skips the TypeScript compiler
@@ -110,6 +113,9 @@ COPY --from=builder /app/packages/ksef-client/dist            ./packages/ksef-cl
 
 COPY --from=builder /app/packages/pdf-templates/package.json  ./packages/pdf-templates/package.json
 COPY --from=builder /app/packages/pdf-templates/dist          ./packages/pdf-templates/dist
+
+COPY --from=builder /app/services/household/package.json      ./services/household/package.json
+COPY --from=builder /app/services/household/dist              ./services/household/dist
 
 # Compiled API output (CJS .js files, no "type":"module" needed).
 COPY --from=builder /app/apps/api/dist  ./dist

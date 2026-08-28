@@ -299,11 +299,16 @@ flowchart LR
         PDF["@ksiegowy/pdf-templates\nPuppeteer PDF generator"]
     end
 
+    subgraph services["Domain Services"]
+        HOUSEHOLD["@ksiegowy/household-service\nHousehold domain logic + Prisma schema"]
+    end
+
     API --> TYPES
     API --> UTILS
     API --> KSEF
     API --> FA3
     API --> PDF
+    API --> HOUSEHOLD
 
     WEB --> TYPES
 
@@ -312,3 +317,39 @@ flowchart LR
     FA3 --> UTILS
     PDF --> TYPES
 ```
+
+---
+
+## Household Bounded Context (Personal Mode)
+
+Personal/household budgeting is a separate bounded context from company bookkeeping: its own Prisma schema and Postgres database (`ksiegowy_household`), owned end-to-end by the `@ksiegowy/household-service` package (`services/household/`). `apps/api` depends on it as a thin HTTP layer only — no household query logic exists inside `apps/api` itself, and no household service imports from the company/invoice/KSeF services or vice versa.
+
+```mermaid
+C4Component
+  title Household Bounded Context
+
+  Container_Boundary(api, "apps/api") {
+    Component(householdRoutes, "routes/household/*", "Fastify plugins", "Schema validation, live membership guard, HTTP mapping — no business logic")
+    Component(householdPlugin, "plugins/household-database.ts", "Fastify plugin", "Decorates fastify.householdDatabase from the package's factory")
+    Component(cronJobs, "lib/cron.ts", "node-cron", "Daily: commitment generation + renewal reminder sweep")
+  }
+
+  Container_Boundary(pkg, "@ksiegowy/household-service") {
+    Component(domainServices, "src/domain/*.service.ts", "TypeScript", "Household, account, transaction, categorization-rule, statement-import, budget-envelope, commitment, commitment-reminder — zero Fastify imports")
+    ContainerDb(householdDb, "Household Prisma Client", "generated client", "services/household/src/generated/client")
+  }
+
+  ContainerDb(householdPostgres, "ksiegowy_household", "PostgreSQL 17", "Separate database from the business schema — no cross-database joins")
+
+  Rel(householdRoutes, domainServices, "Calls", "function calls, fastify.householdDatabase passed in")
+  Rel(householdPlugin, domainServices, "Constructs client via", "createHouseholdDatabase()")
+  Rel(cronJobs, domainServices, "Calls directly", "generateDueCommitmentTransactions(), runRenewalReminderSweep()")
+  Rel(domainServices, householdDb, "Uses")
+  Rel(householdDb, householdPostgres, "Queries", "Prisma / TCP")
+```
+
+Key backend decisions (full detail in [`docs/household-mode.md`](./household-mode.md)):
+- **No JWT `households` claim** — every household route does a live `HouseholdMembership` lookup instead, so a removed member loses access immediately rather than after the access-token TTL.
+- **Private-account visibility** is enforced by one function, `visibleAccountIds()`, used by every list and aggregate query — a private account owned by someone else is omitted, never returned with a redacted balance.
+- **Transfers** between accounts are two `HouseholdTransaction` rows sharing `transferGroupId` (not a `type` enum), so every income/expense/envelope aggregate stays a plain `SUM(amount)` with one `transferGroupId IS NULL` predicate.
+- **Commitment-generation cron is idempotent** at the database level via `@@unique([commitmentId, date])` — a retry or double-run cannot double-charge a commitment.

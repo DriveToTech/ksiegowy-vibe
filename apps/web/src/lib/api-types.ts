@@ -412,6 +412,185 @@ export interface Invite {
   createdAt: string;
 }
 
+// ── Household (personal mode) ────────────────────────────────────────────────
+// Shapes mirror services/household's Phase 1 API responses, per the personal-mode
+// implementation plan's Domain Model section. Backend routes are being built in
+// parallel — confirm these against the actual /households/* responses once live.
+
+export type HouseholdRole = 'OWNER' | 'MEMBER';
+
+export interface HouseholdSummary {
+  id: string;
+  role: HouseholdRole;
+  name: string;
+}
+
+export type HouseholdAccountType = 'CURRENT' | 'SAVINGS' | 'CREDIT_CARD' | 'CASH';
+export type HouseholdAccountVisibility = 'SHARED' | 'PRIVATE';
+
+export interface HouseholdAccount {
+  id: string;
+  householdId: string;
+  name: string;
+  type: HouseholdAccountType;
+  accountNumberMask: string | null;
+  visibility: HouseholdAccountVisibility;
+  ownerUserId: string | null;
+  openingBalance: string;
+  balance: string;
+  creditLimit: string | null;
+  statementDay: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdCategory {
+  id: string;
+  householdId: string;
+  name: string;
+  parentCategoryId: string | null;
+}
+
+export type HouseholdTransactionCategorizationSource = 'MANUAL' | 'RULE' | 'IMPORT';
+
+export interface HouseholdTransaction {
+  id: string;
+  householdId: string;
+  accountId: string;
+  categoryId: string | null;
+  payee: string;
+  payerUserId: string | null;
+  bankDescription: string | null;
+  amount: string;
+  date: string;
+  tag: string | null;
+  note: string | null;
+  isRecurring: boolean;
+  commitmentId: string | null;
+  categorizationSource: HouseholdTransactionCategorizationSource;
+  importBatchId: string | null;
+  transferGroupId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateHouseholdTransactionBody {
+  accountId: string;
+  categoryId?: string;
+  payee: string;
+  payerUserId?: string;
+  amount: string;
+  date: string;
+  tag?: string;
+  note?: string;
+  isRecurring?: boolean;
+  applyRuleToFuturePayments?: boolean;
+}
+
+export interface CreateHouseholdTransferBody {
+  fromAccountId: string;
+  toAccountId: string;
+  amount: string;
+  date: string;
+  payee?: string;
+  note?: string;
+}
+
+export type CommitmentType = 'INSURANCE' | 'LOAN' | 'SUBSCRIPTION' | 'UTILITY' | 'OTHER';
+export type CommitmentBillingFrequency = 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+export type CommitmentStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+
+export interface CommitmentCoverBreakdownEntry {
+  label: string;
+  amount: string;
+}
+
+export interface Commitment {
+  id: string;
+  householdId: string;
+  accountId: string;
+  type: CommitmentType;
+  name: string;
+  amount: string;
+  billingFrequency: CommitmentBillingFrequency;
+  nextDueDate: string;
+  status: CommitmentStatus;
+  provider: string | null;
+  policyNumber: string | null;
+  insuredObject: string | null;
+  sumInsured: string | null;
+  coverBreakdown: CommitmentCoverBreakdownEntry[] | null;
+  principal: string | null;
+  outstandingBalance: string | null;
+  interestRate: string | null;
+  termMonths: number | null;
+  isAutomatic: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCommitmentBody {
+  accountId: string;
+  type: CommitmentType;
+  name: string;
+  amount: string;
+  billingFrequency: CommitmentBillingFrequency;
+  nextDueDate: string;
+  provider?: string;
+  policyNumber?: string;
+  insuredObject?: string;
+  sumInsured?: string;
+  principal?: string;
+  outstandingBalance?: string;
+  interestRate?: string;
+  termMonths?: number;
+  isAutomatic?: boolean;
+}
+
+export interface UpdateCommitmentBody {
+  name?: string;
+  amount?: string;
+  billingFrequency?: CommitmentBillingFrequency;
+  nextDueDate?: string;
+  status?: CommitmentStatus;
+  outstandingBalance?: string;
+  isAutomatic?: boolean;
+}
+
+export interface BudgetEnvelope {
+  id: string;
+  householdId: string;
+  categoryId: string;
+  categoryName: string;
+  monthlyLimit: string;
+  spent: string;
+  remaining: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdDashboard {
+  safeToSpend: string;
+  moneyIn: string;
+  moneyOut: string;
+  netWorth: string;
+  netWorthChangePercent: string;
+  savingsRatePercent: string;
+  savingsAmountThisMonth: string;
+  accounts: HouseholdAccount[];
+  envelopes: BudgetEnvelope[];
+  upcomingCommitments: Array<{ id: string; name: string; type: string; amount: string; nextDueDate: string; daysUntilDue: number }>;
+  monthlyInOut: Array<{ month: string; income: string; expense: string }>;
+}
+
+export interface HouseholdMember {
+  userId: string;
+  role: HouseholdRole;
+  displayName: string | null;
+  userEmail: string;
+}
+
 export interface ReportDetails {
   id: string;
   companyId: string;

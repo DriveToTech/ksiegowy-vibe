@@ -33,34 +33,43 @@ if [[ -z "${latest_timestamp}" ]]; then
   exit 1
 fi
 
-backup_file_name="postgresql-${backup_environment_name}-${latest_timestamp}.sql.gz"
-checksum_file_name="${backup_file_name}.sha256"
-manifest_file_name="postgresql-${backup_environment_name}-${latest_timestamp}.manifest.json"
-
 echo "[download-postgres-backup] Downloading ${latest_timestamp} from ${backup_remote_name}..."
 
 rclone copy "${remote_env_path}/${latest_timestamp}/" "${backup_output_directory}/" --config "${rclone_config_path}"
 
-if [[ ! -f "${backup_output_directory}/${backup_file_name}" ]]; then
-  echo "[download-postgres-backup] Missing artifact after download: ${backup_file_name}"
-  exit 1
-fi
+# One timestamp directory holds both databases' artifact sets (see
+# run-postgres-backup.sh), so both are verified after a single download.
+backup_database_labels=(business household)
 
-if [[ ! -f "${backup_output_directory}/${checksum_file_name}" ]]; then
-  echo "[download-postgres-backup] Missing artifact after download: ${checksum_file_name}"
-  exit 1
-fi
+for database_label in "${backup_database_labels[@]}"; do
+  backup_file_name="postgresql-${database_label}-${backup_environment_name}-${latest_timestamp}.sql.gz"
+  checksum_file_name="${backup_file_name}.sha256"
+  manifest_file_name="postgresql-${database_label}-${backup_environment_name}-${latest_timestamp}.manifest.json"
 
-if [[ ! -f "${backup_output_directory}/${manifest_file_name}" ]]; then
-  echo "[download-postgres-backup] Missing artifact after download: ${manifest_file_name}"
-  exit 1
-fi
+  if [[ ! -f "${backup_output_directory}/${backup_file_name}" ]]; then
+    echo "[download-postgres-backup] Missing artifact after download: ${backup_file_name}"
+    exit 1
+  fi
 
-if ! (cd "${backup_output_directory}" && sha256sum -cs "${checksum_file_name}"); then
-  echo "[download-postgres-backup] Integrity check FAILED for ${backup_file_name}."
-  exit 1
-fi
+  if [[ ! -f "${backup_output_directory}/${checksum_file_name}" ]]; then
+    echo "[download-postgres-backup] Missing artifact after download: ${checksum_file_name}"
+    exit 1
+  fi
 
-backup_size_bytes="$(wc -c < "${backup_output_directory}/${backup_file_name}" | tr -d ' ')"
-echo "[download-postgres-backup] Downloaded successfully: ${backup_file_name} (${backup_size_bytes} bytes)."
-echo "[download-postgres-backup] Inspect the files, then run: DB_RESTORE_CONFIRMED=yes pnpm restore:postgres"
+  if [[ ! -f "${backup_output_directory}/${manifest_file_name}" ]]; then
+    echo "[download-postgres-backup] Missing artifact after download: ${manifest_file_name}"
+    exit 1
+  fi
+
+  if ! (cd "${backup_output_directory}" && sha256sum -cs "${checksum_file_name}"); then
+    echo "[download-postgres-backup] Integrity check FAILED for ${backup_file_name}."
+    exit 1
+  fi
+
+  backup_size_bytes="$(wc -c < "${backup_output_directory}/${backup_file_name}" | tr -d ' ')"
+  echo "[download-postgres-backup] Downloaded successfully: ${backup_file_name} (${backup_size_bytes} bytes)."
+done
+
+echo "[download-postgres-backup] Inspect the files, then run one restore per database:"
+echo "[download-postgres-backup]   DB_RESTORE_CONFIRMED=yes DB_RESTORE_DATABASE_LABEL=business pnpm restore:postgres"
+echo "[download-postgres-backup]   DB_RESTORE_CONFIRMED=yes DB_RESTORE_DATABASE_LABEL=household pnpm restore:postgres"

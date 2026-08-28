@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("HOUSEHOLD_DATABASE_URL")
+}
+
+enum HouseholdMembershipRole {
+  OWNER
+  MEMBER
+}
+
+enum HouseholdAccountType {
+  CURRENT
+  SAVINGS
+  CREDIT_CARD
+  CASH
+}
+
+enum HouseholdAccountVisibility {
+  SHARED
+  PRIVATE
+}
+
+enum HouseholdTransactionCategorizationSource {
+  MANUAL
+  RULE
+  IMPORT
+}
+
+enum CommitmentType {
+  INSURANCE
+  LOAN
+  SUBSCRIPTION
+  UTILITY
+  OTHER
+}
+
+enum CommitmentBillingFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum CommitmentStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum CategorizationRuleMatchType {
+  EXACT
+  SUBSTRING
+}
+
+// ── Tenancy ──────────────────────────────────────────────────────────────────
+
+model Household {
+  id                  String                @id @default(cuid())
+  name                String
+  currency            String                @default("PLN")
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  memberships         HouseholdMembership[]
+  accounts            HouseholdAccount[]
+  categories          HouseholdCategory[]
+  transactions        HouseholdTransaction[]
+  envelopes           BudgetEnvelope[]
+  commitments         Commitment[]
+  categorizationRules CategorizationRule[]
+}
+
+// Not a Prisma relation to User — User lives in the business database, so no
+// cross-database foreign key is possible. Instead this carries an identity
+// snapshot (userEmail, displayName), written at invite/join time and refreshed
+// on that member's own next authenticated household request.
+model HouseholdMembership {
+  id          String                  @id @default(cuid())
+  householdId String
+  userId      String
+  userEmail   String
+  displayName String?
+  role        HouseholdMembershipRole @default(MEMBER)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  household   Household               @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, userId])
+  @@unique([householdId, userEmail])
+  @@index([userId])
+}
+
+// ── Accounts ─────────────────────────────────────────────────────────────────
+
+// balance is intentionally not stored: current balance is computed as
+// openingBalance + SUM(HouseholdTransaction.amount) at read time, the same
+// single-source-of-truth reasoning as BudgetEnvelope's computed spend.
+model HouseholdAccount {
+  id                String                     @id @default(cuid())
+  householdId       String
+  name              String
+  type              HouseholdAccountType
+  accountNumberMask String?
+  visibility        HouseholdAccountVisibility @default(SHARED)
+  ownerUserId       String?
+  openingBalance    Decimal                    @default(0) @db.Decimal(15, 2)
+  creditLimit       Decimal?                   @db.Decimal(15, 2)
+  statementDay      Int?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  household         Household                  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transactions      HouseholdTransaction[]
+  commitments       Commitment[]
+
+  @@index([householdId])
+  @@index([householdId, visibility])
+}
+
+// ── Categories ───────────────────────────────────────────────────────────────
+
+model HouseholdCategory {
+  id               String              @id @default(cuid())
+  householdId      String
+  name             String
+  parentCategoryId String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  household        Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  parentCategory   HouseholdCategory?  @relation("HouseholdCategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  childCategories  HouseholdCategory[] @relation("HouseholdCategoryHierarchy")
+  transactions     HouseholdTransaction[]
+  envelope         BudgetEnvelope?
+  categorizationRules CategorizationRule[]
+
+  @@index([householdId])
+  @@index([parentCategoryId])
+}
+
+// ── Ledger ───────────────────────────────────────────────────────────────────
+
+// Transfers between accounts are two linked rows sharing transferGroupId
+// (negative on the source account, positive on the destination) instead of a
+// type enum, so every balance/income/spend aggregate keeps falling out of the
+// same SUM(amount) with one added predicate (transferGroupId IS NULL).
+model HouseholdTransaction {
+  id                   String                                    @id @default(cuid())
+  householdId          String
+  accountId            String
+  categoryId           String?
+  payee                String
+  payerUserId          String?
+  bankDescription      String?
+  amount               Decimal                                   @db.Decimal(15, 2)
+  date                 DateTime                                  @db.Date
+  tag                  String?
+  note                 String?
+  isRecurring          Boolean                                   @default(false)
+  commitmentId         String?
+  categorizationSource HouseholdTransactionCategorizationSource  @default(MANUAL)
+  importBatchId        String?
+  transferGroupId      String?
+  createdAt            DateTime                                  @default(now())
+  updatedAt            DateTime                                  @updatedAt
+  household            Household                                 @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  account              HouseholdAccount                          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category             HouseholdCategory?                        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  commitment           Commitment?                               @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+
+  @@unique([commitmentId, date])
+  @@index([householdId, date])
+  @@index([householdId, categoryId, date])
+  @@index([accountId, date])
+  @@index([transferGroupId])
+}
+
+// ── Budget envelopes ─────────────────────────────────────────────────────────
+
+// "Spent this month" is a computed grouped-SUM query at read time (excluding
+// transfers), not a denormalized write-time counter.
+// ponytail: no per-period limit snapshot, so a limit change applies
+// retroactively to past months' displayed progress — add a
+// BudgetEnvelopePeriod table if historical-limit auditing becomes a real ask.
+model BudgetEnvelope {
+  id            String            @id @default(cuid())
+  householdId   String
+  categoryId    String            @unique
+  monthlyLimit  Decimal           @db.Decimal(15, 2)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  household     Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  category      HouseholdCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, categoryId])
+}
+
+// ── Commitments ──────────────────────────────────────────────────────────────
+
+// Single table, nullable type-specific columns — Prisma has no table
+// inheritance, and per-type tables would force a UNION for the one
+// register/reminder/dashboard query that must span all types.
+model Commitment {
+  id               String                     @id @default(cuid())
+  householdId      String
+  accountId        String
+  type             CommitmentType
+  name             String
+  amount           Decimal                    @db.Decimal(15, 2)
+  billingFrequency CommitmentBillingFrequency
+  nextDueDate      DateTime                   @db.Date
+  status           CommitmentStatus           @default(ACTIVE)
+  // Standing order/direct debit vs. paid manually by a household member — the
+  // due-date-advancement cron only auto-generates a transaction when true.
+  isAutomatic      Boolean                    @default(true)
+
+  // Insurance-only
+  provider       String?
+  policyNumber   String?
+  insuredObject  String?
+  sumInsured     Decimal? @db.Decimal(15, 2)
+  coverBreakdown Json?
+
+  // Loan-only — amortization schedule is computed on read, not stored
+  principal         Decimal? @db.Decimal(15, 2)
+  outstandingBalance Decimal? @db.Decimal(15, 2)
+  interestRate      Decimal? @db.Decimal(5, 4)
+  termMonths        Int?
+
+  // Subscription-only — drives the "unused" nudge
+  lastUsedAt DateTime?
+
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  household    Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  account      HouseholdAccount       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  transactions HouseholdTransaction[]
+
+  @@index([householdId])
+  @@index([householdId, status])
+  @@index([householdId, nextDueDate])
+}
+
+// ── Categorization rules ─────────────────────────────────────────────────────
+
+// Not auto-created on every recategorization — rule creation is an explicit
+// opt-in checkbox on the recategorize action. Precedence: exact match before
+// substring, longest substring wins among substring matches, ties broken by
+// most recently created rule.
+model CategorizationRule {
+  id            String                       @id @default(cuid())
+  householdId   String
+  matchType     CategorizationRuleMatchType
+  payeePattern  String
+  categoryId    String
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  household     Household                    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  category      HouseholdCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@index([householdId, matchType])
+}

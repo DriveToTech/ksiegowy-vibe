@@ -2,12 +2,18 @@
 node_modules/
 .pnpm-store/
 
+# Git worktrees
+.worktree/
+
 # Build artifacts
 dist/
 .turbo/
 .next/
 coverage/
 *.tsbuildinfo
+
+# Generated Prisma clients
+services/**/src/generated/
 
 # Environment
 .env

@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ksiegowy}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       POSTGRES_DB: ${POSTGRES_DB:-ksiegowy_dev}
+      HOUSEHOLD_POSTGRES_DB: ${HOUSEHOLD_POSTGRES_DB:-ksiegowy_household}
     ports:
       - '${POSTGRES_HOST_PORT:-5432}:5432'
     healthcheck:
@@ -16,12 +17,15 @@ services:
       start_period: 10s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Creates the household (personal mode) database on first boot only —
+      # see ops/postgres/init-household-db.sh.
+      - ./ops/postgres/init-household-db.sh:/docker-entrypoint-initdb.d/init-household-db.sh:ro
 
   adminer:
     image: adminer:latest
     restart: unless-stopped
     ports:
-      - '8080:8080'
+      - '${ADMINER_HOST_PORT:-8080}:8080'
     depends_on:
       - postgres
     profiles:
@@ -33,13 +37,14 @@ services:
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     ports:
-      - '3001:3001'
+      - '${API_HOST_PORT:-3001}:3001'
     depends_on:
       - postgres
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-ksiegowy}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-ksiegowy_dev}
-      CORS_ORIGIN: http://localhost:3000
+      HOUSEHOLD_DATABASE_URL: postgresql://${POSTGRES_USER:-ksiegowy}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${HOUSEHOLD_POSTGRES_DB:-ksiegowy_household}?connection_limit=5
+      CORS_ORIGIN: http://localhost:${WEB_HOST_PORT:-3000}
       STORAGE_BASE_PATH: /app/storage
       POSTGRESQL_BACKUP_ARTIFACTS_PATH: /app/backups/postgresql
       BACKUP_DESTINATION_ROOT: ${BACKUP_DESTINATION_ROOT:-ksiegowy-vibe-backups}
@@ -53,16 +58,16 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:3001
+        NEXT_PUBLIC_API_URL: http://localhost:${API_HOST_PORT:-3001}
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '${WEB_HOST_PORT:-3000}:3000'
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://localhost:${API_HOST_PORT:-3001}
       API_URL: http://api:3001
-      APP_URL: http://localhost:3000
+      APP_URL: http://localhost:${WEB_HOST_PORT:-3000}
 
   backup-postgres:
     build:
@@ -81,6 +86,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ksiegowy}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       POSTGRES_DB: ${POSTGRES_DB:-ksiegowy_dev}
+      HOUSEHOLD_POSTGRES_DB: ${HOUSEHOLD_POSTGRES_DB:-ksiegowy_household}
       PGPASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       DB_BACKUP_ENABLED: ${DB_BACKUP_ENABLED:-false}
       DB_BACKUP_ENVIRONMENT_NAME: ${DB_BACKUP_ENVIRONMENT_NAME:-local}
@@ -135,8 +141,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ksiegowy}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       POSTGRES_DB: ${POSTGRES_DB:-ksiegowy_dev}
+      HOUSEHOLD_POSTGRES_DB: ${HOUSEHOLD_POSTGRES_DB:-ksiegowy_household}
       PGPASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       DB_RESTORE_ENVIRONMENT_NAME: ${DB_RESTORE_ENVIRONMENT_NAME:-production}
+      DB_RESTORE_DATABASE_LABEL: ${DB_RESTORE_DATABASE_LABEL:-business}
       DB_RESTORE_ARTIFACT_NAME: ${DB_RESTORE_ARTIFACT_NAME:-}
       DB_RESTORE_CONFIRMED: ${DB_RESTORE_CONFIRMED:-}
       DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS: ${DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS:-120}

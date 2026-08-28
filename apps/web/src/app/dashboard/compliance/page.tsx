@@ -8,7 +8,7 @@ import {Surface} from "../../../components/atoms/Surface";
 import {formatDate} from "../../../lib/format";
 import {getActiveCompany, getReport} from "../../../lib/api";
 import {ErrorState} from "../../../components/molecules/ErrorState";
-import {ReportDetails} from "../../../lib/api-types";
+import type {ReportDetails} from "../../../lib/api-types";
 
 function buildClearanceSteps(report: ReportDetails): ClearanceStep[] {
     console.log(report);

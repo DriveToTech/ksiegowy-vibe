@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Button } from '../../components/atoms/Button';
-import { getAuthSession } from '../../lib/auth';
+import { getAuthSession, landingPathForSession } from '../../lib/auth';
 import { t } from '../../lib/translations';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -22,7 +22,7 @@ export default async function LoginPage({
   ]);
 
   if (session?.authenticated) {
-    redirect(params.next && params.next.startsWith('/') ? params.next : '/dashboard');
+    redirect(params.next && params.next.startsWith('/') ? params.next : landingPathForSession(session));
   }
 
   return (

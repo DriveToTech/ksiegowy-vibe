@@ -1,7 +1,12 @@
 import type { PrismaClient } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../app.js';
+import type { BuildAppOptions } from '../app.js';
 import type { AccessTokenPayload, AuthConfig } from '../lib/auth-config.js';
+
+const householdDatabase = {
+  $disconnect: vi.fn(async () => undefined)
+} as unknown as NonNullable<BuildAppOptions['householdDatabaseClient']>;
 
 const authConfig: AuthConfig = {
   nodeEnv: 'test',
@@ -60,6 +65,7 @@ describe('GET /companies/:companyId/ksef/queue', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig,
     });
 
@@ -125,6 +131,7 @@ describe('GET /companies/:companyId/ksef/queue', () => {
     const app = await buildApp({
       logger: false,
       prismaClient: prisma,
+      householdDatabaseClient: householdDatabase,
       authConfig,
     });
 

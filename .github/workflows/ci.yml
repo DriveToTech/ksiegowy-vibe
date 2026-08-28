@@ -35,10 +35,14 @@ jobs:
                --filter @ksiegowy/fa3-xml \
                --filter @ksiegowy/ksef-client \
                --filter @ksiegowy/pdf-templates \
+               --filter @ksiegowy/household-service \
                build
 
       - name: Generate Prisma client
         run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Generate household Prisma client
+        run: pnpm --filter @ksiegowy/household-service exec prisma generate --schema prisma/schema.prisma
 
       - name: Run typecheck
         run: pnpm typecheck
@@ -92,10 +96,14 @@ jobs:
                --filter @ksiegowy/fa3-xml \
                --filter @ksiegowy/ksef-client \
                --filter @ksiegowy/pdf-templates \
+               --filter @ksiegowy/household-service \
                build
 
       - name: Generate Prisma client
         run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Generate household Prisma client
+        run: pnpm --filter @ksiegowy/household-service exec prisma generate --schema prisma/schema.prisma
 
       - name: Run unit tests
         run: pnpm test
@@ -121,6 +129,9 @@ jobs:
 
       - name: Generate Prisma client
         run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Generate household Prisma client
+        run: pnpm --filter @ksiegowy/household-service exec prisma generate --schema prisma/schema.prisma
 
       - name: Build all packages and apps
         run: pnpm build
@@ -158,21 +169,39 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Create household database
+        # The Postgres service container only provisions POSTGRES_DB (ksiegowy_test) on
+        # boot — mirrors ops/postgres/init-household-db.sh's role in docker-compose, but
+        # as an explicit step: GitHub Actions starts service containers before the
+        # checkout step runs, so init-household-db.sh isn't on disk yet to bind-mount.
+        run: psql "postgresql://postgres:postgres@localhost:5432/postgres" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ksiegowy_household_test;'
+
       - name: Generate Prisma client
         run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_test
+
+      - name: Generate household Prisma client
+        run: pnpm --filter @ksiegowy/household-service exec prisma generate --schema prisma/schema.prisma
+        env:
+          HOUSEHOLD_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_household_test?connection_limit=5
 
       - name: Run database migrations
         run: pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_test
 
+      - name: Run household database migrations
+        run: pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
+        env:
+          HOUSEHOLD_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_household_test?connection_limit=5
+
       - name: Run integration tests
         # TODO: replace with actual integration test command once tests are added
         run: echo "No integration tests yet — add test:integration script to run here"
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_test
+          HOUSEHOLD_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_household_test?connection_limit=5
 
   test-e2e:
     name: E2E Tests
@@ -200,10 +229,14 @@ jobs:
                --filter @ksiegowy/fa3-xml \
                --filter @ksiegowy/ksef-client \
                --filter @ksiegowy/pdf-templates \
+               --filter @ksiegowy/household-service \
                build
 
       - name: Generate Prisma client
         run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Generate household Prisma client
+        run: pnpm --filter @ksiegowy/household-service exec prisma generate --schema prisma/schema.prisma
 
       - name: Build web app
         run: pnpm --filter @ksiegowy/web build

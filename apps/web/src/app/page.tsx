@@ -2,14 +2,14 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Button } from '../components/atoms/Button';
 import { PublicPageLayout } from '../components/templates/PublicPageLayout';
-import { getAuthSession } from '../lib/auth';
+import { getAuthSession, landingPathForSession } from '../lib/auth';
 import { t } from '../lib/translations';
 
 export default async function HomePage() {
   const session = await getAuthSession().catch(() => null);
 
   if (session?.authenticated) {
-    redirect('/dashboard');
+    redirect(landingPathForSession(session));
   }
 
   return (
