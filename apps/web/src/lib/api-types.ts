@@ -467,11 +467,164 @@ export interface HouseholdTransaction {
   note: string | null;
   isRecurring: boolean;
   commitmentId: string | null;
+  goalMovementId: string | null;
   categorizationSource: HouseholdTransactionCategorizationSource;
   importBatchId: string | null;
   transferGroupId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type HouseholdGoalKind = 'ONE_OFF' | 'ONGOING' | 'NO_CEILING';
+export type HouseholdGoalStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
+export type HouseholdGoalMovementSource = 'MANUAL' | 'AUTOMATION' | 'ROUND_UP';
+export type HouseholdGoalAutomationRuleType = 'FIXED_ON_DAY' | 'PERCENT_OF_INCOME_OVER_THRESHOLD' | 'ROUND_UP';
+
+export interface HouseholdGoalAutomationRule {
+  id: string;
+  householdId: string;
+  goalId: string;
+  ruleType: HouseholdGoalAutomationRuleType;
+  automationIdentity: string;
+  fundingAccountId: string;
+  triggerAccountId: string | null;
+  createdByUserId: string;
+  startsOn: string;
+  isActive: boolean;
+  fixedAmount: string | null;
+  dayOfMonth: number | null;
+  percentage: string | null;
+  incomeThreshold: string | null;
+  roundUpToAmount: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdGoal {
+  id: string;
+  householdId: string;
+  accountId: string;
+  name: string;
+  description: string | null;
+  kind: HouseholdGoalKind;
+  status: HouseholdGoalStatus;
+  targetAmount: string | null;
+  currentAmount: string;
+  targetDate: string | null;
+  monthlyAmount: string | null;
+  accountBalance: string;
+  activeRules: HouseholdGoalAutomationRule[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdGoalMovement {
+  id: string;
+  householdId: string;
+  goalId: string;
+  amount: string;
+  source: HouseholdGoalMovementSource;
+  effectiveDate: string;
+  note: string | null;
+  createdByUserId: string | null;
+  automationRuleId: string | null;
+  sourceTransactionId: string | null;
+  transferGroupId: string;
+  idempotencyKey: string;
+  calculationWindowStart: string | null;
+  calculationWindowEnd: string | null;
+  balanceAfter: string;
+  createdAt: string;
+}
+
+export interface HouseholdGoalDetail {
+  goal: HouseholdGoal;
+  movements: HouseholdGoalMovement[];
+  totals: { added: string; withdrawn: string };
+}
+
+export interface HouseholdGoalOverviewItem {
+  goal: HouseholdGoal;
+  monthlyDemand: string;
+  allocation: string;
+  shortfall: string;
+  forecastDate: string | null;
+  forecastBasis: 'FIXED_RULES_ONLY' | 'NONE';
+  hasVariableRules: boolean;
+}
+
+export interface HouseholdGoalsOverview {
+  goals: HouseholdGoalOverviewItem[];
+  averageMonthlySurplus: string;
+  availableForGoals: string;
+  scheduledMonthlyDemand: string;
+  fixedAutomationMonthlyDemand: string;
+  forecastBasis: 'FIXED_RULES_ONLY' | 'NONE';
+  hasVariableRules: boolean;
+  lookbackMonths: string[];
+}
+
+export interface CreateHouseholdGoalBody {
+  accountId: string;
+  name: string;
+  description?: string;
+  kind: HouseholdGoalKind;
+  targetAmount?: string;
+  targetDate?: string;
+  monthlyAmount?: string;
+}
+
+export interface UpdateHouseholdGoalBody {
+  accountId?: string;
+  name?: string;
+  description?: string | null;
+  kind?: HouseholdGoalKind;
+  targetAmount?: string | null;
+  targetDate?: string | null;
+  monthlyAmount?: string | null;
+  status?: HouseholdGoalStatus;
+}
+
+export interface CreateHouseholdGoalMovementBody {
+  accountId: string;
+  direction: 'ADD' | 'WITHDRAW';
+  amount: string;
+  effectiveDate: string;
+  operationId: string;
+  note?: string;
+}
+
+export interface HouseholdGoalMovementResult {
+  movement: HouseholdGoalMovement;
+  sourceTransaction: HouseholdTransaction;
+  goalTransaction: HouseholdTransaction;
+  replayed: boolean;
+}
+
+export interface CreateHouseholdGoalAutomationRuleBody {
+  ruleType: HouseholdGoalAutomationRuleType;
+  automationIdentity?: string;
+  fundingAccountId: string;
+  triggerAccountId?: string;
+  startsOn: string;
+  isActive?: boolean;
+  fixedAmount?: string;
+  dayOfMonth?: number;
+  percentage?: string;
+  incomeThreshold?: string;
+  roundUpToAmount?: string;
+}
+
+export interface UpdateHouseholdGoalAutomationRuleBody {
+  fundingAccountId?: string;
+  triggerAccountId?: string | null;
+  startsOn?: string;
+  isActive?: boolean;
+  fixedAmount?: string | null;
+  dayOfMonth?: number | null;
+  percentage?: string | null;
+  incomeThreshold?: string | null;
+  roundUpToAmount?: string | null;
 }
 
 export interface CreateHouseholdTransactionBody {

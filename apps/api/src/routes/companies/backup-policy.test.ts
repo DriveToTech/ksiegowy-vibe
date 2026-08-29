@@ -97,6 +97,7 @@ describe('company backup policy routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/companies/company_1/backup-policy/run',
+      headers: { origin: 'http://localhost:3000' },
       cookies: {
         auth_token: authToken,
       },

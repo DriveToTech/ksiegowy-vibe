@@ -162,6 +162,7 @@ describe('auth routes', () => {
     const refreshResponse = await app.inject({
       method: 'POST',
       url: '/auth/refresh',
+      headers: { origin: 'http://localhost:3000' },
       cookies: {
         refresh_token: refreshToken
       }

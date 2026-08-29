@@ -8,6 +8,7 @@ import {
   updateCommitment,
   type Commitment
 } from '@ksiegowy/household-service';
+import type { AccessTokenPayload } from '../../lib/auth-config.js';
 import { requireHouseholdMembership } from './household-membership-guard.js';
 
 const COMMITMENT_TYPES = ['INSURANCE', 'LOAN', 'SUBSCRIPTION', 'UTILITY', 'OTHER'] as const;
@@ -199,8 +200,9 @@ export const commitmentsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
     onRequest: [fastify.authenticate],
     schema: { params: householdParamsSchema, querystring: listCommitmentsQuerySchema, response: { 200: { type: 'array', items: commitmentSchema } } }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    const commitments = await listCommitments(fastify.householdDatabase, request.params.householdId, request.query.status);
+    const commitments = await listCommitments(fastify.householdDatabase, request.params.householdId, user.sub, request.query.status);
     return commitments.map(serializeCommitment);
   });
 
@@ -212,8 +214,9 @@ export const commitmentsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
       response: { 200: { type: 'array', items: { ...commitmentSchema, properties: { ...commitmentSchema.properties, daysUntilDue: { type: 'number' } }, required: [...commitmentSchema.required, 'daysUntilDue'] } } }
     }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    const commitments = await listUpcomingCommitments(fastify.householdDatabase, request.params.householdId, request.query.withinDays);
+    const commitments = await listUpcomingCommitments(fastify.householdDatabase, request.params.householdId, user.sub, request.query.withinDays);
     return commitments.map((commitment) => ({ ...serializeCommitment(commitment), daysUntilDue: commitment.daysUntilDue }));
   });
 
@@ -221,8 +224,9 @@ export const commitmentsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
     onRequest: [fastify.authenticate],
     schema: { params: householdParamsSchema, body: createCommitmentBodySchema, response: { 201: commitmentSchema } }
   }, async (request, reply) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    const commitment = await createCommitment(fastify.householdDatabase, { householdId: request.params.householdId, ...request.body });
+    const commitment = await createCommitment(fastify.householdDatabase, { householdId: request.params.householdId, userId: user.sub, ...request.body });
     return reply.code(201).send(serializeCommitment(commitment));
   });
 
@@ -230,8 +234,9 @@ export const commitmentsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
     onRequest: [fastify.authenticate],
     schema: { params: commitmentParamsSchema, response: { 200: commitmentSchema } }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    const commitment = await getCommitment(fastify.householdDatabase, request.params.householdId, request.params.commitmentId);
+    const commitment = await getCommitment(fastify.householdDatabase, request.params.householdId, user.sub, request.params.commitmentId);
     if (!commitment) {
       throw fastify.httpErrors.notFound('Commitment not found');
     }
@@ -242,8 +247,9 @@ export const commitmentsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
     onRequest: [fastify.authenticate],
     schema: { params: commitmentParamsSchema, body: updateCommitmentBodySchema, response: { 200: commitmentSchema } }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    const commitment = await updateCommitment(fastify.householdDatabase, request.params.householdId, request.params.commitmentId, request.body);
+    const commitment = await updateCommitment(fastify.householdDatabase, request.params.householdId, request.params.commitmentId, { userId: user.sub, ...request.body });
     return serializeCommitment(commitment);
   });
 
@@ -252,9 +258,10 @@ export const commitmentsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
     onRequest: [fastify.authenticate],
     schema: { params: commitmentParamsSchema, response: { 200: amortizationScheduleResponseSchema } }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const commitment = await getCommitment(fastify.householdDatabase, request.params.householdId, request.params.commitmentId);
+    const commitment = await getCommitment(fastify.householdDatabase, request.params.householdId, user.sub, request.params.commitmentId);
     if (!commitment) {
       throw fastify.httpErrors.notFound('Commitment not found');
     }
@@ -262,6 +269,6 @@ export const commitmentsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
       throw fastify.httpErrors.badRequest('Commitment is not a fully specified loan');
     }
 
-    return calculateAmortizationSchedule(Number(commitment.principal), Number(commitment.interestRate), commitment.termMonths);
+    return calculateAmortizationSchedule(commitment.principal.toString(), commitment.interestRate.toString(), commitment.termMonths);
   });
 };

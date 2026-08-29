@@ -9,6 +9,7 @@ import {
   updateTransaction,
   confirmStatementImport,
   previewStatementImport,
+  HouseholdTransactionServiceError,
   type HouseholdTransaction
 } from '@ksiegowy/household-service';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
@@ -16,7 +17,7 @@ import { requireHouseholdMembership } from './household-membership-guard.js';
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
-const transactionSchema = {
+export const transactionSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -33,6 +34,7 @@ const transactionSchema = {
     note: { type: ['string', 'null'] },
     isRecurring: { type: 'boolean' },
     commitmentId: { type: ['string', 'null'] },
+    goalMovementId: { type: ['string', 'null'] },
     categorizationSource: { type: 'string', enum: ['MANUAL', 'RULE', 'IMPORT'] },
     importBatchId: { type: ['string', 'null'] },
     transferGroupId: { type: ['string', 'null'] },
@@ -41,7 +43,7 @@ const transactionSchema = {
   },
   required: [
     'id', 'householdId', 'accountId', 'categoryId', 'payee', 'payerUserId', 'bankDescription',
-    'amount', 'date', 'tag', 'note', 'isRecurring', 'commitmentId', 'categorizationSource',
+    'amount', 'date', 'tag', 'note', 'isRecurring', 'commitmentId', 'goalMovementId', 'categorizationSource',
     'importBatchId', 'transferGroupId', 'createdAt', 'updatedAt'
   ]
 } as const;
@@ -101,7 +103,6 @@ const createTransactionBodySchema = {
     amount: { type: 'string', minLength: 1 },
     date: { type: 'string', format: 'date' },
     categoryId: { type: 'string' },
-    payerUserId: { type: 'string' },
     bankDescription: { type: 'string' },
     tag: { type: 'string' },
     note: { type: 'string' },
@@ -215,7 +216,6 @@ interface CreateTransactionBody {
   amount: string;
   date: string;
   categoryId?: string;
-  payerUserId?: string;
   bankDescription?: string;
   tag?: string;
   note?: string;
@@ -272,11 +272,20 @@ const serializeTransaction = (transaction: HouseholdTransaction) => ({
   note: transaction.note,
   isRecurring: transaction.isRecurring,
   commitmentId: transaction.commitmentId,
+  goalMovementId: transaction.goalMovementId,
   categorizationSource: transaction.categorizationSource,
   importBatchId: transaction.importBatchId,
   transferGroupId: transaction.transferGroupId,
   createdAt: transaction.createdAt.toISOString(),
   updatedAt: transaction.updatedAt.toISOString()
+});
+
+const runTransactionOperation = async <Result>(fastify: Parameters<FastifyPluginAsync>[0], operation: () => Promise<Result>): Promise<Result> => operation().catch((error: unknown) => {
+  if (!(error instanceof HouseholdTransactionServiceError)) throw error;
+  const statusCode = error.code === 'TRANSACTION_NOT_FOUND' || error.code === 'ACCOUNT_NOT_FOUND' ? 404 : error.code === 'VALIDATION_ERROR' ? 400 : 409;
+  const httpError = fastify.httpErrors.createError(statusCode, error.message);
+  httpError.code = error.code;
+  throw httpError;
 });
 
 // ── Plugin ───────────────────────────────────────────────────────────────────
@@ -297,9 +306,10 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
     onRequest: [fastify.authenticate],
     schema: { params: householdParamsSchema, body: createTransactionBodySchema, response: { 201: transactionSchema } }
   }, async (request, reply) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const transaction = await createTransaction(fastify.householdDatabase, { householdId: request.params.householdId, ...request.body });
+    const transaction = await runTransactionOperation(fastify, () => createTransaction(fastify.householdDatabase, { householdId: request.params.householdId, userId: user.sub, ...request.body }));
     return reply.code(201).send(serializeTransaction(transaction));
   });
 
@@ -307,9 +317,10 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
     onRequest: [fastify.authenticate],
     schema: { params: householdParamsSchema, body: createTransferBodySchema, response: { 201: { type: 'array', items: transactionSchema, minItems: 2, maxItems: 2 } } }
   }, async (request, reply) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const transfer = await createTransfer(fastify.householdDatabase, { householdId: request.params.householdId, ...request.body });
+    const transfer = await runTransactionOperation(fastify, () => createTransfer(fastify.householdDatabase, { householdId: request.params.householdId, userId: user.sub, ...request.body }));
     return reply.code(201).send(transfer.map(serializeTransaction));
   });
 
@@ -332,9 +343,10 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
     onRequest: [fastify.authenticate],
     schema: { params: transactionParamsSchema, body: updateTransactionBodySchema, response: { 200: transactionSchema } }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const transaction = await updateTransaction(fastify.householdDatabase, request.params.householdId, request.params.transactionId, request.body);
+    const transaction = await runTransactionOperation(fastify, () => updateTransaction(fastify.householdDatabase, request.params.householdId, request.params.transactionId, user.sub, request.body));
     return serializeTransaction(transaction);
   });
 
@@ -346,9 +358,10 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
     onRequest: [fastify.authenticate],
     schema: { params: transactionParamsSchema, body: recategorizeBodySchema, response: { 200: transactionSchema } }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const transaction = await recategorizeTransaction(fastify.householdDatabase, request.params.householdId, request.params.transactionId, request.body);
+    const transaction = await runTransactionOperation(fastify, () => recategorizeTransaction(fastify.householdDatabase, request.params.householdId, request.params.transactionId, user.sub, request.body));
     return serializeTransaction(transaction);
   });
 
@@ -356,9 +369,10 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
     onRequest: [fastify.authenticate],
     schema: { params: transactionParamsSchema, response: { 204: { type: 'null' } } }
   }, async (request, reply) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    await deleteTransaction(fastify.householdDatabase, request.params.householdId, request.params.transactionId);
+    await runTransactionOperation(fastify, () => deleteTransaction(fastify.householdDatabase, request.params.householdId, request.params.transactionId, user.sub));
     return reply.code(204).send();
   });
 
@@ -388,11 +402,13 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
       }
     }
   }, async (request) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
     return previewStatementImport(
       fastify.householdDatabase,
       request.params.householdId,
+      user.sub,
       request.body.accountId,
       request.body.csvContent,
       request.body.columnMapping
@@ -418,9 +434,10 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
       }
     }
   }, async (request, reply) => {
+    const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const result = await confirmStatementImport(fastify.householdDatabase, request.params.householdId, request.body.accountId, request.body.rows);
+    const result = await confirmStatementImport(fastify.householdDatabase, request.params.householdId, user.sub, request.body.accountId, request.body.rows);
 
     return reply.code(201).send({
       importBatchId: result.importBatchId,

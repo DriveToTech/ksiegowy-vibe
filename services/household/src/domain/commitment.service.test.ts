@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../generated/client/index.js';
+import { Prisma, type PrismaClient } from '../generated/client/index.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import { advanceNextDueDate, calculateAmortizationSchedule, generateDueCommitmentTransactions } from './commitment.service.js';
@@ -7,7 +7,7 @@ import { advanceNextDueDate, calculateAmortizationSchedule, generateDueCommitmen
 
 describe('calculateAmortizationSchedule()', () => {
   it('splits an interest-free loan into equal principal-only monthly payments', () => {
-    const schedule = calculateAmortizationSchedule(1200, 0, 12);
+    const schedule = calculateAmortizationSchedule('1200', '0', 12);
 
     expect(schedule).toHaveLength(12);
     expect(schedule[0]).toEqual({ month: 1, payment: '100.00', principalPortion: '100.00', interestPortion: '0.00', remainingBalance: '1100.00' });
@@ -15,7 +15,7 @@ describe('calculateAmortizationSchedule()', () => {
   });
 
   it('fully amortizes an interest-bearing loan to a zero balance by the final month', () => {
-    const schedule = calculateAmortizationSchedule(1200, 0.05, 12);
+    const schedule = calculateAmortizationSchedule('1200', '0.05', 12);
 
     expect(schedule).toHaveLength(12);
     expect(Number(schedule[11]!.remainingBalance)).toBeCloseTo(0, 1);
@@ -23,7 +23,7 @@ describe('calculateAmortizationSchedule()', () => {
   });
 
   it('throws for a non-positive term', () => {
-    expect(() => calculateAmortizationSchedule(1200, 0.05, 0)).toThrow('termMonths must be a positive number');
+    expect(() => calculateAmortizationSchedule('1200', '0.05', 0)).toThrow('termMonths must be a positive number');
   });
 });
 
@@ -56,10 +56,11 @@ describe('generateDueCommitmentTransactions()', () => {
       householdId: 'household-1',
       accountId: 'account-1',
       name: 'Netflix',
-      amount: '49.99',
+      amount: new Prisma.Decimal('49.99'),
       billingFrequency: 'MONTHLY',
       nextDueDate: new Date('2026-08-01'),
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      account: { visibility: 'SHARED', ownerUserId: null }
     };
 
     const transactionCreate = vi.fn(async () => ({ id: 'transaction-1' }));
@@ -77,7 +78,7 @@ describe('generateDueCommitmentTransactions()', () => {
         householdId: 'household-1',
         accountId: 'account-1',
         payee: 'Netflix',
-        amount: '-49.99',
+         amount: new Prisma.Decimal('-49.99'),
         date: new Date('2026-08-01'),
         isRecurring: true,
         commitmentId: 'commitment-1'
@@ -92,10 +93,11 @@ describe('generateDueCommitmentTransactions()', () => {
       householdId: 'household-1',
       accountId: 'account-1',
       name: 'Netflix',
-      amount: '49.99',
+      amount: new Prisma.Decimal('49.99'),
       billingFrequency: 'MONTHLY',
       nextDueDate: new Date('2026-08-01'),
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      account: { visibility: 'SHARED', ownerUserId: null }
     };
 
     const conflictError = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
@@ -132,7 +134,8 @@ describe('generateDueCommitmentTransactions()', () => {
     await generateDueCommitmentTransactions(prisma, new Date('2026-08-15'));
 
     expect(commitmentFindMany).toHaveBeenCalledWith({
-      where: { status: 'ACTIVE', isAutomatic: true, nextDueDate: { lte: new Date('2026-08-15') } }
+      where: { status: 'ACTIVE', isAutomatic: true, nextDueDate: { lte: new Date('2026-08-15') } },
+      include: { account: true }
     });
   });
 });

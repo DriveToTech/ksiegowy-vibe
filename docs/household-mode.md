@@ -1,6 +1,6 @@
 # Household Mode (Personal Budgeting) — Backend Spec
 
-Phase 1 backend for the household/personal-budgeting bounded context: household tenancy, the ledger, budget envelopes, and commitments (insurance/loans/subscriptions/utilities). This document covers the backend only — see the implementation plan for the frontend route tree and mode-switch chrome.
+Backend reference for the household/personal-budgeting bounded context: tenancy, ledger, budget envelopes, commitments, and Phase 2 savings goals. This document covers the backend only; frontend behavior is summarized in [`docs/specs/household-frontend.md`](specs/household-frontend.md).
 
 ## Package boundary
 
@@ -96,6 +96,62 @@ The renewal-reminder sweep is intentionally **log-only** in Phase 1 — no email
 
 `GET /households/:householdId/dashboard` (`dashboard.routes.ts`) is the one endpoint that composes everything a dashboard needs in a single round trip, per the project's "minimize database round trips" rule: visible accounts with balances, safe-to-spend, envelopes with spend, upcoming commitments, and the 6-month income/expense chart — fired concurrently via `Promise.all`, not sequentially. It stays a thin controller: every one of those calls is an existing package function, composed here rather than duplicated.
 
+## Savings goals (Phase 2)
+
+`Goal` belongs to one household and one visible, non-credit-card account. It has
+kind `ONE_OFF`, `ONGOING`, or `NO_CEILING`, a signed movement-backed
+`currentAmount`, and a lifecycle status: `ACTIVE`, `PAUSED`, `COMPLETED`, or
+`ARCHIVED`. One-off goals require a positive target and exactly one of a target
+date or positive monthly amount. Ongoing goals require a positive target and
+monthly amount; no-ceiling goals require only a positive monthly amount.
+Account and kind cannot change after the first movement. Completed one-off goals
+are reached at the target; a withdrawal can reactivate one. Archived goals are
+read-only and may only have a zero balance.
+
+`GoalMovement.amount` is signed: positive adds to the goal and negative
+withdraws. A movement and its two linked `HouseholdTransaction` rows are
+created in one serializable transaction: the funding account is debited and the
+goal account is credited (or the reverse for a withdrawal), sharing
+`transferGroupId`. Transfers are therefore atomic and excluded from ordinary
+income/expense/envelope totals by the existing `transferGroupId IS NULL`
+predicate. The service checks visible accounts, source/goal funds, target
+headroom, and movement-history reconciliation before writing.
+
+Every movement requires an `operationId`, persisted as a unique
+`idempotencyKey`. Replaying the same payload returns the original movement and
+linked transactions; reusing the key with different data is rejected. Goal and
+automation queries also apply the household membership and account-visibility
+rules, so a private goal is omitted from another member's list and detail.
+
+`GoalAutomationRule` supports `FIXED_ON_DAY` (day 1–28),
+`PERCENT_OF_INCOME_OVER_THRESHOLD`, and `ROUND_UP`. Rules have explicit
+funding/trigger accounts, a `startsOn` date, active state, and stable
+`automationIdentity`; deletion leaves a tombstone so a recreated series cannot
+silently replay prior events. The daily 04:00 Europe/Warsaw job applies rules
+with deterministic idempotency keys. Fixed and percentage rules process bounded
+calendar windows (maximum 36 months of catch-up); round-up processing is bounded
+to 500 source transactions per rule per run and retains a cursor when work
+cannot advance. Insufficient funds, completed/paused goals, and exhausted
+headroom are skipped according to the rule's safe retry behavior.
+
+The overview uses the previous three completed calendar months to calculate
+average surplus and proportionally allocate available funds between active
+goals. Forecast dates are intentionally computed only from fixed rules. Variable
+percentage and round-up rules are disclosed but not predicted; the API returns
+`forecastBasis` and `hasVariableRules` rather than presenting a false precision.
+
+```mermaid
+flowchart LR
+    Request[Goal API request] --> Guard[Live membership + visible accounts]
+    Guard --> Service[household-service goal domain]
+    Service --> Txn[Serializable movement transaction]
+    Txn --> Debit[Funding account transaction]
+    Txn --> Credit[Goal account transaction]
+    Txn --> History[GoalMovement + idempotency key]
+    Cron[04:00 Europe/Warsaw cron] --> Automation[Goal automation service]
+    Automation --> Service
+```
+
 ## API surface
 
 | Route file | Endpoints |
@@ -107,9 +163,13 @@ The renewal-reminder sweep is intentionally **log-only** in Phase 1 — no email
 | `envelopes.routes.ts` | `GET/POST /households/:householdId/envelopes`, `PATCH/DELETE .../envelopes/:envelopeId`, `GET .../envelopes/safe-to-spend` |
 | `commitments.routes.ts` | `GET/POST /households/:householdId/commitments`, `GET/PATCH .../commitments/:commitmentId`, `GET .../commitments/upcoming`, `GET .../commitments/:commitmentId/amortization-schedule` |
 | `dashboard.routes.ts` | `GET /households/:householdId/dashboard` |
+| `goals.routes.ts` | `GET /goals/overview`, `GET/POST /goals`, `GET/PATCH /goals/:goalId`, `POST /goals/:goalId/transfers`, `GET /goals/:goalId/movements`, `GET/POST /goals/:goalId/automation-rules`, `PATCH/DELETE /goals/:goalId/automation-rules/:ruleId` |
 
 Every route (except the household-creation `POST /households` itself) runs `requireHouseholdMembership()` before touching data.
 
 ## Deployment note
 
 `HOUSEHOLD_DATABASE_URL` must point at a reachable Postgres database before `apps/api` can start (the plugin eagerly `$connect()`s unless a client is injected, e.g. in tests). Run `pnpm --filter @ksiegowy/household-service exec prisma migrate deploy` (or `migrate dev` locally) against that database before first boot — see the root README's database section for the two-database Docker Compose setup.
+
+`HouseholdFileRecord` receipt/document attachments remain separately deferred;
+they are not part of the Goals backend or route surface.

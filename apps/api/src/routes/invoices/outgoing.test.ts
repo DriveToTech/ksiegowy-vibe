@@ -324,7 +324,7 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     const response = await app.inject({
       method: 'PUT',
       url: '/companies/company-1/invoices/invoice-1',
-      headers: { 'x-ksef-environment': 'TEST' },
+      headers: { 'x-ksef-environment': 'TEST', origin: 'http://localhost:3000' },
       cookies: { auth_token: authToken },
       payload: {
         contractorId: 'contractor-1',
@@ -410,7 +410,7 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     const response = await app.inject({
       method: 'PUT',
       url: '/companies/company-1/invoices/invoice-1',
-      headers: { 'x-ksef-environment': 'TEST' },
+      headers: { 'x-ksef-environment': 'TEST', origin: 'http://localhost:3000' },
       cookies: { auth_token: authToken },
       payload: {
         contractorId: 'contractor-1',

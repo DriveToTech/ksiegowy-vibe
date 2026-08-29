@@ -11,6 +11,8 @@ type IconName =
   | 'householdLedger'
   | 'householdBudget'
   | 'householdCommitments'
+  | 'householdGoals'
+  | 'householdMore'
   | 'add';
 
 interface AppIconProps extends SVGProps<SVGSVGElement> {
@@ -97,6 +99,23 @@ export function AppIcon({ name, ...props }: AppIconProps) {
           <path d="M9 10h6" />
           <path d="M9 13.5h6" />
           <path d="M9 17h3.5" />
+        </svg>
+      );
+    case 'householdGoals':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <circle cx="12" cy="12" r="7.5" />
+          <circle cx="12" cy="12" r="3" />
+          <path d="m16.8 7.2 2-2" />
+          <path d="M19 5h-2" />
+        </svg>
+      );
+    case 'householdMore':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" {...props}>
+          <circle cx="5" cy="12" r="1" fill="currentColor" />
+          <circle cx="12" cy="12" r="1" fill="currentColor" />
+          <circle cx="19" cy="12" r="1" fill="currentColor" />
         </svg>
       );
     case 'add':

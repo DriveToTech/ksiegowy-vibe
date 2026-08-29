@@ -107,7 +107,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (fastify): Promise<void
       listVisibleAccounts(householdDatabase, householdId, user.sub),
       calculateSafeToSpend(householdDatabase, householdId, user.sub, request.query.month),
       listEnvelopesWithSpend(householdDatabase, householdId, user.sub, request.query.month),
-      listUpcomingCommitments(householdDatabase, householdId),
+      listUpcomingCommitments(householdDatabase, householdId, user.sub),
       getMonthlyInOutSummary(householdDatabase, householdId, user.sub, 6, request.query.month)
     ]);
 

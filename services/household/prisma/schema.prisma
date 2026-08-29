@@ -57,6 +57,31 @@ enum CategorizationRuleMatchType {
   SUBSTRING
 }
 
+enum GoalKind {
+  ONE_OFF
+  ONGOING
+  NO_CEILING
+}
+
+enum GoalStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum GoalMovementSource {
+  MANUAL
+  AUTOMATION
+  ROUND_UP
+}
+
+enum GoalAutomationRuleType {
+  FIXED_ON_DAY
+  PERCENT_OF_INCOME_OVER_THRESHOLD
+  ROUND_UP
+}
+
 // ── Tenancy ──────────────────────────────────────────────────────────────────
 
 model Household {
@@ -72,6 +97,9 @@ model Household {
   envelopes           BudgetEnvelope[]
   commitments         Commitment[]
   categorizationRules CategorizationRule[]
+  goals               Goal[]
+  goalMovements       GoalMovement[]
+  goalAutomationRules GoalAutomationRule[]
 }
 
 // Not a Prisma relation to User — User lives in the business database, so no
@@ -115,9 +143,13 @@ model HouseholdAccount {
   household         Household                  @relation(fields: [householdId], references: [id], onDelete: Cascade)
   transactions      HouseholdTransaction[]
   commitments       Commitment[]
+  goals             Goal[]
+  goalFundingAutomationRules GoalAutomationRule[] @relation("GoalAutomationFundingAccount")
+  goalTriggerAutomationRules GoalAutomationRule[] @relation("GoalAutomationTriggerAccount")
 
   @@index([householdId])
   @@index([householdId, visibility])
+  @@unique([householdId, id])
 }
 
 // ── Categories ───────────────────────────────────────────────────────────────
@@ -160,6 +192,7 @@ model HouseholdTransaction {
   note                 String?
   isRecurring          Boolean                                   @default(false)
   commitmentId         String?
+  goalMovementId       String?
   categorizationSource HouseholdTransactionCategorizationSource  @default(MANUAL)
   importBatchId        String?
   transferGroupId      String?
@@ -169,12 +202,16 @@ model HouseholdTransaction {
   account              HouseholdAccount                          @relation(fields: [accountId], references: [id], onDelete: Restrict)
   category             HouseholdCategory?                        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   commitment           Commitment?                               @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  goalMovement         GoalMovement?                             @relation(fields: [householdId, goalMovementId], references: [householdId, id], onDelete: Restrict)
+  goalSourceMovements  GoalMovement[]                            @relation("GoalMovementSourceTransaction")
 
   @@unique([commitmentId, date])
+  @@unique([householdId, id])
   @@index([householdId, date])
   @@index([householdId, categoryId, date])
   @@index([accountId, date])
   @@index([transferGroupId])
+  @@index([goalMovementId])
 }
 
 // ── Budget envelopes ─────────────────────────────────────────────────────────
@@ -262,4 +299,97 @@ model CategorizationRule {
 
   @@index([householdId])
   @@index([householdId, matchType])
+}
+
+// ── Savings goals ───────────────────────────────────────────────────────────
+
+model Goal {
+  id              String                @id @default(cuid())
+  householdId     String
+  accountId       String
+  name            String
+  description     String?
+  kind            GoalKind
+  status          GoalStatus            @default(ACTIVE)
+  targetAmount    Decimal?              @db.Decimal(15, 2)
+  currentAmount   Decimal               @default(0) @db.Decimal(15, 2)
+  targetDate      DateTime?             @db.Date
+  monthlyAmount   Decimal?              @db.Decimal(15, 2)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  household       Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  account         HouseholdAccount      @relation(fields: [householdId, accountId], references: [householdId, id], onDelete: Restrict)
+  movements       GoalMovement[]
+  automationRules GoalAutomationRule[]
+
+  @@index([householdId])
+  @@index([householdId, accountId])
+  @@unique([householdId, id])
+  @@index([accountId])
+  @@index([householdId, status])
+}
+
+model GoalMovement {
+  id                     String                  @id @default(cuid())
+  householdId            String
+  goalId                 String
+  amount                 Decimal                 @db.Decimal(15, 2)
+  source                 GoalMovementSource
+  effectiveDate          DateTime                @db.Date
+  note                   String?
+  createdByUserId        String?
+  automationRuleId       String?
+  sourceTransactionId    String?
+  transferGroupId        String                  @unique
+  idempotencyKey         String                  @unique
+  calculationWindowStart DateTime?               @db.Date
+  calculationWindowEnd   DateTime?               @db.Date
+  balanceAfter           Decimal                 @db.Decimal(15, 2)
+  createdAt              DateTime                @default(now())
+  household              Household               @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  goal                   Goal                    @relation(fields: [householdId, goalId], references: [householdId, id], onDelete: Cascade)
+  automationRule         GoalAutomationRule?     @relation(fields: [householdId, automationRuleId], references: [householdId, id], onDelete: Restrict)
+  sourceTransaction      HouseholdTransaction?   @relation("GoalMovementSourceTransaction", fields: [householdId, sourceTransactionId], references: [householdId, id], onDelete: Restrict)
+  transactions           HouseholdTransaction[]
+
+  @@unique([householdId, id])
+  @@index([goalId, effectiveDate])
+  @@index([householdId, effectiveDate])
+  @@index([automationRuleId, sourceTransactionId])
+  @@index([sourceTransactionId])
+}
+
+model GoalAutomationRule {
+  id                    String                   @id @default(cuid())
+  householdId           String
+  goalId                String
+  ruleType              GoalAutomationRuleType
+  automationIdentity    String                   @default(cuid())
+  fundingAccountId      String
+  triggerAccountId      String?
+  createdByUserId        String
+  startsOn              DateTime                 @db.Date
+  isActive               Boolean                  @default(true)
+  fixedAmount            Decimal?                 @db.Decimal(15, 2)
+  dayOfMonth             Int?
+  percentage             Decimal?                 @db.Decimal(5, 2)
+  incomeThreshold        Decimal?                 @db.Decimal(15, 2)
+  roundUpToAmount        Decimal?                 @db.Decimal(15, 2)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  deletedAt              DateTime?
+  roundUpCursorDate      DateTime?                @db.Date
+  roundUpCursorId        String?
+  household              Household                @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  goal                   Goal                     @relation(fields: [householdId, goalId], references: [householdId, id], onDelete: Cascade)
+  fundingAccount         HouseholdAccount         @relation("GoalAutomationFundingAccount", fields: [householdId, fundingAccountId], references: [householdId, id], onDelete: Restrict)
+  triggerAccount         HouseholdAccount?        @relation("GoalAutomationTriggerAccount", fields: [householdId, triggerAccountId], references: [householdId, id], onDelete: Restrict)
+  movements              GoalMovement[]
+
+  @@unique([householdId, id])
+  @@unique([householdId, automationIdentity])
+  @@index([householdId])
+  @@index([goalId, isActive])
+  @@index([fundingAccountId])
+  @@index([triggerAccountId])
 }

@@ -1,19 +1,14 @@
-import type {
-  HouseholdAccount,
-  HouseholdAccountType,
-  HouseholdAccountVisibility,
-  PrismaClient
-} from '../generated/client/index.js';
+import { Prisma, type HouseholdAccount, type HouseholdAccountType, type HouseholdAccountVisibility, type PrismaClient } from '../generated/client/index.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface CreateHouseholdAccountInput {
   householdId: string;
+  userId: string;
   name: string;
   type: HouseholdAccountType;
   accountNumberMask?: string;
   visibility?: HouseholdAccountVisibility;
-  ownerUserId?: string;
   openingBalance?: string;
   creditLimit?: string;
   statementDay?: number;
@@ -28,6 +23,16 @@ export interface UpdateHouseholdAccountInput {
 
 export interface HouseholdAccountWithBalance extends HouseholdAccount {
   balance: string;
+}
+
+export class HouseholdAccountServiceError extends Error {
+  public readonly code: 'ACCOUNT_NOT_FOUND' | 'VALIDATION_ERROR';
+
+  public constructor(code: 'ACCOUNT_NOT_FOUND' | 'VALIDATION_ERROR', message: string) {
+    super(message);
+    this.name = 'HouseholdAccountServiceError';
+    this.code = code;
+  }
 }
 
 // ── Private-account visibility ───────────────────────────────────────────────
@@ -63,10 +68,6 @@ export const createAccount = async (
 ): Promise<HouseholdAccount> => {
   const visibility = input.visibility ?? 'SHARED';
 
-  if (visibility === 'PRIVATE' && !input.ownerUserId) {
-    throw new Error('ownerUserId is required for a PRIVATE account');
-  }
-
   return prisma.householdAccount.create({
     data: {
       householdId: input.householdId,
@@ -74,7 +75,7 @@ export const createAccount = async (
       type: input.type,
       accountNumberMask: input.accountNumberMask ?? null,
       visibility,
-      ownerUserId: visibility === 'PRIVATE' ? input.ownerUserId! : null,
+      ownerUserId: visibility === 'PRIVATE' ? input.userId : null,
       openingBalance: input.openingBalance ?? '0',
       creditLimit: input.creditLimit ?? null,
       statementDay: input.statementDay ?? null
@@ -88,6 +89,7 @@ export const updateAccount = async (
   prisma: PrismaClient,
   householdId: string,
   accountId: string,
+  userId: string,
   input: UpdateHouseholdAccountInput
 ): Promise<HouseholdAccount> => {
   const data: Record<string, string | number | null> = {};
@@ -97,9 +99,10 @@ export const updateAccount = async (
   if ('creditLimit' in input) data.creditLimit = input.creditLimit ?? null;
   if ('statementDay' in input) data.statementDay = input.statementDay ?? null;
 
-  const account = await prisma.householdAccount.findFirst({ where: { id: accountId, householdId } });
+  const accountIds = await visibleAccountIds(prisma, householdId, userId);
+  const account = accountIds.includes(accountId) ? await prisma.householdAccount.findFirst({ where: { id: accountId, householdId } }) : null;
   if (!account) {
-    throw new Error(`Account ${accountId} not found in household ${householdId}`);
+    throw new HouseholdAccountServiceError('ACCOUNT_NOT_FOUND', 'Account not found');
   }
 
   return prisma.householdAccount.update({ where: { id: accountId }, data });
@@ -125,12 +128,11 @@ const attachBalances = async (
     _sum: { amount: true }
   });
 
-  const sumByAccountId = new Map(sums.map((row) => [row.accountId, row._sum.amount?.toString() ?? '0']));
+  const sumByAccountId = new Map(sums.map((row) => [row.accountId, row._sum.amount ?? new Prisma.Decimal(0)]));
 
   return accounts.map((account) => {
-    const transactedAmount = Number(sumByAccountId.get(account.id) ?? '0');
-    const balance = Number(account.openingBalance) + transactedAmount;
-    return { ...account, balance: balance.toFixed(2) };
+    const transactedAmount = sumByAccountId.get(account.id) ?? new Prisma.Decimal(0);
+    return { ...account, balance: account.openingBalance.add(transactedAmount).toFixed(2) };
   });
 };
 

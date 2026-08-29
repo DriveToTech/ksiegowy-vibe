@@ -13,9 +13,9 @@ describe('listUpcomingCommitments()', () => {
     const findMany = vi.fn(async () => [
       { id: 'commitment-1', householdId: 'household-1', status: 'ACTIVE', nextDueDate: new Date('2026-08-06T00:00:00Z') }
     ]);
-    const prisma = { commitment: { findMany } } as unknown as PrismaClient;
+    const prisma = { householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) }, commitment: { findMany } } as unknown as PrismaClient;
 
-    const result = await listUpcomingCommitments(prisma, 'household-1', 30);
+    const result = await listUpcomingCommitments(prisma, 'household-1', 'user-1', 30);
 
     expect(result).toEqual([
       { id: 'commitment-1', householdId: 'household-1', status: 'ACTIVE', nextDueDate: new Date('2026-08-06T00:00:00Z'), daysUntilDue: 5 }
@@ -30,13 +30,14 @@ describe('listUpcomingCommitments()', () => {
 describe('listUnusedSubscriptions()', () => {
   it('queries ACTIVE subscriptions that are unused or never used', async () => {
     const findMany = vi.fn(async () => []);
-    const prisma = { commitment: { findMany } } as unknown as PrismaClient;
+    const prisma = { householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) }, commitment: { findMany } } as unknown as PrismaClient;
 
-    await listUnusedSubscriptions(prisma, 'household-1');
+    await listUnusedSubscriptions(prisma, 'household-1', 'user-1');
 
     expect(findMany).toHaveBeenCalledWith({
       where: {
         householdId: 'household-1',
+        accountId: { in: ['account-1'] },
         type: 'SUBSCRIPTION',
         status: 'ACTIVE',
         OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: expect.any(Date) } }]

@@ -1,5 +1,5 @@
 import { Badge } from '../atoms/Badge';
-import type { CompanyKsefEnvironment, InvoiceStatus, IncomingInvoiceStatus, KsefStatus } from '../../lib/api-types';
+import type { CompanyKsefEnvironment, HouseholdGoalStatus, InvoiceStatus, IncomingInvoiceStatus, KsefStatus } from '../../lib/api-types';
 
 const invoiceStatusMap: Record<InvoiceStatus, { label: string; tone: 'draft' | 'primary' | 'success' | 'warning' | 'danger' }> = {
   DRAFT: { label: 'Szkic', tone: 'draft' },
@@ -29,6 +29,13 @@ const environmentToneMap: Record<CompanyKsefEnvironment, 'success' | 'warning'> 
   PRODUCTION: 'warning',
 };
 
+const goalStatusMap: Record<HouseholdGoalStatus, { label: string; tone: 'draft' | 'primary' | 'success' | 'warning' }> = {
+  ACTIVE: { label: 'Aktywny', tone: 'success' },
+  PAUSED: { label: 'Wstrzymany', tone: 'warning' },
+  COMPLETED: { label: 'Ukończony', tone: 'primary' },
+  ARCHIVED: { label: 'Archiwalny', tone: 'draft' },
+};
+
 export function InvoiceStatusChip({ status }: { status: InvoiceStatus }) {
   const config = invoiceStatusMap[status] ?? invoiceStatusMap.DRAFT;
   return <Badge tone={config.tone}>{config.label}</Badge>;
@@ -46,4 +53,9 @@ export function IncomingStatusChip({ status }: { status: IncomingInvoiceStatus }
 
 export function InvoiceEnvironmentChip({ environment }: { environment: CompanyKsefEnvironment }) {
   return <Badge tone={environmentToneMap[environment]}>{environment}</Badge>;
+}
+
+export function GoalStatusChip({ status }: { status: HouseholdGoalStatus }) {
+  const config = goalStatusMap[status];
+  return <Badge tone={config.tone} aria-label={`Status celu: ${config.label}`}>{config.label}</Badge>;
 }

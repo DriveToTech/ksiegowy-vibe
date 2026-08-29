@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { API_BASE } from './api-base';
 import { getActiveKsefEnvironment } from './auth';
 import { ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME, KSEF_ENVIRONMENT_HEADER_NAME } from './ksef-environment';
+import { householdGoalErrorMessage } from './household-goal-errors';
 import type {
   AuthUser,
   BackupRunStatus,
@@ -17,6 +18,11 @@ import type {
   HouseholdCategory,
   HouseholdDashboard,
   HouseholdMember,
+  HouseholdGoal,
+  HouseholdGoalAutomationRule,
+  HouseholdGoalDetail,
+  HouseholdGoalMovement,
+  HouseholdGoalsOverview,
   HouseholdTransaction,
   IncomingInvoiceDetail,
   IncomingInvoiceSummary,
@@ -91,6 +97,18 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
+    if (path.includes('/goals')) {
+      let code: string | undefined;
+      try {
+        const parsed: unknown = JSON.parse(body);
+        if (typeof parsed === 'object' && parsed !== null && 'code' in parsed && typeof parsed.code === 'string') {
+          code = parsed.code;
+        }
+      } catch {
+        // Goal errors are intentionally mapped to a safe message below.
+      }
+      throw new Error(householdGoalErrorMessage(response.status, code));
+    }
     throw new Error(`API ${options?.method ?? 'GET'} ${path} failed ${response.status}: ${body}`);
   }
 
@@ -272,6 +290,35 @@ export async function getHouseholdCommitments(householdId: string): Promise<Comm
 
 export async function getHouseholdCommitment(householdId: string, commitmentId: string): Promise<Commitment> {
   return apiFetch<Commitment>(`/households/${householdId}/commitments/${commitmentId}`);
+}
+
+export async function getHouseholdGoalsOverview(householdId: string, asOfDate?: string): Promise<HouseholdGoalsOverview> {
+  const query = asOfDate ? `?${new URLSearchParams({ asOfDate }).toString()}` : '';
+  return apiFetch<HouseholdGoalsOverview>(`/households/${householdId}/goals/overview${query}`);
+}
+
+export async function getHouseholdGoals(householdId: string): Promise<HouseholdGoal[]> {
+  return apiFetch<HouseholdGoal[]>(`/households/${householdId}/goals`);
+}
+
+export async function getHouseholdGoal(householdId: string, goalId: string): Promise<HouseholdGoalDetail> {
+  return apiFetch<HouseholdGoalDetail>(`/households/${householdId}/goals/${goalId}`);
+}
+
+export async function getHouseholdGoalMovements(
+  householdId: string,
+  goalId: string,
+  params?: { cursor?: string; limit?: number },
+): Promise<{ data: HouseholdGoalMovement[]; nextCursor: string | null }> {
+  const query = params ? `?${new URLSearchParams({
+    ...(params.cursor ? { cursor: params.cursor } : {}),
+    ...(params.limit !== undefined ? { limit: String(params.limit) } : {}),
+  }).toString()}` : '';
+  return apiFetch(`/households/${householdId}/goals/${goalId}/movements${query}`);
+}
+
+export async function getHouseholdGoalAutomationRules(householdId: string, goalId: string): Promise<HouseholdGoalAutomationRule[]> {
+  return apiFetch<HouseholdGoalAutomationRule[]>(`/households/${householdId}/goals/${goalId}/automation-rules`);
 }
 
 export interface CommitmentAmortizationScheduleEntry {

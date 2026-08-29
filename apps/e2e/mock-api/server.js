@@ -178,6 +178,7 @@ function createHouseholdEntry({ id, name, currency, ownerToken, ownerMember, acc
     accounts,
     transactions: [],
     commitments: [],
+    goals: [],
     envelopes: [seedHouseholdEnvelope(id, groceriesCategory.id)],
   };
 }
@@ -241,6 +242,125 @@ function listVisibleAccounts(entry, viewerUserId) {
     .map((account) => serializeHouseholdAccount(entry, account));
 }
 
+function isVisibleAccount(account, viewerUserId) {
+  return account && (account.visibility === 'SHARED' || account.ownerUserId === viewerUserId);
+}
+
+function goalError(req, res, status, code, message) {
+  return respond(req, res, status, { code, message });
+}
+
+function visibleGoals(entry, viewerUserId) {
+  return entry.goals.filter((goal) => {
+    const account = entry.accounts.find((candidate) => candidate.id === goal.accountId);
+    return isVisibleAccount(account, viewerUserId);
+  });
+}
+
+function serializeGoalAutomationRule(rule) {
+  return { ...rule };
+}
+
+function serializeGoal(entry, goal) {
+  const account = entry.accounts.find((candidate) => candidate.id === goal.accountId);
+  return {
+    id: goal.id,
+    householdId: goal.householdId,
+    accountId: goal.accountId,
+    name: goal.name,
+    description: goal.description,
+    kind: goal.kind,
+    status: goal.status,
+    targetAmount: goal.targetAmount,
+    currentAmount: goal.currentAmount,
+    targetDate: goal.targetDate,
+    monthlyAmount: goal.monthlyAmount,
+    accountBalance: account ? accountBalance(entry, account) : '0.00',
+    activeRules: goal.rules.filter((rule) => rule.isActive).map(serializeGoalAutomationRule),
+    createdAt: goal.createdAt,
+    updatedAt: goal.updatedAt,
+  };
+}
+
+function serializeGoalMovement(movement) {
+  return { ...movement };
+}
+
+function serializeGoalDetail(entry, goal) {
+  const movements = [...goal.movements].sort((first, second) => second.createdAt.localeCompare(first.createdAt));
+  const added = movements
+    .filter((movement) => Number.parseFloat(movement.amount) >= 0)
+    .reduce((sum, movement) => sum + Number.parseFloat(movement.amount), 0);
+  const withdrawn = movements
+    .filter((movement) => Number.parseFloat(movement.amount) < 0)
+    .reduce((sum, movement) => sum + Math.abs(Number.parseFloat(movement.amount)), 0);
+  return {
+    goal: serializeGoal(entry, goal),
+    movements: movements.slice(0, 100).map(serializeGoalMovement),
+    totals: { added: added.toFixed(2), withdrawn: withdrawn.toFixed(2) },
+  };
+}
+
+function findVisibleGoal(entry, goalIdentifier, viewerUserId) {
+  const goal = entry.goals.find((candidate) => candidate.id === goalIdentifier);
+  if (!goal) return null;
+  const account = entry.accounts.find((candidate) => candidate.id === goal.accountId);
+  return isVisibleAccount(account, viewerUserId) ? goal : null;
+}
+
+function monthKey(date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function goalsLookbackMonths() {
+  const currentDate = new Date();
+  return [2, 1, 0].map((monthsAgo) => monthKey(new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() - monthsAgo - 1, 1))));
+}
+
+function buildGoalsOverview(entry, viewerUserId) {
+  const goals = visibleGoals(entry, viewerUserId);
+  const activeGoals = goals.filter((goal) => goal.status === 'ACTIVE');
+  const scheduledMonthlyDemand = activeGoals.reduce((sum, goal) => sum + Number.parseFloat(goal.monthlyAmount ?? '0'), 0);
+  const fixedAutomationMonthlyDemand = activeGoals.reduce((sum, goal) => sum + goal.rules
+    .filter((rule) => rule.isActive && rule.ruleType === 'FIXED_ON_DAY')
+    .reduce((ruleSum, rule) => ruleSum + Number.parseFloat(rule.fixedAmount ?? '0'), 0), 0);
+  const hasVariableRules = activeGoals.some((goal) => goal.rules.some((rule) => rule.isActive && rule.ruleType !== 'FIXED_ON_DAY'));
+  const averageMonthlySurplus = 0;
+  const availableForGoals = 0;
+
+  return {
+    goals: goals.map((goal) => {
+      const monthlyDemand = Number.parseFloat(goal.monthlyAmount ?? '0');
+      const allocation = scheduledMonthlyDemand > 0 && monthlyDemand > 0
+        ? availableForGoals * monthlyDemand / scheduledMonthlyDemand
+        : 0;
+      const fixedAmount = goal.rules
+        .filter((rule) => rule.isActive && rule.ruleType === 'FIXED_ON_DAY')
+        .reduce((sum, rule) => sum + Number.parseFloat(rule.fixedAmount ?? '0'), 0);
+      const headroom = goal.targetAmount === null ? 0 : Number.parseFloat(goal.targetAmount) - Number.parseFloat(goal.currentAmount);
+      const forecastDate = headroom > 0 && fixedAmount > 0
+        ? new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + Math.ceil(headroom / fixedAmount), new Date().getUTCDate())).toISOString().slice(0, 10)
+        : null;
+      return {
+        goal: serializeGoal(entry, goal),
+        monthlyDemand: monthlyDemand.toFixed(2),
+        allocation: allocation.toFixed(2),
+        shortfall: Math.max(0, monthlyDemand - allocation).toFixed(2),
+        forecastDate,
+        forecastBasis: forecastDate ? 'FIXED_RULES_ONLY' : 'NONE',
+        hasVariableRules: goal.rules.some((rule) => rule.isActive && rule.ruleType !== 'FIXED_ON_DAY'),
+      };
+    }),
+    averageMonthlySurplus: averageMonthlySurplus.toFixed(2),
+    availableForGoals: availableForGoals.toFixed(2),
+    scheduledMonthlyDemand: scheduledMonthlyDemand.toFixed(2),
+    fixedAutomationMonthlyDemand: fixedAutomationMonthlyDemand.toFixed(2),
+    forecastBasis: goals.some((goal) => goal.rules.some((rule) => rule.isActive && rule.ruleType === 'FIXED_ON_DAY')) ? 'FIXED_RULES_ONLY' : 'NONE',
+    hasVariableRules,
+    lookbackMonths: goalsLookbackMonths(),
+  };
+}
+
 function serializeHouseholdTransaction(transaction) {
   return {
     categoryId: null,
@@ -250,6 +370,7 @@ function serializeHouseholdTransaction(transaction) {
     note: null,
     isRecurring: false,
     commitmentId: null,
+    goalMovementId: null,
     categorizationSource: 'MANUAL',
     importBatchId: null,
     transferGroupId: null,
@@ -843,6 +964,272 @@ const server = http.createServer((req, res) => {
         return respond(req, res, 201, serializeHouseholdAccount(access.entry, account));
       })
       .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
+  }
+
+  const householdGoalsOverviewMatch = url.match(/^\/households\/([^/]+)\/goals\/overview$/);
+  if (householdGoalsOverviewMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    if (authToken === HOUSEHOLD_DATA_FAILURE_TOKEN) return goalError(req, res, 503, 'GOALS_UNAVAILABLE', 'Goals are temporarily unavailable');
+    const [, householdId] = householdGoalsOverviewMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    return respond(req, res, 200, buildGoalsOverview(access.entry, access.member.userId));
+  }
+
+  const householdGoalsMatch = url.match(/^\/households\/([^/]+)\/goals$/);
+  if (householdGoalsMatch && (method === 'GET' || method === 'POST')) {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId] = householdGoalsMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+
+    if (method === 'GET') {
+      return respond(req, res, 200, visibleGoals(access.entry, access.member.userId).map((goal) => serializeGoal(access.entry, goal)));
+    }
+
+    return readJsonBody(req)
+      .then((body) => {
+        if (typeof body.accountId !== 'string' || typeof body.name !== 'string' || body.name.trim().length === 0 || typeof body.kind !== 'string') {
+          return goalError(req, res, 400, 'VALIDATION_ERROR', 'Check the entered data');
+        }
+        if (!['ONE_OFF', 'ONGOING', 'NO_CEILING'].includes(body.kind)) {
+          return goalError(req, res, 400, 'VALIDATION_ERROR', 'Check the entered data');
+        }
+        const account = access.entry.accounts.find((candidate) => candidate.id === body.accountId);
+        if (!isVisibleAccount(account, access.member.userId) || account.type === 'CREDIT_CARD') {
+          return goalError(req, res, 404, 'ACCOUNT_NOT_FOUND', 'Account was not found or is not visible');
+        }
+        const now = new Date().toISOString();
+        const goal = {
+          id: `${householdId}-goal-${crypto.randomUUID()}`,
+          householdId,
+          accountId: body.accountId,
+          name: body.name.trim(),
+          description: typeof body.description === 'string' && body.description.trim() ? body.description.trim() : null,
+          kind: body.kind,
+          status: 'ACTIVE',
+          targetAmount: body.kind === 'NO_CEILING' ? null : typeof body.targetAmount === 'string' ? Number.parseFloat(body.targetAmount).toFixed(2) : null,
+          currentAmount: '0.00',
+          targetDate: typeof body.targetDate === 'string' ? body.targetDate : null,
+          monthlyAmount: typeof body.monthlyAmount === 'string' ? Number.parseFloat(body.monthlyAmount).toFixed(2) : null,
+          createdAt: now,
+          updatedAt: now,
+          rules: [],
+          movements: [],
+        };
+        access.entry.goals.push(goal);
+        return respond(req, res, 201, serializeGoal(access.entry, goal));
+      })
+      .catch(() => goalError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
+  }
+
+  const householdGoalDetailMatch = url.match(/^\/households\/([^/]+)\/goals\/([^/]+)$/);
+  if (householdGoalDetailMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, goalIdentifier] = householdGoalDetailMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const goal = findVisibleGoal(access.entry, goalIdentifier, access.member.userId);
+    if (!goal) return goalError(req, res, 404, 'GOAL_NOT_FOUND', 'Goal was not found');
+    return respond(req, res, 200, serializeGoalDetail(access.entry, goal));
+  }
+
+  if (householdGoalDetailMatch && method === 'PATCH') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, goalIdentifier] = householdGoalDetailMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const goal = findVisibleGoal(access.entry, goalIdentifier, access.member.userId);
+    if (!goal) return goalError(req, res, 404, 'GOAL_NOT_FOUND', 'Goal was not found');
+    if (goal.status === 'ARCHIVED') return goalError(req, res, 409, 'GOAL_INVALID_STATE', 'Archived goals are read-only');
+
+    return readJsonBody(req)
+      .then((body) => {
+        if (body.status === 'ARCHIVED' && Number.parseFloat(goal.currentAmount) !== 0) {
+          return goalError(req, res, 409, 'GOAL_INVALID_STATE', 'A goal can be archived only with zero current amount');
+        }
+        if (typeof body.name === 'string' && body.name.trim()) goal.name = body.name.trim();
+        if (body.description === null || typeof body.description === 'string') goal.description = typeof body.description === 'string' && body.description.trim() ? body.description.trim() : null;
+        if (typeof body.status === 'string' && ['ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED'].includes(body.status)) goal.status = body.status;
+        goal.updatedAt = new Date().toISOString();
+        return respond(req, res, 200, serializeGoalDetail(access.entry, goal));
+      })
+      .catch(() => goalError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
+  }
+
+  const householdGoalTransfersMatch = url.match(/^\/households\/([^/]+)\/goals\/([^/]+)\/transfers$/);
+  if (householdGoalTransfersMatch && method === 'POST') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, goalIdentifier] = householdGoalTransfersMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const goal = findVisibleGoal(access.entry, goalIdentifier, access.member.userId);
+    if (!goal) return goalError(req, res, 404, 'GOAL_NOT_FOUND', 'Goal was not found');
+    if (goal.status === 'ARCHIVED') return goalError(req, res, 409, 'GOAL_INVALID_STATE', 'Archived goals are read-only');
+
+    return readJsonBody(req)
+      .then((body) => {
+        const amount = typeof body.amount === 'string' ? Number.parseFloat(body.amount) : Number.NaN;
+        const account = access.entry.accounts.find((candidate) => candidate.id === body.accountId);
+        if (typeof body.accountId !== 'string' || !isVisibleAccount(account, access.member.userId) || account.type === 'CREDIT_CARD') {
+          return goalError(req, res, 404, 'ACCOUNT_NOT_FOUND', 'Account was not found or is not visible');
+        }
+        if (account.id === goal.accountId) return goalError(req, res, 400, 'VALIDATION_ERROR', 'Funding and goal accounts must be different');
+        if (!Number.isFinite(amount) || amount <= 0 || typeof body.effectiveDate !== 'string') {
+          return goalError(req, res, 400, 'VALIDATION_ERROR', 'Check the entered data');
+        }
+        const signedAmount = body.direction === 'WITHDRAW' ? -amount : amount;
+        if (signedAmount > 0 && goal.targetAmount !== null && Number.parseFloat(goal.currentAmount) + signedAmount > Number.parseFloat(goal.targetAmount)) {
+          return goalError(req, res, 409, 'GOAL_TARGET_EXCEEDED', 'The movement would exceed the goal target');
+        }
+        if (signedAmount > 0 && Number.parseFloat(accountBalance(access.entry, account)) < signedAmount) {
+          return goalError(req, res, 409, 'SOURCE_ACCOUNT_FUNDS_INSUFFICIENT', 'The source account does not have enough available funds');
+        }
+        if (signedAmount < 0 && Number.parseFloat(goal.currentAmount) < Math.abs(signedAmount)) {
+          return goalError(req, res, 409, 'GOAL_BALANCE_INSUFFICIENT', 'The goal balance is insufficient');
+        }
+
+        const now = new Date().toISOString();
+        const nextAmount = Number.parseFloat(goal.currentAmount) + signedAmount;
+        const transferGroupIdentifier = crypto.randomUUID();
+        const movementIdentifier = `${goal.id}-movement-${crypto.randomUUID()}`;
+        const movement = {
+          id: movementIdentifier,
+          householdId,
+          goalId: goal.id,
+          amount: signedAmount.toFixed(2),
+          source: 'MANUAL',
+          effectiveDate: body.effectiveDate,
+          note: typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null,
+          createdByUserId: access.member.userId,
+          automationRuleId: null,
+          sourceTransactionId: null,
+          transferGroupId: transferGroupIdentifier,
+          idempotencyKey: typeof body.operationId === 'string' ? body.operationId : crypto.randomUUID(),
+          calculationWindowStart: null,
+          calculationWindowEnd: null,
+          balanceAfter: nextAmount.toFixed(2),
+          createdAt: now,
+        };
+        const sourceTransaction = serializeHouseholdTransaction({
+          id: `${transferGroupIdentifier}-source`,
+          householdId,
+          accountId: account.id,
+          payee: `Goal: ${goal.name}`,
+          payerUserId: access.member.userId,
+          amount: (-signedAmount).toFixed(2),
+          date: body.effectiveDate,
+          note: movement.note,
+          transferGroupId: transferGroupIdentifier,
+          goalMovementId: movementIdentifier,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const goalTransaction = serializeHouseholdTransaction({
+          id: `${transferGroupIdentifier}-goal`,
+          householdId,
+          accountId: goal.accountId,
+          payee: body.direction === 'WITHDRAW' ? `Goal withdrawal: ${goal.name}` : `Goal funding: ${goal.name}`,
+          payerUserId: access.member.userId,
+          amount: signedAmount.toFixed(2),
+          date: body.effectiveDate,
+          note: movement.note,
+          transferGroupId: transferGroupIdentifier,
+          goalMovementId: movementIdentifier,
+          createdAt: now,
+          updatedAt: now,
+        });
+        access.entry.transactions.push(sourceTransaction, goalTransaction);
+        goal.movements.push(movement);
+        goal.currentAmount = nextAmount.toFixed(2);
+        if (signedAmount > 0 && goal.kind === 'ONE_OFF' && goal.targetAmount !== null && nextAmount === Number.parseFloat(goal.targetAmount)) goal.status = 'COMPLETED';
+        if (signedAmount < 0 && goal.status === 'COMPLETED') goal.status = 'ACTIVE';
+        goal.updatedAt = now;
+        return respond(req, res, 201, { movement: serializeGoalMovement(movement), sourceTransaction, goalTransaction, replayed: false });
+      })
+      .catch(() => goalError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
+  }
+
+  const householdGoalMovementsMatch = url.match(/^\/households\/([^/]+)\/goals\/([^/]+)\/movements$/);
+  if (householdGoalMovementsMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, goalIdentifier] = householdGoalMovementsMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const goal = findVisibleGoal(access.entry, goalIdentifier, access.member.userId);
+    if (!goal) return goalError(req, res, 404, 'GOAL_NOT_FOUND', 'Goal was not found');
+    return respond(req, res, 200, { data: [...goal.movements].reverse().map(serializeGoalMovement), nextCursor: null });
+  }
+
+  const householdGoalRulesMatch = url.match(/^\/households\/([^/]+)\/goals\/([^/]+)\/automation-rules$/);
+  if (householdGoalRulesMatch && (method === 'GET' || method === 'POST')) {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, goalIdentifier] = householdGoalRulesMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const goal = findVisibleGoal(access.entry, goalIdentifier, access.member.userId);
+    if (!goal) return goalError(req, res, 404, 'GOAL_NOT_FOUND', 'Goal was not found');
+    if (method === 'GET') return respond(req, res, 200, goal.rules.map(serializeGoalAutomationRule));
+
+    return readJsonBody(req)
+      .then((body) => {
+        const fundingAccount = access.entry.accounts.find((candidate) => candidate.id === body.fundingAccountId);
+        const triggerAccount = access.entry.accounts.find((candidate) => candidate.id === body.triggerAccountId);
+        if (typeof body.ruleType !== 'string' || !['FIXED_ON_DAY', 'PERCENT_OF_INCOME_OVER_THRESHOLD', 'ROUND_UP'].includes(body.ruleType) || !isVisibleAccount(fundingAccount, access.member.userId) || fundingAccount.id === goal.accountId) {
+          return goalError(req, res, 400, 'VALIDATION_ERROR', 'Check the entered data');
+        }
+        if (body.ruleType !== 'FIXED_ON_DAY' && !isVisibleAccount(triggerAccount, access.member.userId)) {
+          return goalError(req, res, 400, 'VALIDATION_ERROR', 'Check the entered data');
+        }
+        const now = new Date().toISOString();
+        const rule = {
+          id: `${goal.id}-rule-${crypto.randomUUID()}`,
+          householdId,
+          goalId: goal.id,
+          ruleType: body.ruleType,
+          fundingAccountId: fundingAccount.id,
+          triggerAccountId: body.ruleType === 'FIXED_ON_DAY' ? null : triggerAccount.id,
+          createdByUserId: access.member.userId,
+          startsOn: typeof body.startsOn === 'string' ? body.startsOn : new Date().toISOString().slice(0, 10),
+          isActive: body.isActive !== false,
+          fixedAmount: typeof body.fixedAmount === 'string' ? Number.parseFloat(body.fixedAmount).toFixed(2) : null,
+          dayOfMonth: typeof body.dayOfMonth === 'number' ? body.dayOfMonth : null,
+          percentage: typeof body.percentage === 'string' ? Number.parseFloat(body.percentage).toFixed(2) : null,
+          incomeThreshold: typeof body.incomeThreshold === 'string' ? Number.parseFloat(body.incomeThreshold).toFixed(2) : null,
+          roundUpToAmount: typeof body.roundUpToAmount === 'string' ? Number.parseFloat(body.roundUpToAmount).toFixed(2) : null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        goal.rules.push(rule);
+        return respond(req, res, 201, serializeGoalAutomationRule(rule));
+      })
+      .catch(() => goalError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
+  }
+
+  const householdGoalRuleDetailMatch = url.match(/^\/households\/([^/]+)\/goals\/([^/]+)\/automation-rules\/([^/]+)$/);
+  if (householdGoalRuleDetailMatch && (method === 'PATCH' || method === 'DELETE')) {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, goalIdentifier, ruleIdentifier] = householdGoalRuleDetailMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const goal = findVisibleGoal(access.entry, goalIdentifier, access.member.userId);
+    const rule = goal?.rules.find((candidate) => candidate.id === ruleIdentifier);
+    if (!goal || !rule) return goalError(req, res, 404, 'GOAL_NOT_FOUND', 'Goal automation rule was not found');
+    if (goal.status === 'ARCHIVED') return goalError(req, res, 409, 'GOAL_INVALID_STATE', 'Archived goals are read-only');
+    if (method === 'DELETE') {
+      goal.rules = goal.rules.filter((candidate) => candidate.id !== ruleIdentifier);
+      return respond(req, res, 204, {});
+    }
+
+    return readJsonBody(req)
+      .then((body) => {
+        for (const field of ['fundingAccountId', 'triggerAccountId', 'startsOn', 'isActive', 'fixedAmount', 'dayOfMonth', 'percentage', 'incomeThreshold', 'roundUpToAmount']) {
+          if (Object.prototype.hasOwnProperty.call(body, field)) rule[field] = body[field];
+        }
+        rule.updatedAt = new Date().toISOString();
+        return respond(req, res, 200, serializeGoalAutomationRule(rule));
+      })
+      .catch(() => goalError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
   }
 
   const householdCategoriesMatch = url.match(/^\/households\/([^/]+)\/categories$/);

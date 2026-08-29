@@ -1,4 +1,4 @@
-import type { BudgetEnvelope, PrismaClient } from '../generated/client/index.js';
+import { Prisma, type BudgetEnvelope, type PrismaClient } from '../generated/client/index.js';
 import { visibleAccountIds } from './household-account.service.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -108,13 +108,13 @@ export const listEnvelopesWithSpend = async (
   });
 
   const spentByCategoryId = new Map(
-    spendByCategory.map((row) => [row.categoryId, Math.abs(Number(row._sum.amount ?? 0))])
+    spendByCategory.map((row) => [row.categoryId, (row._sum.amount ?? new Prisma.Decimal(0)).abs()])
   );
 
   return envelopes.map((envelope) => {
     const { category, ...envelopeFields } = envelope;
-    const spent = spentByCategoryId.get(envelope.categoryId) ?? 0;
-    const remaining = Number(envelope.monthlyLimit) - spent;
+    const spent = spentByCategoryId.get(envelope.categoryId) ?? new Prisma.Decimal(0);
+    const remaining = new Prisma.Decimal(envelope.monthlyLimit).sub(spent);
     return { ...envelopeFields, categoryName: category.name, spent: spent.toFixed(2), remaining: remaining.toFixed(2) };
   });
 };
@@ -130,6 +130,9 @@ export const calculateSafeToSpend = async (
   month?: string
 ): Promise<string> => {
   const envelopes = await listEnvelopesWithSpend(prisma, householdId, userId, month);
-  const safeToSpend = envelopes.reduce((total, envelope) => total + Math.max(Number(envelope.remaining), 0), 0);
+  const safeToSpend = envelopes.reduce((total, envelope) => {
+    const remaining = new Prisma.Decimal(envelope.remaining);
+    return total.add(remaining.gt(0) ? remaining : 0);
+  }, new Prisma.Decimal(0));
   return safeToSpend.toFixed(2);
 };

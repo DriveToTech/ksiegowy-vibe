@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import type { HouseholdTransaction, HouseholdTransactionCategorizationSource, PrismaClient } from '../generated/client/index.js';
+import { Prisma, type HouseholdTransaction, type HouseholdTransactionCategorizationSource, type PrismaClient } from '../generated/client/index.js';
 import { visibleAccountIds, type HouseholdAccountWithBalance } from './household-account.service.js';
 import { matchCategoryForPayee, createRule } from './categorization-rule.service.js';
 
@@ -7,6 +7,7 @@ import { matchCategoryForPayee, createRule } from './categorization-rule.service
 
 export interface CreateHouseholdTransactionInput {
   householdId: string;
+  userId: string;
   accountId: string;
   payee: string;
   amount: string;
@@ -23,6 +24,7 @@ export interface CreateHouseholdTransactionInput {
 
 export interface CreateHouseholdTransferInput {
   householdId: string;
+  userId: string;
   fromAccountId: string;
   toAccountId: string;
   amount: string; // positive amount moved
@@ -62,6 +64,16 @@ export interface UpdateHouseholdTransactionInput {
   date?: string;
 }
 
+export class HouseholdTransactionServiceError extends Error {
+  public readonly code: 'TRANSACTION_NOT_FOUND' | 'TRANSACTION_IMMUTABLE' | 'ACCOUNT_NOT_FOUND' | 'VALIDATION_ERROR';
+
+  public constructor(code: 'TRANSACTION_NOT_FOUND' | 'TRANSACTION_IMMUTABLE' | 'ACCOUNT_NOT_FOUND' | 'VALIDATION_ERROR', message: string) {
+    super(message);
+    this.name = 'HouseholdTransactionServiceError';
+    this.code = code;
+  }
+}
+
 export interface RecategorizeTransactionInput {
   categoryId: string;
   applyToFutureFromPayee?: boolean;
@@ -85,15 +97,21 @@ export interface HouseholdMoneySummary {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const assertAccountInHousehold = async (
+const assertVisibleAccount = async (
   prisma: PrismaClient,
   householdId: string,
-  accountId: string
+  accountId: string,
+  userId: string
 ): Promise<void> => {
-  const account = await prisma.householdAccount.findFirst({ where: { id: accountId, householdId } });
-  if (!account) {
-    throw new Error(`Account ${accountId} not found in household ${householdId}`);
-  }
+  const accountIds = await visibleAccountIds(prisma, householdId, userId);
+  if (!accountIds.includes(accountId)) throw new HouseholdTransactionServiceError('ACCOUNT_NOT_FOUND', 'Account not found');
+};
+
+const findVisibleTransaction = async (prisma: PrismaClient, householdId: string, userId: string, transactionId: string): Promise<HouseholdTransaction> => {
+  const accountIds = await visibleAccountIds(prisma, householdId, userId);
+  const transaction = await prisma.householdTransaction.findFirst({ where: { id: transactionId, householdId, accountId: { in: accountIds } } });
+  if (!transaction) throw new HouseholdTransactionServiceError('TRANSACTION_NOT_FOUND', 'Transaction not found');
+  return transaction;
 };
 
 // ── Create ───────────────────────────────────────────────────────────────────
@@ -107,7 +125,7 @@ export const createTransaction = async (
   prisma: PrismaClient,
   input: CreateHouseholdTransactionInput
 ): Promise<HouseholdTransaction> => {
-  await assertAccountInHousehold(prisma, input.householdId, input.accountId);
+  await assertVisibleAccount(prisma, input.householdId, input.accountId, input.userId);
 
   let categoryId = input.categoryId ?? null;
   let categorizationSource: HouseholdTransactionCategorizationSource = input.categorizationSource ?? 'MANUAL';
@@ -126,7 +144,7 @@ export const createTransaction = async (
       accountId: input.accountId,
       categoryId,
       payee: input.payee,
-      payerUserId: input.payerUserId ?? null,
+      payerUserId: input.userId,
       bankDescription: input.bankDescription ?? null,
       amount: input.amount,
       date: new Date(input.date),
@@ -153,11 +171,17 @@ export const createTransfer = async (
     throw new Error('Transfer source and destination accounts must be different');
   }
 
-  await assertAccountInHousehold(prisma, input.householdId, input.fromAccountId);
-  await assertAccountInHousehold(prisma, input.householdId, input.toAccountId);
+  await assertVisibleAccount(prisma, input.householdId, input.fromAccountId, input.userId);
+  await assertVisibleAccount(prisma, input.householdId, input.toAccountId, input.userId);
 
   const transferGroupId = crypto.randomUUID();
-  const amount = Math.abs(Number(input.amount));
+  let amount: Prisma.Decimal;
+  try {
+    amount = new Prisma.Decimal(input.amount).abs();
+  } catch {
+    throw new HouseholdTransactionServiceError('VALIDATION_ERROR', 'amount must be a valid decimal amount');
+  }
+  if (!amount.isFinite() || amount.lte(0)) throw new HouseholdTransactionServiceError('VALIDATION_ERROR', 'amount must be greater than zero');
   const date = new Date(input.date);
   const payee = input.payee ?? 'Transfer';
 
@@ -167,10 +191,10 @@ export const createTransfer = async (
         householdId: input.householdId,
         accountId: input.fromAccountId,
         payee,
-        amount: (-amount).toString(),
+        amount: amount.negated(),
         date,
         note: input.note ?? null,
-        payerUserId: input.payerUserId ?? null,
+        payerUserId: input.userId,
         transferGroupId
       }
     }),
@@ -179,10 +203,10 @@ export const createTransfer = async (
         householdId: input.householdId,
         accountId: input.toAccountId,
         payee,
-        amount: amount.toString(),
+        amount,
         date,
         note: input.note ?? null,
-        payerUserId: input.payerUserId ?? null,
+        payerUserId: input.userId,
         transferGroupId
       }
     })
@@ -220,6 +244,10 @@ export const listTransactions = async (
   const search = filter.search?.trim();
   const searchedAmount = search ? Number(search.replace(',', '.')) : NaN;
 
+  if (filter.accountId && !accountIds.includes(filter.accountId)) {
+    return { data: [], total: 0, page, limit, moneyIn: '0.00', moneyOut: '0.00' };
+  }
+
   const where = {
     householdId,
     accountId: filter.accountId ? filter.accountId : { in: accountIds },
@@ -254,15 +282,14 @@ export const listTransactions = async (
   // moneyIn/moneyOut are an income/expense aggregate, so transfer legs are
   // always excluded regardless of the `excludeTransfers` row-display filter —
   // a transfer between your own accounts is not income or spending.
-  let moneyIn = 0;
-  let moneyOut = 0;
+  let moneyIn = new Prisma.Decimal(0);
+  let moneyOut = new Prisma.Decimal(0);
   for (const transaction of matchingTransactions) {
     if (transaction.transferGroupId) continue;
-    const amount = Number(transaction.amount);
-    if (amount >= 0) {
-      moneyIn += amount;
+    if (transaction.amount.gte(0)) {
+      moneyIn = moneyIn.add(transaction.amount);
     } else {
-      moneyOut += Math.abs(amount);
+      moneyOut = moneyOut.add(transaction.amount.abs());
     }
   }
 
@@ -291,11 +318,12 @@ export const updateTransaction = async (
   prisma: PrismaClient,
   householdId: string,
   transactionId: string,
+  userId: string,
   input: UpdateHouseholdTransactionInput
 ): Promise<HouseholdTransaction> => {
-  const transaction = await prisma.householdTransaction.findFirst({ where: { id: transactionId, householdId } });
-  if (!transaction) {
-    throw new Error(`Transaction ${transactionId} not found in household ${householdId}`);
+  const transaction = await findVisibleTransaction(prisma, householdId, userId, transactionId);
+  if (transaction.goalMovementId) {
+    throw new HouseholdTransactionServiceError('TRANSACTION_IMMUTABLE', 'Goal movement ledger entries are immutable');
   }
 
   const data: Record<string, string | Date | null> = {};
@@ -318,11 +346,12 @@ export const recategorizeTransaction = async (
   prisma: PrismaClient,
   householdId: string,
   transactionId: string,
+  userId: string,
   input: RecategorizeTransactionInput
 ): Promise<HouseholdTransaction> => {
-  const transaction = await prisma.householdTransaction.findFirst({ where: { id: transactionId, householdId } });
-  if (!transaction) {
-    throw new Error(`Transaction ${transactionId} not found in household ${householdId}`);
+  const transaction = await findVisibleTransaction(prisma, householdId, userId, transactionId);
+  if (transaction.goalMovementId) {
+    throw new HouseholdTransactionServiceError('TRANSACTION_IMMUTABLE', 'Goal movement ledger entries are immutable');
   }
 
   const updated = await prisma.householdTransaction.update({
@@ -349,13 +378,23 @@ export const recategorizeTransaction = async (
  * are deleted together — a lone transfer leg would silently unbalance the
  * accounts it moved money between.
  */
-export const deleteTransaction = async (prisma: PrismaClient, householdId: string, transactionId: string): Promise<void> => {
-  const transaction = await prisma.householdTransaction.findFirst({ where: { id: transactionId, householdId } });
-  if (!transaction) {
-    throw new Error(`Transaction ${transactionId} not found in household ${householdId}`);
+export const deleteTransaction = async (prisma: PrismaClient, householdId: string, transactionId: string, userId: string): Promise<void> => {
+  const transaction = await findVisibleTransaction(prisma, householdId, userId, transactionId);
+  if (transaction.goalMovementId) {
+    throw new HouseholdTransactionServiceError('TRANSACTION_IMMUTABLE', 'Goal movement ledger entries are immutable');
+  }
+
+  const sourceMovement = await prisma.goalMovement.findFirst({ where: { householdId, sourceTransactionId: transactionId }, select: { id: true } });
+  if (sourceMovement) {
+    throw new HouseholdTransactionServiceError('TRANSACTION_IMMUTABLE', 'Transactions referenced by goal movements are immutable');
   }
 
   if (transaction.transferGroupId) {
+    const accountIds = await visibleAccountIds(prisma, householdId, userId);
+    const transferLegs = await prisma.householdTransaction.findMany({ where: { householdId, transferGroupId: transaction.transferGroupId }, select: { accountId: true, goalMovementId: true } });
+    if (transferLegs.some((leg) => !accountIds.includes(leg.accountId) || leg.goalMovementId)) {
+      throw new HouseholdTransactionServiceError('TRANSACTION_IMMUTABLE', 'The linked transfer cannot be modified');
+    }
     await prisma.householdTransaction.deleteMany({ where: { transferGroupId: transaction.transferGroupId } });
     return;
   }
@@ -402,11 +441,11 @@ export const getMonthlyInOutSummary = async (
     select: { amount: true, date: true }
   });
 
-  const summaryByMonth = new Map<string, { income: number; expense: number }>();
+  const summaryByMonth = new Map<string, { income: Prisma.Decimal; expense: Prisma.Decimal }>();
   for (let offset = monthsBack - 1; offset >= 0; offset -= 1) {
     const monthDate = new Date(Date.UTC(anchorYear!, anchorMonthNumber! - 1 - offset, 1));
     const monthKey = `${monthDate.getUTCFullYear()}-${String(monthDate.getUTCMonth() + 1).padStart(2, '0')}`;
-    summaryByMonth.set(monthKey, { income: 0, expense: 0 });
+    summaryByMonth.set(monthKey, { income: new Prisma.Decimal(0), expense: new Prisma.Decimal(0) });
   }
 
   for (const transaction of transactions) {
@@ -414,11 +453,11 @@ export const getMonthlyInOutSummary = async (
     const bucket = summaryByMonth.get(monthKey);
     if (!bucket) continue;
 
-    const amount = Number(transaction.amount);
-    if (amount >= 0) {
-      bucket.income += amount;
+    const amount = new Prisma.Decimal(transaction.amount);
+    if (amount.gte(0)) {
+      bucket.income = bucket.income.add(amount);
     } else {
-      bucket.expense += Math.abs(amount);
+      bucket.expense = bucket.expense.add(amount.abs());
     }
   }
 
@@ -448,22 +487,22 @@ export const calculateMoneySummary = (
   accounts: HouseholdAccountWithBalance[],
   monthlyInOut: MonthlyInOutSummary[]
 ): HouseholdMoneySummary => {
-  const netWorth = accounts.reduce((total, account) => total + Number(account.balance), 0);
+  const netWorth = accounts.reduce((total, account) => total.add(account.balance), new Prisma.Decimal(0));
 
   const currentMonth = monthlyInOut[monthlyInOut.length - 1];
-  const moneyIn = Number(currentMonth?.income ?? '0');
-  const moneyOut = Number(currentMonth?.expense ?? '0');
-  const savingsAmountThisMonth = moneyIn - moneyOut;
-  const netWorthAtStartOfMonth = netWorth - savingsAmountThisMonth;
+  const moneyIn = new Prisma.Decimal(currentMonth?.income ?? '0');
+  const moneyOut = new Prisma.Decimal(currentMonth?.expense ?? '0');
+  const savingsAmountThisMonth = moneyIn.sub(moneyOut);
+  const netWorthAtStartOfMonth = netWorth.sub(savingsAmountThisMonth);
 
   return {
     moneyIn: moneyIn.toFixed(2),
     moneyOut: moneyOut.toFixed(2),
     netWorth: netWorth.toFixed(2),
-    netWorthChangePercent: netWorthAtStartOfMonth !== 0
-      ? ((savingsAmountThisMonth / Math.abs(netWorthAtStartOfMonth)) * 100).toFixed(2)
+    netWorthChangePercent: !netWorthAtStartOfMonth.eq(0)
+      ? savingsAmountThisMonth.div(netWorthAtStartOfMonth.abs()).mul(100).toFixed(2)
       : '0.00',
-    savingsRatePercent: moneyIn !== 0 ? ((savingsAmountThisMonth / moneyIn) * 100).toFixed(2) : '0.00',
+    savingsRatePercent: !moneyIn.eq(0) ? savingsAmountThisMonth.div(moneyIn).mul(100).toFixed(2) : '0.00',
     savingsAmountThisMonth: savingsAmountThisMonth.toFixed(2)
   };
 };

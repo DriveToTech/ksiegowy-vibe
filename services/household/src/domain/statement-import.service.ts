@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
-import type { HouseholdTransaction, PrismaClient } from '../generated/client/index.js';
+import { Prisma, type HouseholdTransaction, type PrismaClient } from '../generated/client/index.js';
+import { visibleAccountIds } from './household-account.service.js';
 import { matchCategoryForPayee } from './categorization-rule.service.js';
 
 // ── CSV parsing ──────────────────────────────────────────────────────────────
@@ -109,11 +110,13 @@ export interface ConfirmStatementImportRow {
 export const previewStatementImport = async (
   prisma: PrismaClient,
   householdId: string,
+  userId: string,
   accountId: string,
   csvContent: string,
   columnMapping: StatementColumnMapping
 ): Promise<StatementImportRow[]> => {
-  const account = await prisma.householdAccount.findFirst({ where: { id: accountId, householdId } });
+  const accountIds = await visibleAccountIds(prisma, householdId, userId);
+  const account = accountIds.includes(accountId) ? await prisma.householdAccount.findFirst({ where: { id: accountId, householdId } }) : null;
   if (!account) {
     throw new Error(`Account ${accountId} not found in household ${householdId}`);
   }
@@ -149,7 +152,7 @@ export const previewStatementImport = async (
 };
 
 const buildDuplicateKey = (date: string, amount: string, payee: string): string =>
-  `${date}|${Number(amount).toFixed(2)}|${payee.toLowerCase()}`;
+  `${date}|${new Prisma.Decimal(amount.replace(/\s/g, '').replace(',', '.')).toFixed(2)}|${payee.toLowerCase()}`;
 
 // ── Confirm ──────────────────────────────────────────────────────────────────
 
@@ -162,10 +165,12 @@ const buildDuplicateKey = (date: string, amount: string, payee: string): string 
 export const confirmStatementImport = async (
   prisma: PrismaClient,
   householdId: string,
+  userId: string,
   accountId: string,
   rows: ConfirmStatementImportRow[]
 ): Promise<{ importBatchId: string; createdCount: number; transactions: HouseholdTransaction[] }> => {
-  const account = await prisma.householdAccount.findFirst({ where: { id: accountId, householdId } });
+  const accountIds = await visibleAccountIds(prisma, householdId, userId);
+  const account = accountIds.includes(accountId) ? await prisma.householdAccount.findFirst({ where: { id: accountId, householdId } }) : null;
   if (!account) {
     throw new Error(`Account ${accountId} not found in household ${householdId}`);
   }
