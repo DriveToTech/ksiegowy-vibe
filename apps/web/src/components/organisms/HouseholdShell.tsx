@@ -16,6 +16,8 @@ const navigationItems = [
   { href: '/household/envelopes', label: t.householdNav.budget, mobileLabel: t.householdNav.budget, icon: 'householdBudget' as const },
   { href: '/household/commitments', label: t.householdNav.commitments, mobileLabel: t.householdNav.commitments, icon: 'householdCommitments' as const },
   { href: '/household/goals', label: t.householdNav.goals, mobileLabel: t.householdNav.goals, icon: 'householdGoals' as const },
+  { href: '/household/investing', label: t.householdNav.investing, mobileLabel: t.householdNav.investing, icon: 'householdInvesting' as const },
+  { href: '/household/reports', label: t.householdNav.reports, mobileLabel: t.householdNav.reports, icon: 'householdReports' as const },
   { href: '/household/settings/accounts', label: t.householdNav.settings, mobileLabel: t.householdNav.settings, icon: 'settings' as const },
 ];
 

@@ -31,6 +31,11 @@ enum HouseholdTransactionCategorizationSource {
   IMPORT
 }
 
+enum HouseholdCategoryCashFlowTreatment {
+  STANDARD
+  TRANSFER
+}
+
 enum CommitmentType {
   INSURANCE
   LOAN
@@ -82,6 +87,24 @@ enum GoalAutomationRuleType {
   ROUND_UP
 }
 
+enum InvestmentWrapper {
+  TAXABLE
+  IKE
+  IKZE
+}
+
+enum InvestmentPositionVisibility {
+  SHARED
+  PRIVATE
+}
+
+enum InvestmentTransactionType {
+  BUY
+  SELL
+  VALUATION_UPDATE
+  CONTRIBUTION
+}
+
 // ── Tenancy ──────────────────────────────────────────────────────────────────
 
 model Household {
@@ -100,6 +123,8 @@ model Household {
   goals               Goal[]
   goalMovements       GoalMovement[]
   goalAutomationRules GoalAutomationRule[]
+  investmentPositions InvestmentPosition[]
+  investmentTransactions InvestmentTransaction[]
 }
 
 // Not a Prisma relation to User — User lives in the business database, so no
@@ -159,17 +184,19 @@ model HouseholdCategory {
   householdId      String
   name             String
   parentCategoryId String?
+  cashFlowTreatment HouseholdCategoryCashFlowTreatment @default(STANDARD)
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   household        Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  parentCategory   HouseholdCategory?  @relation("HouseholdCategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  parentCategory   HouseholdCategory?  @relation("HouseholdCategoryHierarchy", fields: [householdId, parentCategoryId], references: [householdId, id], onDelete: Restrict)
   childCategories  HouseholdCategory[] @relation("HouseholdCategoryHierarchy")
   transactions     HouseholdTransaction[]
   envelope         BudgetEnvelope?
   categorizationRules CategorizationRule[]
 
   @@index([householdId])
-  @@index([parentCategoryId])
+  @@index([householdId, parentCategoryId])
+  @@unique([householdId, id])
 }
 
 // ── Ledger ───────────────────────────────────────────────────────────────────
@@ -200,7 +227,7 @@ model HouseholdTransaction {
   updatedAt            DateTime                                  @updatedAt
   household            Household                                 @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account              HouseholdAccount                          @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  category             HouseholdCategory?                        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category             HouseholdCategory?                        @relation(fields: [householdId, categoryId], references: [householdId, id], onDelete: Restrict)
   commitment           Commitment?                               @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
   goalMovement         GoalMovement?                             @relation(fields: [householdId, goalMovementId], references: [householdId, id], onDelete: Restrict)
   goalSourceMovements  GoalMovement[]                            @relation("GoalMovementSourceTransaction")
@@ -229,7 +256,7 @@ model BudgetEnvelope {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   household     Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  category      HouseholdCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category      HouseholdCategory @relation(fields: [householdId, categoryId], references: [householdId, id], onDelete: Cascade)
 
   @@unique([householdId, categoryId])
 }
@@ -295,7 +322,7 @@ model CategorizationRule {
   createdAt     DateTime                     @default(now())
   updatedAt     DateTime                     @updatedAt
   household     Household                    @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  category      HouseholdCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category      HouseholdCategory            @relation(fields: [householdId, categoryId], references: [householdId, id], onDelete: Cascade)
 
   @@index([householdId])
   @@index([householdId, matchType])
@@ -392,4 +419,54 @@ model GoalAutomationRule {
   @@index([goalId, isActive])
   @@index([fundingAccountId])
   @@index([triggerAccountId])
+}
+
+// ── Manual investing ─────────────────────────────────────────────────────────
+
+// A position is a small consistency boundary. Its owner never changes, even
+// when the position is shared with the rest of the household.
+model InvestmentPosition {
+  id                      String                       @id @default(cuid())
+  householdId             String
+  ownerUserId             String
+  wrapper                 InvestmentWrapper
+  visibility              InvestmentPositionVisibility @default(PRIVATE)
+  instrument              String
+  units                   Decimal                      @db.Decimal(20, 8)
+  costBasis               Decimal                      @db.Decimal(15, 2)
+  currentValue            Decimal?                     @db.Decimal(15, 2)
+  targetAllocationPercent Decimal?                     @db.Decimal(5, 2)
+  lastValuedAt            DateTime?
+  archivedAt              DateTime?
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
+  household               Household                    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transactions            InvestmentTransaction[]
+
+  @@unique([householdId, id])
+  @@index([householdId, visibility])
+  @@index([householdId, archivedAt])
+  @@index([ownerUserId])
+}
+
+// This is an append-only journal. Voiding writes audit metadata instead of
+// deleting or mutating the original fact; the position projection is rebuilt.
+model InvestmentTransaction {
+  id             String                    @id @default(cuid())
+  householdId    String
+  positionId     String
+  type           InvestmentTransactionType
+  units          Decimal?                  @db.Decimal(20, 8)
+  amount         Decimal                   @db.Decimal(15, 2)
+  date           DateTime                  @db.Date
+  operationId    String
+  voidedAt       DateTime?
+  voidedByUserId String?
+  createdAt      DateTime                  @default(now())
+  household      Household                 @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  position       InvestmentPosition        @relation(fields: [householdId, positionId], references: [householdId, id], onDelete: Restrict)
+
+  @@unique([householdId, operationId])
+  @@index([householdId, positionId, date])
+  @@index([positionId, voidedAt])
 }

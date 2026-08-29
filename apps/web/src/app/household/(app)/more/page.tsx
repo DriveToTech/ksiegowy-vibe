@@ -10,6 +10,8 @@ const moreLinks = [
   { href: '/household/settings/accounts', label: t.household.goals.more.accounts, icon: 'settings' as const },
   { href: '/household/settings/categories', label: t.household.goals.more.categories, icon: 'householdBudget' as const },
   { href: '/household/settings/team', label: t.household.goals.more.team, icon: 'householdHome' as const },
+  { href: '/household/investing', label: t.household.goals.more.investing, icon: 'householdInvesting' as const },
+  { href: '/household/reports', label: t.household.goals.more.reports, icon: 'householdReports' as const },
 ];
 
 export default function HouseholdMorePage() {

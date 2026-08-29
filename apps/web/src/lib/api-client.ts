@@ -1,5 +1,7 @@
 import { API_BASE } from './api-base';
 import { householdGoalErrorMessage } from './household-goal-errors';
+import { householdInvestmentErrorMessage, householdReportErrorMessage } from './household-financial-errors';
+import { buildHouseholdReportExportQuery } from './household-report-period';
 import { householdTransactionErrorMessage } from './household-transaction-errors';
 import {
   getActiveKsefEnvironmentFromBrowser,
@@ -27,6 +29,11 @@ import type {
   HouseholdGoalAutomationRule,
   HouseholdGoalDetail,
   HouseholdGoalMovementResult,
+  HouseholdInvestmentPosition,
+  HouseholdInvestmentTransactionResult,
+  CreateHouseholdInvestmentPositionBody,
+  CreateHouseholdInvestmentTransactionBody,
+  UpdateHouseholdInvestmentPositionBody,
   HouseholdAccount,
   HouseholdAccountType,
   HouseholdAccountVisibility,
@@ -143,8 +150,16 @@ export async function clientFetch<T>(path: string, options?: RequestInit): Promi
       throw new ApiClientError(householdGoalErrorMessage(response.status, code), response.status, code);
     }
 
+    if (path.startsWith('/households/') && path.includes('/investments')) {
+      throw new ApiClientError(householdInvestmentErrorMessage(response.status, code), response.status, code);
+    }
+
     if (path.includes('/households/') && path.includes('/transactions')) {
       throw new ApiClientError(householdTransactionErrorMessage(response.status, code), response.status, code);
+    }
+
+    if (path.startsWith('/households/') && path.includes('/reports')) {
+      throw new ApiClientError(householdReportErrorMessage(response.status, code), response.status, code);
     }
 
     throw new ApiClientError(message || `Request failed with status ${response.status}`, response.status, code);
@@ -614,6 +629,79 @@ export async function updateHouseholdGoalAutomationRule(
     method: 'PATCH',
     body: JSON.stringify(body),
   });
+}
+
+export async function createHouseholdInvestmentPosition(
+  householdId: string,
+  body: CreateHouseholdInvestmentPositionBody,
+): Promise<HouseholdInvestmentPosition> {
+  return clientFetch<HouseholdInvestmentPosition>(`/households/${householdId}/investments`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateHouseholdInvestmentPosition(
+  householdId: string,
+  positionId: string,
+  body: UpdateHouseholdInvestmentPositionBody,
+): Promise<HouseholdInvestmentPosition> {
+  return clientFetch<HouseholdInvestmentPosition>(`/households/${householdId}/investments/${positionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createHouseholdInvestmentTransaction(
+  householdId: string,
+  positionId: string,
+  body: CreateHouseholdInvestmentTransactionBody,
+): Promise<HouseholdInvestmentTransactionResult> {
+  return clientFetch<HouseholdInvestmentTransactionResult>(`/households/${householdId}/investments/${positionId}/transactions`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function voidHouseholdInvestmentTransaction(
+  householdId: string,
+  positionId: string,
+  transactionId: string,
+): Promise<HouseholdInvestmentTransactionResult> {
+  return clientFetch<HouseholdInvestmentTransactionResult>(`/households/${householdId}/investments/${positionId}/transactions/${transactionId}/void`, {
+    method: 'POST',
+  });
+}
+
+export function buildHouseholdReportExportPath(
+  householdId: string,
+  from: string,
+  to: string,
+  format: 'csv' | 'pdf',
+): string {
+  return `/households/${encodeURIComponent(householdId)}/reports/export?${buildHouseholdReportExportQuery(from, to, format)}`;
+}
+
+export async function downloadHouseholdReport(
+  householdId: string,
+  from: string,
+  to: string,
+  format: 'csv' | 'pdf',
+): Promise<Blob> {
+  const path = buildHouseholdReportExportPath(householdId, from, to, format);
+  const response = await fetch(`${API_BASE}${path}`, { credentials: 'include' });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    let code: string | undefined;
+    try {
+      const parsed: unknown = JSON.parse(body);
+      if (typeof parsed === 'object' && parsed !== null && 'code' in parsed && typeof parsed.code === 'string') code = parsed.code;
+    } catch {
+      // Export errors are intentionally mapped to safe messages below.
+    }
+    throw new ApiClientError(householdReportErrorMessage(response.status, code), response.status, code);
+  }
+  return response.blob();
 }
 
 export async function deleteHouseholdGoalAutomationRule(householdId: string, goalId: string, ruleId: string): Promise<void> {

@@ -34,6 +34,8 @@ import { envelopesRoutes } from './routes/household/envelopes.routes.js';
 import { commitmentsRoutes } from './routes/household/commitments.routes.js';
 import { dashboardRoutes } from './routes/household/dashboard.routes.js';
 import { goalsRoutes } from './routes/household/goals.routes.js';
+import { investmentsRoutes } from './routes/household/investments.routes.js';
+import { reportsRoutes as householdReportsRoutes } from './routes/household/reports.routes.js';
 import { mutationOriginGuardPlugin } from './plugins/mutation-origin-guard.js';
 
 export interface BuildAppOptions {
@@ -60,6 +62,12 @@ export const buildApp = async (options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(householdDatabasePlugin, householdDatabasePluginOptions);
   await app.register(authPlugin, { config: authConfig });
   await app.register(mutationOriginGuardPlugin);
+  app.addHook('onSend', async (request, reply, payload) => {
+    if (request.method === 'GET' && request.url.startsWith('/households/')) {
+      reply.header('Cache-Control', 'private, no-store');
+    }
+    return payload;
+  });
   await app.register(authRoutes);
   await app.register(companiesRoutes);
   await app.register(householdsRoutes);
@@ -70,6 +78,8 @@ export const buildApp = async (options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(commitmentsRoutes);
   await app.register(dashboardRoutes);
   await app.register(goalsRoutes);
+  await app.register(investmentsRoutes);
+  await app.register(householdReportsRoutes);
   await app.register(companyBackupPolicyRoutes);
   await app.register(companyBackupStatusRoutes);
   await app.register(contractorsRoutes);

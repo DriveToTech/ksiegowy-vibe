@@ -32,3 +32,6 @@ export * from './domain/commitment-reminder.service.js';
 export * from './domain/goal.service.js';
 export * from './domain/goal-movement.service.js';
 export * from './domain/goal-automation.service.js';
+export * from './domain/investment.service.js';
+export * from './domain/investment-read.service.js';
+export * from './domain/report.service.js';

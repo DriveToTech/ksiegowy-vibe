@@ -1,6 +1,6 @@
 # Household Mode (Personal Budgeting) — Backend Spec
 
-Backend reference for the household/personal-budgeting bounded context: tenancy, ledger, budget envelopes, commitments, and Phase 2 savings goals. This document covers the backend only; frontend behavior is summarized in [`docs/specs/household-frontend.md`](specs/household-frontend.md).
+Backend reference for the household/personal-budgeting bounded context: tenancy, ledger, budget envelopes, commitments, savings goals, manual investing, and household reports. This document covers the backend only; frontend behavior is summarized in [`docs/specs/household-frontend.md`](specs/household-frontend.md).
 
 ## Package boundary
 
@@ -164,8 +164,101 @@ flowchart LR
 | `commitments.routes.ts` | `GET/POST /households/:householdId/commitments`, `GET/PATCH .../commitments/:commitmentId`, `GET .../commitments/upcoming`, `GET .../commitments/:commitmentId/amortization-schedule` |
 | `dashboard.routes.ts` | `GET /households/:householdId/dashboard` |
 | `goals.routes.ts` | `GET /goals/overview`, `GET/POST /goals`, `GET/PATCH /goals/:goalId`, `POST /goals/:goalId/transfers`, `GET /goals/:goalId/movements`, `GET/POST /goals/:goalId/automation-rules`, `PATCH/DELETE /goals/:goalId/automation-rules/:ruleId` |
+| `investments.routes.ts` | `GET/POST /households/:householdId/investments`, `PATCH .../investments/:positionId`, `GET/POST .../investments/:positionId/transactions`, `POST .../transactions/:transactionId/void`, `GET .../investments/value-history`, `GET .../investments/contributions` |
+| `reports.routes.ts` | `GET .../reports/summary`, `GET .../reports/tax-return`, `GET .../reports/export?from=&to=&format=csv|pdf` |
 
 Every route (except the household-creation `POST /households` itself) runs `requireHouseholdMembership()` before touching data.
+
+## Manual investing (Phase 3)
+
+Investing is a small, household-scoped bounded context inside the household
+service. `InvestmentPosition` is owned by exactly one authenticated user. A
+`SHARED` position is readable by all current members, while a `PRIVATE`
+position is readable only by its owner. Sharing never grants mutation rights:
+only the owner may edit, record, or void a position's journal, and the
+household `OWNER` role does not override that rule. `ownerUserId` is never
+updated and there is no owner-transfer operation.
+
+`InvestmentTransaction` is an append-only journal. `BUY` adds units and cost
+basis, `SELL` validates available units and removes the proportional average
+cost basis, `VALUATION_UPDATE` is the only transaction that changes current
+value, and `CONTRIBUTION` records history only. Every journal write requires a
+household-scoped `operationId`: an identical payload replays the original row;
+a different payload is an `IDEMPOTENCY_CONFLICT`. Voiding sets audit metadata
+on the original row and rebuilds units, cost basis, and the latest valuation
+from non-voided facts.
+
+Positions without a valuation retain `currentValue = NULL` and are reported as
+partial; no price, return, FX, dividend, broker, or tax-liability value is
+invented. Allocation percentages use known valuations only. Drift is returned
+only when every active visible position has a target and the targets sum to
+100%; otherwise the API returns an explicit incomplete target status and null
+drift. A position can be archived only when both units and the known current
+value are exactly zero.
+
+```mermaid
+sequenceDiagram
+    participant Client as Household client
+    participant API as Fastify household routes
+    participant Service as household-service investment domain
+    participant DB as ksiegowy_household
+
+    Client->>API: POST position transaction + operationId
+    API->>API: authenticate + live membership guard
+    API->>Service: recordInvestmentTransaction(userId, householdId, positionId)
+    Service->>DB: serializable idempotent journal insert
+    Service->>DB: rebuild position projection from non-voided journal
+    DB-->>Service: transaction + position projection
+    Service-->>API: result + replayed flag
+    API-->>Client: decimal strings, YYYY-MM-DD dates
+```
+
+## Household reports (Phase 3)
+
+`getHouseholdReportSummary()` is the canonical report read model. It accepts
+inclusive `from` and `to` dates and currently rejects ranges longer than one
+year. Cash-flow totals and category rows use visible accounts only, exclude
+linked ledger transfers, and exclude categories whose
+`cashFlowTreatment` is `TRANSFER`. Existing categories default to `STANDARD`;
+new households and the Phase 3 migration receive an `Investment transfers`
+category with `TRANSFER` treatment. Budget envelope semantics remain based on
+their existing linked-transfer rule.
+
+Net worth is deliberately split into visible account and investment
+components. Account values use `openingBalance + ledger entries`, with the
+account `createdAt` documented as the temporary opening-balance boundary.
+Investment values use the latest non-voided manual valuation on or before the
+report end date. Missing valuation is represented as `NULL`, excluded from the
+numeric total, and recorded in `dataQuality`; goals are not added as a second
+net-worth component because their holding account is already included.
+
+The prior-year comparison is labelled
+`EQUIVALENT_PRIOR_YEAR` and compares the same inclusive date span shifted back
+one calendar year by category name. It is neutral descriptive evidence, not a
+recommendation. The tax-return read model returns only recorded IKZE
+contribution evidence. It performs no tax, return, eligibility, or liability
+calculation. IKZE headroom is available from the contribution endpoint only
+when the caller supplies a year-specific, user-confirmed `annualLimit`, a
+non-empty `annualLimitSource`, and `annualLimitConfirmation=USER_CONFIRMED`;
+otherwise it is `NULL`. The source is user-provided and never officially
+verified.
+
+CSV exports reuse the existing UTF-8 BOM and CSV quoting shape, prefix
+formula-like user fields with an apostrophe, and use a date-derived safe
+filename. CSV and PDF responses are direct, private, `no-store` responses;
+they are not persisted. Category, account, and investment instrument labels
+are limited to 160 characters at the domain boundary and report reads reject
+legacy overlong labels before export. The household PDF template
+HTML-escapes all user values before Puppeteer renders it. PDF rendering uses
+one process-wide Chromium slot, an eight-request queue, operation and cleanup
+timeouts, a 500-row input ceiling, a 50-page ceiling, and a 5 MiB output
+ceiling; limit failures return `WORKLOAD_LIMIT_EXCEEDED` and HTTP 413.
+
+Category hierarchy references are household-scoped composite foreign keys.
+Create/update validates that a parent belongs to the same household and that
+the resulting parent chain is acyclic. Parent categories with children are
+not deleted; the hierarchy migration detaches invalid legacy links and fails
+closed if it finds an existing multi-node cycle.
 
 ## Deployment note
 

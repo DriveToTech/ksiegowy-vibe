@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { Prisma, type HouseholdTransaction, type HouseholdTransactionCategorizationSource, type PrismaClient } from '../generated/client/index.js';
 import { visibleAccountIds, type HouseholdAccountWithBalance } from './household-account.service.js';
 import { matchCategoryForPayee, createRule } from './categorization-rule.service.js';
+import { categoryExistsInHousehold } from './household-category.service.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,9 +66,9 @@ export interface UpdateHouseholdTransactionInput {
 }
 
 export class HouseholdTransactionServiceError extends Error {
-  public readonly code: 'TRANSACTION_NOT_FOUND' | 'TRANSACTION_IMMUTABLE' | 'ACCOUNT_NOT_FOUND' | 'VALIDATION_ERROR';
+  public readonly code: 'TRANSACTION_NOT_FOUND' | 'TRANSACTION_IMMUTABLE' | 'ACCOUNT_NOT_FOUND' | 'CATEGORY_NOT_FOUND' | 'VALIDATION_ERROR';
 
-  public constructor(code: 'TRANSACTION_NOT_FOUND' | 'TRANSACTION_IMMUTABLE' | 'ACCOUNT_NOT_FOUND' | 'VALIDATION_ERROR', message: string) {
+  public constructor(code: 'TRANSACTION_NOT_FOUND' | 'TRANSACTION_IMMUTABLE' | 'ACCOUNT_NOT_FOUND' | 'CATEGORY_NOT_FOUND' | 'VALIDATION_ERROR', message: string) {
     super(message);
     this.name = 'HouseholdTransactionServiceError';
     this.code = code;
@@ -136,6 +137,9 @@ export const createTransaction = async (
       categoryId = matchedCategoryId;
       categorizationSource = 'RULE';
     }
+  }
+  if (categoryId && !(await categoryExistsInHousehold(prisma, input.householdId, categoryId))) {
+    throw new HouseholdTransactionServiceError('CATEGORY_NOT_FOUND', 'Category not found');
   }
 
   return prisma.householdTransaction.create({
@@ -328,7 +332,12 @@ export const updateTransaction = async (
 
   const data: Record<string, string | Date | null> = {};
   if (input.payee !== undefined) data.payee = input.payee;
-  if ('categoryId' in input) data.categoryId = input.categoryId ?? null;
+  if ('categoryId' in input) {
+    if (input.categoryId !== null && !(await categoryExistsInHousehold(prisma, householdId, input.categoryId))) {
+      throw new HouseholdTransactionServiceError('CATEGORY_NOT_FOUND', 'Category not found');
+    }
+    data.categoryId = input.categoryId ?? null;
+  }
   if ('tag' in input) data.tag = input.tag ?? null;
   if ('note' in input) data.note = input.note ?? null;
   if (input.date !== undefined) data.date = new Date(input.date);
@@ -352,6 +361,9 @@ export const recategorizeTransaction = async (
   const transaction = await findVisibleTransaction(prisma, householdId, userId, transactionId);
   if (transaction.goalMovementId) {
     throw new HouseholdTransactionServiceError('TRANSACTION_IMMUTABLE', 'Goal movement ledger entries are immutable');
+  }
+  if (!(await categoryExistsInHousehold(prisma, householdId, input.categoryId))) {
+    throw new HouseholdTransactionServiceError('CATEGORY_NOT_FOUND', 'Category not found');
   }
 
   const updated = await prisma.householdTransaction.update({

@@ -86,4 +86,18 @@ describe('confirmStatementImport()', () => {
     expect(secondCallArgs![0].data.importBatchId).toBe(result.importBatchId);
     expect(firstCallArgs![0].data.categorizationSource).toBe('IMPORT');
   });
+
+  it('rejects an explicitly supplied category from another household', async () => {
+    const create = vi.fn();
+    const prisma = {
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]), findFirst: vi.fn(async () => ({ id: 'account-1' })) },
+      householdCategory: { findFirst: vi.fn(async () => null) },
+      householdTransaction: { create }
+    } as unknown as PrismaClient;
+
+    await expect(confirmStatementImport(prisma, 'household-1', 'user-1', 'account-1', [
+      { date: '2026-08-01', amount: '-49.99', payee: 'Netflix', categoryId: 'category-other-household' }
+    ])).rejects.toMatchObject({ code: 'CATEGORY_NOT_FOUND' });
+    expect(create).not.toHaveBeenCalled();
+  });
 });

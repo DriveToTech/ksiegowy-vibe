@@ -2,6 +2,8 @@ import crypto from 'node:crypto';
 import { Prisma, type HouseholdTransaction, type PrismaClient } from '../generated/client/index.js';
 import { visibleAccountIds } from './household-account.service.js';
 import { matchCategoryForPayee } from './categorization-rule.service.js';
+import { categoryExistsInHousehold } from './household-category.service.js';
+import { HouseholdTransactionServiceError } from './household-transaction.service.js';
 
 // ── CSV parsing ──────────────────────────────────────────────────────────────
 
@@ -182,6 +184,9 @@ export const confirmStatementImport = async (
     let categoryId = row.categoryId ?? null;
     if (!categoryId) {
       categoryId = await matchCategoryForPayee(prisma, householdId, row.payee);
+    }
+    if (categoryId && !(await categoryExistsInHousehold(prisma, householdId, categoryId))) {
+      throw new HouseholdTransactionServiceError('CATEGORY_NOT_FOUND', 'Category not found');
     }
 
     const transaction = await prisma.householdTransaction.create({

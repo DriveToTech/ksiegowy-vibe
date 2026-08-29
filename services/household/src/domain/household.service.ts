@@ -34,16 +34,17 @@ export interface HouseholdMemberSummary {
  * Seeded once per household on creation. Households can rename/delete/add
  * their own categories afterwards — this is a starting point, not a fixed list.
  */
-const DEFAULT_HOUSEHOLD_CATEGORY_NAMES = [
-  'Housing',
-  'Groceries',
-  'Transport',
-  'Utilities',
-  'Insurance',
-  'Health',
-  'Entertainment',
-  'Savings',
-  'Other'
+const DEFAULT_HOUSEHOLD_CATEGORIES = [
+  { name: 'Housing', cashFlowTreatment: 'STANDARD' },
+  { name: 'Groceries', cashFlowTreatment: 'STANDARD' },
+  { name: 'Transport', cashFlowTreatment: 'STANDARD' },
+  { name: 'Utilities', cashFlowTreatment: 'STANDARD' },
+  { name: 'Insurance', cashFlowTreatment: 'STANDARD' },
+  { name: 'Health', cashFlowTreatment: 'STANDARD' },
+  { name: 'Entertainment', cashFlowTreatment: 'STANDARD' },
+  { name: 'Savings', cashFlowTreatment: 'STANDARD' },
+  { name: 'Other', cashFlowTreatment: 'STANDARD' },
+  { name: 'Investment transfers', cashFlowTreatment: 'TRANSFER' }
 ] as const;
 
 // ── Create ───────────────────────────────────────────────────────────────────
@@ -66,9 +67,10 @@ export const createHousehold = async (
     });
 
     await transactionClient.householdCategory.createMany({
-      data: DEFAULT_HOUSEHOLD_CATEGORY_NAMES.map((name) => ({
+      data: DEFAULT_HOUSEHOLD_CATEGORIES.map((category) => ({
         householdId: household.id,
-        name
+        name: category.name,
+        cashFlowTreatment: category.cashFlowTreatment
       }))
     });
 

@@ -1,5 +1,6 @@
 import { Prisma, type BudgetEnvelope, type PrismaClient } from '../generated/client/index.js';
 import { visibleAccountIds } from './household-account.service.js';
+import { categoryExistsInHousehold } from './household-category.service.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,9 @@ export const createEnvelope = async (
   prisma: PrismaClient,
   input: CreateBudgetEnvelopeInput
 ): Promise<BudgetEnvelope> => {
+  if (!(await categoryExistsInHousehold(prisma, input.householdId, input.categoryId))) {
+    throw new Error(`Category ${input.categoryId} not found in household ${input.householdId}`);
+  }
   return prisma.budgetEnvelope.create({
     data: {
       householdId: input.householdId,
