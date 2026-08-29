@@ -15,13 +15,13 @@ export default async function CommitmentDetailPage({
 
   const [commitment, accounts] = await Promise.all([
     getHouseholdCommitment(householdId, commitmentId),
-    getHouseholdAccounts(householdId).catch(() => []),
+    getHouseholdAccounts(householdId),
   ]);
   const account = accounts.find((item) => item.id === commitment.accountId) ?? null;
 
   const canComputeAmortization = commitment.type === 'LOAN' && commitment.principal && commitment.interestRate && commitment.termMonths;
   const amortizationSchedule = canComputeAmortization
-    ? await getHouseholdCommitmentAmortizationSchedule(householdId, commitmentId).catch(() => null)
+    ? await getHouseholdCommitmentAmortizationSchedule(householdId, commitmentId)
     : null;
 
   return (

@@ -30,6 +30,7 @@ import type {
   MemberRole,
   ServiceTemplate,
   UpdateCommitmentBody,
+  UpdateHouseholdTransactionBody,
 } from './api-types';
 
 export class ApiClientError extends Error {
@@ -94,6 +95,7 @@ export type {
   PaymentMethod,
   ServiceTemplate,
   UpdateCommitmentBody,
+  UpdateHouseholdTransactionBody,
   VatRate,
 } from './api-types';
 
@@ -498,7 +500,7 @@ export async function createHouseholdTransaction(
 export async function updateHouseholdTransaction(
   householdId: string,
   transactionId: string,
-  body: Partial<CreateHouseholdTransactionBody>,
+  body: UpdateHouseholdTransactionBody,
 ): Promise<HouseholdTransaction> {
   return clientFetch<HouseholdTransaction>(`/households/${householdId}/transactions/${transactionId}`, {
     method: 'PATCH',

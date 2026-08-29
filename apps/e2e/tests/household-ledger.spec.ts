@@ -106,6 +106,7 @@ test('create household -> account -> categorized transaction -> envelope + upcom
   const commitmentForm = page.locator('form');
 
   await fieldByLabel(commitmentForm, 'Nazwa').fill('Ubezpieczenie domu');
+  await fieldByLabel(commitmentForm, 'Ubezpieczyciel').fill('Bezpieczny Dom');
   await page.getByPlaceholder('0,00').fill('89.99');
   await commitmentForm.getByRole('button', { name: 'Zapisz' }).click();
 

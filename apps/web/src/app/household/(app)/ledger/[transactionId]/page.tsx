@@ -15,10 +15,10 @@ export default async function HouseholdTransactionDetailPage({
 
   const [transaction, accounts, categories, members, envelopes] = await Promise.all([
     getHouseholdTransaction(householdId, transactionId),
-    getHouseholdAccounts(householdId).catch(() => []),
-    getHouseholdCategories(householdId).catch(() => []),
-    getHouseholdMembers(householdId).catch(() => []),
-    getHouseholdEnvelopes(householdId).catch(() => []),
+    getHouseholdAccounts(householdId),
+    getHouseholdCategories(householdId),
+    getHouseholdMembers(householdId),
+    getHouseholdEnvelopes(householdId),
   ]);
 
   return (

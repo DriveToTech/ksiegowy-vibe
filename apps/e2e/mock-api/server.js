@@ -64,6 +64,7 @@ const DEFAULT_HOUSEHOLD_CATEGORY_NAMES = [
 
 const HOUSEHOLD_OWNER_TOKEN = 'household-owner-token';
 const HOUSEHOLD_MEMBER_TOKEN = 'household-member-token';
+const HOUSEHOLD_DATA_FAILURE_TOKEN = 'household-data-failure-token';
 
 const TEST_HOUSEHOLD = {
   id: 'test-household-id',
@@ -86,6 +87,13 @@ const TEST_MEMBER_ANNA = {
   userId: 'test-household-member-anna-id',
   userEmail: 'anna@example.com',
   displayName: 'Anna Kowalska',
+  role: 'MEMBER',
+};
+
+const TEST_MEMBER_DATA_FAILURE = {
+  userId: 'test-household-data-failure-user-id',
+  userEmail: 'data-failure@example.com',
+  displayName: 'Data Failure User',
   role: 'MEMBER',
 };
 
@@ -188,6 +196,7 @@ const households = new Map([
       });
       entry.household = TEST_HOUSEHOLD;
       entry.members.set(HOUSEHOLD_MEMBER_TOKEN, TEST_MEMBER_ANNA);
+      entry.members.set(HOUSEHOLD_DATA_FAILURE_TOKEN, TEST_MEMBER_DATA_FAILURE);
       return entry;
     })(),
   ],
@@ -969,6 +978,44 @@ const server = http.createServer((req, res) => {
     return respond(req, res, 200, transaction);
   }
 
+  if (householdTransactionDetailMatch && method === 'PATCH') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, transactionId] = householdTransactionDetailMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    /** @type {Array<Record<string, unknown>>} */
+    const transactions = access.entry.transactions;
+    const transaction = transactions.find((item) => item.id === transactionId);
+    if (!transaction) return respond(req, res, 404, { error: 'Not found' });
+
+    return readJsonBody(req)
+      .then((body) => {
+        const supportedFields = ['payee', 'categoryId', 'tag', 'note', 'date'];
+        const unsupportedFields = Object.keys(body).filter((field) => !supportedFields.includes(field));
+        if (unsupportedFields.length > 0) {
+          return respond(req, res, 400, { error: `Unsupported transaction fields: ${unsupportedFields.join(', ')}` });
+        }
+        if (Object.prototype.hasOwnProperty.call(body, 'payee') && (typeof body.payee !== 'string' || body.payee.trim().length === 0)) {
+          return respond(req, res, 400, { error: 'payee must be a non-empty string' });
+        }
+        for (const nullableField of ['categoryId', 'tag', 'note']) {
+          if (Object.prototype.hasOwnProperty.call(body, nullableField) && body[nullableField] !== null && typeof body[nullableField] !== 'string') {
+            return respond(req, res, 400, { error: `${nullableField} must be a string or null` });
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(body, 'date') && (typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.date))) {
+          return respond(req, res, 400, { error: 'date must use YYYY-MM-DD format' });
+        }
+
+        for (const field of supportedFields) {
+          if (Object.prototype.hasOwnProperty.call(body, field)) transaction[field] = body[field];
+        }
+        transaction.updatedAt = new Date().toISOString();
+        return respond(req, res, 200, transaction);
+      })
+      .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
+  }
+
   const householdTransfersMatch = url.match(/^\/households\/([^/]+)\/transfers$/);
   if (householdTransfersMatch && method === 'POST') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
@@ -1016,6 +1063,7 @@ const server = http.createServer((req, res) => {
   const householdDashboardMatch = url.match(/^\/households\/([^/]+)\/dashboard$/);
   if (householdDashboardMatch && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    if (authToken === HOUSEHOLD_DATA_FAILURE_TOKEN) return respond(req, res, 503, { error: 'Household dashboard unavailable' });
     const [, householdId] = householdDashboardMatch;
     const access = requireHouseholdMember(householdId, authToken);
     if (access.status !== 200) return respond(req, res, access.status, access.body);

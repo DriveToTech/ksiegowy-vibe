@@ -1,4 +1,4 @@
-import { formatMoney } from '../../lib/format';
+import { formatMoney, formatPercentage } from '../../lib/format';
 import { t } from '../../lib/translations';
 
 interface NetWorthChartProps {
@@ -28,7 +28,7 @@ export function NetWorthChart({ netWorth, changePercent, hasPriorActivity, histo
       <p className="text-[25px] font-semibold tracking-[-0.03em] tabular-nums text-foreground">{formatMoney(netWorth)}</p>
       {hasPriorActivity ? (
         <p className={changeValue >= 0 ? 'text-[12.5px] text-primary' : 'text-[12.5px] text-error-ink'}>
-          {changeValue >= 0 ? '+' : ''}{changePercent}% {t.household.dashboard.netWorthChangeSuffix}
+          {changeValue >= 0 ? '+' : ''}{formatPercentage(changeValue)} {t.household.dashboard.netWorthChangeSuffix}
         </p>
       ) : null}
       {history && history.length > 0 ? (

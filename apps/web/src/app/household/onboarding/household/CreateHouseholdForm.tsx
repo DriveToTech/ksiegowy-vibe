@@ -22,7 +22,7 @@ export function CreateHouseholdForm() {
     setError(null);
 
     if (!name.trim()) {
-      setError(t.household.transactionForm.payeeRequiredError);
+      setError(t.household.onboarding.householdNameRequiredError);
       return;
     }
 

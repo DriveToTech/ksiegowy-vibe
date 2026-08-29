@@ -71,7 +71,7 @@ export function TransactionDetailView({ householdId, transaction, accounts, cate
       <div className="flex flex-col gap-5 rounded-card border border-outline bg-surface-panel p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="space-y-2">
-            <Badge tone={direction === 'in' ? 'success' : direction === 'transfer' ? 'primary' : 'danger'}>
+            <Badge tone={direction === 'in' ? 'success' : direction === 'transfer' ? 'offline24' : 'danger'}>
               {direction === 'in' ? t.household.transactionDetail.moneyIn : direction === 'transfer' ? t.household.transactionDetail.transfer : t.household.transactionDetail.moneyOut}
             </Badge>
             <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-foreground">{transaction.payee}</h1>
@@ -82,7 +82,7 @@ export function TransactionDetailView({ householdId, transaction, accounts, cate
           </div>
           <div className="space-y-1 text-right">
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.household.transactionForm.fields.amount}</p>
-            <p className={`text-[32px] font-semibold tracking-[-0.03em] tabular-nums ${amount >= 0 ? 'text-success-ink' : 'text-error-ink'}`}>{formatMoney(transaction.amount)}</p>
+            <p className={`text-[32px] font-semibold tracking-[-0.03em] tabular-nums ${isTransfer ? 'text-foreground-secondary' : amount >= 0 ? 'text-success-ink' : 'text-error-ink'}`}>{formatMoney(transaction.amount)}</p>
             {category ? <p className="text-sm text-muted">{category.name}</p> : null}
           </div>
         </div>
@@ -97,7 +97,7 @@ export function TransactionDetailView({ householdId, transaction, accounts, cate
           >
             {t.household.transactionDetail.deleteAction}
           </Button>
-          <Button onClick={() => setMode('edit')}>{t.household.transactionDetail.editAction}</Button>
+          {!isTransfer ? <Button onClick={() => setMode('edit')}>{t.household.transactionDetail.editAction}</Button> : null}
         </div>
       </div>
 

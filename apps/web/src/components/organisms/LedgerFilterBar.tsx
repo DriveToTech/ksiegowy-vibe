@@ -57,12 +57,14 @@ export function LedgerFilterBar({ accounts, categories }: LedgerFilterBarProps) 
     <div className="flex flex-col gap-3 rounded-card border border-outline bg-surface-panel p-4">
       <div className="flex flex-wrap items-center gap-3">
         <Input
+          id="ledger-filter-search"
+          aria-label={t.household.ledger.searchPlaceholder}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t.household.ledger.searchPlaceholder}
           className="min-w-[220px] flex-1"
         />
-        <div className="flex gap-0.5 rounded-control border border-outline bg-surface-raised p-0.5">
+        <div role="group" aria-label={t.household.ledger.filterBar.directionLabel} className="flex gap-0.5 rounded-control border border-outline bg-surface-raised p-0.5">
           {([
             ['', t.household.ledger.filters.all],
             ['in', t.household.ledger.filters.in],
@@ -71,9 +73,10 @@ export function LedgerFilterBar({ accounts, categories }: LedgerFilterBarProps) 
             <button
               key={value || 'all'}
               type="button"
+              aria-pressed={direction === value}
               onClick={() => setDirection(value)}
               className={cn(
-                'min-h-9 rounded-[7px] px-3.5 text-sm font-medium transition',
+                'min-h-11 rounded-[7px] px-3.5 text-sm font-medium transition',
                 direction === value ? 'bg-[image:var(--nav-active)] border border-[var(--nav-active-border)] font-semibold text-foreground' : 'border border-transparent text-muted',
               )}
             >
@@ -85,8 +88,8 @@ export function LedgerFilterBar({ accounts, categories }: LedgerFilterBarProps) 
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted">{t.household.ledger.filterBar.accountLabel}</label>
-          <Select value={accountId} onChange={(event) => setAccountId(event.target.value)} className="min-w-[180px]">
+          <label htmlFor="ledger-filter-account" className="text-xs font-medium text-muted">{t.household.ledger.filterBar.accountLabel}</label>
+          <Select id="ledger-filter-account" value={accountId} onChange={(event) => setAccountId(event.target.value)} className="min-w-[180px]">
             <option value="">{t.household.ledger.filterBar.accountAll}</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>{account.name}</option>
@@ -94,8 +97,8 @@ export function LedgerFilterBar({ accounts, categories }: LedgerFilterBarProps) 
           </Select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted">{t.household.ledger.filterBar.categoryLabel}</label>
-          <Select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-w-[180px]">
+          <label htmlFor="ledger-filter-category" className="text-xs font-medium text-muted">{t.household.ledger.filterBar.categoryLabel}</label>
+          <Select id="ledger-filter-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-w-[180px]">
             <option value="">{t.household.ledger.filterBar.categoryAll}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>{category.name}</option>
@@ -103,12 +106,12 @@ export function LedgerFilterBar({ accounts, categories }: LedgerFilterBarProps) 
           </Select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted">{t.household.ledger.filterBar.dateFromLabel}</label>
-          <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+          <label htmlFor="ledger-filter-date-from" className="text-xs font-medium text-muted">{t.household.ledger.filterBar.dateFromLabel}</label>
+          <Input id="ledger-filter-date-from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted">{t.household.ledger.filterBar.dateToLabel}</label>
-          <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+          <label htmlFor="ledger-filter-date-to" className="text-xs font-medium text-muted">{t.household.ledger.filterBar.dateToLabel}</label>
+          <Input id="ledger-filter-date-to" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
         </div>
         <div className="ml-auto flex gap-2">
           <Button variant="secondary" onClick={clearFilters}>{t.household.ledger.filterBar.clear}</Button>

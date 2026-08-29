@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getHouseholdDashboard } from '../../../lib/api';
 import { requireAuthSession } from '../../../lib/auth';
-import { formatMoney } from '../../../lib/format';
+import { formatDate, formatMoney, formatPercentage } from '../../../lib/format';
 import { t } from '../../../lib/translations';
 import { Button } from '../../../components/atoms/Button';
 import { EmptyState } from '../../../components/molecules/EmptyState';
@@ -56,7 +56,7 @@ export default async function HouseholdDashboardPage() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5 rounded-card border border-success/30 bg-success/10 p-5">
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-success-ink">{t.household.dashboard.savingsRateLabel}</p>
-            <p className="text-[22px] font-semibold tracking-[-0.02em] text-foreground">{dashboard.savingsRatePercent}%</p>
+            <p className="text-[22px] font-semibold tracking-[-0.02em] text-foreground">{formatPercentage(dashboard.savingsRatePercent)}</p>
             <p className="text-[12px] leading-relaxed text-muted">{formatMoney(dashboard.savingsAmountThisMonth)} {t.household.dashboard.savingsAmountSuffix}</p>
           </div>
 
@@ -68,7 +68,7 @@ export default async function HouseholdDashboardPage() {
               <div className="flex flex-col gap-2">
                 {dashboard.upcomingCommitments.map((commitment) => (
                   <div key={commitment.id} className="flex items-center gap-3 rounded-inset bg-surface-raised px-3 py-2.5 text-[12.5px]">
-                    <span className="w-10 shrink-0 font-mono text-muted">{commitment.nextDueDate.slice(8, 10)}.{commitment.nextDueDate.slice(5, 7)}</span>
+                    <span className="w-10 shrink-0 font-mono text-muted">{formatDate(commitment.nextDueDate).slice(0, 5)}</span>
                     <span className="flex-1">{commitment.name}</span>
                     <span className="font-medium tabular-nums">{formatMoney(commitment.amount)}</span>
                   </div>

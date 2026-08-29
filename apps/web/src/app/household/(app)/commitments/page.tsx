@@ -12,7 +12,7 @@ export default async function HouseholdCommitmentsPage() {
   const session = await requireAuthSession('/household/commitments');
   const householdId = session.activeHouseholdId as string;
 
-  const commitments = await getHouseholdCommitments(householdId).catch(() => []);
+  const commitments = await getHouseholdCommitments(householdId);
   const fixedMonthlyTotal = commitments
     .filter((commitment) => commitment.status === 'ACTIVE' && commitment.billingFrequency === 'MONTHLY')
     .reduce((sum, commitment) => sum + (parseFloat(commitment.amount) || 0), 0);

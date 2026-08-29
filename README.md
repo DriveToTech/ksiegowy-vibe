@@ -16,6 +16,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
 | [Household Mode (Personal Budgeting)](docs/household-mode.md) | Backend spec for the household bounded context: account visibility, categorization rules, statement import, envelopes, commitment cron flow |
+| [Household Frontend Notes](docs/specs/household-frontend.md) | Phase 1 frontend interaction, validation, accessibility, and error-state behavior |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
@@ -33,7 +34,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 - **VAT Reporting** — VAT register with CSV export
 - **Backup** — Platform-managed PostgreSQL + iCloud backup, plus company-admin Google Drive backup policy (manual, invoice-issued trigger, daily/weekly schedule via host cron one-shot job)
 - **Authentication** — Google OAuth2 with JWT (httpOnly cookies)
-- **Personal Mode (Household Budgeting)** — Multi-user household ledger with signed transactions, account-to-account transfers, shared/private account visibility, budget envelopes with computed spend, and a commitments register (insurance/loans/subscriptions/utilities) with idempotent recurring-transaction generation. Backed by `@ksiegowy/household-service` and its own database. See [household mode docs](docs/household-mode.md).
+- **Personal Mode (Household Budgeting)** — Multi-user household ledger with signed transactions, account-to-account transfers, shared/private account visibility, budget envelopes with computed spend, and a commitments register (insurance/loans/subscriptions/utilities) with weekly and other idempotent recurring-transaction generation. Backed by `@ksiegowy/household-service` and its own database. See [household mode docs](docs/household-mode.md).
 
 ## Tech Stack
 
@@ -93,7 +94,7 @@ Source of truth: **`spec/aurora-solid-redesign-plan.md`** (plan and phase histor
 - The 60px chrome bar is the sole global brand anchor and contains company, KSeF, theme, and session context.
 - The 226px desktop rail contains navigation plus contextual status widgets (JPK_V7M filing deadline, rejected-invoice count); page actions live beside the content they affect.
 - Light mode is the default, with an explicit dark preference stored locally in the browser. Both themes are held to WCAG AA on text and interactive boundaries.
-- Mobile retains persistent bottom navigation in a reserved shell region and scrollable main content, so content and focused controls are not covered while scrolling.
+- Mobile retains persistent bottom navigation in a reserved shell region and scrollable main content, so content and focused controls are not covered while scrolling; household navigation keeps every item at a practical 44px touch target and preserves the central `Dodaj płatność` action.
 
 ## First-Run Flow
 
@@ -570,7 +571,7 @@ pnpm --filter @ksiegowy/api test -- src/services/<filename>.test.ts
 
 ## E2E Tests (Playwright)
 
-End-to-end tests live in `apps/e2e/` and cover authentication, navigation, contractors, and invoices.
+End-to-end tests live in `apps/e2e/` and cover authentication, navigation, contractors, invoices, and household Phase 1 flows.
 
 ### How it works
 
@@ -657,7 +658,10 @@ apps/e2e/
 │   ├── dashboard.spec.ts  # Dashboard metrics, empty state, auth redirect
 │   ├── contractors.spec.ts # Contractor list, search, new contractor form
 │   ├── invoices.spec.ts   # Invoice list, new invoice form, line items
-│   └── navigation.spec.ts # Sidebar navigation and routing
+│   ├── navigation.spec.ts # Sidebar navigation and routing
+│   ├── household-ledger.spec.ts # Household ledger and transaction flows
+│   ├── household-onboarding-entrypoint.spec.ts # Household onboarding entrypoint
+│   └── household-phase1-ux.spec.ts # Phase 1 household UX and accessibility regressions
 └── playwright.config.ts
 ```
 
