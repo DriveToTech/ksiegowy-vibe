@@ -10,7 +10,8 @@ interface TransactionsTableProps {
   accounts: HouseholdAccount[];
 }
 
-function amountToneClass(amount: string): string {
+function amountToneClass(amount: string, isTransfer: boolean): string {
+  if (isTransfer) return 'text-foreground-secondary';
   return parseFloat(amount) >= 0 ? 'text-success-ink' : 'text-error-ink';
 }
 
@@ -48,13 +49,13 @@ export function TransactionsTable({ transactions, categories, accounts }: Transa
                       {category ? (
                         <span className="text-foreground-secondary">{category}</span>
                       ) : isTransfer ? (
-                        <Badge tone="primary">{t.household.transactionDetail.transfer}</Badge>
+                        <Badge tone="offline24">{t.household.transactionDetail.transfer}</Badge>
                       ) : (
                         <Badge tone="warning">{t.household.ledger.uncategorized}</Badge>
                       )}
                     </BodyCell>
                     <BodyCell className="whitespace-nowrap text-muted">{accountName(transaction.accountId)}</BodyCell>
-                    <BodyCell className={`whitespace-nowrap text-right tabular-nums font-medium ${amountToneClass(transaction.amount)}`}>{formatMoney(transaction.amount)}</BodyCell>
+                    <BodyCell className={`whitespace-nowrap text-right tabular-nums font-medium ${amountToneClass(transaction.amount, isTransfer)}`}>{formatMoney(transaction.amount)}</BodyCell>
                   </tr>
                 );
               })}
@@ -76,7 +77,7 @@ export function TransactionsTable({ transactions, categories, accounts }: Transa
                   </Link>
                   <p className="mt-1 text-sm text-muted">{accountName(transaction.accountId)}</p>
                 </div>
-                <p className={`tabular-nums text-base font-semibold ${amountToneClass(transaction.amount)}`}>{formatMoney(transaction.amount)}</p>
+                <p className={`tabular-nums text-base font-semibold ${amountToneClass(transaction.amount, isTransfer)}`}>{formatMoney(transaction.amount)}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -86,7 +87,7 @@ export function TransactionsTable({ transactions, categories, accounts }: Transa
                   {category ? (
                     <p className="mt-1 text-sm font-semibold text-foreground">{category}</p>
                   ) : isTransfer ? (
-                    <Badge tone="primary">{t.household.transactionDetail.transfer}</Badge>
+                    <Badge tone="offline24">{t.household.transactionDetail.transfer}</Badge>
                   ) : (
                     <Badge tone="warning">{t.household.ledger.uncategorized}</Badge>
                   )}

@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { BudgetEnvelope, HouseholdAccount, HouseholdCategory, HouseholdMember, HouseholdTransaction } from '../../lib/api-types';
 import { createHouseholdTransaction, createHouseholdTransfer, updateHouseholdTransaction } from '../../lib/api-client';
-import { formatMoney, parseDecimalValue } from '../../lib/format';
+import { formatMoney, parseDecimalValue, todayAsCalendarDate } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { AccountPicker } from '../molecules/AccountPicker';
 import { ErrorState } from '../molecules/ErrorState';
 import { FormField } from '../molecules/FormField';
+import { Badge } from '../atoms/Badge';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { Select } from '../atoms/Select';
@@ -17,10 +18,6 @@ import { Textarea } from '../atoms/Textarea';
 import { cn } from '../../lib/cn';
 
 type Direction = 'in' | 'out' | 'transfer';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /**
  * Direction is visually unmistakable: money out gets a warning/red tint,
@@ -52,12 +49,10 @@ export function TransactionForm({ householdId, accounts, categories, members = [
   const [accountId, setAccountId] = useState(transaction?.accountId ?? accounts[0]?.id ?? '');
   const [toAccountId, setToAccountId] = useState(accounts.find((account) => account.id !== accountId)?.id ?? '');
   const [categoryId, setCategoryId] = useState(transaction?.categoryId ?? '');
-  const [date, setDate] = useState(transaction?.date ?? todayIso());
+  const [date, setDate] = useState(transaction?.date ?? todayAsCalendarDate());
   const [payerUserId, setPayerUserId] = useState(transaction?.payerUserId ?? '');
   const [tag, setTag] = useState(transaction?.tag ?? '');
   const [note, setNote] = useState(transaction?.note ?? '');
-  const [isRecurring, setIsRecurring] = useState(transaction?.isRecurring ?? false);
-  const [applyRuleToFuturePayments, setApplyRuleToFuturePayments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +61,36 @@ export function TransactionForm({ householdId, accounts, categories, members = [
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+
+    if (!date) {
+      setError(t.household.transactionForm.dateRequiredError);
+      return;
+    }
+
+    if (isEdit && transaction) {
+      if (!payee.trim()) {
+        setError(t.household.transactionForm.payeeRequiredError);
+        return;
+      }
+
+      setSubmitting(true);
+      const result = await updateHouseholdTransaction(householdId, transaction.id, {
+        payee: payee.trim(),
+        categoryId: categoryId || null,
+        tag: tag.trim() || null,
+        note: note.trim() || null,
+        date,
+      }).catch((submitError: Error) => submitError);
+      setSubmitting(false);
+      if (result instanceof Error) {
+        setError(result.message);
+        return;
+      }
+
+      router.push('/household/ledger');
+      router.refresh();
+      return;
+    }
 
     const parsedAmount = parseDecimalValue(amount);
     if (parsedAmount === null || parsedAmount <= 0) {
@@ -123,14 +148,10 @@ export function TransactionForm({ householdId, accounts, categories, members = [
       date,
       tag: tag.trim() || undefined,
       note: note.trim() || undefined,
-      isRecurring,
-      applyRuleToFuturePayments: categoryId ? applyRuleToFuturePayments : undefined,
     };
 
     setSubmitting(true);
-    const result = isEdit && transaction
-      ? await updateHouseholdTransaction(householdId, transaction.id, body).catch((submitError: Error) => submitError)
-      : await createHouseholdTransaction(householdId, body).catch((submitError: Error) => submitError);
+    const result = await createHouseholdTransaction(householdId, body).catch((submitError: Error) => submitError);
     setSubmitting(false);
 
     if (result instanceof Error) {
@@ -148,28 +169,39 @@ export function TransactionForm({ householdId, accounts, categories, members = [
 
       {/* Amount is the hero of the form, not one of many equal-weight fields. */}
       <div className="flex flex-col gap-4 rounded-inset bg-surface-raised p-5 sm:flex-row sm:items-end sm:justify-between">
-        <FormField label={t.household.transactionForm.fields.amount} required className="max-w-[220px]">
-          <div className="relative">
-            <Input
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              className="h-14 pr-11 text-2xl font-semibold tabular-nums"
-            />
-            <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-base font-medium text-muted">zł</span>
+        {isEdit && transaction ? (
+          <div className="max-w-[220px] space-y-2">
+            <label htmlFor="transaction-amount-output" className="block text-sm font-semibold text-foreground">{t.household.transactionForm.fields.amount}</label>
+            <output id="transaction-amount-output" className="block h-14 rounded-control border border-outline-control bg-surface-raised px-3 py-3 text-2xl font-semibold tabular-nums text-foreground" aria-label={t.household.transactionForm.fields.amount}>
+              {formatMoney(transaction.amount)}
+            </output>
           </div>
-        </FormField>
+        ) : (
+          <FormField label={t.household.transactionForm.fields.amount} htmlFor="transaction-amount" required className="max-w-[220px]">
+            <div className="relative">
+              <Input
+                id="transaction-amount"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                className="h-14 pr-11 text-2xl font-semibold tabular-nums"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-base font-medium text-muted">zł</span>
+            </div>
+          </FormField>
+        )}
 
         {!isEdit ? (
-          <div className="flex gap-0.5 rounded-control border border-outline bg-surface-panel p-0.5">
+          <div role="group" aria-label={t.household.transactionForm.directionLabel} className="flex gap-0.5 rounded-control border border-outline bg-surface-panel p-0.5">
             {(['out', 'in', 'transfer'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
+                aria-pressed={direction === value}
                 onClick={() => setDirection(value)}
                 className={cn(
-                  'min-h-9 flex-1 rounded-[7px] px-4 text-sm font-medium transition',
+                  'min-h-11 flex-1 rounded-[7px] px-4 text-sm font-medium transition',
                   direction === value ? directionActiveClass(value) : 'border border-transparent text-muted',
                 )}
               >
@@ -178,20 +210,10 @@ export function TransactionForm({ householdId, accounts, categories, members = [
             ))}
           </div>
         ) : (
-          <div className="flex gap-0.5 rounded-control border border-outline bg-surface-panel p-0.5">
-            {(['out', 'in'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setDirection(value)}
-                className={cn(
-                  'min-h-9 flex-1 rounded-[7px] px-4 text-sm font-medium transition',
-                  direction === value ? directionActiveClass(value) : 'border border-transparent text-muted',
-                )}
-              >
-                {value === 'in' ? t.household.transactionForm.directionIn : t.household.transactionForm.directionOut}
-              </button>
-            ))}
+          <div role="group" aria-label={t.household.transactionForm.directionLabel} className="flex min-h-11 items-center rounded-control border border-outline bg-surface-panel px-4">
+            <Badge tone={direction === 'in' ? 'success' : 'danger'}>
+              {direction === 'in' ? t.household.transactionForm.directionIn : t.household.transactionForm.directionOut}
+            </Badge>
           </div>
         )}
       </div>
@@ -205,7 +227,15 @@ export function TransactionForm({ householdId, accounts, categories, members = [
             <FormField label={t.household.transactionForm.fields.date} required>
               <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
             </FormField>
-            {members.length > 0 ? (
+            {isEdit ? (
+              <FormField label={t.household.transactionForm.fields.payer} className="sm:col-span-2">
+                <output aria-label={t.household.transactionForm.fields.payer} className="flex h-11 items-center rounded-control border border-outline-control bg-surface-raised px-3 text-sm text-foreground-secondary">
+                  {members.find((member) => member.userId === transaction?.payerUserId)?.displayName
+                    ?? members.find((member) => member.userId === transaction?.payerUserId)?.userEmail
+                    ?? '—'}
+                </output>
+              </FormField>
+            ) : members.length > 0 ? (
               <FormField label={t.household.transactionForm.fields.payer} className="sm:col-span-2">
                 <Select value={payerUserId} onChange={(event) => setPayerUserId(event.target.value)}>
                   <option value="">{t.household.transactionForm.payerPlaceholder}</option>
@@ -229,15 +259,21 @@ export function TransactionForm({ householdId, accounts, categories, members = [
         title={t.household.transactionForm.sections.fromAccount}
         action={<Link href="/household/settings/accounts" className="text-sm font-medium text-primary-strong hover:text-primary">{t.household.transactionForm.manageAccounts}</Link>}
       >
-        <FormField label={t.household.transactionForm.fields.account} required>
-          <AccountPicker accounts={accounts} value={accountId} onChange={setAccountId} />
-        </FormField>
+        {isEdit ? (
+          <output aria-label={t.household.transactionForm.fields.account} className="flex min-h-11 items-center rounded-control border border-outline-control bg-surface-raised px-3 text-sm text-foreground-secondary">
+            {accounts.find((account) => account.id === accountId)?.name ?? '—'}
+          </output>
+        ) : (
+          <FormField label={t.household.transactionForm.fields.account} required>
+            <AccountPicker ariaLabel={t.household.transactionForm.fields.account} accounts={accounts} value={accountId} onChange={setAccountId} />
+          </FormField>
+        )}
       </FormSection>
 
       {direction === 'transfer' ? (
         <FormSection title={t.household.transactionForm.sections.toAccount}>
           <FormField label={t.household.transactionForm.fields.toAccount} required>
-            <AccountPicker accounts={accounts.filter((account) => account.id !== accountId)} value={toAccountId} onChange={setToAccountId} />
+            <AccountPicker ariaLabel={t.household.transactionForm.fields.toAccount} accounts={accounts.filter((account) => account.id !== accountId)} value={toAccountId} onChange={setToAccountId} />
           </FormField>
         </FormSection>
       ) : (
@@ -267,12 +303,6 @@ export function TransactionForm({ householdId, accounts, categories, members = [
                 </div>
               </div>
             ) : null}
-            {categoryId ? (
-              <label className="flex items-center gap-2 text-sm text-foreground-secondary">
-                <input type="checkbox" checked={applyRuleToFuturePayments} onChange={(event) => setApplyRuleToFuturePayments(event.target.checked)} className="h-4 w-4 rounded border-outline-control" />
-                {t.household.transactionForm.applyRuleToFuture}
-              </label>
-            ) : null}
             <FormField label={t.household.transactionForm.fields.tag}>
               <Input value={tag} onChange={(event) => setTag(event.target.value)} />
             </FormField>
@@ -280,18 +310,9 @@ export function TransactionForm({ householdId, accounts, categories, members = [
         </FormSection>
       )}
 
-      {direction !== 'transfer' ? (
-        <FormSection title={t.household.transactionForm.sections.repeat}>
-          <label className="flex items-center gap-2 text-sm text-foreground-secondary">
-            <input type="checkbox" checked={isRecurring} onChange={(event) => setIsRecurring(event.target.checked)} className="h-4 w-4 rounded border-outline-control" />
-            {t.household.transactionForm.isRecurring}
-          </label>
-          <p className="text-sm text-muted">{t.household.transactionForm.isRecurringHint}</p>
-        </FormSection>
-      ) : null}
-
       <FormSection title={t.household.transactionForm.sections.note}>
-        <Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder={t.household.transactionForm.notePlaceholder} />
+        <label htmlFor="transaction-note" className="sr-only">{t.household.transactionForm.fields.note}</label>
+        <Textarea id="transaction-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder={t.household.transactionForm.notePlaceholder} />
       </FormSection>
 
       {/* Sticky, not just bottom-of-form: the form is taller than one viewport,
@@ -301,7 +322,7 @@ export function TransactionForm({ householdId, accounts, categories, members = [
           {t.household.transactionForm.cancel}
         </Button>
         <Button type="submit" disabled={submitting}>
-          {direction === 'transfer' ? t.household.transactionForm.saveTransfer : t.household.transactionForm.save}
+          {!isEdit && direction === 'transfer' ? t.household.transactionForm.saveTransfer : t.household.transactionForm.save}
         </Button>
       </div>
     </form>

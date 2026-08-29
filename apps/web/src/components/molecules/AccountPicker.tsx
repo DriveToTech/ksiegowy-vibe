@@ -11,6 +11,7 @@ interface AccountPickerProps {
   value: string;
   onChange: (accountId: string) => void;
   id?: string;
+  ariaLabel?: string;
   className?: string;
 }
 
@@ -19,31 +20,40 @@ interface AccountPickerProps {
  * A custom listbox rather than a native <select> because the design's row
  * shape (name, masked number, one badge chip, balance, and for credit cards
  * the limit/statement date) can't be laid out inside <option> elements.
- * Keyboard-operable: ArrowDown/ArrowUp move the active row, Enter picks it,
- * Escape closes — same behavior a native select gives for free.
+ * Keyboard-operable: ArrowDown/ArrowUp move the active row, Home/End jump to
+ * the first/last row, Enter/Space picks it, and Escape closes.
  */
-export function AccountPicker({ accounts, value, onChange, id, className }: AccountPickerProps) {
+export function AccountPicker({ accounts, value, onChange, id, ariaLabel, className }: AccountPickerProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listboxRef = useRef<HTMLUListElement>(null);
   const generatedId = useId();
   const triggerId = id ?? generatedId;
   const listboxId = `${triggerId}-listbox`;
+  const accessibleLabel = ariaLabel ?? t.household.accountPicker.selectAccount;
 
   const selectedAccount = accounts.find((account) => account.id === value) ?? null;
 
   useEffect(() => {
     if (!open) return undefined;
+    listboxRef.current?.focus();
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (event.target instanceof Node && containerRef.current && !containerRef.current.contains(event.target)) {
+        const targetElement = event.target instanceof Element ? event.target : null;
+        const clickTargetControl = targetElement?.closest('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])');
+        const shouldRestoreFocus = document.activeElement === listboxRef.current && !clickTargetControl;
         setOpen(false);
+        if (shouldRestoreFocus) window.setTimeout(() => triggerRef.current?.focus(), 0);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => document.removeEventListener('mousedown', handleClickOutside, true);
   }, [open]);
 
   const openList = () => {
+    if (accounts.length === 0) return;
     const index = Math.max(0, accounts.findIndex((account) => account.id === value));
     setActiveIndex(index);
     setOpen(true);
@@ -52,42 +62,60 @@ export function AccountPicker({ accounts, value, onChange, id, className }: Acco
   const pick = (accountId: string) => {
     onChange(accountId);
     setOpen(false);
+    triggerRef.current?.focus();
   };
 
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (open) return;
-    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ' || event.code === 'Space') {
       event.preventDefault();
       openList();
     }
   };
 
   const handleListKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+    const currentActiveIndex = Math.min(activeIndex, Math.max(0, accounts.length - 1));
+
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setActiveIndex((index) => Math.min(accounts.length - 1, index + 1));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setActiveIndex((index) => Math.max(0, index - 1));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveIndex(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(Math.max(0, accounts.length - 1));
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      const account = accounts[activeIndex];
+      const account = accounts[currentActiveIndex];
+      if (account) pick(account.id);
+    } else if (event.key === ' ' || event.code === 'Space') {
+      event.preventDefault();
+      const account = accounts[currentActiveIndex];
       if (account) pick(account.id);
     } else if (event.key === 'Escape') {
       event.preventDefault();
       setOpen(false);
+      triggerRef.current?.focus();
     }
   };
+
+  const currentActiveIndex = Math.min(activeIndex, Math.max(0, accounts.length - 1));
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       <button
         type="button"
         id={triggerId}
+        ref={triggerRef}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
-        aria-label={t.household.accountPicker.selectAccount}
+        aria-label={accessibleLabel}
+        disabled={accounts.length === 0}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={handleTriggerKeyDown}
         className="flex h-11 w-full items-center gap-3 rounded-control border border-outline-control bg-surface-raised px-3 text-left text-sm text-foreground transition focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -103,7 +131,9 @@ export function AccountPicker({ accounts, value, onChange, id, className }: Acco
             <span className="shrink-0 tabular-nums text-[13px] text-foreground-secondary">{formatMoney(selectedAccount.balance)}</span>
           </>
         ) : (
-          <span className="flex-1 text-muted">{t.household.accountPicker.selectAccount}</span>
+          <span className="flex-1 text-muted">
+            {accounts.length === 0 ? t.household.accountPicker.noAccounts : t.household.accountPicker.selectAccount}
+          </span>
         )}
         <span className="shrink-0 text-muted" aria-hidden="true">▾</span>
       </button>
@@ -117,34 +147,39 @@ export function AccountPicker({ accounts, value, onChange, id, className }: Acco
           <ul
             role="listbox"
             id={listboxId}
-            aria-label={t.household.accountPicker.selectAccount}
-            tabIndex={0}
+            aria-label={accessibleLabel}
+            aria-activedescendant={accounts[currentActiveIndex] ? `${listboxId}-option-${accounts[currentActiveIndex].id}` : undefined}
+            ref={listboxRef}
+            tabIndex={-1}
             onKeyDown={handleListKeyDown}
             className="max-h-72 overflow-y-auto outline-none"
           >
             {accounts.map((account, index) => {
               const badge = accountBadge(account);
-              const isCredit = account.type === 'CREDIT_CARD' && account.creditLimit;
+              const creditLimit = account.type === 'CREDIT_CARD' ? account.creditLimit : null;
+              const accountTypeLabel = creditLimit !== null
+                ? `${t.household.accountPicker.creditLimitLabel} ${formatMoney(creditLimit)}${account.statementDay ? ` · ${t.household.accountPicker.statementDayLabel(account.statementDay)}` : ''}`
+                : t.household.accountPicker.typeLabels[account.type];
 
               return (
                 <li
                   key={account.id}
+                  id={`${listboxId}-option-${account.id}`}
                   role="option"
                   aria-selected={account.id === value}
+                  data-active={index === currentActiveIndex ? 'true' : undefined}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => pick(account.id)}
                   className={cn(
                     'flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm transition',
-                    index === activeIndex ? 'bg-primary-soft' : 'hover:bg-surface-row-hover',
+                    index === currentActiveIndex ? 'bg-primary-soft' : 'hover:bg-surface-row-hover',
                   )}
                 >
                   <span className="min-w-0 flex-1 truncate">
                     <span className="block truncate font-medium text-foreground">{account.name}</span>
                     <span className="block truncate font-mono text-[10.5px] text-muted">
                       {account.accountNumberMask ? `${account.accountNumberMask} · ` : ''}
-                      {isCredit
-                        ? `${t.household.accountPicker.creditLimitLabel} ${formatMoney(account.creditLimit as string)}${account.statementDay ? ` · ${t.household.accountPicker.statementDayLabel(account.statementDay)}` : ''}`
-                        : t.household.accountPicker.typeLabels[account.type]}
+                      {accountTypeLabel}
                     </span>
                   </span>
                   <span className="shrink-0 tabular-nums text-[13px] text-foreground-secondary">{formatMoney(account.balance)}</span>

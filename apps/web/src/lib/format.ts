@@ -5,8 +5,8 @@ import { t } from './translations';
  * Format a numeric string or number as Polish currency: "1 234,56 zł"
  */
 export function formatMoney(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '—';
+  const num = typeof value === 'string' ? parseDecimalValue(value) : value;
+  if (num === null || !Number.isFinite(num)) return '—';
   return num.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' });
 }
 
@@ -17,9 +17,16 @@ export function formatMoney(value: string | number): string {
  * formatMoney's numeric parsing.
  */
 export function parseDecimalValue(value: string): number | null {
-  const normalized = value.trim().replace(',', '.');
+  const normalized = value.trim().replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
   if (!/^-?\d+(\.\d+)?$/.test(normalized)) return null;
-  return Number(normalized);
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : null;
+}
+
+/** Return today's date in the local calendar for a date input. */
+export function todayAsCalendarDate(): string {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 }
 
 /**
@@ -27,12 +34,19 @@ export function parseDecimalValue(value: string): number | null {
  */
 export function formatDate(value: string | undefined | null): string {
   if (!value) return '—';
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const yyyy = d.getUTCFullYear();
-  return `${dd}.${mm}.${yyyy}`;
+  const calendarDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  if (calendarDate) {
+    const year = Number(calendarDate[1]);
+    const month = Number(calendarDate[2]);
+    const day = Number(calendarDate[3]);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return value;
+    return `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
 }
 
 /**
@@ -42,11 +56,22 @@ export function formatDate(value: string | undefined | null): string {
  */
 export function isDueSoonOrOverdue(value: string | undefined | null): boolean {
   if (!value) return false;
-  const due = new Date(value);
-  if (isNaN(due.getTime())) return false;
+  const calendarDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  if (!calendarDate) return false;
+  const dueYear = Number(calendarDate[1]);
+  const dueMonth = Number(calendarDate[2]);
+  const dueDay = Number(calendarDate[3]);
+  const due = new Date(dueYear, dueMonth - 1, dueDay);
+  if (due.getFullYear() !== dueYear || due.getMonth() !== dueMonth - 1 || due.getDate() !== dueDay) return false;
   const today = new Date();
-  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-  return Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate()) <= todayUtc;
+  return due.getTime() <= new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+}
+
+/** Format a percentage value using Polish decimal separators. */
+export function formatPercentage(value: string | number, minimumFractionDigits = 0, maximumFractionDigits = 2): string {
+  const number = typeof value === 'string' ? parseDecimalValue(value) : value;
+  if (number === null || !Number.isFinite(number)) return '—';
+  return `${number.toLocaleString('pl-PL', { minimumFractionDigits, maximumFractionDigits })}%`;
 }
 
 /**

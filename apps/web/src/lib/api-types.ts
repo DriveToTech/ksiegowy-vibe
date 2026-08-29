@@ -514,7 +514,14 @@ export interface CreateHouseholdTransactionBody {
   tag?: string;
   note?: string;
   isRecurring?: boolean;
-  applyRuleToFuturePayments?: boolean;
+}
+
+export interface UpdateHouseholdTransactionBody {
+  payee: string;
+  categoryId: string | null;
+  tag: string | null;
+  note: string | null;
+  date: string;
 }
 
 export interface CreateHouseholdTransferBody {
@@ -527,7 +534,7 @@ export interface CreateHouseholdTransferBody {
 }
 
 export type CommitmentType = 'INSURANCE' | 'LOAN' | 'SUBSCRIPTION' | 'UTILITY' | 'OTHER';
-export type CommitmentBillingFrequency = 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+export type CommitmentBillingFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
 export type CommitmentStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED';
 
 export interface CommitmentCoverBreakdownEntry {

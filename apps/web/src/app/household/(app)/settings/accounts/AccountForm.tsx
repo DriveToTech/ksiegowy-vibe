@@ -29,11 +29,15 @@ export function AccountForm({ householdId, onCreated }: { householdId: string; o
     setError(null);
 
     if (!name.trim()) {
-      setError(t.household.transactionForm.payeeRequiredError);
+      setError(t.household.accountForm.nameRequiredError);
       return;
     }
 
-    const parsedOpeningBalance = openingBalance ? parseDecimalValue(openingBalance) : 0;
+    const parsedOpeningBalance = openingBalance.trim() ? parseDecimalValue(openingBalance) : 0;
+    if (parsedOpeningBalance === null) {
+      setError(t.household.accountForm.openingBalanceInvalidError);
+      return;
+    }
 
     setSubmitting(true);
     const result = await createHouseholdAccount(householdId, {
@@ -41,7 +45,7 @@ export function AccountForm({ householdId, onCreated }: { householdId: string; o
       type,
       visibility,
       accountNumberMask: accountNumberMask.trim() || undefined,
-      openingBalance: (parsedOpeningBalance ?? 0).toFixed(2),
+      openingBalance: parsedOpeningBalance.toFixed(2),
     }).catch((submitError: Error) => submitError);
     setSubmitting(false);
 

@@ -53,7 +53,7 @@ export function DashboardNavigation({ items, mobile = false, rootHref = '/dashbo
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               mobile
-                ? 'flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-inset px-1 py-2 text-center text-[10px] font-medium leading-tight transition'
+                ? 'flex min-h-16 min-w-[44px] flex-col items-center justify-center gap-1 rounded-inset px-1 py-2 text-center text-[10px] font-medium leading-tight transition'
                 : 'min-h-11 rounded-control border border-transparent px-4 py-2 text-sm font-medium transition',
               isActive
                 ? 'bg-[image:var(--nav-active)] border-[var(--nav-active-border)] text-foreground'

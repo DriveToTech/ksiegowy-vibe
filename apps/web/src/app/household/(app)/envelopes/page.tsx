@@ -9,13 +9,13 @@ export default async function HouseholdEnvelopesPage() {
   const session = await requireAuthSession('/household/envelopes');
   const householdId = session.activeHouseholdId as string;
 
-  const envelopes = await getHouseholdEnvelopes(householdId).catch(() => []);
+  const envelopes = await getHouseholdEnvelopes(householdId);
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={t.household.dashboard.pageEyebrow} title={t.household.dashboard.envelopesTitle} />
       {envelopes.length === 0 ? (
-        <EmptyState title={t.household.ledger.emptyTitle} description={t.household.dashboard.envelopesEmptyDescription} />
+        <EmptyState title={t.household.dashboard.envelopesEmptyTitle} description={t.household.dashboard.envelopesEmptyDescription} />
       ) : (
         <EnvelopeProgressCard envelopes={envelopes} />
       )}

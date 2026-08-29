@@ -10,7 +10,8 @@ type IconName =
   | 'householdHome'
   | 'householdLedger'
   | 'householdBudget'
-  | 'householdCommitments';
+  | 'householdCommitments'
+  | 'add';
 
 interface AppIconProps extends SVGProps<SVGSVGElement> {
   name: IconName;
@@ -96,6 +97,12 @@ export function AppIcon({ name, ...props }: AppIconProps) {
           <path d="M9 10h6" />
           <path d="M9 13.5h6" />
           <path d="M9 17h3.5" />
+        </svg>
+      );
+    case 'add':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" {...props}>
+          <path d="M12 5v14M5 12h14" />
         </svg>
       );
     default:

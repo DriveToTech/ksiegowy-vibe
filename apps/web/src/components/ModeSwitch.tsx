@@ -40,7 +40,7 @@ export function ModeSwitch({ activeMode }: { activeMode: AppMode }) {
           aria-selected={activeMode === mode}
           onClick={() => switchTo(mode)}
           className={cn(
-            'min-h-8 rounded-[7px] px-3 text-[12.5px] font-medium transition',
+            'min-h-11 rounded-[7px] px-3 text-[12.5px] font-medium transition lg:min-h-8',
             activeMode === mode
               ? 'bg-[image:var(--nav-active)] border border-[var(--nav-active-border)] font-semibold text-foreground'
               : 'border border-transparent text-muted hover:text-foreground-secondary',

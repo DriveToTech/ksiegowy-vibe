@@ -10,7 +10,7 @@ export default async function HouseholdAccountsSettingsPage() {
   const session = await requireAuthSession('/household/settings/accounts');
   const householdId = session.activeHouseholdId as string;
 
-  const accounts = await getHouseholdAccounts(householdId).catch(() => []);
+  const accounts = await getHouseholdAccounts(householdId);
 
   return (
     <div className="space-y-6">

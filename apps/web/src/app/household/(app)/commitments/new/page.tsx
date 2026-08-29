@@ -11,7 +11,7 @@ export default async function NewCommitmentPage() {
   const session = await requireAuthSession('/household/commitments/new');
   const householdId = session.activeHouseholdId as string;
 
-  const accounts = await getHouseholdAccounts(householdId).catch(() => []);
+  const accounts = await getHouseholdAccounts(householdId);
 
   if (accounts.length === 0) {
     return (

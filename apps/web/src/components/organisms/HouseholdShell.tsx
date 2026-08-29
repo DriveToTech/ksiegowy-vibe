@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { HouseholdSwitcher } from '../HouseholdSwitcher';
 import { ModeSwitch } from '../ModeSwitch';
 import { getHouseholdAccounts } from '../../lib/api';
@@ -7,6 +8,7 @@ import { formatMoney } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { AppHeader } from './AppHeader';
 import { DashboardNavigation } from './DashboardNavigation';
+import { AppIcon } from '../icons/AppIcon';
 
 const navigationItems = [
   { href: '/household', label: t.householdNav.home, mobileLabel: t.householdNav.home, icon: 'householdHome' as const },
@@ -28,7 +30,7 @@ interface HouseholdShellProps {
  * mobile nav shape differs (see the plan's Frontend Structure section).
  */
 export async function HouseholdShell({ children, session, householdId }: HouseholdShellProps) {
-  const accounts = await getHouseholdAccounts(householdId).catch(() => []);
+  const accounts = await getHouseholdAccounts(householdId);
   const totalBalance = accounts.reduce((sum, account) => sum + (parseFloat(account.balance) || 0), 0);
 
   return (
@@ -73,9 +75,20 @@ export async function HouseholdShell({ children, session, householdId }: Househo
         <div className="shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] px-4 lg:hidden">
           <nav
             aria-label="Mobilna nawigacja gospodarstwa domowego"
-            className="mx-auto grid max-w-xl grid-cols-5 gap-2 rounded-inset border border-outline bg-chrome p-2"
+            className="mx-auto grid max-w-xl grid-cols-6 gap-px rounded-inset border border-outline bg-chrome p-2"
           >
-            <DashboardNavigation items={navigationItems} rootHref="/household" mobile />
+            <DashboardNavigation items={navigationItems.slice(0, 2)} rootHref="/household" mobile />
+            <Link
+              href="/household/ledger/new"
+              aria-label={t.household.ledger.addPayment}
+              className="flex min-h-16 min-w-[44px] flex-col items-center justify-center gap-1 rounded-inset bg-primary px-1 py-2 text-center text-[10px] font-semibold leading-tight text-primary-ink transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-ink/15">
+                <AppIcon name="add" className="h-4 w-4 shrink-0" />
+              </span>
+              <span className="w-full truncate">{t.household.ledger.addPayment}</span>
+            </Link>
+            <DashboardNavigation items={navigationItems.slice(2)} rootHref="/household" mobile />
           </nav>
         </div>
       </div>

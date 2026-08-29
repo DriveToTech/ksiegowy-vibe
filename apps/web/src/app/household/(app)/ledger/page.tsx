@@ -30,9 +30,9 @@ export default async function HouseholdLedgerPage({
   if (query.direction) filterParams.direction = query.direction;
 
   const [transactionsResult, categories, accounts] = await Promise.all([
-    getHouseholdTransactions(householdId, filterParams).catch(() => ({ data: [], total: 0, page: 1, limit: PAGE_SIZE, moneyIn: '0.00', moneyOut: '0.00' })),
-    getHouseholdCategories(householdId).catch(() => []),
-    getHouseholdAccounts(householdId).catch(() => []),
+    getHouseholdTransactions(householdId, filterParams),
+    getHouseholdCategories(householdId),
+    getHouseholdAccounts(householdId),
   ]);
 
   const hasFilters = Boolean(query.accountId || query.categoryId || query.dateFrom || query.dateTo || query.search || query.direction);

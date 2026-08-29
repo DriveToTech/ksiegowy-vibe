@@ -14,7 +14,7 @@ export default async function HouseholdOnboardingAccountsPage() {
     redirect('/household/onboarding/household');
   }
 
-  const accounts = await getHouseholdAccounts(session.activeHouseholdId).catch(() => []);
+  const accounts = await getHouseholdAccounts(session.activeHouseholdId);
 
   return (
     <div className="max-w-lg space-y-6">

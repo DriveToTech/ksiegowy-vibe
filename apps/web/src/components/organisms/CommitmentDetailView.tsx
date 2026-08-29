@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { Commitment, HouseholdAccount } from '../../lib/api-types';
 import { updateCommitment } from '../../lib/api-client';
 import type { CommitmentAmortizationScheduleEntry } from '../../lib/api';
-import { formatDate, formatMoney, isDueSoonOrOverdue } from '../../lib/format';
+import { formatDate, formatMoney, formatPercentage, isDueSoonOrOverdue } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { Badge } from '../atoms/Badge';
 import { Button } from '../atoms/Button';
@@ -131,12 +131,12 @@ export function CommitmentDetailView({ householdId, commitment, account, amortiz
             <StatCard label={t.household.commitmentDetail.outstandingLabel} value={formatMoney(outstanding)} context={principal !== null ? t.household.commitmentDetail.ofBorrowed(formatMoney(principal)) : undefined} />
           ) : null}
           {ratePercent !== null ? (
-            <StatCard label={t.household.commitmentDetail.rateLabel} value={`${ratePercent.toFixed(2)}%`} />
+            <StatCard label={t.household.commitmentDetail.rateLabel} value={formatPercentage(ratePercent, 2, 2)} />
           ) : null}
           {paidOffPercent !== null ? (
             <StatCard
               label={t.household.commitmentDetail.paidOffLabel}
-              value={`${paidOffPercent}%`}
+              value={formatPercentage(paidOffPercent)}
               context={yearsLeft !== null ? t.household.commitmentDetail.yearsLeft(yearsLeft) : undefined}
             />
           ) : null}

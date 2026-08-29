@@ -8,7 +8,7 @@ export default async function HouseholdCategoriesSettingsPage() {
   const session = await requireAuthSession('/household/settings/categories');
   const householdId = session.activeHouseholdId as string;
 
-  const categories = await getHouseholdCategories(householdId).catch(() => []);
+  const categories = await getHouseholdCategories(householdId);
   const topLevel = categories.filter((category) => !category.parentCategoryId);
 
   return (
@@ -16,7 +16,7 @@ export default async function HouseholdCategoriesSettingsPage() {
       <PageHeader eyebrow={t.household.dashboard.pageEyebrow} title={t.household.settings.categoriesPageTitle} />
 
       {categories.length === 0 ? (
-        <EmptyState title={t.household.ledger.emptyTitle} description={t.household.dashboard.envelopesEmptyDescription} />
+        <EmptyState title={t.household.settings.categoriesEmptyTitle} description={t.household.settings.categoriesEmptyDescription} />
       ) : (
         <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
           {topLevel.map((category, index) => {

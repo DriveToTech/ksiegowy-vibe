@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { CommitmentBillingFrequency, CommitmentType, HouseholdAccount } from '../../../../../lib/api-types';
 import { createCommitment } from '../../../../../lib/api-client';
-import { parseDecimalValue } from '../../../../../lib/format';
+import { parseDecimalValue, todayAsCalendarDate } from '../../../../../lib/format';
+import { validateCommitmentForm } from '../../../../../lib/household-validation';
 import { t } from '../../../../../lib/translations';
 import { AccountPicker } from '../../../../../components/molecules/AccountPicker';
 import { Button } from '../../../../../components/atoms/Button';
@@ -16,11 +17,7 @@ import { Select } from '../../../../../components/atoms/Select';
 import { cn } from '../../../../../lib/cn';
 
 const COMMITMENT_TYPES: CommitmentType[] = ['INSURANCE', 'LOAN', 'SUBSCRIPTION', 'UTILITY', 'OTHER'];
-const BILLING_FREQUENCIES: CommitmentBillingFrequency[] = ['MONTHLY', 'QUARTERLY', 'YEARLY'];
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const BILLING_FREQUENCIES: CommitmentBillingFrequency[] = ['WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY'];
 
 export function NewCommitmentForm({ householdId, accounts }: { householdId: string; accounts: HouseholdAccount[] }) {
   const router = useRouter();
@@ -30,7 +27,7 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
   const [amount, setAmount] = useState('');
   const [billingFrequency, setBillingFrequency] = useState<CommitmentBillingFrequency>('MONTHLY');
-  const [nextDueDate, setNextDueDate] = useState(todayIso());
+  const [nextDueDate, setNextDueDate] = useState(todayAsCalendarDate());
   const [isAutomatic, setIsAutomatic] = useState(true);
   const [provider, setProvider] = useState('');
   const [policyNumber, setPolicyNumber] = useState('');
@@ -47,14 +44,55 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
     event.preventDefault();
     setError(null);
 
-    if (!name.trim()) {
-      setError(t.household.commitmentForm.nameRequiredError);
+    const validationError = validateCommitmentForm({ type, name, accountId, amount, nextDueDate, provider, termMonths });
+    if (validationError) {
+      setError(validationError);
       return;
     }
+
     const parsedAmount = parseDecimalValue(amount);
-    if (parsedAmount === null || parsedAmount <= 0) {
-      setError(t.household.commitmentForm.amountRequiredError);
-      return;
+    if (parsedAmount === null) return;
+
+    let normalizedSumInsured: string | undefined;
+    if (type === 'INSURANCE' && sumInsured.trim()) {
+      const parsedSumInsured = parseDecimalValue(sumInsured);
+      if (parsedSumInsured === null || parsedSumInsured < 0) {
+        setError(t.household.commitmentForm.amountRequiredError);
+        return;
+      }
+      normalizedSumInsured = parsedSumInsured.toFixed(2);
+    }
+
+    let normalizedPrincipal: string | undefined;
+    let normalizedOutstandingBalance: string | undefined;
+    let normalizedInterestRate: string | undefined;
+    if (type === 'LOAN') {
+      if (principal.trim()) {
+        const parsedPrincipal = parseDecimalValue(principal);
+        if (parsedPrincipal === null || parsedPrincipal < 0) {
+          setError(t.household.commitmentForm.amountRequiredError);
+          return;
+        }
+        normalizedPrincipal = parsedPrincipal.toFixed(2);
+      }
+
+      if (outstandingBalance.trim()) {
+        const parsedOutstandingBalance = parseDecimalValue(outstandingBalance);
+        if (parsedOutstandingBalance === null || parsedOutstandingBalance < 0) {
+          setError(t.household.commitmentForm.amountRequiredError);
+          return;
+        }
+        normalizedOutstandingBalance = parsedOutstandingBalance.toFixed(2);
+      }
+
+      if (interestRate.trim()) {
+        const parsedInterestRate = parseDecimalValue(interestRate);
+        if (parsedInterestRate === null || parsedInterestRate < 0) {
+          setError(t.household.commitmentForm.interestRateError);
+          return;
+        }
+        normalizedInterestRate = (parsedInterestRate / 100).toFixed(4);
+      }
     }
 
     setSubmitting(true);
@@ -69,14 +107,11 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
       provider: provider.trim() || undefined,
       policyNumber: type === 'INSURANCE' ? policyNumber.trim() || undefined : undefined,
       insuredObject: type === 'INSURANCE' ? insuredObject.trim() || undefined : undefined,
-      sumInsured: type === 'INSURANCE' && sumInsured ? sumInsured : undefined,
-      principal: type === 'LOAN' && principal ? principal : undefined,
-      outstandingBalance: type === 'LOAN' && outstandingBalance ? outstandingBalance : undefined,
-      // interestRate is stored as a decimal fraction (0.0740 for 7.40%),
-      // matching @db.Decimal(5,4) and calculateAmortizationSchedule's input —
-      // this field collects a percentage, so it converts on the way in.
-      interestRate: type === 'LOAN' && interestRate ? (Number(interestRate.replace(',', '.')) / 100).toFixed(4) : undefined,
-      termMonths: type === 'LOAN' && termMonths ? Number(termMonths) : undefined,
+      sumInsured: normalizedSumInsured,
+      principal: normalizedPrincipal,
+      outstandingBalance: normalizedOutstandingBalance,
+      interestRate: normalizedInterestRate,
+      termMonths: type === 'LOAN' ? Number(termMonths) : undefined,
     }).catch((submitError: Error) => submitError);
     setSubmitting(false);
 
@@ -94,11 +129,12 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
       {error ? <ErrorState message={error} /> : null}
 
       {/* Type is the form's primary branch — a prominent segmented control, not a buried select. */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+      <div role="group" aria-label={t.household.commitmentForm.fields.type} className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         {COMMITMENT_TYPES.map((value) => (
           <button
             key={value}
             type="button"
+            aria-pressed={type === value}
             onClick={() => setType(value)}
             className={cn(
               'flex flex-col items-center gap-1.5 rounded-card border px-3 py-3.5 text-center text-[12.5px] font-medium transition',
@@ -179,7 +215,7 @@ export function NewCommitmentForm({ householdId, accounts }: { householdId: stri
       >
         <div className="flex flex-col gap-4">
           <FormField label={t.household.commitmentForm.fields.account} required>
-            <AccountPicker accounts={accounts} value={accountId} onChange={setAccountId} />
+            <AccountPicker ariaLabel={t.household.commitmentForm.fields.account} accounts={accounts} value={accountId} onChange={setAccountId} />
           </FormField>
           <label className="flex items-center justify-between gap-3 rounded-inset bg-surface-raised px-4 py-3 text-sm text-foreground-secondary">
             <span className="flex flex-col gap-0.5">

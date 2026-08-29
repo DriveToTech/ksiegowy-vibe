@@ -12,10 +12,10 @@ export default async function NewHouseholdTransactionPage() {
   const householdId = session.activeHouseholdId as string;
 
   const [accounts, categories, members, envelopes] = await Promise.all([
-    getHouseholdAccounts(householdId).catch(() => []),
-    getHouseholdCategories(householdId).catch(() => []),
-    getHouseholdMembers(householdId).catch(() => []),
-    getHouseholdEnvelopes(householdId).catch(() => []),
+    getHouseholdAccounts(householdId),
+    getHouseholdCategories(householdId),
+    getHouseholdMembers(householdId),
+    getHouseholdEnvelopes(householdId),
   ]);
 
   if (accounts.length === 0) {
