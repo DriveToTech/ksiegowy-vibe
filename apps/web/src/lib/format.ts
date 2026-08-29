@@ -74,6 +74,14 @@ export function formatPercentage(value: string | number, minimumFractionDigits =
   return `${number.toLocaleString('pl-PL', { minimumFractionDigits, maximumFractionDigits })}%`;
 }
 
+/** Format a backend-provided signed allocation drift without hiding its sign. */
+export function formatSignedPercentagePoints(value: string | number): string {
+  const number = typeof value === 'string' ? parseDecimalValue(value) : value;
+  if (number === null || !Number.isFinite(number)) return '—';
+  const sign = number > 0 ? '+' : '';
+  return `${sign}${number.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} p.p.`;
+}
+
 /**
  * The account picker's single badge chip (SHARED/CREDIT/PRIVATE/CASH occupy
  * the same slot in the design) — a plain function, not client-only, so both

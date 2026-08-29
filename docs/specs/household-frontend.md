@@ -90,6 +90,45 @@ including the central labelled `Dodaj płatność` action, `Cele`, and `Więcej`
 Goal forms preserve associated labels, keyboard-operable segmented controls,
 pressed/selected state, focus-visible controls, and practical 44px touch targets.
 
+## Phase 3 — Investments and reports
+
+The investment and reporting routes are server-rendered by default, with client
+components limited to form submissions, explicit voiding, period selection, and
+file downloads:
+
+```mermaid
+flowchart LR
+    Portfolio[Investment portfolio] --> Position[Position detail]
+    Position --> Journal[Immutable operation journal]
+    Journal -->|owner only| Mutations[Buy / sell / valuation / contribution]
+    Journal -->|owner only| Void[Explicit void operation]
+    Reports[Household reports] --> Summary[Server summary]
+    Reports --> Export[Bounded CSV / PDF export]
+```
+
+- `/household/investing` shows visible positions, current values, cost basis,
+  valuation completeness, target allocation, and drift. Missing valuations and
+  incomplete target allocations remain explicit instead of being inferred.
+- `/household/investing/new`, `/[positionId]/edit`, and
+  `/[positionId]/transactions/new` expose only the backend-supported manual
+  investment contract. Buy and sell operations require positive units; valuation
+  updates may be zero; contributions do not accept units.
+- `/household/investing/[positionId]` shows the operation journal and allows
+  mutation controls only for the position owner. Voiding is explicit and keeps
+  the journal traceable; archived positions are read-only.
+- `/household/investing/contributions` shows recorded contribution history and
+  only displays IKZE headroom when the backend supplies a limit, source, and
+  `USER_CONFIRMED` evidence.
+- `/household/reports` uses URL-backed preset or custom inclusive periods shorter
+  than one year. Cash flow, category comparison, net worth, data quality, and
+  informational IKZE evidence are rendered from server responses. No forecast,
+  market data, PIT calculation, or tax advice is presented.
+- CSV/PDF downloads use the same bounded period and safe stable-code error
+  mapping as report reads. Unknown backend details are not shown to users.
+
+Phase 3 focused unit coverage is in `apps/web/src/lib/household-*test.ts` for
+investment input rules, report periods, and financial error mapping.
+
 ## Phase 2 regression coverage
 
 `apps/e2e/tests/household-goals.spec.ts` covers empty and conditional goal

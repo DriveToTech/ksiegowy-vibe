@@ -1,4 +1,5 @@
 import type { CategorizationRule, PrismaClient } from '../generated/client/index.js';
+import { categoryExistsInHousehold } from './household-category.service.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,9 @@ export const createRule = async (
   prisma: PrismaClient,
   input: CreateCategorizationRuleInput
 ): Promise<CategorizationRule> => {
+  if (!(await categoryExistsInHousehold(prisma, input.householdId, input.categoryId))) {
+    throw new Error(`Category ${input.categoryId} not found in household ${input.householdId}`);
+  }
   return prisma.categorizationRule.create({
     data: {
       householdId: input.householdId,

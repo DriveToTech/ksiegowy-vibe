@@ -282,7 +282,7 @@ const serializeTransaction = (transaction: HouseholdTransaction) => ({
 
 const runTransactionOperation = async <Result>(fastify: Parameters<FastifyPluginAsync>[0], operation: () => Promise<Result>): Promise<Result> => operation().catch((error: unknown) => {
   if (!(error instanceof HouseholdTransactionServiceError)) throw error;
-  const statusCode = error.code === 'TRANSACTION_NOT_FOUND' || error.code === 'ACCOUNT_NOT_FOUND' ? 404 : error.code === 'VALIDATION_ERROR' ? 400 : 409;
+  const statusCode = error.code === 'TRANSACTION_NOT_FOUND' || error.code === 'ACCOUNT_NOT_FOUND' || error.code === 'CATEGORY_NOT_FOUND' ? 404 : error.code === 'VALIDATION_ERROR' ? 400 : 409;
   const httpError = fastify.httpErrors.createError(statusCode, error.message);
   httpError.code = error.code;
   throw httpError;
@@ -437,7 +437,7 @@ export const transactionsRoutes: FastifyPluginAsync = async (fastify): Promise<v
     const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const result = await confirmStatementImport(fastify.householdDatabase, request.params.householdId, user.sub, request.body.accountId, request.body.rows);
+    const result = await runTransactionOperation(fastify, () => confirmStatementImport(fastify.householdDatabase, request.params.householdId, user.sub, request.body.accountId, request.body.rows));
 
     return reply.code(201).send({
       importBatchId: result.importBatchId,

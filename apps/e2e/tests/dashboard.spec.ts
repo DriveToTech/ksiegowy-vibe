@@ -339,7 +339,7 @@ test('mobile dashboard content and actions clear navigation at initial and mid-s
 test('dashboard redirects to onboarding when no company is configured', async ({ authenticatedPageNoCompany: page }) => {
   await page.goto('/dashboard');
 
-  await expect(page).toHaveURL(/\/onboarding$/);
+  await expect(page).toHaveURL(/\/onboarding\/company$/);
   await expect(page.getByRole('heading', { name: 'Skonfiguruj firmę' })).toBeVisible();
 });
 

@@ -35,6 +35,15 @@ export class HouseholdAccountServiceError extends Error {
   }
 }
 
+const MAX_ACCOUNT_NAME_LENGTH = 160;
+
+const assertAccountName = (name: string): string => {
+  const normalizedName = name.trim();
+  if (normalizedName.length === 0) throw new HouseholdAccountServiceError('VALIDATION_ERROR', 'name is required');
+  if (normalizedName.length > MAX_ACCOUNT_NAME_LENGTH) throw new HouseholdAccountServiceError('VALIDATION_ERROR', `name must be at most ${MAX_ACCOUNT_NAME_LENGTH} characters`);
+  return normalizedName;
+};
+
 // ── Private-account visibility ───────────────────────────────────────────────
 
 /**
@@ -47,14 +56,16 @@ export class HouseholdAccountServiceError extends Error {
 export const visibleAccountIds = async (
   prisma: PrismaClient,
   householdId: string,
-  userId: string
+  userId: string,
+  maximumCount?: number
 ): Promise<string[]> => {
   const accounts = await prisma.householdAccount.findMany({
     where: {
       householdId,
       OR: [{ visibility: 'SHARED' }, { visibility: 'PRIVATE', ownerUserId: userId }]
     },
-    select: { id: true }
+    select: { id: true },
+    ...(maximumCount === undefined ? {} : { take: maximumCount })
   });
 
   return accounts.map((account) => account.id);
@@ -67,11 +78,12 @@ export const createAccount = async (
   input: CreateHouseholdAccountInput
 ): Promise<HouseholdAccount> => {
   const visibility = input.visibility ?? 'SHARED';
+  const name = assertAccountName(input.name);
 
   return prisma.householdAccount.create({
     data: {
       householdId: input.householdId,
-      name: input.name,
+      name,
       type: input.type,
       accountNumberMask: input.accountNumberMask ?? null,
       visibility,
@@ -104,6 +116,7 @@ export const updateAccount = async (
   if (!account) {
     throw new HouseholdAccountServiceError('ACCOUNT_NOT_FOUND', 'Account not found');
   }
+  if (input.name !== undefined) data.name = assertAccountName(input.name);
 
   return prisma.householdAccount.update({ where: { id: accountId }, data });
 };

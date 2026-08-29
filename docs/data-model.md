@@ -930,8 +930,9 @@ erDiagram
     HouseholdCategory {
         string id PK
         string householdId FK
-        string name
-        string parentCategoryId FK "one level of grouping"
+        string name "max 160 characters"
+        string parentCategoryId FK "same-household composite self-reference"
+        HouseholdCategoryCashFlowTreatment cashFlowTreatment "STANDARD | TRANSFER"
     }
 
     HouseholdTransaction {
@@ -1020,6 +1021,34 @@ erDiagram
         boolean isActive
     }
 
+    InvestmentPosition {
+        string id PK
+        string householdId FK
+        string ownerUserId "immutable authenticated owner"
+        InvestmentWrapper wrapper "TAXABLE | IKE | IKZE"
+        InvestmentPositionVisibility visibility "SHARED | PRIVATE"
+        string instrument
+        decimal units
+        decimal costBasis
+        decimal currentValue "nullable until manually valued"
+        decimal targetAllocationPercent
+        datetime lastValuedAt
+        datetime archivedAt
+    }
+
+    InvestmentTransaction {
+        string id PK
+        string householdId FK
+        string positionId FK
+        InvestmentTransactionType type "BUY | SELL | VALUATION_UPDATE | CONTRIBUTION"
+        decimal units
+        decimal amount
+        date date
+        string operationId UK "household-scoped idempotency key"
+        datetime voidedAt
+        string voidedByUserId
+    }
+
     CategorizationRule {
         string id PK
         string householdId FK
@@ -1050,6 +1079,9 @@ erDiagram
     Goal ||--o{ GoalAutomationRule : "automates"
     GoalMovement ||--o{ HouseholdTransaction : "posts"
     GoalAutomationRule ||--o{ GoalMovement : "generates"
+    Household ||--o{ InvestmentPosition : "owns"
+    Household ||--o{ InvestmentTransaction : "records"
+    InvestmentPosition ||--o{ InvestmentTransaction : "journals"
 ```
 
 ### Why a separate database
@@ -1110,3 +1142,71 @@ live membership and visible-account checks as the rest of household mode. A
 private account and its goal are omitted from another member's responses. The
 separate household database has no relation to the company-side `User` model;
 user identifiers on these records are application-level identity strings.
+
+### HouseholdCategory cash-flow treatment
+
+`cashFlowTreatment` defaults to `STANDARD` for every existing and newly created
+category. `TRANSFER` is reserved for category-labelled money movements that
+must not appear as income or spending in household reports. The migration
+adds one `Investment transfers` category per existing household using a stable
+household-derived identifier; household creation seeds the same category for
+new households. Budget envelopes retain their existing `transferGroupId`
+semantics and are not changed by this field. Transaction, rule, and envelope
+category references are household-scoped composite foreign keys, so a category
+from another household cannot be attached or used for report treatment.
+
+Category hierarchy uses the same household scope for its self-reference:
+`(householdId, parentCategoryId)` references `(householdId, id)`. The domain
+validates same-household parents and rejects self/descendant cycles. Category
+and account display names, plus investment instrument labels used by reports,
+are limited to 160 characters; report reads reject legacy overlong values
+before CSV/PDF export.
+
+### InvestmentPosition
+
+An investment position is a household-scoped aggregate owned by one
+authenticated user. `ownerUserId` is immutable and is never accepted from a
+request body. `SHARED` affects read visibility only; `PRIVATE` positions are
+owner-only. The position stores a projection of its immutable journal:
+`units`, total `costBasis`, nullable manually entered `currentValue`, and the
+latest valuation date. A null current value means “not valued”, not zero.
+`targetAllocationPercent` is optional and is used for drift only when all
+visible active positions have targets summing to 100%. Archive is allowed only
+for zero units and a known zero current value.
+
+### InvestmentTransaction
+
+The transaction table is append-only apart from void audit metadata. A
+household-scoped unique `operationId` makes retries deterministic. `BUY`
+increases units and cost basis; `SELL` removes units and the proportional
+average cost basis; `VALUATION_UPDATE` is the only value-changing fact; and
+`CONTRIBUTION` is history only. Voiding keeps the original row, sets
+`voidedAt`/`voidedByUserId`, and rebuilds the position projection from all
+remaining facts. This journal deliberately has no market-data, broker, FX,
+dividend, return, or tax-liability fields.
+
+```mermaid
+stateDiagram-v2
+    [*] --> ActivePosition
+    ActivePosition --> ActivePosition : BUY / SELL / VALUATION_UPDATE / CONTRIBUTION
+    ActivePosition --> ActivePosition : void journal fact + rebuild projection
+    ActivePosition --> ArchivedPosition : units = 0 and currentValue = 0
+    ArchivedPosition --> ArchivedPosition : read history only
+```
+
+### Household report read models
+
+The summary report reads visible accounts and visible positions only. Cash
+flow excludes both linked ledger transfers and `TRANSFER` categories. Account
+net worth is `openingBalance + ledger sum through to`, with
+`HouseholdAccount.createdAt` as the temporary opening-balance boundary.
+Investment net worth uses the latest non-voided valuation through `to`; missing
+valuations stay null and make data quality partial rather than contributing a
+fabricated value. Goals are not separately added because their account is
+already an account component.
+
+The category comparison uses the same inclusive date range shifted back one
+calendar year and is labelled `EQUIVALENT_PRIOR_YEAR`. The tax-return model is
+informational evidence of recorded IKZE contributions only. IKZE headroom is
+null unless the request supplies both a year-specific user-confirmed annual
+limit and its source.

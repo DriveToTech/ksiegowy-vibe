@@ -50,7 +50,7 @@ describe('createHousehold()', () => {
 
     expect(householdCreate).toHaveBeenCalledWith({ data: { name: 'Kowalski Family', currency: 'PLN' } });
     expect(categoryCreateMany).toHaveBeenCalledTimes(1);
-    expect(categoryCreateMany.mock.calls[0]![0].data).toHaveLength(9);
+    expect(categoryCreateMany.mock.calls[0]![0].data).toHaveLength(10);
     expect(membershipCreate).toHaveBeenCalledWith({
       data: {
         householdId: 'household-1',

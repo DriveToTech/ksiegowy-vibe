@@ -23,6 +23,7 @@ describe('createTransaction()', () => {
           { id: 'rule-1', matchType: 'EXACT', payeePattern: 'Netflix', categoryId: 'category-entertainment', createdAt: new Date() }
         ])
       },
+      householdCategory: { findFirst: vi.fn(async () => ({ id: 'category-entertainment' })) },
       householdTransaction: { create }
     } as unknown as PrismaClient;
 
@@ -83,6 +84,20 @@ describe('createTransaction()', () => {
     await expect(
       createTransaction(prisma, { householdId: 'household-1', userId: 'user-1', accountId: 'account-other', payee: 'Shop', amount: '-5.00', date: '2026-08-01' })
     ).rejects.toMatchObject({ code: 'ACCOUNT_NOT_FOUND' });
+  });
+
+  it('rejects a category from another household before creating the transaction', async () => {
+    const create = vi.fn();
+    const prisma = {
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) },
+      householdCategory: { findFirst: vi.fn(async () => null) },
+      householdTransaction: { create }
+    } as unknown as PrismaClient;
+
+    await expect(createTransaction(prisma, {
+      householdId: 'household-1', userId: 'user-1', accountId: 'account-1', payee: 'Shop', amount: '-5.00', date: '2026-08-01', categoryId: 'category-other-household'
+    })).rejects.toMatchObject({ code: 'CATEGORY_NOT_FOUND' });
+    expect(create).not.toHaveBeenCalled();
   });
 });
 
@@ -234,6 +249,7 @@ describe('recategorizeTransaction()', () => {
         update: vi.fn(async () => ({ id: 'transaction-1', categoryId: 'category-entertainment' }))
       },
       householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) },
+      householdCategory: { findFirst: vi.fn(async () => ({ id: 'category-entertainment' })) },
       categorizationRule: { create: ruleCreate }
     } as unknown as PrismaClient;
 
@@ -250,6 +266,7 @@ describe('recategorizeTransaction()', () => {
         update: vi.fn(async () => ({ id: 'transaction-1', categoryId: 'category-entertainment' }))
       },
       householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) },
+      householdCategory: { findFirst: vi.fn(async () => ({ id: 'category-entertainment' })) },
       categorizationRule: { create: ruleCreate }
     } as unknown as PrismaClient;
 

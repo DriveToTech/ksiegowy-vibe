@@ -20,6 +20,8 @@ interface NavigationItem {
     | 'householdBudget'
     | 'householdCommitments'
     | 'householdGoals'
+    | 'householdInvesting'
+    | 'householdReports'
     | 'householdMore';
   badge?: string;
   badgeTone?: 'muted' | 'warning';

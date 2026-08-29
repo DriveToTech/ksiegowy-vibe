@@ -45,7 +45,8 @@ C4Container
   System_Boundary(ksiegowy, "ksiegowy-vibe") {
     Container(web, "Web", "Next.js 15 / React 19", "Server-side rendered frontend. App Router with React Server Components. Port 3000.")
     Container(api, "API", "Fastify 5 / TypeScript / Node.js 22", "REST API. Handles business logic, auth, KSeF integration, OCR, PDF/XML generation. Port 3001.")
-    ContainerDb(db, "Database", "PostgreSQL 17", "Stores all application data: companies, invoices, contractors, KSeF audit trails, backup records.")
+    ContainerDb(db, "Business Database", "PostgreSQL 17", "Stores companies, invoices, contractors, KSeF audit trails, and backup records.")
+    ContainerDb(household_db, "Household Database", "PostgreSQL 17", "Separate ksiegowy_household database for household tenancy, ledger, goals, investments, and reports.")
     ContainerDb(storage, "File Storage", "Local filesystem (./storage)", "Stores uploaded PDFs/images, generated FA(3) XML files, and invoice PDFs.")
   }
 
@@ -58,6 +59,7 @@ C4Container
   Rel(user, web, "Navigates", "HTTPS :3000")
   Rel(web, api, "Calls REST endpoints", "HTTP :3001 / JWT cookie")
   Rel(api, db, "Reads/writes", "Prisma ORM / TCP")
+  Rel(api, household_db, "Reads/writes household data", "household-service Prisma ORM / TCP")
   Rel(api, storage, "Reads/writes files", "Filesystem")
   Rel(api, google_oauth, "Authenticates users", "HTTPS / OAuth2")
   Rel(api, ksef, "Submits and syncs invoices", "HTTPS / REST")
@@ -89,6 +91,8 @@ C4Component
       Component(route_contractor_rates, "contractor-service-rates.routes", "Fastify route", "Per-contractor service rate overrides")
       Component(route_members, "members", "Fastify route", "Company membership and roles")
       Component(route_reports, "reports", "Fastify route", "VAT register and CSV export")
+      Component(route_household_investments, "household/investments.routes", "Fastify route", "Visible portfolio, owner-checked journal mutations, valuation history, contributions")
+      Component(route_household_reports, "household/reports.routes", "Fastify route", "Canonical household summary, informational tax evidence, CSV/PDF export")
       Component(route_ksef, "ksef", "Fastify route", "KSeF queue status and session management")
       Component(route_backup, "backup", "Fastify route", "Platform/ops backup endpoints (legacy provider routes)")
     }
@@ -101,6 +105,8 @@ C4Component
       Component(svc_backup, "BackupService", "TypeScript module", "Google Drive and iCloud providers + company backup policy scheduler")
       Component(svc_registry, "CompanyRegistryService", "TypeScript class", "GUS API NIP lookup")
       Component(svc_contractor_financials, "ContractorFinancialsService", "TypeScript module", "Turnover/outstanding aggregation per contractor, excluding FORMAL corrections")
+      Component(svc_household_investment, "Investment domain service", "TypeScript module", "Owner-scoped positions, immutable journal, projections, allocation, valuation history")
+      Component(svc_household_report, "Household report service", "TypeScript module", "Visible cash flow, net-worth completeness, prior-year comparison, IKZE evidence")
     }
 
     Boundary(plugins, "Plugins") {
@@ -129,7 +135,9 @@ C4Component
   Rel(route_backup, svc_backup, "Calls")
   Rel(route_company_backup_policy, svc_backup, "Calls")
   Rel(route_companies, svc_registry, "Calls")
-  Rel(route_contractors, svc_contractor_financials, "Calls")
+   Rel(route_contractors, svc_contractor_financials, "Calls")
+   Rel(route_household_investments, svc_household_investment, "Calls")
+   Rel(route_household_reports, svc_household_report, "Calls")
 
   Rel(svc_invoice, pkg_fa3, "Builds FA(3) XML")
   Rel(svc_invoice, pkg_pdf, "Generates PDF")
@@ -142,7 +150,9 @@ C4Component
   Rel(svc_ocr, openrouter_ext, "Vision LLM fallback")
   Rel(svc_backup, gdrive_ext, "Uploads files")
   Rel(pkg_ksef_client, ksef_ext, "REST calls")
-  Rel(svc_invoice, storage, "Writes PDF/XML")
+   Rel(svc_invoice, storage, "Writes PDF/XML")
+   Rel(svc_household_investment, householdPostgres, "Reads/writes journal and projections")
+   Rel(svc_household_report, householdPostgres, "Reads visible report data")
 ```
 
 ---
@@ -379,3 +389,28 @@ Key backend decisions (full detail in [`docs/household-mode.md`](./household-mod
 - **Private-account visibility** is enforced by one function, `visibleAccountIds()`, used by every list and aggregate query — a private account owned by someone else is omitted, never returned with a redacted balance.
 - **Transfers** between accounts are two `HouseholdTransaction` rows sharing `transferGroupId` (not a `type` enum), so every income/expense/envelope aggregate stays a plain `SUM(amount)` with one `transferGroupId IS NULL` predicate.
 - **Commitment-generation cron is idempotent** at the database level via `@@unique([commitmentId, date])` — a retry or double-run cannot double-charge a commitment.
+
+### Phase 3 investment and report flow
+
+```mermaid
+flowchart LR
+    Request[Authenticated household request] --> Guard[Live membership guard]
+    Guard --> Investment[Investment service]
+    Guard --> Report[Canonical report service]
+    Investment --> Journal[(InvestmentTransaction journal)]
+    Journal --> Projection[Position projection: units, cost basis, valuation]
+    Projection --> Portfolio[Visible portfolio and allocation/drift]
+    Report --> Ledger[(Visible ledger and categories)]
+    Report --> Accounts[(Visible account balances)]
+    Report --> Projection
+    Portfolio --> JSON[Decimal-string JSON]
+    Report --> JSON
+    Report --> CSV[Direct private CSV]
+    Report --> PDF[HTML-escaped PDF via pdf-templates/Puppeteer]
+```
+
+The report service never reads company tables and never adds goals as a
+separate net-worth source. Missing manual valuations remain partial data.
+`VALUATION_UPDATE` is the only investment journal fact that changes a
+position's current value; `BUY`, `SELL`, and `CONTRIBUTION` cannot fabricate a
+price.

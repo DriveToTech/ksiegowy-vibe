@@ -179,6 +179,8 @@ function createHouseholdEntry({ id, name, currency, ownerToken, ownerMember, acc
     transactions: [],
     commitments: [],
     goals: [],
+    investments: [],
+    investmentTransactions: [],
     envelopes: [seedHouseholdEnvelope(id, groceriesCategory.id)],
   };
 }
@@ -406,6 +408,274 @@ function moneySummary(entry) {
   return { moneyIn: moneyIn.toFixed(2), moneyOut: moneyOut.toFixed(2) };
 }
 
+function financialError(req, res, status, code, message) {
+  return respond(req, res, status, { code, message });
+}
+
+function isValidCalendarDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function formatInvestmentUnits(value) {
+  return value.toFixed(8).replace(/(?:\.0+|(?<=[0-9])0+)$/, '').replace(/\.$/, '') || '0';
+}
+
+function serializeInvestmentPosition(position) {
+  return {
+    ...position,
+    units: position.units,
+    costBasis: position.costBasis,
+    currentValue: position.currentValue,
+    targetAllocationPercent: position.targetAllocationPercent,
+  };
+}
+
+function serializeInvestmentTransaction(transaction) {
+  return { ...transaction };
+}
+
+function visibleInvestmentPositions(entry, viewerUserId, includeArchived = false) {
+  return entry.investments.filter((position) => (includeArchived || !position.archivedAt)
+    && (position.visibility === 'SHARED' || position.ownerUserId === viewerUserId));
+}
+
+function findVisibleInvestmentPosition(entry, positionId, viewerUserId) {
+  return entry.investments.find((position) => position.id === positionId
+    && (position.visibility === 'SHARED' || position.ownerUserId === viewerUserId)) ?? null;
+}
+
+function investmentTransactionsForPosition(entry, positionId) {
+  return entry.investmentTransactions
+    .filter((transaction) => transaction.positionId === positionId)
+    .sort((first, second) => first.date.localeCompare(second.date)
+      || first.createdAt.localeCompare(second.createdAt)
+      || first.id.localeCompare(second.id));
+}
+
+function recomputeInvestmentPosition(entry, position) {
+  let units = 0;
+  let costBasis = 0;
+  let currentValue = null;
+  let lastValuedAt = null;
+
+  for (const transaction of investmentTransactionsForPosition(entry, position.id)) {
+    if (transaction.voidedAt) continue;
+    const amount = Number.parseFloat(transaction.amount);
+    if (transaction.type === 'BUY') {
+      units += Number.parseFloat(transaction.units);
+      costBasis += amount;
+    } else if (transaction.type === 'SELL') {
+      const soldUnits = Number.parseFloat(transaction.units);
+      const averageCost = units === 0 ? 0 : costBasis / units;
+      units -= soldUnits;
+      costBasis = units === 0 ? 0 : costBasis - averageCost * soldUnits;
+    } else if (transaction.type === 'VALUATION_UPDATE') {
+      currentValue = transaction.amount;
+      lastValuedAt = transaction.date;
+    }
+  }
+
+  position.units = formatInvestmentUnits(units);
+  position.costBasis = costBasis.toFixed(2);
+  position.currentValue = currentValue;
+  position.lastValuedAt = lastValuedAt;
+  position.updatedAt = new Date().toISOString();
+  return position;
+}
+
+function buildInvestmentPortfolio(entry, viewerUserId) {
+  const positions = visibleInvestmentPositions(entry, viewerUserId);
+  const valuedCurrentValue = positions.reduce((sum, position) => sum + (position.currentValue === null ? 0 : Number.parseFloat(position.currentValue)), 0);
+  const missingValuationCount = positions.filter((position) => position.currentValue === null).length;
+  const targets = positions.map((position) => position.targetAllocationPercent).filter((target) => target !== null);
+  const targetTotal = targets.reduce((sum, target) => sum + Number.parseFloat(target), 0);
+  const targetStatus = positions.length === 0 || targets.length === 0
+    || positions.every((position) => position.targetAllocationPercent === null)
+    ? 'NONE'
+    : positions.every((position) => position.targetAllocationPercent !== null) && Math.abs(targetTotal - 100) < 0.0001
+      ? 'COMPLETE'
+      : 'INCOMPLETE';
+
+  return {
+    positions: positions.map((position) => {
+      const currentAllocationPercent = position.currentValue !== null && valuedCurrentValue > 0
+        ? (Number.parseFloat(position.currentValue) / valuedCurrentValue * 100).toFixed(2)
+        : null;
+      const driftPercent = targetStatus === 'COMPLETE' && missingValuationCount === 0 && currentAllocationPercent !== null
+        ? (Number.parseFloat(currentAllocationPercent) - Number.parseFloat(position.targetAllocationPercent)).toFixed(2)
+        : null;
+      return { position: serializeInvestmentPosition(position), currentAllocationPercent, driftPercent };
+    }),
+    totalCurrentValue: valuedCurrentValue.toFixed(2),
+    valuedCurrentValue: valuedCurrentValue.toFixed(2),
+    missingValuationCount,
+    dataQuality: missingValuationCount === 0 ? 'COMPLETE' : 'PARTIAL',
+    targetAllocation: { status: targetStatus, totalPercent: targetTotal.toFixed(2) },
+  };
+}
+
+function parseInvestmentAmount(value, allowZero) {
+  if (typeof value !== 'string' || !/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
+  const amount = Number.parseFloat(value);
+  return Number.isFinite(amount) && (allowZero || amount > 0) ? amount : null;
+}
+
+function findInvestmentTransactionByOperationId(entry, operationId) {
+  return entry.investmentTransactions.find((transaction) => transaction.operationId === operationId) ?? null;
+}
+
+function sameInvestmentTransactionPayload(transaction, body) {
+  return transaction.positionId === body.positionId
+    && transaction.type === body.type
+    && transaction.amount === body.amount
+    && transaction.units === (typeof body.units === 'string' ? body.units : null)
+    && transaction.date === body.date;
+}
+
+function investmentPositionForReport(entry, position, to) {
+  const valuations = investmentTransactionsForPosition(entry, position.id)
+    .filter((transaction) => !transaction.voidedAt && transaction.type === 'VALUATION_UPDATE' && transaction.date <= to);
+  const valuation = valuations[valuations.length - 1] ?? null;
+  return {
+    positionId: position.id,
+    instrument: position.instrument,
+    wrapper: position.wrapper,
+    value: valuation?.amount ?? null,
+    valuationDate: valuation?.date ?? null,
+    completeness: valuation ? 'COMPLETE' : 'PARTIAL',
+  };
+}
+
+function reportDateRange(req, res, rawUrl) {
+  const params = new URLSearchParams(rawUrl.split('?')[1] ?? '');
+  const from = params.get('from');
+  const to = params.get('to');
+  if (!isValidCalendarDate(from) || !isValidCalendarDate(to) || from > to) {
+    financialError(req, res, 400, 'REPORT_PERIOD_INVALID', 'The report period is invalid');
+    return null;
+  }
+  const fromDate = new Date(`${from}T00:00:00.000Z`);
+  const toDate = new Date(`${to}T23:59:59.999Z`);
+  const maximumToDate = new Date(Date.UTC(fromDate.getUTCFullYear() + 1, fromDate.getUTCMonth(), fromDate.getUTCDate()));
+  if (toDate >= maximumToDate) {
+    financialError(req, res, 400, 'REPORT_PERIOD_INVALID', 'The report period is too long');
+    return null;
+  }
+  return { from, to, fromDate, toDate };
+}
+
+function buildHouseholdReport(entry, viewerUserId, range) {
+  const accounts = entry.accounts.filter((account) => account.visibility === 'SHARED' || account.ownerUserId === viewerUserId);
+  const accountIds = new Set(accounts.map((account) => account.id));
+  const transactions = entry.transactions.filter((transaction) => accountIds.has(transaction.accountId));
+  const categories = new Map();
+  let income = 0;
+  let spending = 0;
+
+  for (const transaction of transactions) {
+    if (transaction.transferGroupId || transaction.date < range.from || transaction.date > range.to) continue;
+    const category = entry.categories.find((item) => item.id === transaction.categoryId);
+    const categoryName = category?.name ?? 'Uncategorized';
+    const row = categories.get(categoryName) ?? { categoryId: category?.id ?? null, categoryName, income: 0, spending: 0 };
+    const amount = Number.parseFloat(transaction.amount);
+    if (amount >= 0) {
+      income += amount;
+      row.income += amount;
+    } else {
+      spending += Math.abs(amount);
+      row.spending += Math.abs(amount);
+    }
+    categories.set(categoryName, row);
+  }
+
+  const accountComponents = accounts.map((account) => {
+    const value = Number.parseFloat(account.openingBalance) + transactions
+      .filter((transaction) => transaction.accountId === account.id && transaction.date <= range.to)
+      .reduce((sum, transaction) => sum + Number.parseFloat(transaction.amount), 0);
+    return {
+      accountId: account.id,
+      name: account.name,
+      value: value.toFixed(2),
+      openingBalanceBoundary: account.createdAt.slice(0, 10),
+      completeness: account.createdAt.slice(0, 10) <= range.to ? 'COMPLETE' : 'PARTIAL',
+    };
+  });
+  const positions = visibleInvestmentPositions(entry, viewerUserId).filter((position) => position.createdAt.slice(0, 10) <= range.to);
+  const investmentComponents = positions.map((position) => investmentPositionForReport(entry, position, range.to));
+  const accountTotal = accountComponents.reduce((sum, account) => sum + Number.parseFloat(account.value), 0);
+  const investmentTotal = investmentComponents.reduce((sum, position) => sum + (position.value === null ? 0 : Number.parseFloat(position.value)), 0);
+  const openingBalanceBoundary = accountComponents.map((account) => account.openingBalanceBoundary).sort()[0] ?? null;
+  const missingInvestmentValuationCount = investmentComponents.filter((position) => position.value === null).length;
+  const notes = [
+    'Account net worth uses opening balance plus ledger entries from the account createdAt boundary.',
+    ...(missingInvestmentValuationCount > 0 ? ['One or more visible investment positions have no valuation in the report period.'] : []),
+    ...(openingBalanceBoundary !== null && range.from < openingBalanceBoundary ? ['The report starts before the oldest visible account opening-balance boundary.'] : []),
+  ];
+
+  const currentAndPriorCategories = [...categories.values()].sort((left, right) => left.categoryName.localeCompare(right.categoryName));
+  const priorFrom = `${String(Number(range.from.slice(0, 4)) - 1)}${range.from.slice(4)}`;
+  const priorTo = `${String(Number(range.to.slice(0, 4)) - 1)}${range.to.slice(4)}`;
+
+  return {
+    from: range.from,
+    to: range.to,
+    cashFlow: {
+      income: income.toFixed(2),
+      spending: spending.toFixed(2),
+      surplus: (income - spending).toFixed(2),
+      categories: currentAndPriorCategories.map((category) => ({ ...category, income: category.income.toFixed(2), spending: category.spending.toFixed(2) })),
+    },
+    categoryComparison: {
+      basis: 'EQUIVALENT_PRIOR_YEAR',
+      from: priorFrom,
+      to: priorTo,
+      categories: currentAndPriorCategories.map((category) => ({
+        categoryName: category.categoryName,
+        currentIncome: category.income.toFixed(2), priorIncome: '0.00', incomeDelta: category.income.toFixed(2),
+        currentSpending: category.spending.toFixed(2), priorSpending: '0.00', spendingDelta: category.spending.toFixed(2),
+      })),
+    },
+    netWorth: {
+      total: (accountTotal + investmentTotal).toFixed(2),
+      accounts: accountComponents,
+      investments: investmentComponents,
+      components: { accounts: accountTotal.toFixed(2), investments: investmentTotal.toFixed(2) },
+    },
+    dataQuality: {
+      status: missingInvestmentValuationCount > 0 || (openingBalanceBoundary !== null && range.from < openingBalanceBoundary) ? 'PARTIAL' : 'COMPLETE',
+      visibleOnly: true,
+      missingInvestmentValuationCount,
+      accountOpeningBalanceBoundary: openingBalanceBoundary,
+      notes,
+    },
+  };
+}
+
+function buildTaxReport(entry, viewerUserId, range) {
+  const contributions = [];
+  for (const position of visibleInvestmentPositions(entry, viewerUserId)) {
+    if (position.wrapper !== 'IKZE') continue;
+    for (const transaction of investmentTransactionsForPosition(entry, position.id)) {
+      if (!transaction.voidedAt && transaction.type === 'CONTRIBUTION' && transaction.date >= range.from && transaction.date <= range.to) {
+        contributions.push({ kind: 'IKZE_CONTRIBUTION', positionId: position.id, instrument: position.instrument, date: transaction.date, amount: transaction.amount });
+      }
+    }
+  }
+  contributions.sort((first, second) => first.date.localeCompare(second.date) || first.positionId.localeCompare(second.positionId));
+  const total = contributions.reduce((sum, contribution) => sum + Number.parseFloat(contribution.amount), 0);
+  return {
+    from: range.from,
+    to: range.to,
+    ikzeContributions: contributions,
+    totalIkzeContributions: total.toFixed(2),
+    calculations: { annualLimit: null, ikzeHeadroom: null, taxLiability: null },
+    informationalOnly: true,
+    notice: 'Informational household records only. This report does not calculate tax, liability, eligibility, or tax advice.',
+  };
+}
+
 const BASE_INVOICE_TIMESTAMPS = {
   createdAt: '2024-04-10T12:00:00.000Z',
   updatedAt: '2024-04-10T12:00:00.000Z',
@@ -555,6 +825,19 @@ function respond(req, res, status, data, extraHeaders = {}) {
   res.end(JSON.stringify(data));
 }
 
+function respondRaw(req, res, status, body, contentType, extraHeaders = {}) {
+  const origin = req.headers['origin'];
+  res.writeHead(status, {
+    'Content-Type': contentType,
+    'Access-Control-Allow-Origin': typeof origin === 'string' ? origin : '*',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers': 'Content-Type, x-ksef-environment',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    ...extraHeaders,
+  });
+  res.end(body);
+}
+
 /**
  * @param {http.IncomingMessage} req
  * @returns {Promise<Record<string, unknown>>}
@@ -606,12 +889,17 @@ const server = http.createServer((req, res) => {
   if (url === '/auth/me' && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
     const onboardingCompany = isTestCompanyToken ? null : findOnboardingCompanyByToken(authToken);
-    const memberHouseholds = [...households.values()]
+    const memberHouseholdEntries = [...households.values()]
       .filter((entry) => entry.members.has(authToken))
+    const memberHouseholds = memberHouseholdEntries
       .map((entry) => ({ id: entry.household.id, role: entry.members.get(authToken).role, name: entry.household.name }));
+    const householdMember = memberHouseholdEntries[0]?.members.get(authToken);
+    const sessionUser = householdMember
+      ? { ...TEST_USER, id: householdMember.userId, email: householdMember.userEmail, name: householdMember.displayName }
+      : TEST_USER;
     return respond(req, res, 200, {
       authenticated: true,
-      user: TEST_USER,
+      user: sessionUser,
       companies: isTestCompanyToken
         ? [{ id: TEST_COMPANY.id, role: 'ADMIN' }]
         : onboardingCompany
@@ -964,6 +1252,271 @@ const server = http.createServer((req, res) => {
         return respond(req, res, 201, serializeHouseholdAccount(access.entry, account));
       })
       .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
+  }
+
+  const householdInvestmentsMatch = url.match(/^\/households\/([^/]+)\/investments$/);
+  if (householdInvestmentsMatch && (method === 'GET' || method === 'POST')) {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId] = householdInvestmentsMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+
+    if (method === 'GET') {
+      if (authToken === HOUSEHOLD_DATA_FAILURE_TOKEN) return financialError(req, res, 503, 'INVESTMENTS_UNAVAILABLE', 'Investments unavailable');
+      return respond(req, res, 200, buildInvestmentPortfolio(access.entry, access.member.userId));
+    }
+
+    return readJsonBody(req)
+      .then((body) => {
+        if (!['TAXABLE', 'IKE', 'IKZE'].includes(body.wrapper)
+          || typeof body.instrument !== 'string'
+          || body.instrument.trim().length === 0
+          || body.instrument.trim().length > 160
+          || (body.visibility !== undefined && !['SHARED', 'PRIVATE'].includes(body.visibility))) {
+          return financialError(req, res, 400, 'VALIDATION_ERROR', 'Check the entered investment data');
+        }
+        const target = body.targetAllocationPercent === null || body.targetAllocationPercent === undefined
+          ? null
+          : parseInvestmentAmount(body.targetAllocationPercent, true);
+        if (body.targetAllocationPercent !== null && body.targetAllocationPercent !== undefined && (target === null || target > 100)) {
+          return financialError(req, res, 400, 'VALIDATION_ERROR', 'Target allocation must be between 0 and 100');
+        }
+        const now = new Date().toISOString();
+        const position = {
+          id: `${householdId}-investment-${crypto.randomUUID()}`,
+          householdId,
+          ownerUserId: access.member.userId,
+          wrapper: body.wrapper,
+          visibility: body.visibility === 'SHARED' ? 'SHARED' : 'PRIVATE',
+          instrument: body.instrument.trim(),
+          units: '0',
+          costBasis: '0.00',
+          currentValue: null,
+          targetAllocationPercent: target === null ? null : target.toFixed(2),
+          lastValuedAt: null,
+          archivedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        access.entry.investments.push(position);
+        return respond(req, res, 201, serializeInvestmentPosition(position));
+      })
+      .catch(() => financialError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
+  }
+
+  const householdInvestmentHistoryMatch = url.match(/^\/households\/([^/]+)\/investments\/value-history$/);
+  if (householdInvestmentHistoryMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId] = householdInvestmentHistoryMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    if (authToken === HOUSEHOLD_DATA_FAILURE_TOKEN) return financialError(req, res, 503, 'INVESTMENTS_UNAVAILABLE', 'Investment history unavailable');
+    const params = new URLSearchParams(rawUrl.split('?')[1] ?? '');
+    const from = params.get('from');
+    const to = params.get('to');
+    if ((from !== null && !isValidCalendarDate(from)) || (to !== null && !isValidCalendarDate(to)) || (from !== null && to !== null && from > to)) {
+      return financialError(req, res, 400, 'VALIDATION_ERROR', 'The value history range is invalid');
+    }
+    const positions = visibleInvestmentPositions(access.entry, access.member.userId, true);
+    const data = access.entry.investmentTransactions
+      .filter((transaction) => transaction.type === 'VALUATION_UPDATE' && !transaction.voidedAt)
+      .filter((transaction) => positions.some((position) => position.id === transaction.positionId))
+      .filter((transaction) => (from === null || transaction.date >= from) && (to === null || transaction.date <= to))
+      .sort((first, second) => first.date.localeCompare(second.date) || first.createdAt.localeCompare(second.createdAt))
+      .map((transaction) => {
+        const position = access.entry.investments.find((item) => item.id === transaction.positionId);
+        return { transactionId: transaction.id, positionId: transaction.positionId, instrument: position.instrument, wrapper: position.wrapper, date: transaction.date, value: transaction.amount };
+      });
+    return respond(req, res, 200, { data, from, to, missingValuationPositionIds: positions.filter((position) => !data.some((point) => point.positionId === position.id)).map((position) => position.id) });
+  }
+
+  const householdInvestmentContributionsMatch = url.match(/^\/households\/([^/]+)\/investments\/contributions$/);
+  if (householdInvestmentContributionsMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId] = householdInvestmentContributionsMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    if (authToken === HOUSEHOLD_DATA_FAILURE_TOKEN) return financialError(req, res, 503, 'INVESTMENTS_UNAVAILABLE', 'Investment contributions unavailable');
+    const params = new URLSearchParams(rawUrl.split('?')[1] ?? '');
+    const yearValue = params.get('year');
+    const year = yearValue === null || yearValue === '' ? null : Number.parseInt(yearValue, 10);
+    const annualLimit = params.get('annualLimit');
+    const annualLimitSource = params.get('annualLimitSource');
+    const annualLimitConfirmation = params.get('annualLimitConfirmation');
+    if (year !== null && (!Number.isInteger(year) || year < 2000 || year > 2100)) return financialError(req, res, 400, 'VALIDATION_ERROR', 'The year is invalid');
+    if ((annualLimit !== null || annualLimitSource !== null || annualLimitConfirmation !== null)
+      && (year === null || annualLimit === null || annualLimitSource === null || annualLimitSource.trim() === '' || annualLimitConfirmation !== 'USER_CONFIRMED')) {
+      return financialError(req, res, 400, 'VALIDATION_ERROR', 'IKZE limit evidence is incomplete');
+    }
+    const positions = visibleInvestmentPositions(access.entry, access.member.userId, true);
+    const data = access.entry.investmentTransactions
+      .filter((transaction) => transaction.type === 'CONTRIBUTION' && !transaction.voidedAt)
+      .filter((transaction) => positions.some((position) => position.id === transaction.positionId))
+      .filter((transaction) => year === null || transaction.date.startsWith(`${year}-`))
+      .sort((first, second) => first.date.localeCompare(second.date) || first.createdAt.localeCompare(second.createdAt))
+      .map((transaction) => {
+        const position = access.entry.investments.find((item) => item.id === transaction.positionId);
+        return { transaction: serializeInvestmentTransaction(transaction), positionId: position.id, instrument: position.instrument, wrapper: position.wrapper };
+      });
+    const totalContribution = data.reduce((sum, item) => sum + Number.parseFloat(item.transaction.amount), 0);
+    const ikzeContribution = data.filter((item) => item.wrapper === 'IKZE').reduce((sum, item) => sum + Number.parseFloat(item.transaction.amount), 0);
+    const parsedLimit = annualLimit === null ? null : Number.parseFloat(annualLimit);
+    return respond(req, res, 200, {
+      data,
+      totalContribution: totalContribution.toFixed(2),
+      ikzeContribution: ikzeContribution.toFixed(2),
+      year,
+      annualLimit: parsedLimit === null ? null : parsedLimit.toFixed(2),
+      annualLimitSource,
+      annualLimitConfirmation: annualLimitConfirmation === 'USER_CONFIRMED' ? annualLimitConfirmation : null,
+      ikzeHeadroom: parsedLimit === null ? null : Math.max(0, parsedLimit - ikzeContribution).toFixed(2),
+    });
+  }
+
+  const householdInvestmentPositionMatch = url.match(/^\/households\/([^/]+)\/investments\/([^/]+)$/);
+  if (householdInvestmentPositionMatch && method === 'PATCH') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, positionId] = householdInvestmentPositionMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const position = findVisibleInvestmentPosition(access.entry, positionId, access.member.userId);
+    if (!position) return financialError(req, res, 404, 'INVESTMENT_NOT_FOUND', 'Investment position was not found');
+    if (position.ownerUserId !== access.member.userId) return financialError(req, res, 409, 'INVESTMENT_OWNER_REQUIRED', 'Only the investment position owner can change it');
+    return readJsonBody(req)
+      .then((body) => {
+        if (position.archivedAt && (body.archive !== true || Object.keys(body).some((field) => field !== 'archive'))) return financialError(req, res, 409, 'INVESTMENT_INVALID_STATE', 'Archived investment positions are read-only');
+        if (body.archive === true) {
+          if (position.units !== '0' || position.currentValue !== '0.00') return financialError(req, res, 409, 'INVESTMENT_INVALID_STATE', 'The position must have zero units and zero current value');
+          position.archivedAt = new Date().toISOString();
+        }
+        if (typeof body.instrument === 'string' && body.instrument.trim()) position.instrument = body.instrument.trim();
+        if (['TAXABLE', 'IKE', 'IKZE'].includes(body.wrapper)) position.wrapper = body.wrapper;
+        if (['SHARED', 'PRIVATE'].includes(body.visibility)) position.visibility = body.visibility;
+        if (body.targetAllocationPercent === null) position.targetAllocationPercent = null;
+        if (typeof body.targetAllocationPercent === 'string') {
+          const target = parseInvestmentAmount(body.targetAllocationPercent, true);
+          if (target === null || target > 100) return financialError(req, res, 400, 'VALIDATION_ERROR', 'Target allocation must be between 0 and 100');
+          position.targetAllocationPercent = target.toFixed(2);
+        }
+        position.updatedAt = new Date().toISOString();
+        return respond(req, res, 200, serializeInvestmentPosition(position));
+      })
+      .catch(() => financialError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
+  }
+
+  const householdInvestmentTransactionsMatch = url.match(/^\/households\/([^/]+)\/investments\/([^/]+)\/transactions$/);
+  if (householdInvestmentTransactionsMatch && (method === 'GET' || method === 'POST')) {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, positionId] = householdInvestmentTransactionsMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const position = findVisibleInvestmentPosition(access.entry, positionId, access.member.userId);
+    if (!position) return financialError(req, res, 404, 'INVESTMENT_NOT_FOUND', 'Investment position was not found');
+    if (method === 'GET') {
+      return respond(req, res, 200, [...access.entry.investmentTransactions]
+        .filter((transaction) => transaction.positionId === positionId)
+        .sort((first, second) => second.date.localeCompare(first.date) || second.createdAt.localeCompare(first.createdAt))
+        .map(serializeInvestmentTransaction));
+    }
+    if (position.ownerUserId !== access.member.userId) return financialError(req, res, 409, 'INVESTMENT_OWNER_REQUIRED', 'Only the investment position owner can record transactions');
+
+    return readJsonBody(req)
+      .then((body) => {
+        const validTypes = ['BUY', 'SELL', 'VALUATION_UPDATE', 'CONTRIBUTION'];
+        const amount = parseInvestmentAmount(body.amount, body.type === 'VALUATION_UPDATE');
+        const units = body.units === undefined ? null : parseInvestmentAmount(body.units, false);
+        if (!validTypes.includes(body.type) || amount === null || !isValidCalendarDate(body.date) || typeof body.operationId !== 'string' || body.operationId.trim().length === 0) {
+          return financialError(req, res, 400, 'VALIDATION_ERROR', 'Check the entered transaction data');
+        }
+        if ((body.type === 'BUY' || body.type === 'SELL') && units === null) return financialError(req, res, 400, 'VALIDATION_ERROR', 'Units are required for this transaction');
+        if ((body.type === 'VALUATION_UPDATE' || body.type === 'CONTRIBUTION') && body.units !== undefined) return financialError(req, res, 400, 'VALIDATION_ERROR', 'This transaction does not accept units');
+        const normalizedBody = { ...body, positionId, amount: amount.toFixed(2), units: units === null ? null : formatInvestmentUnits(units), operationId: body.operationId.trim() };
+        const existing = findInvestmentTransactionByOperationId(access.entry, normalizedBody.operationId);
+        if (existing) {
+          if (!sameInvestmentTransactionPayload(existing, normalizedBody)) return financialError(req, res, 409, 'IDEMPOTENCY_CONFLICT', 'The operationId was already used with a different payload');
+          return respond(req, res, 200, { transaction: serializeInvestmentTransaction(existing), position: serializeInvestmentPosition(position), replayed: true });
+        }
+        if (position.archivedAt) return financialError(req, res, 409, 'INVESTMENT_INVALID_STATE', 'Archived investment positions are read-only');
+        if (body.type === 'SELL' && units > Number.parseFloat(position.units)) return financialError(req, res, 409, 'SELL_UNITS_INSUFFICIENT', 'The sell transaction exceeds available units');
+        const now = new Date().toISOString();
+        const transaction = {
+          id: `${positionId}-transaction-${crypto.randomUUID()}`,
+          householdId,
+          positionId,
+          type: body.type,
+          units: normalizedBody.units,
+          amount: normalizedBody.amount,
+          date: body.date,
+          operationId: normalizedBody.operationId,
+          voidedAt: null,
+          voidedByUserId: null,
+          createdAt: now,
+        };
+        access.entry.investmentTransactions.push(transaction);
+        recomputeInvestmentPosition(access.entry, position);
+        return respond(req, res, 201, { transaction: serializeInvestmentTransaction(transaction), position: serializeInvestmentPosition(position), replayed: false });
+      })
+      .catch(() => financialError(req, res, 400, 'VALIDATION_ERROR', 'Invalid JSON body'));
+  }
+
+  const householdInvestmentVoidMatch = url.match(/^\/households\/([^/]+)\/investments\/([^/]+)\/transactions\/([^/]+)\/void$/);
+  if (householdInvestmentVoidMatch && method === 'POST') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId, positionId, transactionId] = householdInvestmentVoidMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const position = findVisibleInvestmentPosition(access.entry, positionId, access.member.userId);
+    if (!position) return financialError(req, res, 404, 'INVESTMENT_NOT_FOUND', 'Investment position was not found');
+    if (position.ownerUserId !== access.member.userId) return financialError(req, res, 409, 'INVESTMENT_OWNER_REQUIRED', 'Only the investment position owner can void transactions');
+    const transaction = access.entry.investmentTransactions.find((item) => item.id === transactionId && item.positionId === positionId);
+    if (!transaction) return financialError(req, res, 404, 'INVESTMENT_TRANSACTION_NOT_FOUND', 'Investment transaction was not found');
+    if (transaction.voidedAt) return respond(req, res, 200, { transaction: serializeInvestmentTransaction(transaction), position: serializeInvestmentPosition(position), replayed: true });
+    transaction.voidedAt = new Date().toISOString();
+    transaction.voidedByUserId = access.member.userId;
+    recomputeInvestmentPosition(access.entry, position);
+    return respond(req, res, 200, { transaction: serializeInvestmentTransaction(transaction), position: serializeInvestmentPosition(position), replayed: false });
+  }
+
+  const householdReportSummaryMatch = url.match(/^\/households\/([^/]+)\/reports\/summary$/);
+  if (householdReportSummaryMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId] = householdReportSummaryMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    if (authToken === HOUSEHOLD_DATA_FAILURE_TOKEN) return financialError(req, res, 503, 'REPORTS_UNAVAILABLE', 'Reports unavailable');
+    const range = reportDateRange(req, res, rawUrl);
+    if (!range) return;
+    return respond(req, res, 200, buildHouseholdReport(access.entry, access.member.userId, range));
+  }
+
+  const householdTaxReportMatch = url.match(/^\/households\/([^/]+)\/reports\/tax-return$/);
+  if (householdTaxReportMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId] = householdTaxReportMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    if (authToken === HOUSEHOLD_DATA_FAILURE_TOKEN) return financialError(req, res, 503, 'REPORTS_UNAVAILABLE', 'Tax report unavailable');
+    const range = reportDateRange(req, res, rawUrl);
+    if (!range) return;
+    return respond(req, res, 200, buildTaxReport(access.entry, access.member.userId, range));
+  }
+
+  const householdReportExportMatch = url.match(/^\/households\/([^/]+)\/reports\/export$/);
+  if (householdReportExportMatch && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    const [, householdId] = householdReportExportMatch;
+    const access = requireHouseholdMember(householdId, authToken);
+    if (access.status !== 200) return respond(req, res, access.status, access.body);
+    const range = reportDateRange(req, res, rawUrl);
+    if (!range) return;
+    const format = new URLSearchParams(rawUrl.split('?')[1] ?? '').get('format');
+    if (format !== 'csv' && format !== 'pdf') return financialError(req, res, 400, 'VALIDATION_ERROR', 'The export format is invalid');
+    const report = buildHouseholdReport(access.entry, access.member.userId, range);
+    if (format === 'csv') {
+      const csv = `\uFEFFSection,Name,Value\r\nCash flow,Income,${report.cashFlow.income}\r\nCash flow,Spending,${report.cashFlow.spending}\r\nNet worth,Total,${report.netWorth.total}\r\n`;
+      return respondRaw(req, res, 200, csv, 'text/csv; charset=utf-8', { 'Cache-Control': 'private, no-store', 'Content-Disposition': `attachment; filename="household-report-${range.from}-${range.to}.csv"` });
+    }
+    return respondRaw(req, res, 200, Buffer.from('%PDF-1.7\n% household report'), 'application/pdf', { 'Cache-Control': 'private, no-store', 'Content-Disposition': `attachment; filename="household-report-${range.from}-${range.to}.pdf"` });
   }
 
   const householdGoalsOverviewMatch = url.match(/^\/households\/([^/]+)\/goals\/overview$/);

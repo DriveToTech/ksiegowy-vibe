@@ -12,6 +12,8 @@ type IconName =
   | 'householdBudget'
   | 'householdCommitments'
   | 'householdGoals'
+  | 'householdInvesting'
+  | 'householdReports'
   | 'householdMore'
   | 'add';
 
@@ -108,6 +110,21 @@ export function AppIcon({ name, ...props }: AppIconProps) {
           <circle cx="12" cy="12" r="3" />
           <path d="m16.8 7.2 2-2" />
           <path d="M19 5h-2" />
+        </svg>
+      );
+    case 'householdInvesting':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M4.5 18.5h15" />
+          <path d="m5.5 15 4-4 3 2.5 5-6" />
+          <path d="M14.5 7.5h3v3" />
+        </svg>
+      );
+    case 'householdReports':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M6 4.5h8l4 4v11H6Z" />
+          <path d="M14 4.5v4h4M9 13h6M9 16.5h4" />
         </svg>
       );
     case 'householdMore':

@@ -744,6 +744,198 @@ export interface HouseholdDashboard {
   monthlyInOut: Array<{ month: string; income: string; expense: string }>;
 }
 
+export type HouseholdInvestmentWrapper = 'TAXABLE' | 'IKE' | 'IKZE';
+export type HouseholdInvestmentVisibility = 'SHARED' | 'PRIVATE';
+export type HouseholdInvestmentTransactionType = 'BUY' | 'SELL' | 'VALUATION_UPDATE' | 'CONTRIBUTION';
+
+export interface HouseholdInvestmentPosition {
+  id: string;
+  householdId: string;
+  ownerUserId: string;
+  wrapper: HouseholdInvestmentWrapper;
+  visibility: HouseholdInvestmentVisibility;
+  instrument: string;
+  units: string;
+  costBasis: string;
+  currentValue: string | null;
+  targetAllocationPercent: string | null;
+  lastValuedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdInvestmentPortfolioPosition {
+  position: HouseholdInvestmentPosition;
+  currentAllocationPercent: string | null;
+  driftPercent: string | null;
+}
+
+export interface HouseholdInvestmentPortfolio {
+  positions: HouseholdInvestmentPortfolioPosition[];
+  totalCurrentValue: string;
+  valuedCurrentValue: string;
+  missingValuationCount: number;
+  dataQuality: 'COMPLETE' | 'PARTIAL';
+  targetAllocation: {
+    status: 'COMPLETE' | 'INCOMPLETE' | 'NONE';
+    totalPercent: string;
+  };
+}
+
+export interface HouseholdInvestmentTransaction {
+  id: string;
+  householdId: string;
+  positionId: string;
+  type: HouseholdInvestmentTransactionType;
+  units: string | null;
+  amount: string;
+  date: string;
+  operationId: string;
+  voidedAt: string | null;
+  voidedByUserId: string | null;
+  createdAt: string;
+}
+
+export interface HouseholdInvestmentTransactionResult {
+  transaction: HouseholdInvestmentTransaction;
+  position: HouseholdInvestmentPosition;
+  replayed: boolean;
+}
+
+export interface HouseholdInvestmentValueHistoryPoint {
+  transactionId: string;
+  positionId: string;
+  instrument: string;
+  wrapper: HouseholdInvestmentWrapper;
+  date: string;
+  value: string;
+}
+
+export interface HouseholdInvestmentValueHistory {
+  data: HouseholdInvestmentValueHistoryPoint[];
+  from: string | null;
+  to: string | null;
+  missingValuationPositionIds: string[];
+}
+
+export interface HouseholdInvestmentContributionRecord {
+  transaction: HouseholdInvestmentTransaction;
+  positionId: string;
+  instrument: string;
+  wrapper: HouseholdInvestmentWrapper;
+}
+
+export interface HouseholdInvestmentContributions {
+  data: HouseholdInvestmentContributionRecord[];
+  totalContribution: string;
+  ikzeContribution: string;
+  year: number | null;
+  annualLimit: string | null;
+  annualLimitSource: string | null;
+  annualLimitConfirmation: 'USER_CONFIRMED' | null;
+  ikzeHeadroom: string | null;
+}
+
+export interface CreateHouseholdInvestmentPositionBody {
+  wrapper: HouseholdInvestmentWrapper;
+  instrument: string;
+  visibility?: HouseholdInvestmentVisibility;
+  targetAllocationPercent?: string | null;
+}
+
+export interface UpdateHouseholdInvestmentPositionBody {
+  wrapper?: HouseholdInvestmentWrapper;
+  instrument?: string;
+  visibility?: HouseholdInvestmentVisibility;
+  targetAllocationPercent?: string | null;
+  archive?: boolean;
+}
+
+export interface CreateHouseholdInvestmentTransactionBody {
+  type: HouseholdInvestmentTransactionType;
+  units?: string;
+  amount: string;
+  date: string;
+  operationId: string;
+}
+
+export type HouseholdReportExportFormat = 'csv' | 'pdf';
+
+export interface HouseholdReportSummary {
+  from: string;
+  to: string;
+  cashFlow: {
+    income: string;
+    spending: string;
+    surplus: string;
+    categories: Array<{
+      categoryId: string | null;
+      categoryName: string;
+      income: string;
+      spending: string;
+    }>;
+  };
+  categoryComparison: {
+    basis: 'EQUIVALENT_PRIOR_YEAR';
+    from: string;
+    to: string;
+    categories: Array<{
+      categoryName: string;
+      currentIncome: string;
+      priorIncome: string;
+      incomeDelta: string;
+      currentSpending: string;
+      priorSpending: string;
+      spendingDelta: string;
+    }>;
+  };
+  netWorth: {
+    total: string;
+    accounts: Array<{
+      accountId: string;
+      name: string;
+      value: string;
+      openingBalanceBoundary: string;
+      completeness: 'COMPLETE' | 'PARTIAL';
+    }>;
+    investments: Array<{
+      positionId: string;
+      instrument: string;
+      wrapper: string;
+      value: string | null;
+      valuationDate: string | null;
+      completeness: 'COMPLETE' | 'PARTIAL';
+    }>;
+    components: { accounts: string; investments: string };
+  };
+  dataQuality: {
+    status: 'COMPLETE' | 'PARTIAL';
+    visibleOnly: boolean;
+    missingInvestmentValuationCount: number;
+    accountOpeningBalanceBoundary: string | null;
+    notes: string[];
+  };
+}
+
+export interface HouseholdTaxReturnEvidence {
+  kind: 'IKZE_CONTRIBUTION';
+  positionId: string;
+  instrument: string;
+  date: string;
+  amount: string;
+}
+
+export interface HouseholdTaxReturnReport {
+  from: string;
+  to: string;
+  ikzeContributions: HouseholdTaxReturnEvidence[];
+  totalIkzeContributions: string;
+  calculations: { annualLimit: null; ikzeHeadroom: null; taxLiability: null };
+  informationalOnly: true;
+  notice: string;
+}
+
 export interface HouseholdMember {
   userId: string;
   role: HouseholdRole;

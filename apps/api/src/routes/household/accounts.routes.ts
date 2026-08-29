@@ -52,7 +52,7 @@ const createAccountBodySchema = {
   additionalProperties: false,
   required: ['name', 'type'],
   properties: {
-    name: { type: 'string', minLength: 1 },
+    name: { type: 'string', minLength: 1, maxLength: 160 },
     type: { type: 'string', enum: ACCOUNT_TYPES },
     accountNumberMask: { type: 'string' },
     visibility: { type: 'string', enum: ACCOUNT_VISIBILITIES },
@@ -66,7 +66,7 @@ const updateAccountBodySchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    name: { type: 'string', minLength: 1 },
+    name: { type: 'string', minLength: 1, maxLength: 160 },
     accountNumberMask: { type: ['string', 'null'] },
     creditLimit: { type: ['string', 'null'] },
     statementDay: { type: ['number', 'null'], minimum: 1, maximum: 31 }
@@ -119,6 +119,14 @@ export const serializeAccount = (account: HouseholdAccountWithBalance) => ({
   updatedAt: account.updatedAt.toISOString()
 });
 
+const runAccountOperation = async <Result>(fastify: Parameters<FastifyPluginAsync>[0], operation: () => Promise<Result>): Promise<Result> => operation().catch((error: unknown) => {
+  if (!(error instanceof HouseholdAccountServiceError)) throw error;
+  const statusCode = error.code === 'ACCOUNT_NOT_FOUND' ? 404 : 400;
+  const httpError = fastify.httpErrors.createError(statusCode, error.message);
+  httpError.code = error.code;
+  throw httpError;
+});
+
 // ── Plugin ───────────────────────────────────────────────────────────────────
 
 /**
@@ -152,11 +160,11 @@ export const accountsRoutes: FastifyPluginAsync = async (fastify): Promise<void>
     const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    const account = await createAccount(fastify.householdDatabase, {
+    const account = await runAccountOperation(fastify, () => createAccount(fastify.householdDatabase, {
       householdId: request.params.householdId,
       userId: user.sub,
       ...request.body
-    });
+    }));
 
     const [withBalance] = await listVisibleAccounts(fastify.householdDatabase, request.params.householdId, user.sub).then(
       (accounts) => accounts.filter((candidate) => candidate.id === account.id)
@@ -194,12 +202,7 @@ export const accountsRoutes: FastifyPluginAsync = async (fastify): Promise<void>
     const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    await updateAccount(fastify.householdDatabase, request.params.householdId, request.params.accountId, user.sub, request.body).catch((error: unknown) => {
-      if (!(error instanceof HouseholdAccountServiceError)) throw error;
-      const httpError = fastify.httpErrors.notFound(error.message);
-      httpError.code = error.code;
-      throw httpError;
-    });
+    await runAccountOperation(fastify, () => updateAccount(fastify.householdDatabase, request.params.householdId, request.params.accountId, user.sub, request.body));
 
     const account = await getVisibleAccount(fastify.householdDatabase, request.params.householdId, user.sub, request.params.accountId);
     if (!account) {

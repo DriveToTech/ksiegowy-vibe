@@ -16,7 +16,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
 | [Household Mode (Personal Budgeting)](docs/household-mode.md) | Backend reference for household tenancy, ledger, envelopes, commitments, savings goals, automation, projections, and cron flows |
-| [Household Frontend Notes](docs/specs/household-frontend.md) | Phase 1 and Phase 2 frontend routes, interactions, accessibility, API behavior, and E2E coverage |
+| [Household Frontend Notes](docs/specs/household-frontend.md) | Phase 1–3 frontend routes, interactions, accessibility, API behavior, and test coverage |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
@@ -34,7 +34,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 - **VAT Reporting** — VAT register with CSV export
 - **Backup** — Platform-managed PostgreSQL + iCloud backup, plus company-admin Google Drive backup policy (manual, invoice-issued trigger, daily/weekly schedule via host cron one-shot job)
 - **Authentication** — Google OAuth2 with JWT (httpOnly cookies)
-- **Personal Mode (Household Budgeting)** — Multi-user household ledger with signed transactions, atomic account transfers, shared/private visibility, computed budget envelopes, commitments, and Phase 2 savings goals with lifecycle management, movement history, competing-goal allocation, fixed/percentage/round-up automations, and bounded projections. Backed by `@ksiegowy/household-service` and its own database. See the [household backend reference](docs/household-mode.md), [data model](docs/data-model.md#household-data-model-personal-mode), and [frontend notes](docs/specs/household-frontend.md).
+- **Personal Mode (Household Budgeting)** — Multi-user household ledger with signed transactions, atomic account transfers, shared/private visibility, computed budget envelopes, commitments, savings goals, manual investment positions with owner-scoped immutable journals, visible portfolio allocation/drift, and canonical household reports with bounded direct CSV/PDF export. Backed by `@ksiegowy/household-service` and its own database. See the [household backend reference](docs/household-mode.md), [data model](docs/data-model.md#household-data-model-personal-mode), and [frontend notes](docs/specs/household-frontend.md).
 
 ## Tech Stack
 
@@ -223,6 +223,7 @@ If you run the API locally, set `POSTGRESQL_BACKUP_ARTIFACTS_PATH` to an absolut
 
 ```bash
 pnpm db:migrate
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 pnpm db:seed
 ```
 

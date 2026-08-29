@@ -59,12 +59,20 @@ describe('matchCategoryForPayee()', () => {
 describe('createRule()', () => {
   it('creates a categorization rule with the given match type and pattern', async () => {
     const create = vi.fn(async () => ({ id: 'rule-1' }));
-    const prisma = { categorizationRule: { create } } as unknown as PrismaClient;
+    const prisma = { householdCategory: { findFirst: vi.fn(async () => ({ id: 'category-entertainment' })) }, categorizationRule: { create } } as unknown as PrismaClient;
 
     await createRule(prisma, { householdId: 'household-1', matchType: 'EXACT', payeePattern: 'Netflix', categoryId: 'category-entertainment' });
 
     expect(create).toHaveBeenCalledWith({
       data: { householdId: 'household-1', matchType: 'EXACT', payeePattern: 'Netflix', categoryId: 'category-entertainment' }
     });
+  });
+
+  it('rejects a category from another household', async () => {
+    const create = vi.fn();
+    const prisma = { householdCategory: { findFirst: vi.fn(async () => null) }, categorizationRule: { create } } as unknown as PrismaClient;
+
+    await expect(createRule(prisma, { householdId: 'household-1', matchType: 'EXACT', payeePattern: 'Netflix', categoryId: 'category-other-household' })).rejects.toThrow('Category category-other-household not found in household household-1');
+    expect(create).not.toHaveBeenCalled();
   });
 });

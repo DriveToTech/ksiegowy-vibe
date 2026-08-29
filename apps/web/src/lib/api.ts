@@ -3,6 +3,7 @@ import { API_BASE } from './api-base';
 import { getActiveKsefEnvironment } from './auth';
 import { ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME, KSEF_ENVIRONMENT_HEADER_NAME } from './ksef-environment';
 import { householdGoalErrorMessage } from './household-goal-errors';
+import { householdInvestmentErrorMessage, householdReportErrorMessage } from './household-financial-errors';
 import type {
   AuthUser,
   BackupRunStatus,
@@ -23,6 +24,12 @@ import type {
   HouseholdGoalDetail,
   HouseholdGoalMovement,
   HouseholdGoalsOverview,
+  HouseholdInvestmentContributions,
+  HouseholdInvestmentPortfolio,
+  HouseholdInvestmentTransaction,
+  HouseholdInvestmentValueHistory,
+  HouseholdReportSummary,
+  HouseholdTaxReturnReport,
   HouseholdTransaction,
   IncomingInvoiceDetail,
   IncomingInvoiceSummary,
@@ -97,17 +104,23 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    if (path.includes('/goals')) {
-      let code: string | undefined;
-      try {
-        const parsed: unknown = JSON.parse(body);
-        if (typeof parsed === 'object' && parsed !== null && 'code' in parsed && typeof parsed.code === 'string') {
-          code = parsed.code;
-        }
-      } catch {
-        // Goal errors are intentionally mapped to a safe message below.
+    let code: string | undefined;
+    try {
+      const parsed: unknown = JSON.parse(body);
+      if (typeof parsed === 'object' && parsed !== null && 'code' in parsed && typeof parsed.code === 'string') {
+        code = parsed.code;
       }
+    } catch {
+      // Safe household error messages below intentionally hide non-JSON bodies.
+    }
+    if (path.includes('/goals')) {
       throw new Error(householdGoalErrorMessage(response.status, code));
+    }
+    if (path.startsWith('/households/') && path.includes('/investments')) {
+      throw new Error(householdInvestmentErrorMessage(response.status, code));
+    }
+    if (path.startsWith('/households/') && path.includes('/reports')) {
+      throw new Error(householdReportErrorMessage(response.status, code));
     }
     throw new Error(`API ${options?.method ?? 'GET'} ${path} failed ${response.status}: ${body}`);
   }
@@ -339,4 +352,47 @@ export async function getHouseholdCommitmentAmortizationSchedule(
 
 export async function getHouseholdMembers(householdId: string): Promise<HouseholdMember[]> {
   return apiFetch<HouseholdMember[]>(`/households/${householdId}/members`);
+}
+
+export async function getHouseholdInvestmentPortfolio(householdId: string): Promise<HouseholdInvestmentPortfolio> {
+  return apiFetch<HouseholdInvestmentPortfolio>(`/households/${householdId}/investments`);
+}
+
+export async function getHouseholdInvestmentValueHistory(
+  householdId: string,
+  params?: { from?: string; to?: string },
+): Promise<HouseholdInvestmentValueHistory> {
+  const query = params && (params.from || params.to)
+    ? `?${new URLSearchParams({ ...(params.from ? { from: params.from } : {}), ...(params.to ? { to: params.to } : {}) }).toString()}`
+    : '';
+  return apiFetch<HouseholdInvestmentValueHistory>(`/households/${householdId}/investments/value-history${query}`);
+}
+
+export async function getHouseholdInvestmentContributions(
+  householdId: string,
+  params?: { year?: number; annualLimit?: string; annualLimitSource?: string; annualLimitConfirmation?: 'USER_CONFIRMED' },
+): Promise<HouseholdInvestmentContributions> {
+  const query = params
+    ? `?${new URLSearchParams({
+      ...(params.year !== undefined ? { year: String(params.year) } : {}),
+      ...(params.annualLimit ? { annualLimit: params.annualLimit } : {}),
+      ...(params.annualLimitSource ? { annualLimitSource: params.annualLimitSource } : {}),
+      ...(params.annualLimitConfirmation ? { annualLimitConfirmation: params.annualLimitConfirmation } : {}),
+    }).toString()}`
+    : '';
+  return apiFetch<HouseholdInvestmentContributions>(`/households/${householdId}/investments/contributions${query}`);
+}
+
+export async function getHouseholdInvestmentTransactions(householdId: string, positionId: string): Promise<HouseholdInvestmentTransaction[]> {
+  return apiFetch<HouseholdInvestmentTransaction[]>(`/households/${householdId}/investments/${positionId}/transactions`);
+}
+
+export async function getHouseholdReportSummary(householdId: string, from: string, to: string): Promise<HouseholdReportSummary> {
+  const query = new URLSearchParams({ from, to }).toString();
+  return apiFetch<HouseholdReportSummary>(`/households/${householdId}/reports/summary?${query}`);
+}
+
+export async function getHouseholdTaxReturnReport(householdId: string, from: string, to: string): Promise<HouseholdTaxReturnReport> {
+  const query = new URLSearchParams({ from, to }).toString();
+  return apiFetch<HouseholdTaxReturnReport>(`/households/${householdId}/reports/tax-return?${query}`);
 }

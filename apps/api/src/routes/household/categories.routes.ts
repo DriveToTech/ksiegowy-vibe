@@ -6,7 +6,8 @@ import {
   updateCategory,
   createRule,
   deleteRule,
-  listRules
+  listRules,
+  HouseholdCategoryServiceError
 } from '@ksiegowy/household-service';
 import { requireHouseholdMembership } from './household-membership-guard.js';
 
@@ -20,10 +21,11 @@ const categorySchema = {
     householdId: { type: 'string' },
     name: { type: 'string' },
     parentCategoryId: { type: ['string', 'null'] },
+    cashFlowTreatment: { type: 'string', enum: ['STANDARD', 'TRANSFER'] },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' }
   },
-  required: ['id', 'householdId', 'name', 'parentCategoryId', 'createdAt', 'updatedAt']
+  required: ['id', 'householdId', 'name', 'parentCategoryId', 'cashFlowTreatment', 'createdAt', 'updatedAt']
 } as const;
 
 const ruleSchema = {
@@ -70,8 +72,9 @@ const createCategoryBodySchema = {
   additionalProperties: false,
   required: ['name'],
   properties: {
-    name: { type: 'string', minLength: 1 },
-    parentCategoryId: { type: 'string' }
+    name: { type: 'string', minLength: 1, maxLength: 160 },
+    parentCategoryId: { type: 'string' },
+    cashFlowTreatment: { type: 'string', enum: ['STANDARD', 'TRANSFER'] }
   }
 } as const;
 
@@ -79,8 +82,9 @@ const updateCategoryBodySchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    name: { type: 'string', minLength: 1 },
-    parentCategoryId: { type: ['string', 'null'] }
+    name: { type: 'string', minLength: 1, maxLength: 160 },
+    parentCategoryId: { type: ['string', 'null'] },
+    cashFlowTreatment: { type: 'string', enum: ['STANDARD', 'TRANSFER'] }
   }
 } as const;
 
@@ -100,17 +104,18 @@ const createRuleBodySchema = {
 interface HouseholdParams { householdId: string }
 interface CategoryParams { householdId: string; categoryId: string }
 interface RuleParams { householdId: string; ruleId: string }
-interface CreateCategoryBody { name: string; parentCategoryId?: string }
-interface UpdateCategoryBody { name?: string; parentCategoryId?: string | null }
+interface CreateCategoryBody { name: string; parentCategoryId?: string; cashFlowTreatment?: 'STANDARD' | 'TRANSFER' }
+interface UpdateCategoryBody { name?: string; parentCategoryId?: string | null; cashFlowTreatment?: 'STANDARD' | 'TRANSFER' }
 interface CreateRuleBody { matchType: 'EXACT' | 'SUBSTRING'; payeePattern: string; categoryId: string }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const serializeCategory = (category: { id: string; householdId: string; name: string; parentCategoryId: string | null; createdAt: Date; updatedAt: Date }) => ({
+const serializeCategory = (category: { id: string; householdId: string; name: string; parentCategoryId: string | null; cashFlowTreatment: string; createdAt: Date; updatedAt: Date }) => ({
   id: category.id,
   householdId: category.householdId,
   name: category.name,
   parentCategoryId: category.parentCategoryId,
+  cashFlowTreatment: category.cashFlowTreatment,
   createdAt: category.createdAt.toISOString(),
   updatedAt: category.updatedAt.toISOString()
 });
@@ -123,6 +128,14 @@ const serializeRule = (rule: { id: string; householdId: string; matchType: strin
   categoryId: rule.categoryId,
   createdAt: rule.createdAt.toISOString(),
   updatedAt: rule.updatedAt.toISOString()
+});
+
+const runCategoryOperation = async <Result>(fastify: Parameters<FastifyPluginAsync>[0], operation: () => Promise<Result>): Promise<Result> => operation().catch((error: unknown) => {
+  if (!(error instanceof HouseholdCategoryServiceError)) throw error;
+  const statusCode = error.code === 'CATEGORY_NOT_FOUND' || error.code === 'PARENT_CATEGORY_NOT_FOUND' ? 404 : error.code === 'VALIDATION_ERROR' ? 400 : 409;
+  const httpError = fastify.httpErrors.createError(statusCode, error.message);
+  httpError.code = error.code;
+  throw httpError;
 });
 
 // ── Plugin ───────────────────────────────────────────────────────────────────
@@ -142,7 +155,7 @@ export const categoriesRoutes: FastifyPluginAsync = async (fastify): Promise<voi
     schema: { params: householdParamsSchema, body: createCategoryBodySchema, response: { 201: categorySchema } }
   }, async (request, reply) => {
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    const category = await createCategory(fastify.householdDatabase, { householdId: request.params.householdId, ...request.body });
+    const category = await runCategoryOperation(fastify, () => createCategory(fastify.householdDatabase, { householdId: request.params.householdId, ...request.body }));
     return reply.code(201).send(serializeCategory(category));
   });
 
@@ -151,7 +164,7 @@ export const categoriesRoutes: FastifyPluginAsync = async (fastify): Promise<voi
     schema: { params: categoryParamsSchema, body: updateCategoryBodySchema, response: { 200: categorySchema } }
   }, async (request) => {
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    const category = await updateCategory(fastify.householdDatabase, request.params.householdId, request.params.categoryId, request.body);
+    const category = await runCategoryOperation(fastify, () => updateCategory(fastify.householdDatabase, request.params.householdId, request.params.categoryId, request.body));
     return serializeCategory(category);
   });
 
@@ -160,7 +173,7 @@ export const categoriesRoutes: FastifyPluginAsync = async (fastify): Promise<voi
     schema: { params: categoryParamsSchema, response: { 204: { type: 'null' } } }
   }, async (request, reply) => {
     await requireHouseholdMembership(fastify, request, request.params.householdId);
-    await deleteCategory(fastify.householdDatabase, request.params.householdId, request.params.categoryId);
+    await runCategoryOperation(fastify, () => deleteCategory(fastify.householdDatabase, request.params.householdId, request.params.categoryId));
     return reply.code(204).send();
   });
 
