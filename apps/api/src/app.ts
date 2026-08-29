@@ -33,6 +33,8 @@ import { transactionsRoutes } from './routes/household/transactions.routes.js';
 import { envelopesRoutes } from './routes/household/envelopes.routes.js';
 import { commitmentsRoutes } from './routes/household/commitments.routes.js';
 import { dashboardRoutes } from './routes/household/dashboard.routes.js';
+import { goalsRoutes } from './routes/household/goals.routes.js';
+import { mutationOriginGuardPlugin } from './plugins/mutation-origin-guard.js';
 
 export interface BuildAppOptions {
   logger?: boolean;
@@ -57,6 +59,7 @@ export const buildApp = async (options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(prismaPlugin, prismaPluginOptions);
   await app.register(householdDatabasePlugin, householdDatabasePluginOptions);
   await app.register(authPlugin, { config: authConfig });
+  await app.register(mutationOriginGuardPlugin);
   await app.register(authRoutes);
   await app.register(companiesRoutes);
   await app.register(householdsRoutes);
@@ -66,6 +69,7 @@ export const buildApp = async (options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(envelopesRoutes);
   await app.register(commitmentsRoutes);
   await app.register(dashboardRoutes);
+  await app.register(goalsRoutes);
   await app.register(companyBackupPolicyRoutes);
   await app.register(companyBackupStatusRoutes);
   await app.register(contractorsRoutes);

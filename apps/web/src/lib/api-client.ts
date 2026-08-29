@@ -1,4 +1,6 @@
 import { API_BASE } from './api-base';
+import { householdGoalErrorMessage } from './household-goal-errors';
+import { householdTransactionErrorMessage } from './household-transaction-errors';
 import {
   getActiveKsefEnvironmentFromBrowser,
   KSEF_ENVIRONMENT_HEADER_NAME,
@@ -18,6 +20,13 @@ import type {
   CreateDraftBody,
   CreateHouseholdTransactionBody,
   CreateHouseholdTransferBody,
+  CreateHouseholdGoalAutomationRuleBody,
+  CreateHouseholdGoalBody,
+  CreateHouseholdGoalMovementBody,
+  HouseholdGoal,
+  HouseholdGoalAutomationRule,
+  HouseholdGoalDetail,
+  HouseholdGoalMovementResult,
   HouseholdAccount,
   HouseholdAccountType,
   HouseholdAccountVisibility,
@@ -31,6 +40,8 @@ import type {
   ServiceTemplate,
   UpdateCommitmentBody,
   UpdateHouseholdTransactionBody,
+  UpdateHouseholdGoalAutomationRuleBody,
+  UpdateHouseholdGoalBody,
 } from './api-types';
 
 export class ApiClientError extends Error {
@@ -126,6 +137,14 @@ export async function clientFetch<T>(path: string, options?: RequestInit): Promi
       }
     } catch {
       // not JSON — use raw body
+    }
+
+    if (path.includes('/goals')) {
+      throw new ApiClientError(householdGoalErrorMessage(response.status, code), response.status, code);
+    }
+
+    if (path.includes('/households/') && path.includes('/transactions')) {
+      throw new ApiClientError(householdTransactionErrorMessage(response.status, code), response.status, code);
     }
 
     throw new ApiClientError(message || `Request failed with status ${response.status}`, response.status, code);
@@ -543,6 +562,62 @@ export async function updateCommitment(
     method: 'PATCH',
     body: JSON.stringify(body),
   });
+}
+
+export async function createHouseholdGoal(householdId: string, body: CreateHouseholdGoalBody): Promise<HouseholdGoal> {
+  return clientFetch<HouseholdGoal>(`/households/${householdId}/goals`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateHouseholdGoal(
+  householdId: string,
+  goalId: string,
+  body: UpdateHouseholdGoalBody,
+): Promise<HouseholdGoalDetail> {
+  return clientFetch<HouseholdGoalDetail>(`/households/${householdId}/goals/${goalId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createHouseholdGoalMovement(
+  householdId: string,
+  goalId: string,
+  body: CreateHouseholdGoalMovementBody,
+): Promise<HouseholdGoalMovementResult> {
+  return clientFetch<HouseholdGoalMovementResult>(`/households/${householdId}/goals/${goalId}/transfers`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createHouseholdGoalAutomationRule(
+  householdId: string,
+  goalId: string,
+  body: CreateHouseholdGoalAutomationRuleBody,
+): Promise<HouseholdGoalAutomationRule> {
+  return clientFetch<HouseholdGoalAutomationRule>(`/households/${householdId}/goals/${goalId}/automation-rules`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateHouseholdGoalAutomationRule(
+  householdId: string,
+  goalId: string,
+  ruleId: string,
+  body: UpdateHouseholdGoalAutomationRuleBody,
+): Promise<HouseholdGoalAutomationRule> {
+  return clientFetch<HouseholdGoalAutomationRule>(`/households/${householdId}/goals/${goalId}/automation-rules/${ruleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteHouseholdGoalAutomationRule(householdId: string, goalId: string, ruleId: string): Promise<void> {
+  await clientFetch<void>(`/households/${householdId}/goals/${goalId}/automation-rules/${ruleId}`, { method: 'DELETE' });
 }
 
 export async function updateContractor(

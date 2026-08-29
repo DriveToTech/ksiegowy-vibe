@@ -146,7 +146,7 @@ test.describe('household Phase 1 UX blockers', () => {
 
     const mobileNavigation = page.getByRole('navigation', { name: 'Mobilna nawigacja gospodarstwa domowego' });
     const navigationLinks = mobileNavigation.getByRole('link');
-    await expect(navigationLinks).toHaveCount(6);
+    await expect(navigationLinks).toHaveCount(5);
     await expect(navigationLinks.nth(2)).toHaveAccessibleName('Dodaj płatność');
     await expect(navigationLinks.nth(2)).toHaveAttribute('href', '/household/ledger/new');
     await expect(navigationLinks.nth(2)).toBeVisible();
@@ -155,7 +155,7 @@ test.describe('household Phase 1 UX blockers', () => {
       const rectangle = link.getBoundingClientRect();
       return { width: rectangle.width, height: rectangle.height };
     }));
-    expect(targetSizes).toHaveLength(6);
+    expect(targetSizes).toHaveLength(5);
     for (const targetSize of targetSizes) {
       expect(targetSize.width).toBeGreaterThanOrEqual(44);
       expect(targetSize.height).toBeGreaterThanOrEqual(44);

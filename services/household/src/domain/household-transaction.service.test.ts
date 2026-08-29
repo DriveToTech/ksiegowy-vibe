@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../generated/client/index.js';
+import { Prisma, type PrismaClient } from '../generated/client/index.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -17,7 +17,7 @@ describe('createTransaction()', () => {
   it('applies a matching categorization rule when no categoryId is given', async () => {
     const create = vi.fn(async (args: unknown) => args);
     const prisma = {
-      householdAccount: { findFirst: vi.fn(async () => ({ id: 'account-1' })) },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]), findFirst: vi.fn(async () => ({ id: 'account-1' })) },
       categorizationRule: {
         findMany: vi.fn(async () => [
           { id: 'rule-1', matchType: 'EXACT', payeePattern: 'Netflix', categoryId: 'category-entertainment', createdAt: new Date() }
@@ -28,6 +28,7 @@ describe('createTransaction()', () => {
 
     await createTransaction(prisma, {
       householdId: 'household-1',
+      userId: 'user-1',
       accountId: 'account-1',
       payee: 'Netflix',
       amount: '-49.99',
@@ -40,7 +41,7 @@ describe('createTransaction()', () => {
         accountId: 'account-1',
         categoryId: 'category-entertainment',
         payee: 'Netflix',
-        payerUserId: null,
+         payerUserId: 'user-1',
         bankDescription: null,
         amount: '-49.99',
         date: new Date('2026-08-01'),
@@ -56,13 +57,14 @@ describe('createTransaction()', () => {
   it('leaves the transaction uncategorized when no rule matches and no categoryId is given', async () => {
     const create = vi.fn(async (args: { data: { categoryId: string | null; categorizationSource: string } }) => args);
     const prisma = {
-      householdAccount: { findFirst: vi.fn(async () => ({ id: 'account-1' })) },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]), findFirst: vi.fn(async () => ({ id: 'account-1' })) },
       categorizationRule: { findMany: vi.fn(async () => []) },
       householdTransaction: { create }
     } as unknown as PrismaClient;
 
     await createTransaction(prisma, {
       householdId: 'household-1',
+      userId: 'user-1',
       accountId: 'account-1',
       payee: 'Unknown Shop',
       amount: '-10.00',
@@ -75,12 +77,12 @@ describe('createTransaction()', () => {
 
   it('throws when the account does not belong to the household', async () => {
     const prisma = {
-      householdAccount: { findFirst: vi.fn(async () => null) }
+      householdAccount: { findMany: vi.fn(async () => []) }
     } as unknown as PrismaClient;
 
     await expect(
-      createTransaction(prisma, { householdId: 'household-1', accountId: 'account-other', payee: 'Shop', amount: '-5.00', date: '2026-08-01' })
-    ).rejects.toThrow('Account account-other not found in household household-1');
+      createTransaction(prisma, { householdId: 'household-1', userId: 'user-1', accountId: 'account-other', payee: 'Shop', amount: '-5.00', date: '2026-08-01' })
+    ).rejects.toMatchObject({ code: 'ACCOUNT_NOT_FOUND' });
   });
 });
 
@@ -90,13 +92,14 @@ describe('createTransfer()', () => {
   it('creates two linked rows sharing a transferGroupId: negative on the source, positive on the destination', async () => {
     const householdTransactionCreate = vi.fn((args: { data: { accountId: string } }) => args.data);
     const prisma = {
-      householdAccount: { findFirst: vi.fn(async () => ({ id: 'account-x' })) },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-current' }, { id: 'account-savings' }]) },
       householdTransaction: { create: householdTransactionCreate },
       $transaction: vi.fn(async (operations: unknown[]) => operations)
     } as unknown as PrismaClient;
 
     const [source, destination] = await createTransfer(prisma, {
       householdId: 'household-1',
+      userId: 'user-1',
       fromAccountId: 'account-current',
       toAccountId: 'account-savings',
       amount: '200.00',
@@ -104,10 +107,10 @@ describe('createTransfer()', () => {
     });
 
     expect(source).toEqual(
-      expect.objectContaining({ accountId: 'account-current', amount: '-200', payee: 'Transfer' })
+      expect.objectContaining({ accountId: 'account-current', amount: new Prisma.Decimal('-200'), payee: 'Transfer' })
     );
     expect(destination).toEqual(
-      expect.objectContaining({ accountId: 'account-savings', amount: '200', payee: 'Transfer' })
+      expect.objectContaining({ accountId: 'account-savings', amount: new Prisma.Decimal('200'), payee: 'Transfer' })
     );
     expect(source.transferGroupId).toBe(destination.transferGroupId);
   });
@@ -118,6 +121,7 @@ describe('createTransfer()', () => {
     await expect(
       createTransfer(prisma, {
         householdId: 'household-1',
+        userId: 'user-1',
         fromAccountId: 'account-current',
         toAccountId: 'account-current',
         amount: '200.00',
@@ -174,7 +178,7 @@ describe('listTransactions()', () => {
 
   it('paginates using page and limit, and returns total/moneyIn/moneyOut across all matching transactions', async () => {
     const pageOfTransactions = [{ id: 'transaction-3', amount: '-25.00' }];
-    const allMatchingAmounts = [{ amount: '100.00' }, { amount: '-25.00' }, { amount: '-15.50' }];
+     const allMatchingAmounts = [{ amount: new Prisma.Decimal('100.00') }, { amount: new Prisma.Decimal('-25.00') }, { amount: new Prisma.Decimal('-15.50') }];
     const findMany = vi.fn(async (args: { select?: unknown }) => (args.select ? allMatchingAmounts : pageOfTransactions));
     const prisma = {
       householdAccount: { findMany: vi.fn(async () => [{ id: 'account-shared' }]) },
@@ -201,10 +205,10 @@ describe('listTransactions()', () => {
 
   it('excludes transfer legs from moneyIn/moneyOut even when the rows themselves are not filtered out', async () => {
     const allMatchingAmounts = [
-      { amount: '300.00' },
-      { amount: '-300.00', transferGroupId: 'transfer-group-1' },
-      { amount: '300.00', transferGroupId: 'transfer-group-1' },
-      { amount: '-120.50' }
+       { amount: new Prisma.Decimal('300.00'), transferGroupId: null },
+       { amount: new Prisma.Decimal('-300.00'), transferGroupId: 'transfer-group-1' },
+       { amount: new Prisma.Decimal('300.00'), transferGroupId: 'transfer-group-1' },
+       { amount: new Prisma.Decimal('-120.50'), transferGroupId: null }
     ];
     const findMany = vi.fn(async (args: { select?: unknown }) => (args.select ? allMatchingAmounts : []));
     const prisma = {
@@ -226,13 +230,14 @@ describe('recategorizeTransaction()', () => {
     const ruleCreate = vi.fn();
     const prisma = {
       householdTransaction: {
-        findFirst: vi.fn(async () => ({ id: 'transaction-1', payee: 'Netflix' })),
+        findFirst: vi.fn(async () => ({ id: 'transaction-1', accountId: 'account-1', payee: 'Netflix', goalMovementId: null })),
         update: vi.fn(async () => ({ id: 'transaction-1', categoryId: 'category-entertainment' }))
       },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) },
       categorizationRule: { create: ruleCreate }
     } as unknown as PrismaClient;
 
-    await recategorizeTransaction(prisma, 'household-1', 'transaction-1', { categoryId: 'category-entertainment' });
+     await recategorizeTransaction(prisma, 'household-1', 'transaction-1', 'user-1', { categoryId: 'category-entertainment' });
 
     expect(ruleCreate).not.toHaveBeenCalled();
   });
@@ -241,13 +246,14 @@ describe('recategorizeTransaction()', () => {
     const ruleCreate = vi.fn(async () => ({ id: 'rule-1' }));
     const prisma = {
       householdTransaction: {
-        findFirst: vi.fn(async () => ({ id: 'transaction-1', payee: 'Netflix' })),
+        findFirst: vi.fn(async () => ({ id: 'transaction-1', accountId: 'account-1', payee: 'Netflix', goalMovementId: null })),
         update: vi.fn(async () => ({ id: 'transaction-1', categoryId: 'category-entertainment' }))
       },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) },
       categorizationRule: { create: ruleCreate }
     } as unknown as PrismaClient;
 
-    await recategorizeTransaction(prisma, 'household-1', 'transaction-1', {
+     await recategorizeTransaction(prisma, 'household-1', 'transaction-1', 'user-1', {
       categoryId: 'category-entertainment',
       applyToFutureFromPayee: true
     });
@@ -266,13 +272,16 @@ describe('deleteTransaction()', () => {
     const deleteOne = vi.fn();
     const prisma = {
       householdTransaction: {
-        findFirst: vi.fn(async () => ({ id: 'transaction-1', transferGroupId: 'transfer-group-1' })),
+        findFirst: vi.fn(async () => ({ id: 'transaction-1', accountId: 'account-1', transferGroupId: 'transfer-group-1', goalMovementId: null })),
+        findMany: vi.fn(async () => [{ accountId: 'account-1', goalMovementId: null }, { accountId: 'account-2', goalMovementId: null }]),
         deleteMany,
         delete: deleteOne
-      }
+      },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }, { id: 'account-2' }]) },
+      goalMovement: { findFirst: vi.fn(async () => null) }
     } as unknown as PrismaClient;
 
-    await deleteTransaction(prisma, 'household-1', 'transaction-1');
+    await deleteTransaction(prisma, 'household-1', 'transaction-1', 'user-1');
 
     expect(deleteMany).toHaveBeenCalledWith({ where: { transferGroupId: 'transfer-group-1' } });
     expect(deleteOne).not.toHaveBeenCalled();
@@ -282,14 +291,28 @@ describe('deleteTransaction()', () => {
     const deleteOne = vi.fn(async () => ({ id: 'transaction-1' }));
     const prisma = {
       householdTransaction: {
-        findFirst: vi.fn(async () => ({ id: 'transaction-1', transferGroupId: null })),
+        findFirst: vi.fn(async () => ({ id: 'transaction-1', accountId: 'account-1', transferGroupId: null, goalMovementId: null })),
         delete: deleteOne
-      }
+      },
+      goalMovement: { findFirst: vi.fn(async () => null) },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) }
     } as unknown as PrismaClient;
 
-    await deleteTransaction(prisma, 'household-1', 'transaction-1');
+    await deleteTransaction(prisma, 'household-1', 'transaction-1', 'user-1');
 
     expect(deleteOne).toHaveBeenCalledWith({ where: { id: 'transaction-1' } });
+  });
+
+  it('returns the stable immutable conflict when a transaction is a round-up source', async () => {
+    const prisma = {
+      householdTransaction: {
+        findFirst: vi.fn(async () => ({ id: 'transaction-1', accountId: 'account-1', transferGroupId: null, goalMovementId: null }))
+      },
+      goalMovement: { findFirst: vi.fn(async () => ({ id: 'movement-1' })) },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) }
+    } as unknown as PrismaClient;
+
+    await expect(deleteTransaction(prisma, 'household-1', 'transaction-1', 'user-1')).rejects.toMatchObject({ code: 'TRANSACTION_IMMUTABLE' });
   });
 });
 

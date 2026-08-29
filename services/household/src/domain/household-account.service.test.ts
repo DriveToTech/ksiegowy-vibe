@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../generated/client/index.js';
+import { Prisma, type PrismaClient } from '../generated/client/index.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createAccount, getVisibleAccount, listVisibleAccounts, visibleAccountIds } from './household-account.service.js';
@@ -30,7 +30,7 @@ describe('createAccount()', () => {
     const create = vi.fn(async () => ({ id: 'account-1' }));
     const prisma = { householdAccount: { create } } as unknown as PrismaClient;
 
-    await createAccount(prisma, { householdId: 'household-1', name: 'Joint Checking', type: 'CURRENT' });
+    await createAccount(prisma, { householdId: 'household-1', userId: 'user-1', name: 'Joint Checking', type: 'CURRENT' });
 
     expect(create).toHaveBeenCalledWith({
       data: {
@@ -53,10 +53,10 @@ describe('createAccount()', () => {
 
     await createAccount(prisma, {
       householdId: 'household-1',
+      userId: 'user-anna',
       name: "Anna's Savings",
       type: 'SAVINGS',
-      visibility: 'PRIVATE',
-      ownerUserId: 'user-anna'
+      visibility: 'PRIVATE'
     });
 
     expect(create).toHaveBeenCalledWith(
@@ -64,12 +64,13 @@ describe('createAccount()', () => {
     );
   });
 
-  it('throws when a PRIVATE account is created without an owner', async () => {
-    const prisma = { householdAccount: { create: vi.fn() } } as unknown as PrismaClient;
+  it('assigns PRIVATE ownership from the authenticated user instead of request data', async () => {
+    const create = vi.fn(async () => ({ id: 'account-1' }));
+    const prisma = { householdAccount: { create } } as unknown as PrismaClient;
 
-    await expect(
-      createAccount(prisma, { householdId: 'household-1', name: 'Mystery Account', type: 'SAVINGS', visibility: 'PRIVATE' })
-    ).rejects.toThrow('ownerUserId is required for a PRIVATE account');
+    await createAccount(prisma, { householdId: 'household-1', userId: 'user-1', name: 'Private Account', type: 'SAVINGS', visibility: 'PRIVATE' });
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ ownerUserId: 'user-1' }) }));
   });
 });
 
@@ -82,17 +83,17 @@ describe('listVisibleAccounts()', () => {
         findMany: vi
           .fn()
           .mockResolvedValueOnce([{ id: 'account-1' }]) // visibleAccountIds()
-          .mockResolvedValueOnce([{ id: 'account-1', openingBalance: '100.00', createdAt: new Date('2026-01-01') }])
+          .mockResolvedValueOnce([{ id: 'account-1', openingBalance: new Prisma.Decimal('100.00'), createdAt: new Date('2026-01-01') }])
       },
       householdTransaction: {
-        groupBy: vi.fn(async () => [{ accountId: 'account-1', _sum: { amount: { toString: () => '-25.50' } } }])
+        groupBy: vi.fn(async () => [{ accountId: 'account-1', _sum: { amount: new Prisma.Decimal('-25.50') } }])
       }
     } as unknown as PrismaClient;
 
     const result = await listVisibleAccounts(prisma, 'household-1', 'user-1');
 
     expect(result).toEqual([
-      { id: 'account-1', openingBalance: '100.00', createdAt: new Date('2026-01-01'), balance: '74.50' }
+      { id: 'account-1', openingBalance: new Prisma.Decimal('100.00'), createdAt: new Date('2026-01-01'), balance: '74.50' }
     ]);
   });
 

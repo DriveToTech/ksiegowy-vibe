@@ -1,4 +1,4 @@
-# Household frontend — Phase 1 implementation notes
+# Household frontend — Phase 1 and Phase 2 implementation notes
 
 This note records the shipped frontend behavior for personal mode. It does not
 change the household architecture or backend contract.
@@ -43,8 +43,8 @@ flowchart LR
 - Mobile household navigation keeps the desktop navigation unchanged, gives
   every item a practical 44px touch target at 320px, and adds a central,
   labelled `Dodaj płatność` link to `/household/ledger/new`.
-- The central payment action is implemented; the full Goals/More mobile
-  navigation redesign remains deferred.
+- The central payment action and the five-position Goals/More mobile navigation
+  are implemented.
 - AccountPicker uses a focused listbox with stable option IDs,
   `aria-activedescendant`, Arrow/Home/End navigation, Enter/Space selection,
   and focus restoration after Escape, selection, or an outside close when the
@@ -54,6 +54,58 @@ flowchart LR
 - Transaction forms associate amount and note labels with their controls;
   transaction direction and commitment type segmented controls expose their
   selected state with `aria-pressed`.
+
+## Phase 2 — Goals
+
+The Goals route tree is real routed UI, not modal state:
+
+- `/household/goals` — overview, available surplus, competing-goal allocation,
+  and fixed-rule projection disclosure.
+- `/household/goals/new` — conditional one-off/ongoing/no-ceiling goal form.
+- `/household/goals/:goalId` — progress, account balance, lifecycle actions,
+  movement history, totals, and projection details.
+- `/household/goals/:goalId/edit` — goal editing subject to backend lifecycle
+  and post-movement immutability rules.
+- `/household/goals/:goalId/add` and `/withdraw` — confirmed add/withdraw
+  transfers with refreshed balances and movement history.
+- `/household/goals/:goalId/rules` — fixed-day, percentage-over-threshold, and
+  round-up automation rule management.
+- `/household/more` — the household secondary navigation destination.
+
+`api-client.ts`, `api.ts`, and `api-types.ts` expose the goal overview, CRUD,
+movement, and automation-rule contracts. Goal errors are mapped to stable,
+non-sensitive user messages. Projection copy explicitly says that percentage
+and round-up rules are variable and are not forecast; the UI does not imply a
+production guarantee or security approval.
+
+Goal detail uses a labelled progress bar, table headings for movement history,
+visible lifecycle/status text, confirmation for archiving, disabled submit
+states during transfer confirmation, and the shared account listbox. Archived
+goals hide mutation links and render read-only forms. Private goals omitted by
+the backend render the generic financial error state rather than leaking their
+existence.
+
+The five-position mobile household navigation remains touchable at 320px,
+including the central labelled `Dodaj płatność` action, `Cele`, and `Więcej`.
+Goal forms preserve associated labels, keyboard-operable segmented controls,
+pressed/selected state, focus-visible controls, and practical 44px touch targets.
+
+## Phase 2 regression coverage
+
+`apps/e2e/tests/household-goals.spec.ts` covers empty and conditional goal
+creation, accessible progress and projection disclosure, add/withdraw transfers
+and validation, pause/resume/archive lifecycle, all three automation forms,
+competing-goal allocation, private-goal omission, mobile navigation, and failed
+goal reads. Latest final verification: 9 Goals tests passed serially and 9 in
+parallel. Final Phase 1 household regression coverage passed 7/7.
+
+The broader full-E2E diagnostic is separate from these focused gates: serial
+execution reported 66 passed, 3 failed, and 3 skipped; parallel execution
+reported 55 passed, 14 failed, and 3 skipped. Persistent failures are
+`dashboard.spec.ts:342` (expects `/onboarding`, received `/onboarding/company`)
+and `navigation.spec.ts:9` and `:79` (expects 5 links, received 6 including
+Compliance). Additional parallel-only failures are caused by shared mutable
+mock state.
 
 ## Regression coverage
 

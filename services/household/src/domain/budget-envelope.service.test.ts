@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../generated/client/index.js';
+import { Prisma, type PrismaClient } from '../generated/client/index.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import { calculateSafeToSpend, listEnvelopesWithSpend } from './budget-envelope.service.js';
@@ -15,7 +15,7 @@ describe('listEnvelopesWithSpend()', () => {
       },
       householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) },
       householdTransaction: {
-        groupBy: vi.fn(async () => [{ categoryId: 'category-groceries', _sum: { amount: -420.5 } }])
+        groupBy: vi.fn(async () => [{ categoryId: 'category-groceries', _sum: { amount: new Prisma.Decimal('-420.50') } }])
       }
     } as unknown as PrismaClient;
 
@@ -65,8 +65,8 @@ describe('calculateSafeToSpend()', () => {
       householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]) },
       householdTransaction: {
         groupBy: vi.fn(async () => [
-          { categoryId: 'category-groceries', _sum: { amount: -420.5 } },
-          { categoryId: 'category-entertainment', _sum: { amount: -150 } } // over budget
+          { categoryId: 'category-groceries', _sum: { amount: new Prisma.Decimal('-420.50') } },
+          { categoryId: 'category-entertainment', _sum: { amount: new Prisma.Decimal('-150.00') } } // over budget
         ])
       }
     } as unknown as PrismaClient;

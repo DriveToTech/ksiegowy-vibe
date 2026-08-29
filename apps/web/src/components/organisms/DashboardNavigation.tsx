@@ -18,7 +18,9 @@ interface NavigationItem {
     | 'householdHome'
     | 'householdLedger'
     | 'householdBudget'
-    | 'householdCommitments';
+    | 'householdCommitments'
+    | 'householdGoals'
+    | 'householdMore';
   badge?: string;
   badgeTone?: 'muted' | 'warning';
 }

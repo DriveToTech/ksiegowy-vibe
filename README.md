@@ -37,7 +37,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 - **Reports & JPK** — UI placeholder; report generation and JPK_V7M submission are not available yet
 - **Backup** — Platform-managed PostgreSQL + iCloud backup, plus company-admin Google Drive backup policy (manual, invoice-issued trigger, daily/weekly schedule via host cron one-shot job)
 - **Authentication** — Google OAuth2 with short-lived access tokens, refresh tokens, and httpOnly cookies
-- **Personal Mode (Household Budgeting)** — Multi-user household ledger with signed transactions, account-to-account transfers, shared/private account visibility, budget envelopes with computed spend, and a commitments register (insurance/loans/subscriptions/utilities) with weekly and other idempotent recurring-transaction generation. Backed by `@ksiegowy/household-service` and its own database. See [household mode docs](docs/household-mode.md).
+- **Personal Mode (Household Budgeting)** — Multi-user household ledger with signed transactions, atomic account transfers, shared/private visibility, computed budget envelopes, commitments, and Phase 2 savings goals with lifecycle management, movement history, competing-goal allocation, fixed/percentage/round-up automations, and bounded projections. Backed by `@ksiegowy/household-service` and its own database. See the [household backend reference](docs/household-mode.md), [data model](docs/data-model.md#household-data-model-personal-mode), and [frontend notes](docs/specs/household-frontend.md).
 
 ## Tech Stack
 
@@ -836,6 +836,13 @@ All household routes below require a valid JWT and a live `HouseholdMembership` 
 | GET | `/households/:householdId/commitments/upcoming` | Commitments due soon |
 | GET | `/households/:householdId/commitments/:commitmentId/amortization-schedule` | Loan amortization schedule (computed on read) |
 | GET | `/households/:householdId/dashboard` | Aggregate: accounts, safe-to-spend, envelopes, upcoming commitments, 6-month chart |
+| GET/POST | `/households/:householdId/goals` | List/create savings goals |
+| GET/PATCH | `/households/:householdId/goals/:goalId` | Goal detail/update and lifecycle |
+| POST | `/households/:householdId/goals/:goalId/transfers` | Atomic add/withdraw movement between an account and a goal |
+| GET | `/households/:householdId/goals/:goalId/movements` | Paginated goal movement history |
+| GET/POST | `/households/:householdId/goals/:goalId/automation-rules` | List/create goal automation rules |
+| PATCH/DELETE | `/households/:householdId/goals/:goalId/automation-rules/:ruleId` | Update/delete an automation rule |
+| GET | `/households/:householdId/goals/overview` | Competing-goals allocation and fixed-rule projection overview |
 
 ## KSeF Integration
 

@@ -761,6 +761,15 @@ Audit trail for KSeF incoming invoice sync runs.
 | `DAILY` | Backup executes once per day at configured local time |
 | `WEEKLY` | Backup executes once per week at configured local day/time |
 
+### Household goal enumerations
+
+| Enum | Values |
+|------|--------|
+| `GoalKind` | `ONE_OFF`, `ONGOING`, `NO_CEILING` |
+| `GoalStatus` | `ACTIVE`, `PAUSED`, `COMPLETED`, `ARCHIVED` |
+| `GoalMovementSource` | `MANUAL`, `AUTOMATION`, `ROUND_UP` |
+| `GoalAutomationRuleType` | `FIXED_ON_DAY`, `PERCENT_OF_INCOME_OVER_THRESHOLD`, `ROUND_UP` |
+
 ---
 
 ## Design Notes
@@ -942,6 +951,7 @@ erDiagram
         HouseholdTransactionCategorizationSource categorizationSource "MANUAL | RULE | IMPORT"
         string importBatchId
         string transferGroupId "two rows share this for a transfer between accounts"
+        string goalMovementId FK
     }
 
     BudgetEnvelope {
@@ -973,6 +983,43 @@ erDiagram
         datetime lastUsedAt "subscription-only — drives the unused nudge"
     }
 
+    Goal {
+        string id PK
+        string householdId FK
+        string accountId FK
+        string name
+        GoalKind kind "ONE_OFF | ONGOING | NO_CEILING"
+        GoalStatus status "ACTIVE | PAUSED | COMPLETED | ARCHIVED"
+        decimal targetAmount
+        decimal currentAmount
+        date targetDate
+        decimal monthlyAmount
+    }
+
+    GoalMovement {
+        string id PK
+        string householdId FK
+        string goalId FK
+        decimal amount "signed"
+        GoalMovementSource source "MANUAL | AUTOMATION | ROUND_UP"
+        date effectiveDate
+        string transferGroupId UK
+        string idempotencyKey UK
+        decimal balanceAfter
+    }
+
+    GoalAutomationRule {
+        string id PK
+        string householdId FK
+        string goalId FK
+        GoalAutomationRuleType ruleType
+        string automationIdentity UK
+        string fundingAccountId FK
+        string triggerAccountId FK
+        date startsOn
+        boolean isActive
+    }
+
     CategorizationRule {
         string id PK
         string householdId FK
@@ -995,6 +1042,14 @@ erDiagram
     HouseholdCategory ||--o{ CategorizationRule : "targets"
     HouseholdCategory ||--o{ HouseholdCategory : "parent of"
     Commitment ||--o{ HouseholdTransaction : "generates"
+    Household ||--o{ Goal : "has"
+    Household ||--o{ GoalMovement : "records"
+    Household ||--o{ GoalAutomationRule : "configures"
+    HouseholdAccount ||--o{ Goal : "holds"
+    Goal ||--o{ GoalMovement : "has"
+    Goal ||--o{ GoalAutomationRule : "automates"
+    GoalMovement ||--o{ HouseholdTransaction : "posts"
+    GoalAutomationRule ||--o{ GoalMovement : "generates"
 ```
 
 ### Why a separate database
@@ -1016,3 +1071,42 @@ Moving money between two `HouseholdAccount`s is modeled as two `HouseholdTransac
 ### Commitment idempotency
 
 `@@unique([commitmentId, date])` on `HouseholdTransaction` (with a nullable `commitmentId`, so manual transactions are unaffected — Postgres treats `NULL`s as distinct) makes the daily commitment-generation cron idempotent at the database level: a restart, retry, or double-run cannot double-charge a commitment. See [`docs/household-mode.md`](./household-mode.md) for the full cron flow.
+
+### Goal
+
+`Goal` is a household-scoped savings target held by one `HouseholdAccount`.
+`currentAmount` is maintained from `GoalMovement` writes and must equal the sum
+of that goal's movements. `targetAmount`, `targetDate`, and `monthlyAmount` are
+validated together by the service according to `GoalKind`; the schema keeps
+these conditional invariants in the domain layer. Goal account and kind become
+immutable after the first movement. The account relation includes
+`householdId`, preventing an account from another household being attached.
+
+### GoalMovement
+
+Each movement is signed (`ADD` positive, `WITHDRAW` negative) and records its
+source, effective date, resulting `balanceAfter`, and optional automation/source
+transaction metadata. A movement owns two linked ledger rows through one unique
+`transferGroupId`; the serializable service transaction creates both rows and
+updates the goal together. `idempotencyKey` is unique, and identical retries
+return the existing operation while payload conflicts are rejected.
+
+### GoalAutomationRule
+
+Rules belong to a goal and reference a funding account plus an optional trigger
+account. The discriminator is `FIXED_ON_DAY`,
+`PERCENT_OF_INCOME_OVER_THRESHOLD`, or `ROUND_UP`; nullable parameter columns
+are checked by the service. `automationIdentity` is unique per household and
+survives soft deletion, while `deletedAt` preserves a tombstone. Round-up rules
+also store a `(roundUpCursorDate, roundUpCursorId)` cursor. The automation cron
+uses deterministic movement idempotency keys, processes at most 36 months of
+calendar catch-up and 500 round-up source transactions per rule per run, and
+does not forecast variable rules.
+
+### Goal relations and visibility
+
+Goals, movements, and rules carry `householdId` and are read through the same
+live membership and visible-account checks as the rest of household mode. A
+private account and its goal are omitted from another member's responses. The
+separate household database has no relation to the company-side `User` model;
+user identifiers on these records are application-level identity strings.

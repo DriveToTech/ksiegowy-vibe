@@ -1,9 +1,11 @@
-import type { Commitment, CommitmentBillingFrequency, CommitmentStatus, CommitmentType, PrismaClient } from '../generated/client/index.js';
+import { Prisma, type Commitment, type CommitmentBillingFrequency, type CommitmentStatus, type CommitmentType, type PrismaClient } from '../generated/client/index.js';
+import { visibleAccountIds } from './household-account.service.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface CreateCommitmentInput {
   householdId: string;
+  userId: string;
   accountId: string;
   type: CommitmentType;
   name: string;
@@ -22,6 +24,7 @@ export interface CreateCommitmentInput {
 }
 
 export interface UpdateCommitmentInput {
+  userId: string;
   name?: string;
   amount?: string;
   billingFrequency?: CommitmentBillingFrequency;
@@ -53,7 +56,8 @@ const MAX_CATCH_UP_ITERATIONS_PER_COMMITMENT = 36;
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 export const createCommitment = async (prisma: PrismaClient, input: CreateCommitmentInput): Promise<Commitment> => {
-  const account = await prisma.householdAccount.findFirst({ where: { id: input.accountId, householdId: input.householdId } });
+  const accountIds = await visibleAccountIds(prisma, input.householdId, input.userId);
+  const account = accountIds.includes(input.accountId) ? await prisma.householdAccount.findFirst({ where: { id: input.accountId, householdId: input.householdId } }) : null;
   if (!account) {
     throw new Error(`Account ${input.accountId} not found in household ${input.householdId}`);
   }
@@ -83,16 +87,19 @@ export const createCommitment = async (prisma: PrismaClient, input: CreateCommit
 export const listCommitments = async (
   prisma: PrismaClient,
   householdId: string,
+  userId: string,
   status?: CommitmentStatus
 ): Promise<Commitment[]> => {
+  const accountIds = await visibleAccountIds(prisma, householdId, userId);
   return prisma.commitment.findMany({
-    where: { householdId, ...(status ? { status } : {}) },
+    where: { householdId, accountId: { in: accountIds }, ...(status ? { status } : {}) },
     orderBy: { nextDueDate: 'asc' }
   });
 };
 
-export const getCommitment = async (prisma: PrismaClient, householdId: string, commitmentId: string): Promise<Commitment | null> => {
-  return prisma.commitment.findFirst({ where: { id: commitmentId, householdId } });
+export const getCommitment = async (prisma: PrismaClient, householdId: string, userId: string, commitmentId: string): Promise<Commitment | null> => {
+  const accountIds = await visibleAccountIds(prisma, householdId, userId);
+  return prisma.commitment.findFirst({ where: { id: commitmentId, householdId, accountId: { in: accountIds } } });
 };
 
 export const updateCommitment = async (
@@ -101,7 +108,8 @@ export const updateCommitment = async (
   commitmentId: string,
   input: UpdateCommitmentInput
 ): Promise<Commitment> => {
-  const commitment = await prisma.commitment.findFirst({ where: { id: commitmentId, householdId } });
+  const accountIds = await visibleAccountIds(prisma, householdId, input.userId);
+  const commitment = await prisma.commitment.findFirst({ where: { id: commitmentId, householdId, accountId: { in: accountIds } } });
   if (!commitment) {
     throw new Error(`Commitment ${commitmentId} not found in household ${householdId}`);
   }
@@ -127,27 +135,27 @@ export const updateCommitment = async (
  * @db.Decimal(5,4) column precision.
  */
 export const calculateAmortizationSchedule = (
-  principal: number,
-  annualInterestRate: number,
+  principal: string,
+  annualInterestRate: string,
   termMonths: number
 ): AmortizationScheduleEntry[] => {
   if (termMonths <= 0) {
     throw new Error('termMonths must be a positive number');
   }
 
-  const monthlyRate = annualInterestRate / 12;
-  const monthlyPayment =
-    monthlyRate === 0
-      ? principal / termMonths
-      : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -termMonths));
+  const principalAmount = new Prisma.Decimal(principal);
+  const monthlyRate = new Prisma.Decimal(annualInterestRate).div(12);
+  const monthlyPayment = monthlyRate.eq(0)
+    ? principalAmount.div(termMonths)
+    : principalAmount.mul(monthlyRate).div(new Prisma.Decimal(1).sub(new Prisma.Decimal(1).add(monthlyRate).pow(-termMonths)));
 
   const schedule: AmortizationScheduleEntry[] = [];
-  let remainingBalance = principal;
+  let remainingBalance = principalAmount;
 
   for (let month = 1; month <= termMonths; month += 1) {
-    const interestPortion = remainingBalance * monthlyRate;
-    const principalPortion = Math.min(monthlyPayment - interestPortion, remainingBalance);
-    remainingBalance = Math.max(remainingBalance - principalPortion, 0);
+    const interestPortion = remainingBalance.mul(monthlyRate);
+    const principalPortion = Prisma.Decimal.min(monthlyPayment.sub(interestPortion), remainingBalance);
+    remainingBalance = Prisma.Decimal.max(remainingBalance.sub(principalPortion), 0);
 
     schedule.push({
       month,
@@ -212,9 +220,14 @@ export const generateDueCommitmentTransactions = async (
   prisma: PrismaClient,
   asOfDate: Date = new Date()
 ): Promise<GenerateDueCommitmentTransactionsResult> => {
-  const dueCommitments = await prisma.commitment.findMany({
-    where: { status: 'ACTIVE', isAutomatic: true, nextDueDate: { lte: asOfDate } }
+  const candidateCommitments = await prisma.commitment.findMany({
+    where: { status: 'ACTIVE', isAutomatic: true, nextDueDate: { lte: asOfDate } },
+    include: { account: true }
   });
+  const privateOwnerIds = [...new Set(candidateCommitments.flatMap((commitment) => commitment.account.visibility === 'PRIVATE' && commitment.account.ownerUserId ? [commitment.account.ownerUserId] : []))];
+  const memberships = privateOwnerIds.length === 0 ? [] : await prisma.householdMembership.findMany({ where: { userId: { in: privateOwnerIds } }, select: { householdId: true, userId: true } });
+  const membershipKeys = new Set(memberships.map((membership) => `${membership.householdId}:${membership.userId}`));
+  const dueCommitments = candidateCommitments.filter((commitment) => commitment.account.visibility === 'SHARED' || commitment.account.ownerUserId !== null && membershipKeys.has(`${commitment.householdId}:${commitment.account.ownerUserId}`));
 
   let generatedTransactionCount = 0;
 
@@ -238,7 +251,7 @@ export const generateDueCommitmentTransactions = async (
             householdId: commitment.householdId,
             accountId: commitment.accountId,
             payee: commitment.name,
-            amount: (-Math.abs(Number(commitment.amount))).toString(),
+            amount: commitment.amount.abs().negated(),
             date: dueDateForThisPeriod,
             isRecurring: true,
             commitmentId: commitment.id

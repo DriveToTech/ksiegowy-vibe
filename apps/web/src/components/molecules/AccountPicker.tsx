@@ -10,6 +10,7 @@ interface AccountPickerProps {
   accounts: HouseholdAccount[];
   value: string;
   onChange: (accountId: string) => void;
+  disabled?: boolean;
   id?: string;
   ariaLabel?: string;
   className?: string;
@@ -23,7 +24,7 @@ interface AccountPickerProps {
  * Keyboard-operable: ArrowDown/ArrowUp move the active row, Home/End jump to
  * the first/last row, Enter/Space picks it, and Escape closes.
  */
-export function AccountPicker({ accounts, value, onChange, id, ariaLabel, className }: AccountPickerProps) {
+export function AccountPicker({ accounts, value, onChange, disabled = false, id, ariaLabel, className }: AccountPickerProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -115,7 +116,7 @@ export function AccountPicker({ accounts, value, onChange, id, ariaLabel, classN
         aria-expanded={open}
         aria-controls={listboxId}
         aria-label={accessibleLabel}
-        disabled={accounts.length === 0}
+         disabled={disabled || accounts.length === 0}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={handleTriggerKeyDown}
         className="flex h-11 w-full items-center gap-3 rounded-control border border-outline-control bg-surface-raised px-3 text-left text-sm text-foreground transition focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -139,8 +140,8 @@ export function AccountPicker({ accounts, value, onChange, id, ariaLabel, classN
       </button>
 
       {open ? (
-        <div className="absolute z-20 mt-1.5 w-full min-w-[320px] overflow-hidden rounded-control border border-outline bg-surface-panel shadow-lg">
-          <div className="flex items-center justify-between border-b border-outline px-3 py-2 font-mono text-[10px] uppercase tracking-[0.13em] text-muted">
+         <div className="absolute left-0 z-20 mt-1.5 w-full max-w-[calc(100vw-2rem)] overflow-hidden rounded-control border border-outline bg-surface-panel shadow-lg">
+           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-outline px-3 py-2 font-mono text-[10px] uppercase tracking-[0.13em] text-muted">
             <span>{t.household.accountPicker.accountCount(accounts.length)}</span>
             <span>{t.household.accountPicker.keyboardHint}</span>
           </div>

@@ -15,7 +15,15 @@ const navigationItems = [
   { href: '/household/ledger', label: t.householdNav.ledger, mobileLabel: t.householdNav.ledger, icon: 'householdLedger' as const },
   { href: '/household/envelopes', label: t.householdNav.budget, mobileLabel: t.householdNav.budget, icon: 'householdBudget' as const },
   { href: '/household/commitments', label: t.householdNav.commitments, mobileLabel: t.householdNav.commitments, icon: 'householdCommitments' as const },
+  { href: '/household/goals', label: t.householdNav.goals, mobileLabel: t.householdNav.goals, icon: 'householdGoals' as const },
   { href: '/household/settings/accounts', label: t.householdNav.settings, mobileLabel: t.householdNav.settings, icon: 'settings' as const },
+];
+
+const mobileNavigationItems = [
+  navigationItems[0],
+  navigationItems[1],
+  navigationItems[4],
+  { href: '/household/more', label: t.householdNav.more, mobileLabel: t.householdNav.more, icon: 'householdMore' as const },
 ];
 
 interface HouseholdShellProps {
@@ -75,9 +83,9 @@ export async function HouseholdShell({ children, session, householdId }: Househo
         <div className="shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] px-4 lg:hidden">
           <nav
             aria-label="Mobilna nawigacja gospodarstwa domowego"
-            className="mx-auto grid max-w-xl grid-cols-6 gap-px rounded-inset border border-outline bg-chrome p-2"
+            className="mx-auto grid max-w-xl grid-cols-5 gap-px rounded-inset border border-outline bg-chrome p-2"
           >
-            <DashboardNavigation items={navigationItems.slice(0, 2)} rootHref="/household" mobile />
+            <DashboardNavigation items={mobileNavigationItems.slice(0, 2)} rootHref="/household" mobile />
             <Link
               href="/household/ledger/new"
               aria-label={t.household.ledger.addPayment}
@@ -88,7 +96,7 @@ export async function HouseholdShell({ children, session, householdId }: Househo
               </span>
               <span className="w-full truncate">{t.household.ledger.addPayment}</span>
             </Link>
-            <DashboardNavigation items={navigationItems.slice(2)} rootHref="/household" mobile />
+            <DashboardNavigation items={mobileNavigationItems.slice(2)} rootHref="/household" mobile />
           </nav>
         </div>
       </div>

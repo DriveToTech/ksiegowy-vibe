@@ -29,3 +29,6 @@ export * from './domain/statement-import.service.js';
 export * from './domain/budget-envelope.service.js';
 export * from './domain/commitment.service.js';
 export * from './domain/commitment-reminder.service.js';
+export * from './domain/goal.service.js';
+export * from './domain/goal-movement.service.js';
+export * from './domain/goal-automation.service.js';

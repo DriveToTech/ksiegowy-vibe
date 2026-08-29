@@ -33,7 +33,7 @@ describe('previewStatementImport()', () => {
 
   it('flags a row as a duplicate when a matching date+amount+payee transaction already exists', async () => {
     const prisma = {
-      householdAccount: { findFirst: vi.fn(async () => ({ id: 'account-1' })) },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]), findFirst: vi.fn(async () => ({ id: 'account-1' })) },
       householdTransaction: {
         findMany: vi.fn(async () => [{ date: new Date('2026-08-01'), amount: { toString: () => '-49.99' }, payee: 'Netflix' }])
       }
@@ -41,7 +41,7 @@ describe('previewStatementImport()', () => {
 
     const csv = 'date,amount,payee,description\n2026-08-01,-49.99,Netflix,NETFLIX.COM\n2026-08-02,-10.00,Coffee Shop,POS';
 
-    const result = await previewStatementImport(prisma, 'household-1', 'account-1', csv, columnMapping);
+    const result = await previewStatementImport(prisma, 'household-1', 'user-1', 'account-1', csv, columnMapping);
 
     expect(result).toEqual([
       { date: '2026-08-01', amount: '-49.99', payee: 'Netflix', bankDescription: 'NETFLIX.COM', isDuplicate: true },
@@ -50,10 +50,10 @@ describe('previewStatementImport()', () => {
   });
 
   it('throws when the account does not belong to the household', async () => {
-    const prisma = { householdAccount: { findFirst: vi.fn(async () => null) } } as unknown as PrismaClient;
+    const prisma = { householdAccount: { findMany: vi.fn(async () => []) } } as unknown as PrismaClient;
 
     await expect(
-      previewStatementImport(prisma, 'household-1', 'account-other', 'date,amount,payee\n2026-08-01,-1.00,Shop', columnMapping)
+      previewStatementImport(prisma, 'household-1', 'user-1', 'account-other', 'date,amount,payee\n2026-08-01,-1.00,Shop', columnMapping)
     ).rejects.toThrow('Account account-other not found in household household-1');
   });
 });
@@ -69,12 +69,12 @@ describe('confirmStatementImport()', () => {
       })
     );
     const prisma = {
-      householdAccount: { findFirst: vi.fn(async () => ({ id: 'account-1' })) },
+      householdAccount: { findMany: vi.fn(async () => [{ id: 'account-1' }]), findFirst: vi.fn(async () => ({ id: 'account-1' })) },
       categorizationRule: { findMany: vi.fn(async () => []) },
       householdTransaction: { create }
     } as unknown as PrismaClient;
 
-    const result = await confirmStatementImport(prisma, 'household-1', 'account-1', [
+    const result = await confirmStatementImport(prisma, 'household-1', 'user-1', 'account-1', [
       { date: '2026-08-01', amount: '-49.99', payee: 'Netflix' },
       { date: '2026-08-02', amount: '-10.00', payee: 'Coffee Shop' }
     ]);

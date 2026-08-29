@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import type { HouseholdDatabase } from '@ksiegowy/household-service';
-import { generateDueCommitmentTransactions, runRenewalReminderSweep } from '@ksiegowy/household-service';
+import { generateDueCommitmentTransactions, runGoalAutomations, runRenewalReminderSweep } from '@ksiegowy/household-service';
 import { ICloudBackupProvider } from '../services/backup/icloud.js';
 import { retryOfflineQueue } from '../services/ksef.service.js';
 
@@ -64,6 +64,18 @@ export function scheduleDailyHouseholdJobs(householdDatabase: HouseholdDatabase,
   });
 
   logger.info('Household renewal reminder sweep cron scheduled at 03:30 AM');
+
+  cron.schedule('0 4 * * *', () => {
+    runGoalAutomations(householdDatabase)
+      .then((result) => {
+        logger.info(result, 'Household goal automation cron completed');
+      })
+      .catch((err: unknown) => {
+        logger.error({ err }, 'Household goal automation cron failed unexpectedly');
+      });
+  }, { timezone: 'Europe/Warsaw' });
+
+  logger.info('Household goal automation cron scheduled at 04:00 Europe/Warsaw');
 }
 
 async function runBackup(

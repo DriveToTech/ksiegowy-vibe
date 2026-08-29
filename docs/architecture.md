@@ -331,11 +331,11 @@ C4Component
   Container_Boundary(api, "apps/api") {
     Component(householdRoutes, "routes/household/*", "Fastify plugins", "Schema validation, live membership guard, HTTP mapping — no business logic")
     Component(householdPlugin, "plugins/household-database.ts", "Fastify plugin", "Decorates fastify.householdDatabase from the package's factory")
-    Component(cronJobs, "lib/cron.ts", "node-cron", "Daily: commitment generation + renewal reminder sweep")
+     Component(cronJobs, "lib/cron.ts", "node-cron", "Daily: commitment generation, renewal reminder sweep, and 04:00 Europe/Warsaw goal automation")
   }
 
   Container_Boundary(pkg, "@ksiegowy/household-service") {
-    Component(domainServices, "src/domain/*.service.ts", "TypeScript", "Household, account, transaction, categorization-rule, statement-import, budget-envelope, commitment, commitment-reminder — zero Fastify imports")
+     Component(domainServices, "src/domain/*.service.ts", "TypeScript", "Household, account, transaction, categorization-rule, statement-import, budget-envelope, commitment, goal, movement, automation — zero Fastify imports")
     ContainerDb(householdDb, "Household Prisma Client", "generated client", "services/household/src/generated/client")
   }
 
@@ -343,9 +343,35 @@ C4Component
 
   Rel(householdRoutes, domainServices, "Calls", "function calls, fastify.householdDatabase passed in")
   Rel(householdPlugin, domainServices, "Constructs client via", "createHouseholdDatabase()")
-  Rel(cronJobs, domainServices, "Calls directly", "generateDueCommitmentTransactions(), runRenewalReminderSweep()")
+   Rel(cronJobs, domainServices, "Calls directly", "generateDueCommitmentTransactions(), runRenewalReminderSweep(), runGoalAutomations()")
   Rel(domainServices, householdDb, "Uses")
   Rel(householdDb, householdPostgres, "Queries", "Prisma / TCP")
+```
+
+### Household Goals flow
+
+Goals remain inside the existing household bounded context. The Fastify route
+layer validates requests and checks live membership; `@ksiegowy/household-service`
+owns goal, movement, automation, visibility, and projection rules; all data is
+written to the separate `ksiegowy_household` database. The daily automation job
+uses the same package without introducing a second API process or a broker.
+
+```mermaid
+sequenceDiagram
+    participant Web as Next.js household UI
+    participant API as apps/api Fastify
+    participant Service as @ksiegowy/household-service
+    participant DB as ksiegowy_household
+    participant Cron as node-cron 04:00 Europe/Warsaw
+
+    Web->>API: GET/POST/PATCH /households/:id/goals
+    API->>Service: live membership + goal operation
+    Service->>DB: scoped goal/visibility query or serializable movement write
+    DB-->>Service: goal detail, movement, or projection data
+    Service-->>API: domain result
+    API-->>Web: JSON response
+    Cron->>Service: runGoalAutomations()
+    Service->>DB: bounded rule windows + idempotent movement transfers
 ```
 
 Key backend decisions (full detail in [`docs/household-mode.md`](./household-mode.md)):

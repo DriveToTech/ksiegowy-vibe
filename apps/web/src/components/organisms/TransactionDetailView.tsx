@@ -8,6 +8,7 @@ import { formatDate, formatMoney } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { Badge } from '../atoms/Badge';
 import { Button } from '../atoms/Button';
+import { Banner } from '../molecules/Banner';
 import { ErrorState } from '../molecules/ErrorState';
 import { TransactionForm } from './TransactionForm';
 
@@ -25,8 +26,9 @@ export function TransactionDetailView({ householdId, transaction, accounts, cate
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isGoalLinked = transaction.goalMovementId !== null;
 
-  if (mode === 'edit') {
+  if (mode === 'edit' && !isGoalLinked) {
     return (
       <TransactionForm
         householdId={householdId}
@@ -48,6 +50,7 @@ export function TransactionDetailView({ householdId, transaction, accounts, cate
   const envelope = transaction.categoryId ? envelopes.find((item) => item.categoryId === transaction.categoryId) ?? null : null;
 
   const handleDelete = async () => {
+    if (isGoalLinked) return;
     if (!window.confirm(t.household.transactionDetail.deleteConfirm)) return;
 
     setError(null);
@@ -87,18 +90,20 @@ export function TransactionDetailView({ householdId, transaction, accounts, cate
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-outline pt-5">
-          <Button
-            variant="danger"
-            size="sm"
-            className="mr-auto border border-error bg-transparent text-error-ink hover:bg-error/10"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
-            {t.household.transactionDetail.deleteAction}
-          </Button>
-          {!isTransfer ? <Button onClick={() => setMode('edit')}>{t.household.transactionDetail.editAction}</Button> : null}
-        </div>
+        {isGoalLinked ? <Banner tone="info" role="status">{t.household.transactionDetail.goalLinkedImmutable}</Banner> : (
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-outline pt-5">
+            <Button
+              variant="danger"
+              size="sm"
+              className="mr-auto border border-error bg-transparent text-error-ink hover:bg-error/10"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {t.household.transactionDetail.deleteAction}
+            </Button>
+            {!isTransfer ? <Button onClick={() => setMode('edit')}>{t.household.transactionDetail.editAction}</Button> : null}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

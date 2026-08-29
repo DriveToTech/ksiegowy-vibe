@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { createAccount, getVisibleAccount, listVisibleAccounts, updateAccount, type HouseholdAccountWithBalance } from '@ksiegowy/household-service';
+import { createAccount, getVisibleAccount, HouseholdAccountServiceError, listVisibleAccounts, updateAccount, type HouseholdAccountWithBalance } from '@ksiegowy/household-service';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
 import { requireHouseholdMembership } from './household-membership-guard.js';
 
@@ -56,7 +56,6 @@ const createAccountBodySchema = {
     type: { type: 'string', enum: ACCOUNT_TYPES },
     accountNumberMask: { type: 'string' },
     visibility: { type: 'string', enum: ACCOUNT_VISIBILITIES },
-    ownerUserId: { type: 'string' },
     openingBalance: { type: 'string' },
     creditLimit: { type: 'string' },
     statementDay: { type: 'number', minimum: 1, maximum: 31 }
@@ -90,7 +89,6 @@ interface CreateAccountBody {
   type: (typeof ACCOUNT_TYPES)[number];
   accountNumberMask?: string;
   visibility?: (typeof ACCOUNT_VISIBILITIES)[number];
-  ownerUserId?: string;
   openingBalance?: string;
   creditLimit?: string;
   statementDay?: number;
@@ -156,6 +154,7 @@ export const accountsRoutes: FastifyPluginAsync = async (fastify): Promise<void>
 
     const account = await createAccount(fastify.householdDatabase, {
       householdId: request.params.householdId,
+      userId: user.sub,
       ...request.body
     });
 
@@ -195,7 +194,12 @@ export const accountsRoutes: FastifyPluginAsync = async (fastify): Promise<void>
     const user = request.user as AccessTokenPayload;
     await requireHouseholdMembership(fastify, request, request.params.householdId);
 
-    await updateAccount(fastify.householdDatabase, request.params.householdId, request.params.accountId, request.body);
+    await updateAccount(fastify.householdDatabase, request.params.householdId, request.params.accountId, user.sub, request.body).catch((error: unknown) => {
+      if (!(error instanceof HouseholdAccountServiceError)) throw error;
+      const httpError = fastify.httpErrors.notFound(error.message);
+      httpError.code = error.code;
+      throw httpError;
+    });
 
     const account = await getVisibleAccount(fastify.householdDatabase, request.params.householdId, user.sub, request.params.accountId);
     if (!account) {
