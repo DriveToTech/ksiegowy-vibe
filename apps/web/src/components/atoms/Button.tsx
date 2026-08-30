@@ -47,7 +47,7 @@ export function Button(props: ButtonProps) {
   );
 
   if ('href' in elementProps && typeof elementProps.href === 'string') {
-    const { href, disabled, ...linkProps } = elementProps;
+    const { href, disabled, onClick, ...linkProps } = elementProps;
 
     return (
       <Link
@@ -56,7 +56,7 @@ export function Button(props: ButtonProps) {
         aria-disabled={disabled || undefined}
         tabIndex={disabled ? -1 : linkProps.tabIndex}
         className={cn(buttonClassName, disabled && 'pointer-events-none opacity-60')}
-        onClick={disabled ? (event) => event.preventDefault() : linkProps.onClick}
+        {...(disabled || !onClick ? {} : { onClick })}
       >
         {children}
       </Link>

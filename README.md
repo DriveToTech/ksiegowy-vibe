@@ -155,7 +155,8 @@ On first run this builds both Docker images (takes a few minutes). Subsequent st
 #### 3. Run database migrations
 
 ```bash
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 ```
 
 #### 4. (Optional) Seed initial data
@@ -222,10 +223,25 @@ If you run the API locally, set `POSTGRESQL_BACKUP_ARTIFACTS_PATH` to an absolut
 #### 4. Run migrations and seed
 
 ```bash
-pnpm db:migrate
-pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm db:migrate:company
+pnpm db:migrate:household
 pnpm db:seed
 ```
+
+`pnpm db:migrate` remains available as a shorthand that runs both local
+development migrations sequentially. These root commands load `.env` without
+printing its values and use Prisma `migrate dev`; production and release jobs
+must run `prisma migrate deploy` separately for the company and household
+databases, as shown in the containerised setup above.
+
+Prisma Studio is long-running, so open each database with a separate command:
+
+```bash
+pnpm db:studio:company    # Business database
+pnpm db:studio:household  # Household database
+```
+
+`pnpm db:studio` remains a backward-compatible alias for company Studio.
 
 See [Seed Scripts](#seed-scripts) for available options including KSeF test data.
 
@@ -245,7 +261,7 @@ pnpm dev
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | Business PostgreSQL connection string for `apps/api/prisma/schema.prisma` |
 | `HOUSEHOLD_DATABASE_URL` | Household (personal mode) PostgreSQL connection string — separate database, read by `@ksiegowy/household-service` |
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
@@ -272,7 +288,8 @@ pnpm dev
 | `DB_BACKUP_ENABLED` | Enable one-shot PostgreSQL backup container job (`true`/`false`) |
 | `DB_BACKUP_ENVIRONMENT_NAME` | Environment tag used in backup artifact names (e.g. `production`) |
 | `DB_BACKUP_RETENTION_DAYS` | Remote retention window for PostgreSQL artifacts |
-| `DB_BACKUP_LOCAL_RETENTION_DAYS` | Local retention window for files in `./backups/postgresql` |
+| `DB_BACKUP_DATABASE_LABEL` | PostgreSQL backup selector (default: `all`): `all`, `business` (company database), or `household`; each selected database is backed up in full |
+| `DB_BACKUP_LOCAL_RETENTION_DAYS` | Local retention window for selected PostgreSQL artifacts in `./backups/postgresql` (default: `14`) |
 | `DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS` | How long backup job waits for PostgreSQL readiness before failing |
 | `BACKUP_DESTINATION_ROOT` | Optional canonical remote backup root shared by Google Drive file backups and PostgreSQL remote publishing; set it to opt in PostgreSQL remote publishing to `<root>/postgresql/<environment>/...` |
 | `DB_BACKUP_REMOTE_BASE_PATH` | Legacy PostgreSQL remote base path used only when `BACKUP_DESTINATION_ROOT` is unset |
@@ -302,9 +319,9 @@ It runs only as its own manual or externally scheduled job. Starting Docker Comp
 - In Docker Compose runtime, the API mounts `./backups/postgresql` read-only and reads freshness from `POSTGRESQL_BACKUP_ARTIFACTS_PATH=/app/backups/postgresql`.
 - `BACKUP_DESTINATION_ROOT` is the canonical remote backup root for company Google Drive file backups and for PostgreSQL remote publishing only when you explicitly set it.
 - The backup job waits for PostgreSQL readiness before starting `pg_dump`.
-- Local retention cleanup is applied after each successful run (`DB_BACKUP_LOCAL_RETENTION_DAYS`).
-- The Postgres instance holds two databases — business (`POSTGRES_DB`) and household/personal-mode (`HOUSEHOLD_POSTGRES_DB`) — each backed up as a full logical dump, not a per-company or per-household slice.
-- Each run creates one artifact set per database, sharing one timestamp (`<database-label>` is `business` or `household`):
+- Local retention cleanup is applied after each successful run (`DB_BACKUP_LOCAL_RETENTION_DAYS`) and is scoped to the selected database label. A company-only run never removes household artifacts, and a household-only run never removes business artifacts.
+- The Postgres instance holds two databases — business/company (`POSTGRES_DB`) and household/personal-mode (`HOUSEHOLD_POSTGRES_DB`) — each backed up as a full logical dump, not a per-company or per-household subset.
+- A combined run creates one artifact set per database sharing one timestamp. A database-only run creates only its selected artifact set; separate runs may therefore have different timestamps (`<database-label>` is `business` or `household`):
   - `postgresql-<database-label>-<environment>-<timestamp>.sql.gz`
   - `postgresql-<database-label>-<environment>-<timestamp>.sql.gz.sha256`
   - `postgresql-<database-label>-<environment>-<timestamp>.manifest.json`
@@ -354,10 +371,19 @@ docker compose --profile backup run --rm backup-postgres
 ```bash
 # Production — backs up and uploads to Google Drive
 pnpm backup:postgres
+pnpm backup:postgres:company    # Company/business database only
+pnpm backup:postgres:household  # Household database only
 
-# Local test — runs the full pipeline but skips remote upload
+# Local test — backs up both databases and skips remote upload
 pnpm backup:postgres:local
+pnpm backup:postgres:local:company
+pnpm backup:postgres:local:household
 ```
+
+The combined `backup:postgres` and `backup:postgres:local` commands remain
+available and continue to back up both databases. The company and household
+commands select one full database; they do not create per-company or
+per-household subsets.
 
 > **Note:** If you update your host rclone config after the first backup run (e.g. add a remote or re-authenticate), remove the cached volume first so the container picks up the new config:
 > ```bash
@@ -383,6 +409,10 @@ DB_RESTORE_CONFIRMED=yes DB_RESTORE_DATABASE_LABEL=business pnpm restore:postgre
 DB_RESTORE_CONFIRMED=yes DB_RESTORE_DATABASE_LABEL=household pnpm restore:postgres
 docker compose start api
 ```
+
+The download command verifies the latest complete set for each selected
+`DB_BACKUP_DATABASE_LABEL` (`all` by default), so business and household
+artifacts may have different timestamps after independent backup runs.
 
 `DB_RESTORE_DATABASE_LABEL` defaults to `business`. To restore a specific artifact instead of the latest for that label:
 
@@ -551,9 +581,20 @@ pnpm test          # Run all tests
 pnpm lint          # Lint all packages
 pnpm typecheck     # Type check all packages
 
-pnpm db:migrate    # Create a new Prisma migration
-pnpm db:studio     # Open Prisma Studio (DB GUI)
+pnpm db:migrate:company    # Create/update a company migration with migrate dev
+pnpm db:migrate:household  # Create/update a household migration with migrate dev
+pnpm db:migrate             # Run both local migration commands sequentially
+pnpm db:studio:company     # Open Prisma Studio for the business database
+pnpm db:studio:household   # Open Prisma Studio for the household database
+pnpm db:studio              # Backward-compatible alias for company Studio
 pnpm db:seed       # Seed initial data
+```
+
+For production, run `prisma migrate deploy` separately for each database:
+
+```bash
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 ```
 
 ## KSeF Correction Flow
@@ -931,7 +972,8 @@ The script fails fast on missing configuration, requires a real browser API URL 
 ```bash
 cp .env.example .env        # fill in secrets
 docker compose up -d --build
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 ```
 
 File uploads are persisted via a bind mount at `./storage` on the host.
@@ -943,7 +985,8 @@ File uploads are persisted via a bind mount at `./storage` on the host.
 apt-get install -y graphicsmagick tesseract-ocr tesseract-ocr-pol
 
 pnpm install --frozen-lockfile
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 pnpm build
 node apps/api/dist/main.js
 ```

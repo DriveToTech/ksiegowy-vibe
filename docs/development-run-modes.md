@@ -24,6 +24,33 @@ POSTGRESQL_BACKUP_ARTIFACTS_PATH=/Users/maciejtrybula/Projects/ksiegowy-vibe.pl/
 
 This avoids the local API resolving `./backups/postgresql` from `apps/api`, which can make company settings show **Platform PostgreSQL backup source is unavailable**.
 
+### Database migration commands
+
+For local development, run the databases explicitly:
+
+```bash
+pnpm db:migrate:company
+pnpm db:migrate:household
+```
+
+Both commands load `.env` and use Prisma `migrate dev`. The existing
+`pnpm db:migrate` command remains a shorthand that runs them sequentially. For
+production or release deployments, use `prisma migrate deploy` separately:
+
+```bash
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
+```
+
+Prisma Studio is long-running and must be opened for one database at a time:
+
+```bash
+pnpm db:studio:company
+pnpm db:studio:household
+```
+
+`pnpm db:studio` remains a backward-compatible alias for company Studio.
+
 ## Mode 1 — all in Docker containers
 
 ### What runs where
@@ -44,7 +71,8 @@ docker compose up --build
 Run migrations after the stack is up:
 
 ```bash
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 ```
 
 Optional seed:
@@ -60,6 +88,7 @@ pnpm db:seed
 | `API_URL` | `http://api:3001` inside Docker web |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` |
 | `DATABASE_URL` | Docker Compose overrides it to `postgresql://<user>:<password>@postgres:5432/<database>` for the API container |
+| `HOUSEHOLD_DATABASE_URL` | Docker Compose overrides it to the separate household database on `postgres:5432` for the API container |
 | `POSTGRES_HOST_PORT` | Host port published for PostgreSQL; set it to another free port such as `55432` when host port `5432` is occupied |
 | `POSTGRESQL_BACKUP_ARTIFACTS_PATH` | Docker API uses `/app/backups/postgresql` |
 
@@ -84,7 +113,8 @@ pnpm db:seed
 pnpm install
 cp .env.example .env
 docker compose up -d postgres
-pnpm db:migrate
+pnpm db:migrate:company
+pnpm db:migrate:household
 pnpm db:seed
 pnpm dev
 ```
@@ -102,6 +132,7 @@ docker compose --profile tools up -d
 | `API_URL` | `http://localhost:3001` |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` |
 | `DATABASE_URL` | `postgresql://<user>:<password>@localhost:5432/<database>` |
+| `HOUSEHOLD_DATABASE_URL` | `postgresql://<user>:<password>@localhost:5432/<household-database>?connection_limit=5` |
 | `POSTGRESQL_BACKUP_ARTIFACTS_PATH` | Use an absolute path to repo `backups/postgresql` |
 
 Recommended local API setting:
@@ -139,7 +170,8 @@ pnpm dev:web
 If migrations are needed:
 
 ```bash
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 ```
 
 When host port `5432` is occupied by Colima or another local service, use a
@@ -148,7 +180,8 @@ different host port without changing the container connection:
 ```bash
 export POSTGRES_HOST_PORT=55432
 docker compose up -d postgres api
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 ```
 
 The API container still connects to `postgres:5432`; only host tools connect to
@@ -167,6 +200,7 @@ pnpm db:seed
 | `API_URL` | `http://localhost:3001` in local web `.env` |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` |
 | `DATABASE_URL` | Local web does not use it; Docker API gets Docker Compose database URL pointing at `postgres` |
+| `HOUSEHOLD_DATABASE_URL` | Local web does not use it; Docker API gets the separate Docker Compose household database URL |
 | `POSTGRESQL_BACKUP_ARTIFACTS_PATH` | Docker API uses `/app/backups/postgresql` |
 
 This mode works because:

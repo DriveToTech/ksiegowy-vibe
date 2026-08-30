@@ -46,7 +46,7 @@ File: [`docker-compose.yml`](../docker-compose.yml)
 | `api` | `apps/api/Dockerfile` | 3001 | Fastify REST API |
 | `web` | `apps/web/Dockerfile` | 3000 | Next.js frontend |
 | `adminer` | `adminer` | 8080 | DB GUI *(profile: tools)* |
-| `backup-postgres` | `ops/backup/Dockerfile` | — | One-shot PostgreSQL logical backup (local-only by default, optional rclone upload) *(profile: backup)* |
+| `backup-postgres` | `ops/backup/Dockerfile` | — | One-shot PostgreSQL logical backup for both databases or one selected database (local-only by default, optional rclone upload) *(profile: backup)* |
 | `backup-gdrive-scheduled` | `apps/api/Dockerfile` | — | One-shot scheduled company Google Drive policy runner *(profile: backup)* |
 | `verify-backups` | `ops/backup/Dockerfile` | — | One-shot backup freshness verification *(profile: backup)* |
 
@@ -89,8 +89,20 @@ docker compose up -d --build
 # Rebuild a single service
 docker compose up --build api
 
-# Run PostgreSQL backup one-shot service
+# Run PostgreSQL backup one-shot service (both databases)
 docker compose --profile backup run --rm backup-postgres
+
+# Select one database directly; the root pnpm commands provide the same mappings
+docker compose --profile backup run --rm -e DB_BACKUP_DATABASE_LABEL=business backup-postgres
+docker compose --profile backup run --rm -e DB_BACKUP_DATABASE_LABEL=household backup-postgres
+
+# Equivalent root commands
+pnpm backup:postgres
+pnpm backup:postgres:company
+pnpm backup:postgres:household
+pnpm backup:postgres:local
+pnpm backup:postgres:local:company
+pnpm backup:postgres:local:household
 
 # Run scheduled company Google Drive backup one-shot service
 docker compose --profile backup run --rm backup-gdrive-scheduled
@@ -139,15 +151,15 @@ Example crontab entry:
 
 PostgreSQL backup job behavior:
 
-- waits for PostgreSQL readiness before `pg_dump`
+- validates `DB_BACKUP_DATABASE_LABEL` (`all`, `business`, or `household`) and waits only for selected databases before `pg_dump`
 - writes artifacts locally to `./backups/postgresql`
 - uses `BACKUP_DESTINATION_ROOT` as the canonical remote backup root for PostgreSQL remote publishing only when explicitly set
 - uploads artifacts to remote staging path only when at least one remote is configured
-- verifies remote presence of the full artifact set (`.sql.gz`, `.sha256`, `.manifest.json`) in remote mode
+- verifies remote presence of the selected artifact set (`.sql.gz`, `.sha256`, `.manifest.json`) in remote mode
 - promotes verified set into a timestamped final directory in remote mode
 - removes partial remote set on publish failure in remote mode
-- prunes old local artifacts from `./backups/postgresql` using `DB_BACKUP_LOCAL_RETENTION_DAYS`
-- keeps Option A database topology unchanged: one shared PostgreSQL database, with each logical backup containing the whole shared database
+- prunes old local artifacts from `./backups/postgresql` using `DB_BACKUP_LOCAL_RETENTION_DAYS`, scoped to the selected database label
+- keeps each logical backup as a full database backup, not a company or household subset
 
 Current verification scope is limited to remote file presence. It does not yet prove remote checksum integrity or restoreability.
 
@@ -166,7 +178,8 @@ Requirement mode `auto` uses env-level enablement signals only. It does not guar
 ### First-run database setup
 
 ```bash
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 pnpm db:seed
 ```
 
@@ -366,6 +379,7 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 | `ICLOUD_RCLONE_DEST` | — | destination path on `ICLOUD_RCLONE_REMOTE` for iCloud backups |
 | `DB_BACKUP_ENABLED` | `false` | Enables one-shot PostgreSQL backup service |
 | `DB_BACKUP_ENVIRONMENT_NAME` | `local` | Environment label included in artifact names |
+| `DB_BACKUP_DATABASE_LABEL` | `all` | Selects `all`, `business` (company database), or `household`; root commands override this explicitly |
 | `DB_BACKUP_RETENTION_DAYS` | `14` | Remote retention period for PostgreSQL backup artifacts |
 | `DB_BACKUP_LOCAL_RETENTION_DAYS` | `14` | Local retention period for artifacts in `./backups/postgresql` |
 | `DB_BACKUP_POSTGRES_READY_TIMEOUT_SECONDS` | `120` | Max wait for PostgreSQL readiness before backup fails |
@@ -396,11 +410,21 @@ For Google Drive backup OAuth setup, configure the `GDRIVE_*` variables using th
 
 PostgreSQL stores all application state: companies, users, invoices, contractors, KSeF submission audit trails, backup run history, and more.
 
-Migrations are managed by Prisma and live in `apps/api/prisma/migrations/`. Run on deploy:
+Company migrations are managed by Prisma and live in `apps/api/prisma/migrations/`. Household migrations are managed separately by `services/household/prisma/migrations/`. Run each database's deployment migration separately:
 
 ```bash
-pnpm --filter @ksiegowy/api exec prisma migrate deploy
+pnpm --filter @ksiegowy/api exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma
 ```
+
+For local development, use `pnpm db:migrate:company` and
+`pnpm db:migrate:household` (or `pnpm db:migrate` for both). These root
+commands load `.env` and use Prisma `migrate dev`; production uses the
+separate `migrate deploy` commands above.
+
+Prisma Studio is long-running, so inspect the databases separately with
+`pnpm db:studio:company` or `pnpm db:studio:household`. The existing
+`pnpm db:studio` command remains an alias for company Studio.
 
 ### File Storage
 
@@ -455,9 +479,9 @@ PostgreSQL backups are now handled by a separate one-shot Docker Compose service
 
 - local-only mode writes artifacts to `./backups/postgresql` and skips remote upload
 - remote mode also uploads artifacts through `rclone` to one or two configured remotes
-- The Postgres instance holds two databases — business (`POSTGRES_DB`) and household/personal-mode (`HOUSEHOLD_POSTGRES_DB`, see [Household database separation](#household-database-separation) below) — dumped independently in the same backup run, sharing one timestamp but distinct filenames (`<database-label>` is `business` or `household`)
+- The Postgres instance holds two databases — business/company (`POSTGRES_DB`) and household/personal-mode (`HOUSEHOLD_POSTGRES_DB`, see [Household database separation](#household-database-separation) below). The default combined run dumps both with one timestamp; `DB_BACKUP_DATABASE_LABEL=business|household` dumps only the selected database, and separate runs may have different timestamps. Each dump is the full selected database, not a company or household subset.
 
-Each canonical-root remote backup set is stored in its own timestamped directory under the configured base path, holding both databases' artifact sets, for example:
+Each canonical-root remote backup set is stored in its own timestamped directory under the configured base path. A combined run holds both databases' artifact sets; a database-only run holds only its selected set. A combined run can look like:
 
 ```
 <remote>:ksiegowy-vibe-backups/postgresql/production/20260415T031500Z/
@@ -472,7 +496,12 @@ with files:
 - `postgresql-household-production-20260415T031500Z.sql.gz.sha256`
 - `postgresql-household-production-20260415T031500Z.manifest.json`
 
-Restore targets one database at a time via `DB_RESTORE_DATABASE_LABEL=business|household` (default `business`) — see [PostgreSQL Restore Runbook](./restore-postgresql.md).
+If the databases are backed up independently, the household set can instead be
+in a later directory such as
+`postgresql/production/20260415T041500Z/`, containing only the three household
+artifacts for `20260415T041500Z`.
+
+Restore targets one database at a time via `DB_RESTORE_DATABASE_LABEL=business|household` (default `business`) — see [PostgreSQL Restore Runbook](./restore-postgresql.md). A full recovery restores both database artifact sets, which can come from different backup timestamps.
 
 ### Household database separation
 
@@ -503,7 +532,7 @@ This slice keeps backup scheduling flows separate intentionally:
 
 - platform iCloud backups and KSeF retry: API in-process cron
 - scheduled company Google Drive backups: host cron running `docker compose --profile backup run --rm backup-gdrive-scheduled`
-- PostgreSQL backups: host cron running `docker compose --profile backup run --rm backup-postgres`
+- PostgreSQL backups: host cron running `docker compose --profile backup run --rm backup-postgres` (combined by default; use `DB_BACKUP_DATABASE_LABEL` for a per-database schedule)
 
 ---
 
@@ -545,7 +574,7 @@ This slice keeps backup scheduling flows separate intentionally:
 - [ ] Keep the [Production Migration Recovery](./production-migration-recovery.md) procedure available to the release operator; never use `migrate reset` or in-place database cleanup in production
 - [ ] Mount `./storage` on durable storage (not ephemeral container filesystem)
 - [ ] Confirm backup credentials are configured (Google Drive or iCloud)
-- [ ] Configure PostgreSQL backup env vars (`DB_BACKUP_*`) for local-only mode or remote mode
+- [ ] Configure PostgreSQL backup env vars (`DB_BACKUP_*`), including the intended `DB_BACKUP_DATABASE_LABEL`, for local-only mode or remote mode
 - [ ] If remote mode is enabled, configure at least one rclone remote and set `DB_BACKUP_RCLONE_CONFIG_PATH`
 - [ ] Add host cron entry for `docker compose --profile backup run --rm backup-postgres`
 - [ ] Add host cron entry for `docker compose --profile backup run --rm backup-gdrive-scheduled`
