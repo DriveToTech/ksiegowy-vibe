@@ -25,7 +25,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 
 - **KSeF Integration** — Submit VAT invoices and sync incoming invoices from the National e-Invoice System (FA(3) XML generation, XSD validation, session management, offline queue with retry)
 - **KSeF Environment Context Switcher** — Per-user `TEST` / `PRODUCTION` environment switching with separate credentials, sessions, invoice visibility, and invoice KSeF state per environment. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
-- **Invoice Management** — Full lifecycle: draft → issue → PDF/XML generation → KSeF submission, including KOR correction invoices linked to accepted KSeF originals, with support for formal corrections such as invoice-number fixes
+- **Invoice Management** — Full lifecycle: draft → issue → PDF/XML generation → KSeF submission, including KOR correction invoices linked to accepted KSeF originals, with support for formal corrections such as invoice-number fixes and catalogue-based line-item selection
 - **Incoming Invoices** — Upload PDFs/images with OCR, or sync directly from KSeF; review & confirm
 - **Multi-company Support** — Manage multiple VAT entities with role-based access (Admin / Accountant / Viewer)
 - **Contractor Management** — Buyer/seller database with NIP lookup (GUS API)
@@ -86,7 +86,7 @@ The visual system is **Aurora Solid** — opaque layered surfaces, no `blur()`/`
 
 Source of truth: **`spec/aurora-solid-redesign-plan.md`** (plan and phase history) and **`docs/specs/aurora-solid-tokens.md`** (the token spec: both themes, contrast findings, component states). `spec/stitch-ui-implementation-plan.md` and `spec/ui/00-06` describe the previous "Aeon Ethereal" system and are superseded historical record.
 
-- The web app root layout uses `apps/web/src/components/brand/assets/logo.png` as the favicon via Next.js metadata, so browser tab branding stays aligned with the shared brand asset.
+- The web app uses the themed SVG wordmarks from `apps/web/src/components/brand/assets/` in the app and onboarding headers, the stacked lockup on the login panel, and the SVG mark as the favicon.
 - The 60px chrome bar is the sole global brand anchor and contains company, KSeF, theme, and session context.
 - The 226px desktop rail contains navigation plus contextual status widgets (JPK_V7M filing deadline, rejected-invoice count); page actions live beside the content they affect.
 - Light mode is the default, with an explicit dark preference stored locally in the browser. Both themes are held to WCAG AA on text and interactive boundaries.

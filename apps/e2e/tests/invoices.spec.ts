@@ -50,12 +50,24 @@ test('new invoice form can add a line item', async ({ authenticatedPage: page })
   await expect(addButton).toBeVisible();
 
   // Initially one line (one "Nazwa pozycji" input)
-  await expect(page.getByRole('textbox', { name: 'Nazwa pozycji' })).toHaveCount(1);
+  await expect(page.getByRole('combobox', { name: 'Nazwa pozycji' })).toHaveCount(1);
 
   await addButton.click();
 
   // After adding a line, there should be 2 "Nazwa pozycji" inputs
-  await expect(page.getByRole('textbox', { name: 'Nazwa pozycji' })).toHaveCount(2);
+  await expect(page.getByRole('combobox', { name: 'Nazwa pozycji' })).toHaveCount(2);
+});
+
+test('new invoice form can select a service from the catalogue', async ({ authenticatedPage: page }) => {
+  await page.goto('/dashboard/invoices/new');
+
+  await page.getByRole('button', { name: '+ Dodaj pozycję' }).click();
+  const lineItemInputs = page.getByRole('combobox', { name: 'Nazwa pozycji' });
+  await lineItemInputs.nth(1).click();
+  await page.getByRole('option', { name: 'Accounting service' }).click();
+
+  await expect(lineItemInputs.nth(1)).toHaveValue('Accounting service');
+  await expect(page.getByRole('textbox', { name: 'Jednostka miary' }).nth(1)).toHaveValue('hour');
 });
 
 test('new invoice form cancel returns to list', async ({ authenticatedPage: page }) => {

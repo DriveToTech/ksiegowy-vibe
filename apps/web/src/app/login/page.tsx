@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Button } from '../../components/atoms/Button';
+import { BrandImage } from '../../components/brand/BrandImage';
 import { getAuthSession } from '../../lib/auth';
 import { t } from '../../lib/translations';
 
@@ -29,10 +30,7 @@ export default async function LoginPage({
     <main className="flex min-h-full w-full items-center justify-center p-4 sm:p-6 lg:p-10">
       <div className="grid w-full max-w-[1200px] overflow-hidden rounded-frame border border-outline shadow-frame lg:grid-cols-[1.15fr_1fr]">
         <div className="flex flex-col justify-between gap-10 bg-canvas p-8 sm:p-12">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-control bg-[image:var(--brand-gradient)]" />
-            <span className="text-base font-semibold tracking-tight text-foreground">{t.login.brandName}</span>
-          </div>
+          <BrandImage variant="lockup" className="w-[172px]" priority />
 
           <div className="flex max-w-lg flex-col gap-6">
             <h1 className="text-3xl font-semibold leading-[1.1] tracking-[-0.025em] text-foreground sm:text-4xl lg:text-[46px] lg:leading-[1.06] lg:tracking-[-0.035em]">
