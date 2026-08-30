@@ -77,6 +77,10 @@ Metric-card grid to equal thirds, `Surface` radius/`overflow-hidden` clipping on
 - Manual check at `lg`/`xl`/`2xl` breakpoints for phases 3–4
 - Phase 5 reviewed by secops-auditor before merge
 
+## Catalogue selection regression fix
+
+`CatalogueItemPicker` keeps the catalogue option mounted long enough for its selection handler to update the invoice line when a pointer press blurs the input. The invoice E2E flow covers selecting a catalogue service on a newly added line and verifies the service name and unit are applied.
+
 ---
 
 ## Phase 8 — Visual QA follow-up (IMPLEMENTED)

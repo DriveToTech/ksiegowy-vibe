@@ -53,6 +53,18 @@ const TEST_MEMBER = {
   createdAt: '2024-01-01T00:00:00.000Z',
 };
 
+const TEST_SERVICE_TEMPLATE = {
+  id: 'test-service-template-id',
+  companyId: TEST_COMPANY.id,
+  name: 'Accounting service',
+  unit: 'hour',
+  vatRate: '23',
+  description: null,
+  isActive: true,
+  createdAt: '2024-01-01T00:00:00.000Z',
+  updatedAt: '2024-01-01T00:00:00.000Z',
+};
+
 const BASE_INVOICE_TIMESTAMPS = {
   createdAt: '2024-04-10T12:00:00.000Z',
   updatedAt: '2024-04-10T12:00:00.000Z',
@@ -496,7 +508,7 @@ const server = http.createServer((req, res) => {
 
   if (/^\/companies\/[^/]+\/service-templates$/.test(url) && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
-    return respond(req, res, 200, []);
+    return respond(req, res, 200, [TEST_SERVICE_TEMPLATE]);
   }
 
   if (/^\/companies\/[^/]+\/members$/.test(url) && method === 'GET') {

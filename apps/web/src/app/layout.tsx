@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Sora, IBM_Plex_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
-import brandLogo from '../components/brand/assets/logo.png';
+import brandMark from '../components/brand/assets/ksiegowy-vibe-mark.svg';
 import { THEME_BOOTSTRAP_SCRIPT } from '../lib/theme';
 
 import './globals.css';
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   title: 'ksiegowy-vibe.pl',
   description: 'Nowoczesny interfejs księgowy dla faktur, OCR i KSeF',
   icons: {
-    icon: [{ url: brandLogo.src, type: 'image/png' }],
+    icon: [{ url: brandMark.src, type: 'image/svg+xml' }],
   },
 };
 

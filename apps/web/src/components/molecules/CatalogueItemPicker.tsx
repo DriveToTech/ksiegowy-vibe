@@ -139,6 +139,7 @@ export function CatalogueItemPicker({
                     id={`${listboxId}-${index}`}
                     role="option"
                     aria-selected={index === highlightedIndex}
+                    onMouseDown={(event) => event.preventDefault()}
                     onMouseEnter={() => setHighlightedIndex(index)}
                     onClick={() => selectTemplate(template)}
                     className={cn(
