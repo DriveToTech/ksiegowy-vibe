@@ -13,6 +13,7 @@ Implemented now:
 - Host-scheduler-friendly execution path (`docker compose --profile backup run --rm backup-postgres`)
 - Scheduled company Google Drive policy one-shot container service (`backup-gdrive-scheduled`) using API runtime and existing policy logic (`runScheduledCompanyGoogleDriveBackups`)
 - Timestamped PostgreSQL artifacts with checksum and manifest files
+- Explicit combined or per-database PostgreSQL backup selection (`DB_BACKUP_DATABASE_LABEL`), with label-scoped local retention
 - PostgreSQL local-only mode support when remote names are not configured
 - Upload to one or two optional `rclone` remotes with retention cleanup
 - Canonical backup destination root contract via `BACKUP_DESTINATION_ROOT` shared by company Google Drive file backups and PostgreSQL remote publishing
@@ -54,7 +55,7 @@ Define a backup implementation plan that moves the platform from basic file-sync
 
 3. PostgreSQL backup baseline is now implemented in this slice.
     - A logical dump flow exists via `backup-postgres` one-shot Docker Compose service.
-    - Option A keeps one shared PostgreSQL database unchanged, so each PostgreSQL backup remains a full logical dump of the whole shared database.
+    - The Postgres instance has separate business and household databases; each selected PostgreSQL backup remains a full logical dump of that database.
     - Point-in-time recovery capability is still not implemented and should not be assumed.
 
 4. Restore documentation baseline is now in place.
@@ -205,7 +206,7 @@ Goal: establish minimum recoverable baseline without over-design.
     - create scheduled logical dump process
     - store timestamped artifacts separately from file backups
     - upload database backup artifacts to approved remote target(s)
-    - **Status in this slice:** implemented as one-shot Docker Compose service (`backup-postgres`) triggered by host cron, with both local-only mode and optional remote upload mode
+    - **Status in this slice:** implemented as one-shot Docker Compose service (`backup-postgres`) triggered by host cron, with combined/per-database selection, local-only mode, and optional remote upload mode
 
 3. Define retention policy
    - daily backups retained for at least `14 days`

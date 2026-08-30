@@ -262,7 +262,12 @@ closed if it finds an existing multi-node cycle.
 
 ## Deployment note
 
-`HOUSEHOLD_DATABASE_URL` must point at a reachable Postgres database before `apps/api` can start (the plugin eagerly `$connect()`s unless a client is injected, e.g. in tests). Run `pnpm --filter @ksiegowy/household-service exec prisma migrate deploy` (or `migrate dev` locally) against that database before first boot — see the root README's database section for the two-database Docker Compose setup.
+`HOUSEHOLD_DATABASE_URL` must point at a reachable Postgres database before `apps/api` can start (the plugin eagerly `$connect()`s unless a client is injected, e.g. in tests). For local development, run `pnpm db:migrate:household`; for production or release deployment, run `pnpm --filter @ksiegowy/household-service exec prisma migrate deploy --schema prisma/schema.prisma` separately from the company migration. To inspect household data locally, run the separate long-running `pnpm db:studio:household` command. See the root README's database section for the two-database Docker Compose setup.
+
+The household database is the `household` PostgreSQL backup label. Run
+`pnpm backup:postgres:household` for a remote-capable household-only backup or
+`pnpm backup:postgres:local:household` for local-only output. Both commands back
+up the complete household database, not an individual household subset.
 
 `HouseholdFileRecord` receipt/document attachments remain separately deferred;
 they are not part of the Goals backend or route surface.

@@ -3,6 +3,21 @@
 set -euo pipefail
 umask 077
 
+backup_database_label="${DB_BACKUP_DATABASE_LABEL:-all}"
+
+case "${backup_database_label}" in
+  all)
+    backup_database_labels=(business household)
+    ;;
+  business|household)
+    backup_database_labels=("${backup_database_label}")
+    ;;
+  *)
+    echo "[backup-postgres] Invalid DB_BACKUP_DATABASE_LABEL '${backup_database_label}'. Use 'all', 'business', or 'household'."
+    exit 1
+    ;;
+esac
+
 backup_enabled="${DB_BACKUP_ENABLED:-false}"
 
 if [[ "${backup_enabled}" != "true" ]]; then
@@ -13,10 +28,19 @@ fi
 postgres_host="${POSTGRES_HOST:-postgres}"
 postgres_port="${POSTGRES_PORT:-5432}"
 postgres_user="${POSTGRES_USER:?POSTGRES_USER is required}"
-business_postgres_database="${POSTGRES_DB:?POSTGRES_DB is required}"
-household_postgres_database="${HOUSEHOLD_POSTGRES_DB:?HOUSEHOLD_POSTGRES_DB is required}"
-backup_database_labels=(business household)
-backup_database_names=("${business_postgres_database}" "${household_postgres_database}")
+
+case "${backup_database_label}" in
+  all)
+    backup_database_names=("${POSTGRES_DB:?POSTGRES_DB is required}" "${HOUSEHOLD_POSTGRES_DB:?HOUSEHOLD_POSTGRES_DB is required}")
+    ;;
+  business)
+    backup_database_names=("${POSTGRES_DB:?POSTGRES_DB is required}")
+    ;;
+  household)
+    backup_database_names=("${HOUSEHOLD_POSTGRES_DB:?HOUSEHOLD_POSTGRES_DB is required}")
+    ;;
+esac
+
 backup_environment_name="${DB_BACKUP_ENVIRONMENT_NAME:-local}"
 backup_retention_days="${DB_BACKUP_RETENTION_DAYS:-14}"
 backup_local_retention_days="${DB_BACKUP_LOCAL_RETENTION_DAYS:-14}"
@@ -92,6 +116,7 @@ fi
 timestamp_utc="$(date -u +%Y%m%dT%H%M%SZ)"
 
 echo "[backup-postgres] Starting PostgreSQL logical backup for environment ${backup_environment_name}."
+echo "[backup-postgres] Database selection: ${backup_database_label}."
 
 if [[ "${remote_upload_enabled}" == "true" ]]; then
   echo "[backup-postgres] Backup mode: remote upload enabled (primary='${backup_remote_primary_name:-none}', secondary='${backup_remote_secondary_name:-none}')."
@@ -101,22 +126,26 @@ fi
 
 mkdir -p "${backup_output_directory}"
 
-readiness_deadline=$((SECONDS + postgres_ready_timeout_seconds))
+for database_index in "${!backup_database_labels[@]}"; do
+  database_label="${backup_database_labels[$database_index]}"
+  database_name="${backup_database_names[$database_index]}"
+  readiness_deadline=$((SECONDS + postgres_ready_timeout_seconds))
 
-until pg_isready --host="${postgres_host}" --port="${postgres_port}" --username="${postgres_user}" --dbname="${business_postgres_database}" >/dev/null 2>&1; do
-  if [[ "${SECONDS}" -ge "${readiness_deadline}" ]]; then
-    echo "[backup-postgres] PostgreSQL is not ready after ${postgres_ready_timeout_seconds}s."
-    exit 1
-  fi
+  until pg_isready --host="${postgres_host}" --port="${postgres_port}" --username="${postgres_user}" --dbname="${database_name}" >/dev/null 2>&1; do
+    if [[ "${SECONDS}" -ge "${readiness_deadline}" ]]; then
+      echo "[backup-postgres] PostgreSQL database '${database_name}' (${database_label}) is not ready after ${postgres_ready_timeout_seconds}s."
+      exit 1
+    fi
 
-  echo "[backup-postgres] Waiting for PostgreSQL readiness..."
-  sleep 2
+    echo "[backup-postgres] Waiting for PostgreSQL readiness for '${database_label}'..."
+    sleep 2
+  done
 done
 
-echo "[backup-postgres] PostgreSQL is ready."
+echo "[backup-postgres] Selected PostgreSQL database(s) are ready: ${backup_database_labels[*]}."
 
-# Two databases (business, household) are dumped separately, sharing one timestamp,
-# so a restore can target either one independently — see run-postgres-restore.sh's
+# Selected databases are dumped separately. The combined run shares one timestamp;
+# independent runs may have different timestamps — see run-postgres-restore.sh's
 # DB_RESTORE_DATABASE_LABEL.
 artifact_file_names=()
 
@@ -279,7 +308,12 @@ else
 fi
 
 echo "[backup-postgres] Applying local retention (${backup_local_retention_days} days) in ${backup_output_directory}."
-find "${backup_output_directory}" -maxdepth 1 -type f -name "postgresql-*-${backup_environment_name}-*" -mtime +$((backup_local_retention_days - 1)) -delete
+if [[ "${backup_database_label}" == "all" ]]; then
+  local_retention_file_pattern="postgresql-*-${backup_environment_name}-*"
+else
+  local_retention_file_pattern="postgresql-${backup_database_label}-${backup_environment_name}-*"
+fi
+find "${backup_output_directory}" -maxdepth 1 -type f -name "${local_retention_file_pattern}" -mtime +$((backup_local_retention_days - 1)) -delete
 
 echo "[backup-postgres] Backup finished successfully."
 echo "[backup-postgres] Local artifacts (${#artifact_file_names[@]} files) in ${backup_output_directory}: ${artifact_file_names[*]}."
