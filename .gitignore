@@ -2,6 +2,9 @@
 node_modules/
 .pnpm-store/
 
+# Git worktrees
+.worktree/
+
 # Build artifacts
 dist/
 .turbo/
