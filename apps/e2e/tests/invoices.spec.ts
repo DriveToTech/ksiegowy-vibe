@@ -43,6 +43,12 @@ test('new invoice form has date and contractor fields', async ({ authenticatedPa
   await expect(page.locator('#contractorId')).toBeVisible();
 });
 
+test('new invoice form fills the company bank account', async ({ authenticatedPage: page }) => {
+  await page.goto('/dashboard/invoices/new');
+
+  await expect(page.locator('#bankAccount')).toHaveValue('TEST-ACCOUNT-0000');
+});
+
 test('new invoice form can add a line item', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/invoices/new');
 

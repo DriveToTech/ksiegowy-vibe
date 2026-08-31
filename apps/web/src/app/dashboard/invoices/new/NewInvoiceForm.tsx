@@ -31,11 +31,13 @@ function addDays(iso: string, days: number): string {
 
 export default function NewInvoiceForm({
   companyId,
+  defaultBankAccount,
   contractors,
   serviceTemplates = [],
   contractorRates = [],
 }: {
   companyId: string;
+  defaultBankAccount: string | null;
   contractors: Contractor[];
   serviceTemplates?: ServiceTemplate[];
   contractorRates?: ContractorServiceRate[];
@@ -50,8 +52,7 @@ export default function NewInvoiceForm({
   const [paymentMethod, setPaymentMethod] = useState<'BANK_TRANSFER' | 'CASH'>('BANK_TRANSFER');
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
   const [notes, setNotes] = useState('');
-  // TODO: submit bankAccount when API CreateDraftBody includes bankAccount
-  const [bankAccount, setBankAccount] = useState('');
+  const [bankAccount, setBankAccount] = useState(defaultBankAccount ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -232,7 +233,6 @@ export default function NewInvoiceForm({
           />
         </Surface>
 
-        {/* TODO: submit bankAccount when API CreateDraftBody includes bankAccount */}
         <Surface tone="panel" className="space-y-1.5 p-5">
           <FormField label={t.contractors.fields.bankAccount} htmlFor="bankAccount">
             <Input
