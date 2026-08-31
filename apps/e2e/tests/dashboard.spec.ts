@@ -6,6 +6,17 @@ test('dashboard redirects unauthenticated users to login', async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
+test('dashboard refreshes an expired access cookie when the refresh cookie is valid', async ({ page }) => {
+  await page.context().addCookies([
+    { name: 'refresh_token', value: 'test-refresh-token', url: 'http://localhost:3200' },
+  ]);
+
+  await page.goto('/dashboard');
+
+  await expect(page.getByRole('heading', { name: 'Panel operacyjny' })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/login/);
+});
+
 test('dashboard loads with the KSeF clearance KPI grid', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard');
 
