@@ -411,10 +411,3 @@ export interface Invite {
   expiresAt: string;
   createdAt: string;
 }
-
-export interface ReportDetails {
-  id: string;
-  companyId: string;
-  environment: CompanyKsefEnvironment;
-  createdAt: string;
-}

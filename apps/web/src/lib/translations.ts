@@ -367,18 +367,8 @@ export const t = {
     noCompanyTitle: "Brak aktywnej firmy",
     noCompanyDescription:
         "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na raportach i JPK.",
-    downloadXml: "Pobierz XML",
-    submitJPK: "Wyślij JPK_V7M",
-    errors: {
-      reportLoadFailed: "Nie udało się załdować raportu"
-    },
-    backButton: "Wróc"
-  },
-
-  complianceDetails: {
-    stepper: {
-      created: "Utworzono",
-    }
+    notAvailableTitle: "Raporty i JPK są jeszcze niedostępne",
+    notAvailableDescription: "Widok zostanie udostępniony po wdrożeniu obsługi raportów i wysyłki JPK_V7M.",
   },
 
   outgoingInvoices: {
