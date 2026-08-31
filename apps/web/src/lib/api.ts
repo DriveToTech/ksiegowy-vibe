@@ -17,7 +17,7 @@ import type {
   InvoiceDetail,
   InvoiceSummary,
   Member,
-  ServiceTemplate, ReportDetails,
+  ServiceTemplate,
 } from './api-types';
 
 export type {
@@ -215,12 +215,4 @@ export async function getServiceTemplates(companyId: string, includeInactive = f
 
 export async function getContractorServiceRates(companyId: string, contractorId: string): Promise<ContractorServiceRate[]> {
   return apiFetch(`/companies/${companyId}/contractors/${contractorId}/service-rates`);
-}
-
-export async function getReport(companyId: string, reportId: string): Promise<ReportDetails> {
-  const activeKsefEnvironment = await getActiveKsefEnvironment();
-
-  return apiFetch<ReportDetails>(`/compliance/${companyId}/reports/${reportId}`, {
-    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
-  });
 }
