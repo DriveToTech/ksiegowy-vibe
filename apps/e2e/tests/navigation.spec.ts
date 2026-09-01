@@ -6,7 +6,7 @@ test('desktop sidebar contains navigation only and one active page', async ({ au
   const sidebar = page.getByRole('complementary');
   const dashboardNavigation = sidebar.getByRole('navigation', { name: 'Nawigacja dashboardu', exact: true });
 
-  await expect(dashboardNavigation.getByRole('link')).toHaveCount(5);
+  await expect(dashboardNavigation.getByRole('link')).toHaveCount(6);
   await expect(dashboardNavigation.getByRole('link', { name: 'Przegląd' })).toHaveAttribute('aria-current', 'page');
   await expect(dashboardNavigation).toHaveClass(/flex-col/);
   const activeNavigationContrasts = await dashboardNavigation.getByRole('link', { name: 'Przegląd' }).evaluate((element) => {
@@ -76,13 +76,14 @@ test('mobile keeps bottom navigation and hides desktop sidebar', async ({ authen
   await expect(page.getByRole('complementary')).toBeHidden();
   const mobileNavigation = page.getByRole('navigation', { name: 'Mobilna nawigacja dashboardu' });
   await expect(mobileNavigation).toBeVisible();
-  await expect(mobileNavigation.getByRole('link')).toHaveCount(5);
+  await expect(mobileNavigation.getByRole('link')).toHaveCount(6);
 
   for (const [accessibleName, visibleLabel] of [
     ['Przegląd', 'Start'],
     ['Faktury wychodzące', 'Sprzedaż'],
     ['Faktury przychodzące', 'Zakupy'],
-    ['Kontrahenci', 'Firmy'],
+    ['Kontrahenci', 'Kontrahenci'],
+    ['Raporty & JPK', 'Raporty & JPK'],
     ['Ustawienia', 'Ustawienia'],
   ]) {
     const link = mobileNavigation.getByRole('link', { name: accessibleName });

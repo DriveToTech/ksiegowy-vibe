@@ -20,6 +20,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
 | [Backup Restore Drill](docs/backup-restore-drill.md) | Repeatable restore drill steps with evidence capture |
+| [Demo Screenshots](docs/screenshots/README.md) | Synthetic mock-API fixture and commands for safe UI screenshot capture |
 
 ## Features
 
@@ -30,8 +31,9 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 - **Multi-company Support** — Manage multiple VAT entities with role-based access (Admin / Accountant / Viewer)
 - **Contractor Management** — Buyer/seller database with NIP lookup (GUS API)
 - **VAT Reporting** — VAT register with CSV export
+- **Reports & JPK** — UI placeholder; report generation and JPK_V7M submission are not available yet
 - **Backup** — Platform-managed PostgreSQL + iCloud backup, plus company-admin Google Drive backup policy (manual, invoice-issued trigger, daily/weekly schedule via host cron one-shot job)
-- **Authentication** — Google OAuth2 with JWT (httpOnly cookies)
+- **Authentication** — Google OAuth2 with short-lived access tokens, refresh tokens, and httpOnly cookies
 
 ## Tech Stack
 
