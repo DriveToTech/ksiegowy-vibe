@@ -36,6 +36,7 @@ packages/**/*.d.ts.map
 packages/**/*.js
 packages/**/*.js.map
 # Playwright
+.playwright-mcp/
 apps/e2e/playwright-report/
 apps/e2e/test-results/
 

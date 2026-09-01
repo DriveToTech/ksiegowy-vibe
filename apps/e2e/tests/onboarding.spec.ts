@@ -29,7 +29,7 @@ test('new user with no company is guided through company, ksef, and team steps t
   await page.getByLabel('NIP').fill('1122334455');
   await page.getByRole('button', { name: 'Pobierz dane po NIP' }).click();
   await expect(page.getByText('Dane firmy zostały pobrane z rejestru po NIP')).toBeVisible();
-  await expect(page.getByLabel('Nazwa firmy')).toHaveValue('Firma z rejestru 1122334455');
+  await expect(page.getByLabel('Nazwa firmy')).toHaveValue('Registry Demo Company 1122334455');
 
   await page.getByRole('button', { name: 'Utwórz firmę' }).click();
 
@@ -54,7 +54,7 @@ test('new user with no company is guided through company, ksef, and team steps t
   // copyable invite link instead.
   await expect(page.getByRole('heading', { name: 'Zaproś księgowego' })).toBeVisible();
   await settle(page);
-  await page.getByLabel('Adres e-mail *').fill('ksiegowy@example.com');
+  await page.getByLabel('Adres e-mail *').fill('bookkeeper@example.test');
   await page.getByRole('button', { name: 'Wyślij zaproszenie' }).click();
   await expect(page.getByText('Zaproszenie utworzone')).toBeVisible();
   await expect(page.getByText(/\/invite\/invite-token-/)).toBeVisible();
@@ -64,16 +64,16 @@ test('new user with no company is guided through company, ksef, and team steps t
   // Landed on a fully active dashboard for the just-created company.
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole('heading', { name: 'Panel operacyjny' })).toBeVisible();
-  await expect(page.getByRole('banner').getByText('Firma z rejestru 1122334455', { exact: true })).toBeVisible();
+  await expect(page.getByRole('banner').getByText('Registry Demo Company 1122334455', { exact: true })).toBeVisible();
 });
 
 test('"Save and finish later" returns to the dashboard once a company has been created', async ({ onboardingPage: page }) => {
   await page.goto('/onboarding/company');
   await settle(page);
 
-  await page.getByLabel('Nazwa firmy').fill('Firma odłożona na później Sp. z o.o.');
+  await page.getByLabel('Nazwa firmy').fill('Deferred Demo Ledger LLC');
   await page.getByLabel('NIP').fill('9988776655');
-  await page.getByLabel('Adres *', { exact: true }).fill('ul. Odłożona 5, 00-100 Warszawa');
+  await page.getByLabel('Adres *', { exact: true }).fill('5 Placeholder Avenue, Demo City, TEST-0003');
   await page.getByRole('button', { name: 'Utwórz firmę' }).click();
 
   await expect(page).toHaveURL(/\/onboarding\/ksef$/);

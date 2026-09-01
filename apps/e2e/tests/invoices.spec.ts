@@ -70,9 +70,9 @@ test('new invoice form can select a service from the catalogue', async ({ authen
   await page.getByRole('button', { name: '+ Dodaj pozycję' }).click();
   const lineItemInputs = page.getByRole('combobox', { name: 'Nazwa pozycji' });
   await lineItemInputs.nth(1).click();
-  await page.getByRole('option', { name: 'Accounting service' }).click();
+  await page.getByRole('option', { name: 'Demo bookkeeping package' }).click();
 
-  await expect(lineItemInputs.nth(1)).toHaveValue('Accounting service');
+  await expect(lineItemInputs.nth(1)).toHaveValue('Demo bookkeeping package');
   await expect(page.getByRole('textbox', { name: 'Jednostka miary' }).nth(1)).toHaveValue('hour');
 });
 
@@ -109,6 +109,6 @@ test('accepted invoice can create formal correction draft and shows corrected in
 
   await page.getByRole('button', { name: 'Wystaw korektę', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: 'KOR 1/4/2024' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'KOR-DEMO-001' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wyślij korektę do KSeF' })).toBeVisible();
 });

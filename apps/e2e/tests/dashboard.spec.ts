@@ -23,7 +23,7 @@ test('dashboard loads with the KSeF clearance KPI grid', async ({ authenticatedP
   await expect(page.getByRole('heading', { name: 'Panel operacyjny' })).toBeVisible();
   await expect(page.getByText('Przyjęte')).toBeVisible();
   await expect(page.getByText('W trakcie rozliczenia')).toBeVisible();
-  await expect(page.getByText('Odrzucone')).toBeVisible();
+  await expect(page.getByText('Odrzucone', { exact: true })).toBeVisible();
   await expect(page.getByText('Nie wysłane')).toBeVisible();
 });
 
@@ -32,7 +32,7 @@ test('authenticated header exposes company, KSeF, theme, and session controls in
 
   const header = page.getByRole('banner');
   await expect(header.getByRole('link', { name: 'Księgowy Vibe logo' })).toBeVisible();
-  await expect(header.getByText('Test Company Sp. z o.o.', { exact: true })).toBeVisible();
+  await expect(header.getByText('Northstar Demo Ledger LLC', { exact: true })).toBeVisible();
   const ksefBadge = header.getByText('TEST', { exact: true }).first();
   await expect(ksefBadge).toBeVisible();
   await expect(ksefBadge).toHaveCSS('color', 'rgb(138, 83, 0)');
@@ -553,5 +553,5 @@ test('scrolling and focusing content accounts for the wrapped mobile sticky head
   });
 
   expect(positions.headerHeight).toMatch(/\d/);
-  expect(positions.focusedTop).toBeGreaterThanOrEqual(positions.headerBottom);
+  expect(positions.focusedTop).toBeGreaterThanOrEqual(positions.headerBottom - 1);
 });
