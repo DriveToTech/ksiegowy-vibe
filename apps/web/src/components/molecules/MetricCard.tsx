@@ -26,17 +26,17 @@ export function MetricCard({
   className,
 }: MetricCardProps) {
   return (
-    <Surface className={cn('p-5', className)} tone="glass" shape="organic">
+    <Surface tone="inset" className={cn('p-5', className)}>
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">{label}</p>
-          <p className={cn('font-display text-3xl font-semibold tracking-tight', accentClasses[accent])}>
+          <p className={cn('text-[27px] font-semibold tracking-[-0.03em]', accentClasses[accent])}>
             {value}
           </p>
           {hint ? <p className="text-sm text-muted">{hint}</p> : null}
         </div>
         {icon ? (
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-panel/80 text-primary-strong backdrop-blur-xl">
+          <div className="flex h-11 w-11 items-center justify-center rounded-chip bg-surface-panel text-primary-strong">
             {icon}
           </div>
         ) : null}

@@ -7,13 +7,5 @@ export default async function DashboardLayout({
 }: Readonly<{ children: ReactNode }>) {
   const session = await requireAuthSession('/dashboard');
 
-  return (
-    <DashboardShell
-      companies={session.companies}
-      activeCompanyId={session.activeCompanyId}
-      activeKsefEnvironment={session.activeKsefEnvironment}
-    >
-      {children}
-    </DashboardShell>
-  );
+  return <DashboardShell session={session}>{children}</DashboardShell>;
 }

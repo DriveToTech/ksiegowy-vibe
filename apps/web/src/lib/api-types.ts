@@ -59,8 +59,27 @@ export interface Contractor {
   bankAccount: string | null;
   notes: string | null;
   isActive: boolean;
+  turnover: string;
+  turnoverYear: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ContractorSummaryDocument {
+  id: string;
+  invoiceNumber: string | null;
+  invoiceType: 'VAT' | 'KOR' | 'ZAL' | 'ROZ' | 'UPR';
+  issueDate: string;
+  totalGross: string;
+}
+
+export interface ContractorSummary {
+  contractorId: string;
+  year: number;
+  turnover: string;
+  paidThisYear: string;
+  outstanding: string;
+  recentDocuments: ContractorSummaryDocument[];
 }
 
 export interface InvoiceLine {

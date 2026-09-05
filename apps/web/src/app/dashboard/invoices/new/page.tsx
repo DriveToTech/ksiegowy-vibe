@@ -33,6 +33,8 @@ export default async function NewInvoicePage() {
     );
   }
 
+  const company = session.companies.find((candidateCompany) => candidateCompany.id === companyId);
+
   const [contractors, serviceTemplates] = await Promise.all([
     getContractors(companyId),
     getServiceTemplates(companyId).catch(() => []),
@@ -75,6 +77,7 @@ export default async function NewInvoicePage() {
       />
       <NewInvoiceForm
         companyId={companyId}
+        defaultBankAccount={company?.bankAccount ?? null}
         contractors={contractors}
         serviceTemplates={serviceTemplates}
         contractorRates={allRates}

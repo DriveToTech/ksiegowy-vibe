@@ -8,12 +8,12 @@ import type { CompanyKsefCredentialStatus } from '../../../lib/api-types';
 import { getActiveKsefEnvironmentFromBrowser } from '../../../lib/ksef-environment';
 import { cn } from '../../../lib/cn';
 import { Button } from '../../../components/atoms/Button';
-import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { t } from '../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
-  TEST: 'border-success/30 bg-success/15 text-success-ink',
-  PRODUCTION: 'border-warning/40 bg-warning/15 text-warning-ink',
+  TEST: 'border-success bg-success text-success-ink',
+  PRODUCTION: 'border-warning bg-warning text-warning-ink',
 };
 
 function EnvironmentBadge({ environment }: { environment: string }) {
@@ -80,42 +80,22 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
 
   return (
     <>
-      <Surface tone="glass" shape="organic" className="flex h-full flex-col justify-between gap-5 p-5 sm:p-6">
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">{t.incoming.ksefSync.eyebrow}</p>
-          <h2 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            {t.incoming.ksefSync.title}
-          </h2>
-          <p className="text-sm text-muted">{t.incoming.ksefSync.description}</p>
-        </div>
-
-        <div className="rounded-[1.75rem_1.25rem_2rem_1.25rem] bg-surface-raised/45 p-4 backdrop-blur-xl">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.incoming.ksefSync.helperLabel}</p>
-          <p className="mt-2 text-sm text-foreground">{t.incoming.ksefSync.helperDescription}</p>
-          <div className="pt-4">
-            <Button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              aria-label={t.incoming.ksefSync.button}
-            >
-              {t.incoming.ksefSync.button}
-            </Button>
-          </div>
-        </div>
-      </Surface>
+      <Button type="button" onClick={() => setIsModalOpen(true)} aria-label={t.incoming.ksefSync.button}>
+        {t.incoming.ksefSync.button}
+      </Button>
 
       {isModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="ksef-sync-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(8,10,20,0.72)] p-4"
           onClick={(event) => { if (event.target === event.currentTarget) handleClose(); }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-surface-panel p-6 shadow-xl space-y-5">
+          <div className="w-full max-w-md rounded-card border border-outline-strong bg-surface-panel p-6 space-y-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h2 id="ksef-sync-title" className="font-display text-xl font-semibold tracking-tight text-foreground">
+              <h2 id="ksef-sync-title" className="text-xl font-semibold tracking-tight text-foreground">
                 {t.incoming.ksefSync.modalTitle}
               </h2>
               <EnvironmentBadge environment={activeEnvironment} />
@@ -136,7 +116,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   value={dateFrom}
                   max={dateTo}
                   onChange={(event) => setDateFrom(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
               </div>
 
@@ -151,7 +131,7 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                   min={dateFrom}
                   max={today()}
                   onChange={(event) => setDateTo(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-surface-raised px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
             </div>
             </div>
@@ -161,26 +141,18 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
             </p>
 
             {!hasToken && (
-              <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-ink" role="alert">
+              <Banner tone="warning">
                 <p>{t.incoming.ksefSync.missingTokenWarning(activeEnvironment)}{' '}
                   <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
                     {t.incoming.ksefSync.goToSettings}
                   </Link>
                 </p>
-              </div>
+              </Banner>
             )}
 
-          {result !== null && (
-              <p className="rounded-xl bg-success-soft/20 px-4 py-2 text-sm text-success-ink" role="status">
-                {result}
-              </p>
-            )}
+          {result !== null && <Banner tone="success">{result}</Banner>}
 
-            {error !== null && (
-              <p className="rounded-xl bg-error-soft/20 px-4 py-2 text-sm text-error-ink" role="alert">
-                {error}
-              </p>
-            )}
+            {error !== null && <Banner tone="error">{error}</Banner>}
 
             <div className="flex justify-end gap-3 pt-1">
               <Button type="button" variant="ghost" onClick={handleClose} disabled={isSyncing}>

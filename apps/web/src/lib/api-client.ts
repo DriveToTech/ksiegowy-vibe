@@ -11,6 +11,7 @@ import type {
   CompanyLookupResult,
   Contractor,
   ContractorServiceRate,
+  ContractorSummary,
   CreateCompanyBody,
   CreateDraftBody,
   InvoiceDetail,
@@ -48,6 +49,7 @@ export type {
   CompanyKsefSettings,
   Contractor,
   ContractorServiceRate,
+  ContractorSummary,
   CreateCompanyBody,
   CreateDraftBody,
   IncomingInvoiceDetail,
@@ -411,6 +413,15 @@ export async function syncIncomingFromKsef(
       body: JSON.stringify({ dateFrom, dateTo }),
     },
   );
+}
+
+export async function getContractorSummary(
+  companyId: string,
+  contractorId: string,
+  year?: number,
+): Promise<ContractorSummary> {
+  const params = year ? `?${new URLSearchParams({ year: String(year) }).toString()}` : '';
+  return clientFetch<ContractorSummary>(`/companies/${companyId}/contractors/${contractorId}/summary${params}`);
 }
 
 export async function updateContractor(

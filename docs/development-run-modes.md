@@ -14,6 +14,7 @@ This guide covers the three development run modes currently supported in this re
 - `pnpm dev` loads variables from `.env` and starts **API + web locally**.
 - `pnpm dev:web` loads variables from `.env` and starts **only web locally**.
 - Container hostnames such as `http://api:3001` and `postgres` work **only inside the Docker network**. Local processes must use `localhost`.
+- `POSTGRES_HOST_PORT` changes only the host-published PostgreSQL port. Docker services continue connecting to `postgres:5432` inside the Compose network.
 - `BACKUP_DESTINATION_ROOT` is the canonical remote backup root for company Google Drive file backups. For PostgreSQL remote publishing, setting it is an explicit opt-in to the unified `<root>/postgresql/<environment>/...` layout; when it is unset, legacy `DB_BACKUP_REMOTE_BASE_PATH/<environment>/...` destinations remain in use. It does not change the local PostgreSQL artifact directory, which remains repo `backups/postgresql`.
 - When the API runs locally, set `POSTGRESQL_BACKUP_ARTIFACTS_PATH` to an **absolute path** pointing at the repo backup artifacts directory, for example:
 
@@ -43,13 +44,13 @@ docker compose up --build
 Run migrations after the stack is up:
 
 ```bash
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
 ```
 
 Optional seed:
 
 ```bash
-docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
+pnpm db:seed
 ```
 
 ### Environment expectations
@@ -59,6 +60,7 @@ docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
 | `API_URL` | `http://api:3001` inside Docker web |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` |
 | `DATABASE_URL` | Docker Compose overrides it to `postgresql://<user>:<password>@postgres:5432/<database>` for the API container |
+| `POSTGRES_HOST_PORT` | Host port published for PostgreSQL; set it to another free port such as `55432` when host port `5432` is occupied |
 | `POSTGRESQL_BACKUP_ARTIFACTS_PATH` | Docker API uses `/app/backups/postgresql` |
 
 ### Access URLs
@@ -137,13 +139,25 @@ pnpm dev:web
 If migrations are needed:
 
 ```bash
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
 ```
+
+When host port `5432` is occupied by Colima or another local service, use a
+different host port without changing the container connection:
+
+```bash
+export POSTGRES_HOST_PORT=55432
+docker compose up -d postgres api
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
+```
+
+The API container still connects to `postgres:5432`; only host tools connect to
+`localhost:55432`.
 
 Optional seed:
 
 ```bash
-docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
+pnpm db:seed
 ```
 
 ### Environment expectations

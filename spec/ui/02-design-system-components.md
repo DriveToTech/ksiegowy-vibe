@@ -1,5 +1,7 @@
 # Design System Component Subtasks
 
+> **Superseded.** The visual system described here (Aeon Ethereal) was replaced by **Aurora Solid** — see `spec/aurora-solid-redesign-plan.md` for the current source of truth on tokens, components, and screen layouts. This file is kept as historical record; do not build against it.
+
 ## Status
 - Overall: `partially completed`
 - The current implementation favors a pragmatic shared component layer instead of building every planned abstraction upfront.

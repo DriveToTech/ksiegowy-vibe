@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { getActiveCompany, getCompanyKsefSettings, getIncomingInvoices } from '../../../lib/api';
+import { Button } from '../../../components/atoms/Button';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { ErrorState } from '../../../components/molecules/ErrorState';
 import { MetricCard } from '../../../components/molecules/MetricCard';
@@ -8,14 +10,22 @@ import { t } from '../../../lib/translations';
 import { UploadButton } from './UploadButton';
 import { KsefSyncButton } from './KsefSyncButton';
 
-export default async function IncomingPage() {
+export default async function IncomingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { activeCompanyId: companyId } = await getActiveCompany().catch(() => ({ activeCompanyId: null }));
 
   if (!companyId) {
     return <ErrorState message={t.incoming.noCompany} />;
   }
 
-  const result = await getIncomingInvoices(companyId).catch(() => ({ data: [], total: 0, page: 1, limit: 20 }));
+  const { page: pageParam } = await searchParams;
+  const page = Number(pageParam) > 0 ? Number(pageParam) : 1;
+
+  const result = await getIncomingInvoices(companyId, { page: String(page) }).catch(() => ({ data: [], total: 0, page: 1, limit: 20 }));
+  const totalPages = Math.max(1, Math.ceil(result.total / result.limit));
   const processingCount = result.data.filter((invoice) => invoice.status === 'OCR_PROCESSING').length;
   const confirmedCount = result.data.filter((invoice) => invoice.status === 'CONFIRMED').length;
 
@@ -28,25 +38,43 @@ export default async function IncomingPage() {
         eyebrow={t.incoming.pageEyebrow}
         title={t.incoming.pageTitle}
         description={t.incoming.pageDescription}
+        actions={
+          <>
+            <UploadButton companyId={companyId} />
+            <KsefSyncButton companyId={companyId} ksefCredentialStatuses={ksefCredentialStatuses} />
+          </>
+        }
       />
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="grid gap-4 md:grid-cols-3">
         <MetricCard label={t.incoming.metrics.allLabel} value={String(result.total)} hint={t.incoming.metrics.allHint} />
         <MetricCard label={t.incoming.metrics.processingLabel} value={String(processingCount)} hint={t.incoming.metrics.processingHint} />
         <MetricCard label={t.incoming.metrics.confirmedLabel} value={String(confirmedCount)} hint={t.incoming.metrics.confirmedHint} accent="primary" />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] xl:items-stretch">
-        <UploadButton companyId={companyId} />
-        <KsefSyncButton companyId={companyId} ksefCredentialStatuses={ksefCredentialStatuses} />
-      </div>
-
-      {result.data.length === 0 ? (
+      {result.total === 0 ? (
         <EmptyState title={t.incoming.emptyTitle} description={t.incoming.empty} />
       ) : (
         <>
           <IncomingInvoicesTable invoices={result.data} />
-          <p className="text-sm text-muted">{t.incoming.total(result.total)}</p>
+          <div className="flex flex-col gap-3 rounded-control border border-outline bg-surface-raised px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
+              {t.incoming.total(result.total)}
+            </p>
+            <div className="flex items-center justify-between gap-4 sm:justify-end">
+              <Link href={`/dashboard/incoming?page=${page - 1}`}>
+                <Button variant="secondary" size="sm" disabled={page <= 1}>
+                  {t.pagination.previous}
+                </Button>
+              </Link>
+              <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)}</p>
+              <Link href={`/dashboard/incoming?page=${page + 1}`}>
+                <Button variant="secondary" size="sm" disabled={page >= totalPages}>
+                  {t.pagination.next}
+                </Button>
+              </Link>
+            </div>
+          </div>
         </>
       )}
     </div>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #060710; }
+  a { color: #a78bfa; text-decoration: none; }
+  a:hover { color: #c4b1fd; }
+</style>
+</helmet>
+
+<section style="width: 1440px; padding: 56px 64px 72px; display: flex; flex-direction: column; gap: 48px; font-family: 'Sora', system-ui, sans-serif; color: #eceef7; background: linear-gradient(170deg, #0d1024 0%, #080a14 40%, #090b16 72%, #0f1226 100%);">
+
+  <div style="display: flex; flex-direction: column; gap: 12px; max-width: 760px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(236,238,247,0.45);">Aurora Solid &middot; v1</div>
+    <h1 style="margin: 0; font-size: 40px; font-weight: 600; line-height: 1.08; letter-spacing: -0.03em;">Ksiegowy Vibe design system</h1>
+    <p style="margin: 0; font-size: 16px; line-height: 1.6; color: rgba(236,238,247,0.62); text-wrap: pretty;">Depth from layered opaque surfaces and light, never from blur. Every token below is used verbatim in the platform screens.</p>
+  </div>
+
+  <!-- SURFACES -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(236,238,247,0.45); padding-bottom: 10px; border-bottom: 1px solid rgba(236,238,247,0.1);">01 &middot; Surfaces</div>
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;">
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 78px; background: linear-gradient(155deg, #0d1024, #080a14);"></div>
+        <div style="padding: 12px 13px; background: #10132a; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 13px; font-weight: 500;">Canvas</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">#0D1024 &rarr; #080A14</div>
+        </div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 78px; background: #0a0c18;"></div>
+        <div style="padding: 12px 13px; background: #10132a; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 13px; font-weight: 500;">Chrome</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">#0A0C18</div>
+        </div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 78px; background: #10132a;"></div>
+        <div style="padding: 12px 13px; background: #10132a; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 13px; font-weight: 500;">Card</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">#10132A</div>
+        </div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 78px; background: #171b36;"></div>
+        <div style="padding: 12px 13px; background: #10132a; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 13px; font-weight: 500;">Inset</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">#171B36</div>
+        </div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 78px; background: #0d1024;"></div>
+        <div style="padding: 12px 13px; background: #10132a; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 13px; font-weight: 500;">Table header</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">#0D1024</div>
+        </div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+      <div style="padding: 14px 16px; border-radius: 12px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 5px;">
+        <div style="font-size: 13px; font-weight: 500;">Hairline border</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.55);">1px solid rgba(236,238,247,0.10)</div>
+      </div>
+      <div style="padding: 14px 16px; border-radius: 12px; background: #10132a; border: 1px solid rgba(236,238,247,0.14); display: flex; flex-direction: column; gap: 5px;">
+        <div style="font-size: 13px; font-weight: 500;">Border, strong</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.55);">1px solid rgba(236,238,247,0.14)</div>
+      </div>
+      <div style="padding: 14px 16px; border-radius: 12px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); box-shadow: 0 30px 90px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 5px;">
+        <div style="font-size: 13px; font-weight: 500;">Frame shadow &mdash; the only shadow</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.55);">0 30px 90px rgba(0,0,0,0.6)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLOR -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(236,238,247,0.45); padding-bottom: 10px; border-bottom: 1px solid rgba(236,238,247,0.1);">02 &middot; Accent &amp; state</div>
+    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;">
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 64px; background: linear-gradient(140deg, #b39cfb, #7aa7f2);"></div>
+        <div style="padding: 11px 12px; background: #10132a;"><div style="font-size: 12.5px; font-weight: 500;">Primary action</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(236,238,247,0.5);">#B39CFB &rarr; #7AA7F2</div></div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 64px; background: #a78bfa;"></div>
+        <div style="padding: 11px 12px; background: #10132a;"><div style="font-size: 12.5px; font-weight: 500;">Accent / link</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(236,238,247,0.5);">#A78BFA</div></div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 64px; background: #58cf9a;"></div>
+        <div style="padding: 11px 12px; background: #10132a;"><div style="font-size: 12.5px; font-weight: 500;">Accepted / paid</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(236,238,247,0.5);">#58CF9A</div></div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 64px; background: #f5be5a;"></div>
+        <div style="padding: 11px 12px; background: #10132a;"><div style="font-size: 12.5px; font-weight: 500;">In clearance / due</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(236,238,247,0.5);">#F5BE5A</div></div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 64px; background: #f07a6a;"></div>
+        <div style="padding: 11px 12px; background: #10132a;"><div style="font-size: 12.5px; font-weight: 500;">Rejected / error</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(236,238,247,0.5);">#F07A6A</div></div>
+      </div>
+      <div style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(236,238,247,0.1);">
+        <div style="height: 64px; background: #b6bce0;"></div>
+        <div style="padding: 11px 12px; background: #10132a;"><div style="font-size: 12.5px; font-weight: 500;">offline24 / neutral</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(236,238,247,0.5);">#B6BCE0</div></div>
+      </div>
+    </div>
+    <div style="padding: 14px 16px; border-radius: 12px; background: #171b36; border: 1px solid rgba(236,238,247,0.1); font-size: 13px; line-height: 1.55; color: rgba(236,238,247,0.7);">State colours appear only as 14&ndash;16% tinted fills, 28&ndash;34% borders and full-strength text or 3px rails. Never as a large filled block &mdash; a screen with five red cards tells you nothing.</div>
+  </div>
+
+  <!-- TYPE -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(236,238,247,0.45); padding-bottom: 10px; border-bottom: 1px solid rgba(236,238,247,0.1);">03 &middot; Type</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(236,238,247,0.45);">Sora &mdash; interface</div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-size: 34px; font-weight: 600; letter-spacing: -0.03em;">Gross 262,79</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">34 / 600 / -3%</div></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-size: 25px; font-weight: 600; letter-spacing: -0.02em;">Operations panel</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">25 / 600 / -2%</div></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-size: 14px; font-weight: 600;">Card title</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">14 / 600</div></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-size: 13px;">Row and body text</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">13 / 400</div></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-size: 12px; color: rgba(236,238,247,0.55);">Secondary caption under a value</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">12 / 55%</div></div>
+      </div>
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(236,238,247,0.45);">IBM Plex Mono &mdash; identifiers &amp; labels</div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 500;">KOR 3/5/2026</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">30 / 500</div></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">8982160168-20260506-3EBE&hellip;</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">14 / 400</div></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(236,238,247,0.5);">Eyebrow label</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">10 / 0.14em / caps</div></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">CODE 21015 &middot; NIP CHECKSUM</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">11 / caps</div></div>
+        <div style="padding: 12px 13px; border-radius: 10px; background: #171b36; font-size: 12.5px; line-height: 1.5; color: rgba(236,238,247,0.7);">Every amount uses <span style="font-family: 'IBM Plex Mono', monospace;">font-variant-numeric: tabular-nums</span> so columns align.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPACING / RADIUS -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(236,238,247,0.45); padding-bottom: 10px; border-bottom: 1px solid rgba(236,238,247,0.1);">04 &middot; Space &amp; radius</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-size: 14px; font-weight: 600;">Spacing scale</div>
+        <div style="display: flex; flex-direction: column; gap: 9px;">
+          <div style="display: flex; align-items: center; gap: 12px;"><div style="width: 8px; height: 10px; background: #a78bfa;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(236,238,247,0.6);">8 &mdash; chip padding, tight stacks</div></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><div style="width: 10px; height: 10px; background: #a78bfa;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(236,238,247,0.6);">10 &mdash; list gap</span></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><div style="width: 13px; height: 10px; background: #a78bfa;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(236,238,247,0.6);">13 &mdash; inset card padding, row height</span></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><div style="width: 16px; height: 10px; background: #a78bfa;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(236,238,247,0.6);">16 &mdash; grid gap</span></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><div style="width: 18px; height: 10px; background: #a78bfa;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(236,238,247,0.6);">18 &mdash; card padding, table gutter</span></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><div style="width: 26px; height: 10px; background: #a78bfa;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(236,238,247,0.6);">26 &mdash; page gutter</span></div>
+        </div>
+      </div>
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-size: 14px; font-weight: 600;">Radius</div>
+        <div style="display: flex; align-items: flex-end; gap: 14px;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 62px; height: 44px; border-radius: 6px; background: #171b36; border: 1px solid rgba(236,238,247,0.14);"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">6 chip</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 62px; height: 44px; border-radius: 9px; background: #171b36; border: 1px solid rgba(236,238,247,0.14);"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">9 control</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 62px; height: 44px; border-radius: 12px; background: #171b36; border: 1px solid rgba(236,238,247,0.14);"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">12 inset</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 62px; height: 44px; border-radius: 16px; background: #171b36; border: 1px solid rgba(236,238,247,0.14);"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">16 card</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 62px; height: 44px; border-radius: 20px; background: #171b36; border: 1px solid rgba(236,238,247,0.14);"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">20 frame</span></div>
+        </div>
+        <div style="padding: 12px 13px; border-radius: 10px; background: #171b36; font-size: 12.5px; line-height: 1.5; color: rgba(236,238,247,0.7);">Chrome bar 60px. Sidebar 226px. Page gutter 26px. Table row 44px.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPONENTS -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(236,238,247,0.45); padding-bottom: 10px; border-bottom: 1px solid rgba(236,238,247,0.1);">05 &middot; Components</div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-size: 14px; font-weight: 600;">Buttons</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <div style="padding: 10px 17px; border-radius: 10px; background: linear-gradient(140deg, #b39cfb, #7aa7f2); color: #0c0d1c; font-size: 13px; font-weight: 600;">Primary</div>
+          <div style="padding: 10px 15px; border-radius: 10px; background: rgba(236,238,247,0.06); border: 1px solid rgba(236,238,247,0.12); font-size: 13px;">Secondary</div>
+          <div style="padding: 10px 15px; border-radius: 10px; background: rgba(240,122,106,0.12); border: 1px solid rgba(240,122,106,0.32); color: #f07a6a; font-size: 13px; font-weight: 500;">Destructive</div>
+          <div style="padding: 10px 15px; border-radius: 10px; font-size: 13px; color: #a78bfa; font-weight: 500;">Ghost &rarr;</div>
+          <div style="padding: 10px 15px; border-radius: 10px; background: rgba(236,238,247,0.04); border: 1px solid rgba(236,238,247,0.08); font-size: 13px; color: rgba(236,238,247,0.35);">Disabled</div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="padding: 7px 12px; border-radius: 8px; background: rgba(236,238,247,0.06); border: 1px solid rgba(236,238,247,0.12); font-size: 12px;">Small 32px</div>
+          <div style="padding: 12px 19px; border-radius: 11px; background: rgba(236,238,247,0.06); border: 1px solid rgba(236,238,247,0.12); font-size: 14px;">Large 46px</div>
+        </div>
+      </div>
+
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-size: 14px; font-weight: 600;">Status chips</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 9px;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 5px 9px; border-radius: 6px; background: rgba(88,207,154,0.14); color: #58cf9a;">ACCEPTED</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 5px 9px; border-radius: 6px; background: rgba(245,190,90,0.14); color: #f5be5a;">IN CLEARANCE</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 5px 9px; border-radius: 6px; background: rgba(240,122,106,0.16); color: #f07a6a;">REJECTED</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 5px 9px; border-radius: 6px; background: rgba(143,150,192,0.16); color: #b6bce0;">offline24</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 5px 9px; border-radius: 6px; background: rgba(236,238,247,0.08); color: rgba(236,238,247,0.55);">DRAFT</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 5px 9px; border-radius: 6px; background: rgba(88,207,154,0.14); color: #58cf9a;">PAID</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 5px 9px; border-radius: 6px; background: rgba(245,190,90,0.14); color: #f5be5a;">UNPAID</span>
+        </div>
+        <div style="display: flex; gap: 9px; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 8px; background: rgba(245,190,90,0.12); border: 1px solid rgba(245,190,90,0.3); font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: #f5be5a;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #f5be5a;"></span>KSeF TEST</div>
+          <div style="display: flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 8px; background: rgba(88,207,154,0.12); border: 1px solid rgba(88,207,154,0.3); font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: #58cf9a;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #58cf9a;"></span>KSeF PROD</div>
+        </div>
+      </div>
+
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-size: 14px; font-weight: 600;">Fields</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 12.5px; color: rgba(236,238,247,0.7);">Company name <span style="color: #f07a6a;">*</span></div>
+          <div style="padding: 11px 13px; border-radius: 10px; background: #171b36; border: 1px solid rgba(236,238,247,0.12); font-size: 13.5px;">TRYSOFT Maciej Trybu&#322;a</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 12.5px; color: rgba(236,238,247,0.7);">NIP &mdash; focused</div>
+          <div style="padding: 11px 13px; border-radius: 10px; background: #171b36; border: 1px solid #a78bfa; font-family: 'IBM Plex Mono', monospace; font-size: 13.5px;">8982160168</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 12.5px; color: rgba(236,238,247,0.7);">Buyer NIP &mdash; invalid</div>
+          <div style="padding: 11px 13px; border-radius: 10px; background: rgba(240,122,106,0.08); border: 1px solid rgba(240,122,106,0.5); font-family: 'IBM Plex Mono', monospace; font-size: 13.5px;">895193074</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #f07a6a;">CHECKSUM FAILS &middot; KSeF WILL REJECT (21015)</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 12.5px; color: rgba(236,238,247,0.7);">Read-only</div>
+          <div style="padding: 11px 13px; border-radius: 10px; background: rgba(236,238,247,0.03); border: 1px solid rgba(236,238,247,0.07); font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; color: rgba(236,238,247,0.45);">FA(3)</div>
+        </div>
+      </div>
+
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-size: 14px; font-weight: 600;">Navigation &amp; alerts</div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="padding: 9px 12px; border-radius: 9px; background: linear-gradient(100deg, rgba(167,139,250,0.24), rgba(94,184,240,0.12)); border: 1px solid rgba(167,139,250,0.34); font-size: 14px; font-weight: 500;">Active item</div>
+          <div style="padding: 9px 12px; border-radius: 9px; background: rgba(236,238,247,0.05); font-size: 14px; color: rgba(236,238,247,0.8);">Hover</div>
+          <div style="padding: 9px 12px; border-radius: 9px; font-size: 14px; color: rgba(236,238,247,0.62); display: flex; justify-content: space-between;">With count <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #f5be5a;">7 new</span></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="padding: 12px 13px; border-radius: 11px; background: #171b36; border-left: 3px solid #f07a6a; display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 13px; font-weight: 500;">Blocking alert</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.5);">3px rail states severity</div></div>
+          <div style="padding: 12px 16px; border-radius: 12px; background: rgba(245,190,90,0.1); border: 1px solid rgba(245,190,90,0.28); font-size: 13px; color: rgba(236,238,247,0.8);">Page-level banner &mdash; tinted fill, tinted border</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
+      <div style="border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); overflow: hidden;">
+        <div style="padding: 13px 18px; font-size: 14px; font-weight: 600; border-bottom: 1px solid rgba(236,238,247,0.08);">Table</div>
+        <div style="display: grid; grid-template-columns: 130px 1fr 110px 120px; padding: 10px 18px; background: #0d1024; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(236,238,247,0.45);"><div>Number</div><div>Contractor</div><div style="text-align: right;">Gross</div><div style="text-align: right;">KSeF</div></div>
+        <div style="display: grid; grid-template-columns: 130px 1fr 110px 120px; align-items: center; padding: 12px 18px; border-top: 1px solid rgba(236,238,247,0.07); font-size: 13px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">FV 17/8/2026</div><div>Empik S.A.</div><div style="text-align: right; font-variant-numeric: tabular-nums;">12 380,50 z&#322;</div><div style="text-align: right;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 4px 8px; border-radius: 5px; background: rgba(88,207,154,0.14); color: #58cf9a;">ACCEPTED</span></div></div>
+        <div style="display: grid; grid-template-columns: 130px 1fr 110px 120px; align-items: center; padding: 12px 18px; border-top: 1px solid rgba(236,238,247,0.07); background: #131734; font-size: 13px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">FV 16/8/2026</div><div>GREENLAN FIBER sp. z o.o.</div><div style="text-align: right; font-variant-numeric: tabular-nums;">8 214,00 z&#322;</div><div style="text-align: right;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 4px 8px; border-radius: 5px; background: rgba(143,150,192,0.16); color: #b6bce0;">offline24</span></div></div>
+        <div style="padding: 10px 18px; background: #0d1024; border-top: 1px solid rgba(236,238,247,0.08); font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(236,238,247,0.45);">ROW 44PX &middot; HOVER #131734 &middot; NO SHADOWS ON ROWS</div>
+      </div>
+
+      <div style="padding: 22px 24px; border-radius: 16px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-size: 14px; font-weight: 600;">Clearance stepper</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 3px; border-radius: 99px; background: #58cf9a;"></div><div style="font-size: 12.5px; font-weight: 500;">Created</div></div>
+          <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 3px; border-radius: 99px; background: #58cf9a;"></div><div style="font-size: 12.5px; font-weight: 500;">Sent</div></div>
+          <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 3px; border-radius: 99px; background: #58cf9a;"></div><div style="font-size: 12.5px; font-weight: 500;">Accepted</div></div>
+          <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 3px; border-radius: 99px; background: rgba(236,238,247,0.14);"></div><div style="font-size: 12.5px; font-weight: 500; color: rgba(236,238,247,0.5);">Paid</div></div>
+        </div>
+        <div style="font-size: 14px; font-weight: 600; padding-top: 4px;">KPI cell</div>
+        <div style="padding: 16px 18px; border-radius: 14px; background: #171b36; display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(236,238,247,0.5);"><span style="width: 7px; height: 7px; border-radius: 2px; background: #58cf9a;"></span>Accepted</div>
+          <div style="font-size: 27px; font-weight: 600; letter-spacing: -0.03em;">128</div>
+          <div style="font-size: 12px; color: rgba(236,238,247,0.5);">Legally issued</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERF -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(236,238,247,0.45); padding-bottom: 10px; border-bottom: 1px solid rgba(236,238,247,0.1);">06 &middot; Performance rules &mdash; non-negotiable</div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+      <div style="padding: 18px; border-radius: 14px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #f07a6a;">NEVER</div>
+        <div style="font-size: 13.5px; line-height: 1.55; color: rgba(236,238,247,0.75);"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">backdrop-filter</span> or <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">filter: blur()</span>. Both re-rasterise on every scroll frame. This is what made the first glass draft lag.</div>
+      </div>
+      <div style="padding: 18px; border-radius: 14px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #f5be5a;">LIMIT</div>
+        <div style="font-size: 13.5px; line-height: 1.55; color: rgba(236,238,247,0.75);">One shadow per frame, none on cards, rows or chips. Depth comes from surface steps: canvas &rarr; card &rarr; inset.</div>
+      </div>
+      <div style="padding: 18px; border-radius: 14px; background: #10132a; border: 1px solid rgba(236,238,247,0.1); display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #58cf9a;">ALWAYS</div>
+        <div style="font-size: 13.5px; line-height: 1.55; color: rgba(236,238,247,0.75);">Opaque hex fills on anything that scrolls, gradients baked into the element, transitions only on <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">opacity</span> and <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">transform</span>.</div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+</x-dc>
+</body>
+</html>

@@ -41,7 +41,7 @@ if [[ ! -f "${backup_input_directory}/${checksum_file_name}" ]]; then
   exit 1
 fi
 
-if ! (cd "${backup_input_directory}" && sha256sum --check "${checksum_file_name}" --status); then
+if ! (cd "${backup_input_directory}" && sha256sum -cs "${checksum_file_name}"); then
   echo "[restore-postgres] Checksum verification FAILED for ${backup_file_name}."
   exit 1
 fi
@@ -68,6 +68,7 @@ gzip -dc "${backup_input_directory}/${backup_file_name}" | psql \
   --port="${postgres_port}" \
   --username="${postgres_user}" \
   --dbname="${postgres_database}" \
+  --single-transaction \
   -v ON_ERROR_STOP=1
 
 echo "[restore-postgres] Restore completed successfully."

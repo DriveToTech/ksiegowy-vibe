@@ -1,4 +1,5 @@
 import type { VatRate } from '../../lib/api-types';
+import { formatMoney } from '../../lib/format';
 
 const VAT_RATES: VatRate[] = ['23', '8', '5', '0', 'zw', 'np', 'oo'];
 
@@ -34,10 +35,6 @@ function calcLine(line: LineInput): { net: number; vat: number; gross: number } 
   const net = Math.round(qty * price * 100) / 100;
   const vat = Math.round(net * vatMultiplier(line.vatRate) * 100) / 100;
   return { net, vat, gross: Math.round((net + vat) * 100) / 100 };
-}
-
-function formatPLN(value: number): string {
-  return value.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' });
 }
 
 function groupByVatRate(lines: LineInput[]): Array<{ rate: VatRate; net: number; vat: number; gross: number }> {
@@ -80,35 +77,35 @@ export function VatBreakdownTable({ lines, totals }: VatBreakdownTableProps) {
             breakdown.map(({ rate, net, vat, gross }) => (
               <tr key={rate}>
                 <td className="py-1.5 font-medium text-foreground">{VAT_RATE_LABELS[rate]}</td>
-                <td className="py-1.5 tabular-nums text-right text-muted">{formatPLN(net)}</td>
-                <td className="py-1.5 tabular-nums text-right text-muted">{formatPLN(vat)}</td>
-                <td className="py-1.5 tabular-nums text-right text-muted">{formatPLN(gross)}</td>
+                <td className="py-1.5 tabular-nums text-right text-muted">{formatMoney(net)}</td>
+                <td className="py-1.5 tabular-nums text-right text-muted">{formatMoney(vat)}</td>
+                <td className="py-1.5 tabular-nums text-right text-muted">{formatMoney(gross)}</td>
               </tr>
             ))
           )}
         </tbody>
         <tfoot>
-          <tr className="border-t border-outline/30">
+          <tr className="border-t border-outline">
             <td className="pt-3 font-semibold text-foreground">Razem</td>
-            <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatPLN(totals.net)}</td>
-            <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatPLN(totals.vat)}</td>
-            <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatPLN(totals.gross)}</td>
+            <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatMoney(totals.net)}</td>
+            <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatMoney(totals.vat)}</td>
+            <td className="pt-3 font-semibold tabular-nums text-right text-foreground">{formatMoney(totals.gross)}</td>
           </tr>
         </tfoot>
       </table>
 
-      <div className="mt-5 space-y-1.5 border-t border-outline/30 pt-4 text-sm">
+      <div className="mt-5 space-y-1.5 border-t border-outline pt-4 text-sm">
         <div className="flex items-center justify-between">
           <span className="text-muted">Kwota do zapłaty</span>
-          <span className="font-semibold tabular-nums text-foreground">{formatPLN(totals.gross)}</span>
+          <span className="font-semibold tabular-nums text-foreground">{formatMoney(totals.gross)}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted">Zapłacono</span>
-          <span className="tabular-nums text-muted">{formatPLN(0)}</span>
+          <span className="tabular-nums text-muted">{formatMoney(0)}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted">Pozostaje do zapłaty</span>
-          <span className="font-semibold tabular-nums text-foreground">{formatPLN(totals.gross)}</span>
+          <span className="font-semibold tabular-nums text-foreground">{formatMoney(totals.gross)}</span>
         </div>
       </div>
     </div>

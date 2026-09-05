@@ -4,20 +4,23 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompanyKsefEnvironment, CompanyKsefSettings } from '../../../lib/api-types';
 import { updateCompanyKsefCredential, updateCompanyKsefDefaultEnvironment } from '../../../lib/api-client';
+import { ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME, KSEF_ENVIRONMENT_COOKIE_MAX_AGE } from '../../../lib/ksef-environment';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface KsefSettingsFormProps {
   companyId: string;
   settings: CompanyKsefSettings;
+  redirectTo?: string;
 }
 
 const KSEF_ENVIRONMENTS: CompanyKsefEnvironment[] = ['TEST', 'PRODUCTION'];
 
-export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps) {
+export function KsefSettingsForm({ companyId, settings, redirectTo }: KsefSettingsFormProps) {
   const router = useRouter();
   const [tokenByEnvironment, setTokenByEnvironment] = useState<Record<CompanyKsefEnvironment, string>>({
     TEST: '',
@@ -46,6 +49,13 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
 
     updateCompanyKsefCredential(companyId, environment, ksefToken)
       .then(() => {
+        // In the onboarding wizard, saving a working credential *is* the "Continue"
+        // action — the step is complete the moment hasToken becomes true.
+        if (redirectTo) {
+          router.push(redirectTo);
+          return;
+        }
+
         setSuccess(`Token KSeF dla środowiska ${environment} został zapisany.`);
         setTokenByEnvironment((currentValue) => ({
           ...currentValue,
@@ -68,6 +78,7 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
     updateCompanyKsefDefaultEnvironment(companyId, defaultEnvironment)
       .then(() => {
         setSuccess(`Domyślne środowisko KSeF zostało ustawione na ${defaultEnvironment}.`);
+        document.cookie = `${ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME}=${defaultEnvironment}; path=/; max-age=${KSEF_ENVIRONMENT_COOKIE_MAX_AGE}; SameSite=Lax`;
         router.refresh();
       })
       .catch((err: unknown) => {
@@ -77,27 +88,19 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Integracja KSeF</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Integracja KSeF</h2>
         <p className="mt-1 text-sm text-muted">
           Token API do uwierzytelniania w Krajowym Systemie e-Faktur. Przechowywany szyfrowany (AES-256).
           Jeśli nie zostanie ustawiony, system użyje zmiennej środowiskowej <code className="text-xs">KSEF_AUTH_TOKEN</code> (tylko środowisko lokalne/testowe).
         </p>
       </div>
 
-      {error ? (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      ) : null}
-      {success ? (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {error ? <Banner tone="error">{error}</Banner> : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
-      <form onSubmit={(event) => void handleSaveDefaultEnvironment(event)} className="rounded-[1.5rem] border border-outline/15 bg-surface-raised/30 p-4">
+      <form onSubmit={(event) => void handleSaveDefaultEnvironment(event)} className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <FormField label="Domyślne środowisko firmy" htmlFor="company-default-ksef-environment">
             <Select
@@ -127,13 +130,13 @@ export function KsefSettingsForm({ companyId, settings }: KsefSettingsFormProps)
             <form
               key={environment}
               onSubmit={(event) => void handleSaveCredential(event, environment)}
-              className="rounded-[1.75rem_1.25rem_2rem_1.25rem] border border-outline/15 bg-surface-panel/55 p-5 backdrop-blur-xl"
+              className="rounded-card border border-outline bg-surface-panel p-5"
             >
               <div className="space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Środowisko</p>
-                    <h3 className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground">{environment}</h3>
+                    <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{environment}</h3>
                     <p className="mt-2 text-sm text-muted">
                       {environment === 'TEST'
                         ? 'Środowisko testowe Ministerstwa Finansów do bezpiecznych prób i integracji.'

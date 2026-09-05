@@ -6,18 +6,20 @@ test('invoices list page loads', async ({ authenticatedPage: page }) => {
   await expect(page.getByRole('heading', { name: 'Faktury sprzedażowe' })).toBeVisible();
 });
 
-test('invoices list shows metric cards', async ({ authenticatedPage: page }) => {
+test('invoices list shows status filter tabs', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/invoices');
 
-  await expect(page.getByText('Wszystkie faktury')).toBeVisible();
-  await expect(page.getByText('Szkice')).toBeVisible();
-  await expect(page.getByText('Przyjęte w KSeF')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Wszystkie' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Szkice' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Szkice' }).click();
+  await expect(page).toHaveURL(/status=DRAFT/);
 });
 
 test('invoices list shows new invoice button', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/invoices');
 
-  await expect(page.getByRole('link', { name: '+ Nowa faktura' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Nowa faktura' })).toBeVisible();
 });
 
 test('new invoice form loads', async ({ authenticatedPage: page }) => {
@@ -30,7 +32,7 @@ test('new invoice form has line items and payment sections', async ({ authentica
   await page.goto('/dashboard/invoices/new');
 
   await expect(page.getByRole('heading', { name: 'Pozycje faktury' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Szczegóły płatności' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Daty i płatność' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Podsumowanie' })).toBeVisible();
 });
 
@@ -41,6 +43,12 @@ test('new invoice form has date and contractor fields', async ({ authenticatedPa
   await expect(page.locator('#contractorId')).toBeVisible();
 });
 
+test('new invoice form fills the company bank account', async ({ authenticatedPage: page }) => {
+  await page.goto('/dashboard/invoices/new');
+
+  await expect(page.locator('#bankAccount')).toHaveValue('TEST-ACCOUNT-0000');
+});
+
 test('new invoice form can add a line item', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/invoices/new');
 
@@ -48,12 +56,24 @@ test('new invoice form can add a line item', async ({ authenticatedPage: page })
   await expect(addButton).toBeVisible();
 
   // Initially one line (one "Nazwa pozycji" input)
-  await expect(page.getByRole('textbox', { name: 'Nazwa pozycji' })).toHaveCount(1);
+  await expect(page.getByRole('combobox', { name: 'Nazwa pozycji' })).toHaveCount(1);
 
   await addButton.click();
 
   // After adding a line, there should be 2 "Nazwa pozycji" inputs
-  await expect(page.getByRole('textbox', { name: 'Nazwa pozycji' })).toHaveCount(2);
+  await expect(page.getByRole('combobox', { name: 'Nazwa pozycji' })).toHaveCount(2);
+});
+
+test('new invoice form can select a service from the catalogue', async ({ authenticatedPage: page }) => {
+  await page.goto('/dashboard/invoices/new');
+
+  await page.getByRole('button', { name: '+ Dodaj pozycję' }).click();
+  const lineItemInputs = page.getByRole('combobox', { name: 'Nazwa pozycji' });
+  await lineItemInputs.nth(1).click();
+  await page.getByRole('option', { name: 'Demo bookkeeping package' }).click();
+
+  await expect(lineItemInputs.nth(1)).toHaveValue('Demo bookkeeping package');
+  await expect(page.getByRole('textbox', { name: 'Jednostka miary' }).nth(1)).toHaveValue('hour');
 });
 
 test('new invoice form cancel returns to list', async ({ authenticatedPage: page }) => {
@@ -80,15 +100,15 @@ test('accepted invoice can create formal correction draft and shows corrected in
 
   await expect(page).toHaveURL(/\/dashboard\/invoices\/kor-draft-1$/);
   await expect(page.getByText('Korekta faktury:')).toBeVisible();
-  await expect(page.getByText('Prawidłowy numer faktury:')).toBeVisible();
+  await expect(page.getByText('Prawidłowy numer faktury', { exact: true })).toBeVisible();
   await expect(page.getByText('FV 15/04/2026', { exact: true })).toBeVisible();
-  await expect(page.getByText('Tryb korekty:')).toBeVisible();
+  await expect(page.getByText('Tryb korekty', { exact: true })).toBeVisible();
   await expect(page.getByText('Korekta formalna bez zmiany kwot')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wystaw korektę' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Zobacz oryginał' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Wystaw korektę', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: 'KOR 1/4/2024' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'KOR-DEMO-001' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wyślij korektę do KSeF' })).toBeVisible();
 });

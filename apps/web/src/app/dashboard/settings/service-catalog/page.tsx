@@ -41,9 +41,7 @@ export default async function ServiceCatalogPage() {
         title={t.serviceCatalog.pageTitle}
         description={t.serviceCatalog.pageDescription}
       />
-      <div className="xl:max-w-3xl">
-        <ServiceCatalogManager companyId={companyId} initialTemplates={templates} />
-      </div>
+      <ServiceCatalogManager companyId={companyId} initialTemplates={templates} />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { companiesRoutes } from './routes/companies.js';
 import { companyBackupPolicyRoutes } from './routes/companies/backup-policy.js';
 import { companyBackupStatusRoutes } from './routes/companies/backup-status.js';
 import { contractorsRoutes } from './routes/contractors.js';
+import { contractorServiceRatesRoutes } from './routes/contractor-service-rates.routes.js';
 import { serviceTemplatesRoutes } from './routes/service-templates.js';
 import { outgoingInvoiceRoutes } from './routes/invoices/outgoing.js';
 import { incomingInvoiceRoutes } from './routes/invoices/incoming.js';
@@ -47,6 +48,7 @@ export const buildApp = async (options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(companyBackupPolicyRoutes);
   await app.register(companyBackupStatusRoutes);
   await app.register(contractorsRoutes);
+  await app.register(contractorServiceRatesRoutes);
   await app.register(serviceTemplatesRoutes);
   await app.register(outgoingInvoiceRoutes);
   await app.register(incomingInvoiceRoutes);

@@ -1,4 +1,6 @@
 # Stitch UI Implementation Plan
+
+> **Superseded.** The visual system described here (Aeon Ethereal) was replaced by **Aurora Solid** — see `spec/aurora-solid-redesign-plan.md` for the current source of truth on tokens, components, and screen layouts. This file is kept as historical record; do not build against it.
 Project ID: `11261506154604976277`
 
 ## Implementation Status

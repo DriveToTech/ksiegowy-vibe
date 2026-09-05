@@ -1,21 +1,23 @@
 import type { Metadata } from 'next';
-import { Inter, Manrope } from 'next/font/google';
+import Script from 'next/script';
+import { Sora, IBM_Plex_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
-import brandLogo from '../components/brand/assets/logo.png';
-import { AppHeader } from '../components/organisms/AppHeader';
-import { getAuthSession } from '../lib/auth';
+import brandMark from '../components/brand/assets/ksiegowy-vibe-mark.svg';
+import { THEME_BOOTSTRAP_SCRIPT } from '../lib/theme';
 
 import './globals.css';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
+const sora = Sora({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-sora',
   display: 'swap',
 });
 
-const manrope = Manrope({
-  subsets: ['latin'],
-  variable: '--font-manrope',
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400', '500', '600'],
+  variable: '--font-ibm-plex-mono',
   display: 'swap',
 });
 
@@ -23,19 +25,19 @@ export const metadata: Metadata = {
   title: 'ksiegowy-vibe.pl',
   description: 'Nowoczesny interfejs księgowy dla faktur, OCR i KSeF',
   icons: {
-    icon: [{ url: brandLogo.src, type: 'image/png' }],
+    icon: [{ url: brandMark.src, type: 'image/svg+xml' }],
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const session = await getAuthSession().catch(() => null);
-
   return (
-    <html lang="pl">
-      <body className={`${inter.variable} ${manrope.variable} bg-background text-foreground antialiased`}>
-        <AppHeader user={session?.user ?? null} />
+    <html lang="pl" data-theme="light" suppressHydrationWarning>
+      <body className={`${sora.variable} ${ibmPlexMono.variable} app-frame flex h-dvh min-h-screen flex-col text-foreground antialiased`}>
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {THEME_BOOTSTRAP_SCRIPT}
+        </Script>
         {children}
       </body>
     </html>

@@ -24,7 +24,7 @@ Restore a coherent authenticated product flow so that:
    - `apps/web` does not consume `/auth/me`.
 
 2. Route protection is based on cookie presence, not valid session state.
-   - `apps/web/middleware.ts` only checks whether `auth_token` exists.
+   - `apps/web/middleware.ts` accepts either `auth_token` or `refresh_token`; the dashboard layout remains authoritative for token validity and refresh.
 
 3. Access-token refresh is implemented on the API but not used by the web app.
    - `apps/api/src/routes/auth/google.ts` exposes `/auth/refresh`.

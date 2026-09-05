@@ -7,14 +7,16 @@ import { createCompany, lookupCompanyByNip, refreshBrowserSession, updateCompany
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface CompanyDetailsFormProps {
   company: Company | null;
   canEdit: boolean;
+  redirectTo?: string;
 }
 
-export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps) {
+export function CompanyDetailsForm({ company, canEdit, redirectTo = '/dashboard' }: CompanyDetailsFormProps) {
   const router = useRouter();
   const [form, setForm] = useState({
     name: company?.name ?? '',
@@ -79,7 +81,7 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
         });
 
         document.cookie = `active_company=${created.id}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-        await refreshBrowserSession('/dashboard');
+        await refreshBrowserSession(redirectTo);
         return;
       }
 
@@ -103,9 +105,9 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
 
   if (!isCreateMode && !canEdit) {
     return (
-      <Surface tone="glass" shape="organic" className="space-y-5 p-6">
+      <Surface tone="panel" className="space-y-5 p-6">
         <div>
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Dane firmy</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">Dane firmy</h2>
           <p className="mt-1 text-sm text-muted">Masz dostęp podglądowy do ustawień tej firmy.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -123,9 +125,9 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
   }
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6">
+    <Surface tone="panel" className="space-y-5 p-6">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           {isCreateMode ? 'Skonfiguruj firmę' : 'Dane firmy'}
         </h2>
         <p className="mt-1 text-sm text-muted">
@@ -135,16 +137,8 @@ export function CompanyDetailsForm({ company, canEdit }: CompanyDetailsFormProps
         </p>
       </div>
 
-      {error ? (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      ) : null}
-      {success ? (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {error ? <Banner tone="error">{error}</Banner> : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
       <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
         <FormField label="Nazwa firmy" htmlFor="company-name" required>
