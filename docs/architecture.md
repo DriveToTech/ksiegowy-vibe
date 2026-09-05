@@ -85,7 +85,8 @@ C4Component
       Component(route_company_backup_status, "companies/backup-status", "Fastify route", "Company ADMIN read-only backup status for settings")
       Component(route_invoices, "invoices/outgoing", "Fastify route", "Invoice lifecycle: create, issue, send to KSeF")
       Component(route_incoming, "invoices/incoming", "Fastify route", "Incoming invoice upload and OCR review")
-      Component(route_contractors, "contractors", "Fastify route", "Contractor CRUD")
+      Component(route_contractors, "contractors", "Fastify route", "Contractor CRUD, turnover-annotated list, per-contractor financial summary")
+      Component(route_contractor_rates, "contractor-service-rates.routes", "Fastify route", "Per-contractor service rate overrides")
       Component(route_members, "members", "Fastify route", "Company membership and roles")
       Component(route_reports, "reports", "Fastify route", "VAT register and CSV export")
       Component(route_ksef, "ksef", "Fastify route", "KSeF queue status and session management")
@@ -99,6 +100,7 @@ C4Component
       Component(svc_ocr, "OcrProcessor", "TypeScript module", "Orchestrates Tesseract + OpenRouter OCR; validates extracted schema")
       Component(svc_backup, "BackupService", "TypeScript module", "Google Drive and iCloud providers + company backup policy scheduler")
       Component(svc_registry, "CompanyRegistryService", "TypeScript class", "GUS API NIP lookup")
+      Component(svc_contractor_financials, "ContractorFinancialsService", "TypeScript module", "Turnover/outstanding aggregation per contractor, excluding FORMAL corrections")
     }
 
     Boundary(plugins, "Plugins") {
@@ -127,6 +129,7 @@ C4Component
   Rel(route_backup, svc_backup, "Calls")
   Rel(route_company_backup_policy, svc_backup, "Calls")
   Rel(route_companies, svc_registry, "Calls")
+  Rel(route_contractors, svc_contractor_financials, "Calls")
 
   Rel(svc_invoice, pkg_fa3, "Builds FA(3) XML")
   Rel(svc_invoice, pkg_pdf, "Generates PDF")
@@ -141,6 +144,38 @@ C4Component
   Rel(pkg_ksef_client, ksef_ext, "REST calls")
   Rel(svc_invoice, storage, "Writes PDF/XML")
 ```
+
+---
+
+## Contractor Financials
+
+`GET /companies/:companyId/contractors` accepts `status` (`active` | `inactive` | `all`,
+default `active`) and `year` (default current UTC year) querystring parameters. Each
+contractor in the response now carries `turnover` (year-to-date gross, decimal string)
+and `turnoverYear`. `GET /companies/:companyId/contractors/:id/summary` returns a
+per-contractor card: year-scoped `turnover`/`paidThisYear`, an **all-time** `outstanding`
+balance (a prior year's unpaid invoice is still owed this year, so it is never
+year-scoped), and up to 3 `recentDocuments` (newest first, not year-scoped, so a
+dormant contractor still shows its history).
+
+Both are backed by `apps/api/src/services/contractor-financials.service.ts`. Every
+aggregate query there filters `status: 'ISSUED'` and, critically, `NOT: { correctionMode:
+'FORMAL' }`: a FORMAL correction stores a full positive duplicate of the original
+invoice's totals (KSeF "formal correction" = same amounts, corrected metadata only), so
+including it would roughly double the contractor's turnover. CANCELLATION corrections
+store negative totals and stay included — they net the sum back down to the correct
+figure. Money is handled exclusively via Prisma `Decimal` arithmetic (never
+`parseFloat`/JS number math), and `outstanding` is clamped at zero to avoid showing a
+misleading negative balance on overpayment.
+
+The list endpoint stays at 2 queries (contractors + one `groupBy` for turnover); the
+summary endpoint runs its 3 queries (year aggregate, all-time aggregate, recent
+documents) in a single `Promise.all`.
+
+The per-contractor service-rate CRUD (`/companies/:companyId/contractors/:id/service-rates`)
+lives in its own route file, `contractor-service-rates.routes.ts`, split out from
+`contractors.ts` to keep contractor identity/financials and rate-override management as
+separate concerns.
 
 ---
 
@@ -226,6 +261,11 @@ sequenceDiagram
     API->>API: Sign JWT access token + refresh token
     API-->>Web: Set httpOnly cookies (auth_token, refresh_token)
     Web-->>User: Redirect to /dashboard
+
+    Note over User,Web: First run — no company yet
+    Web->>Web: /dashboard finds no active company
+    Web-->>User: Redirect to /onboarding (company → KSeF → invite)
+    Note over User,Web: After POST /companies the session is re-minted via<br/>/api/session/refresh so the JWT carries the new company claim
 
     Note over User,API: Subsequent requests
     User->>Web: Navigate to page

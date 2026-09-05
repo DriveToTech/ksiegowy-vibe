@@ -23,6 +23,7 @@ async function setAuthCookies(page: Page, token: string, includeCompany: boolean
 export const test = base.extend<{
   authenticatedPage: Page;
   authenticatedPageNoCompany: Page;
+  onboardingPage: Page;
 }>({
   authenticatedPage: async ({ page }, use) => {
     await setAuthCookies(page, 'test-token', true);
@@ -30,6 +31,14 @@ export const test = base.extend<{
   },
   authenticatedPageNoCompany: async ({ page }, use) => {
     await setAuthCookies(page, 'no-company-token', false);
+    await use(page);
+  },
+  // Onboarding tests create a company against the mock API, which tracks that company by
+  // auth token. A shared token would let parallel test runs see each other's company, so
+  // each test gets its own token derived from the (unique) Playwright test id.
+  onboardingPage: async ({ page }, use, testInfo) => {
+    const uniqueToken = `no-company-token-${testInfo.testId.replace(/[^a-zA-Z0-9]/g, '')}`;
+    await setAuthCookies(page, uniqueToken, false);
     await use(page);
   },
 });

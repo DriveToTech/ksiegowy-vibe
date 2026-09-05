@@ -1,21 +1,21 @@
 import { Badge } from '../atoms/Badge';
 import type { CompanyKsefEnvironment, InvoiceStatus, IncomingInvoiceStatus, KsefStatus } from '../../lib/api-types';
 
-const invoiceStatusMap: Record<InvoiceStatus, { label: string; tone: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' }> = {
-  DRAFT: { label: 'Szkic', tone: 'neutral' },
+const invoiceStatusMap: Record<InvoiceStatus, { label: string; tone: 'draft' | 'primary' | 'success' | 'warning' | 'danger' }> = {
+  DRAFT: { label: 'Szkic', tone: 'draft' },
   ISSUED: { label: 'Wystawiona', tone: 'primary' },
-  CANCELLED: { label: 'Anulowana', tone: 'neutral' },
+  CANCELLED: { label: 'Anulowana', tone: 'draft' },
 };
 
-const ksefStatusMap: Record<KsefStatus, { label: string; tone: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' }> = {
-  not_submitted: { label: 'Nie wysłano', tone: 'neutral' },
+const ksefStatusMap: Record<KsefStatus, { label: string; tone: 'draft' | 'primary' | 'success' | 'warning' | 'danger' }> = {
+  not_submitted: { label: 'Nie wysłano', tone: 'draft' },
   pending: { label: 'Oczekuje', tone: 'warning' },
   accepted: { label: 'Przyjęta', tone: 'success' },
   rejected: { label: 'Odrzucona', tone: 'danger' },
 };
 
-const incomingStatusMap: Record<IncomingInvoiceStatus, { label: string; tone: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' }> = {
-  UPLOADED: { label: 'Przesłano', tone: 'neutral' },
+const incomingStatusMap: Record<IncomingInvoiceStatus, { label: string; tone: 'draft' | 'primary' | 'success' | 'warning' | 'danger' }> = {
+  UPLOADED: { label: 'Przesłano', tone: 'draft' },
   OCR_PROCESSING: { label: 'OCR w toku', tone: 'warning' },
   OCR_DONE: { label: 'OCR gotowy', tone: 'primary' },
   OCR_FAILED: { label: 'Błąd OCR', tone: 'danger' },

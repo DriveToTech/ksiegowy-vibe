@@ -2,10 +2,10 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest): NextResponse {
-  const hasAuthCookie = request.cookies.has('auth_token');
+  const hasSessionCookie = request.cookies.has('auth_token') || request.cookies.has('refresh_token');
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard');
 
-  if (isProtectedRoute && !hasAuthCookie) {
+  if (isProtectedRoute && !hasSessionCookie) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', request.nextUrl.pathname);
 

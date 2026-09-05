@@ -6,6 +6,7 @@ import { updateCompany } from '../../../lib/api-client';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface InvoiceNumberPatternFormProps {
@@ -101,25 +102,17 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Schemat numeracji faktur</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Schemat numeracji faktur</h2>
         <p className="mt-1 text-sm text-muted">
           Określ własny format numeru faktury. Schemat musi zawierać token <code className="rounded bg-surface px-1 text-xs">{'{SEQ}'}</code> (kolejny numer).
           Faktury korygujące (KOR) zawsze używają domyślnego formatu <code className="rounded bg-surface px-1 text-xs">KOR {'{SEQ}'}/{'{MONTH}'}/{'{YEAR}'}</code>.
         </p>
       </div>
 
-      {error ? (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      ) : null}
-      {success ? (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {error ? <Banner tone="error">{error}</Banner> : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted">Szablony</p>
@@ -129,7 +122,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
               key={preset.pattern}
               type="button"
               onClick={() => setPattern(preset.pattern)}
-              className="rounded-full border border-outline/20 bg-surface px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
+              className="rounded-full border border-outline bg-surface px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
             >
               {preset.label}
             </button>
@@ -157,7 +150,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
                 type="button"
                 title={description}
                 onClick={() => insertToken(token)}
-                className="rounded-full border border-outline/20 bg-surface px-3 py-1 text-xs font-mono font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
+                className="rounded-full border border-outline bg-surface px-3 py-1 text-xs font-mono font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
               >
                 {label}
               </button>
@@ -166,7 +159,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
         </div>
 
         {preview ? (
-          <div className="rounded-xl border border-outline/15 bg-surface-panel/55 px-4 py-3">
+          <div className="rounded-inset border border-outline bg-surface-panel px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Podgląd</p>
             <p className="mt-1 font-mono text-base font-semibold text-foreground">{preview}</p>
             <p className="mt-0.5 text-xs text-muted">
@@ -174,9 +167,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
             </p>
           </div>
         ) : (
-          <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink">
-            Schemat musi zawierać token {'{SEQ}'}.
-          </Surface>
+          <Banner tone="error">Schemat musi zawierać token {'{SEQ}'}.</Banner>
         )}
 
         <div className="flex flex-wrap gap-3">
@@ -191,7 +182,7 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
         </div>
       </form>
 
-      <div className="border-t border-outline/10 pt-4">
+      <div className="border-t border-outline pt-4">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Aktualny schemat</p>
         <p className="mt-1 font-mono text-sm text-foreground">
           {isDefault ? `${DEFAULT_PATTERN} (domyślny)` : currentPattern}

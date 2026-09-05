@@ -4,7 +4,7 @@ test('contractors list page loads', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/contractors');
 
   await expect(page.getByRole('heading', { name: 'Kontrahenci' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Dodaj kontrahenta' })).toBeVisible();
+  await expect(page.getByRole('main').locator('header').getByRole('link', { name: 'Dodaj po NIP' })).toBeVisible();
 });
 
 test('contractors list shows search and filter controls', async ({ authenticatedPage: page }) => {
@@ -19,7 +19,7 @@ test('contractors list shows search and filter controls', async ({ authenticated
 test('contractors list shows contractor from mock', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/contractors');
 
-  await expect(page.getByText('Acme Sp. z o.o.')).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Bluebird Example Studio LLC' })).toBeVisible();
 });
 
 test('new contractor form loads', async ({ authenticatedPage: page }) => {

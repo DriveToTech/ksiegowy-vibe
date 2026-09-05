@@ -4,7 +4,29 @@ export const t = {
     outgoingInvoices: "Faktury wychodzące",
     incomingInvoices: "Faktury przychodzące",
     contractors: "Kontrahenci",
+    compliance: "Raporty & JPK",
     settings: "Ustawienia",
+  },
+
+  theme: {
+    label: "Motyw",
+    switchToLight: "Włącz jasny motyw",
+    switchToDark: "Włącz ciemny motyw",
+  },
+
+  dashboardRail: {
+    rejectedEyebrow: "Odrzucone przez KSeF",
+    rejectedCount: (n: number) => `${n} ${n === 1 ? 'faktura' : 'faktury'}`,
+    rejectedDescription: "Sprawdź przyczynę odrzucenia i wyślij ponownie po poprawie.",
+    rejectedLink: "Przejrzyj →",
+    jpkEyebrow: (month: string) => `JPK_V7M · ${month}`,
+    jpkDueIn: (days: number) => (days === 0 ? "Termin dziś" : `Termin za ${days} ${days === 1 ? 'dzień' : 'dni'}`),
+  },
+
+  pagination: {
+    previous: "Poprzednia",
+    next: "Następna",
+    pageOf: (page: number, totalPages: number) => `Strona ${page} z ${totalPages}`,
   },
 
   dashboard: {
@@ -17,7 +39,7 @@ export const t = {
       "Dodaj firmę w ustawieniach, aby rozpocząć pracę z kontrahentami, fakturami i OCR.",
     goToSettings: "Przejdź do ustawień",
     goToIncoming: "Przejdź do OCR",
-    createInvoice: "+ Nowa faktura",
+    createInvoice: "Nowa faktura",
     metrics: {
       invoicesThisMonthLabel: "Faktury w tym miesiącu",
       invoicesThisMonthHint: "Dokumenty wystawione w bieżącym miesiącu.",
@@ -35,14 +57,39 @@ export const t = {
     lastActivityLabel: "Ostatnia aktywność",
     lastActivityDescription: (invoiceNumber: string, issueDate: string) =>
       `Ostatnio zaktualizowano fakturę ${invoiceNumber} z dnia ${issueDate}.`,
-    quickActions: {
-      title: "Szybkie działania",
-      subtitle: "Najczęstsze skróty robocze",
-      newInvoiceTitle: "Nowa faktura",
-      newInvoiceDescription: "Utwórz dokument sprzedaży.",
-      incomingInvoiceTitle: "Prześlij do OCR",
-      incomingInvoiceDescription: "Dodaj fakturę od kontrahenta.",
-      manageCompanySettings: "Zarządzaj ustawieniami firmy",
+    kpi: {
+      title: "Rozliczenie w KSeF · ostatnie faktury",
+      schemaTag: "FA(3)",
+      accepted: "Przyjęte",
+      acceptedHint: "Wystawione zgodnie z prawem",
+      inClearance: "W trakcie rozliczenia",
+      inClearanceHint: "Oczekuje na potwierdzenie KSeF",
+      rejected: "Odrzucone",
+      rejectedHint: "Wymaga poprawy i ponownej wysyłki",
+      notSubmitted: "Nie wysłane",
+      notSubmittedHint: "Gotowe do wysłania do KSeF",
+    },
+    chart: {
+      title: "Sprzedaż rozliczona przez KSeF",
+      monthGross: "Brutto w tym miesiącu",
+      vatPayable: "VAT do zapłaty",
+      unpaid: "Niezapłacone",
+    },
+    needsAttention: {
+      title: "Wymaga uwagi dziś",
+      rejected: (n: number) => `${n} ${n === 1 ? 'faktura odrzucona' : 'faktur odrzuconych'} przez KSeF`,
+      rejectedMeta: "Sprawdź kod błędu i wyślij ponownie",
+      notSubmitted: (n: number) => `${n} ${n === 1 ? 'faktura oczekuje' : 'faktur oczekuje'} na wysłanie do KSeF`,
+      notSubmittedMeta: "Wystawione, jeszcze niewysłane",
+      incoming: (n: number) => `${n} ${n === 1 ? 'faktura przychodząca' : 'faktur przychodzących'} do zaksięgowania`,
+      incomingMeta: "Wymaga przeglądu i potwierdzenia",
+      overdue: (n: number) => `${n} ${n === 1 ? 'faktura po' : 'faktur po'} terminie płatności`,
+      overdueMeta: "Termin płatności minął",
+      empty: "Brak spraw wymagających uwagi.",
+    },
+    recentDocuments: {
+      title: "Ostatnie dokumenty",
+      seeAll: (n: number) => `Zobacz wszystkie (${n})`,
     },
   },
 
@@ -119,6 +166,10 @@ export const t = {
     goToSettings: "Przejdź do ustawień",
     environmentLabel: "Środowisko KSeF",
   },
+  queue: {
+    eyebrow: "Kolejka",
+    empty: "Brak innych dokumentów w kolejce.",
+  },
   },
 
   review: {
@@ -171,6 +222,15 @@ export const t = {
     noCompany: "Brak firmy. Skonfiguruj firmę aby zobaczyć ustawienia.",
     goToSettings: "Przejdź do ustawień",
     serviceCatalogLink: "Katalog usług",
+    sectionsEyebrow: "Sekcje",
+    sections: {
+      company: "Firma",
+      ksef: "Integracja KSeF",
+      numbering: "Numeracja",
+      products: "Usługi i towary",
+      team: "Zespół i role",
+      backup: "Kopie zapasowe",
+    },
   },
 
   members: {
@@ -206,21 +266,24 @@ export const t = {
     pageTitle: "Kontrahenci",
     pageDescription:
       "Baza kontrahentów dostępnych dla wystawiania i rozliczania dokumentów.",
-    addButton: "Dodaj kontrahenta",
+    addButton: "Dodaj po NIP",
     searchPlaceholder: "Szukaj po nazwie lub NIP…",
     filterAll: "Wszyscy",
     filterActive: "Aktywni",
     filterInactive: "Nieaktywni",
+    nipMissing: "brak",
     columns: {
       name: "Nazwa",
       nip: "NIP",
       email: "Email",
       address: "Adres",
       status: "Status",
+      turnover: (year: number) => `Obrót ${year}`,
     },
     status: {
       active: "Aktywny",
       inactive: "Nieaktywny",
+      blocked: "Zablokowany",
     },
     emptyFiltered: "Brak wyników dla podanego filtra.",
     emptyList:
@@ -269,6 +332,43 @@ export const t = {
       active: "Aktywni",
       inactive: "Nieaktywni",
     },
+    detail: {
+      eyebrow: "Kontrahent",
+      close: "Zamknij",
+      selectPrompt: "Wybierz kontrahenta z listy, aby zobaczyć szczegóły.",
+      address: "Adres",
+      email: "Email",
+      phone: "Telefon",
+      bankAccount: "Rachunek bankowy",
+      notes: "Notatki",
+      status: "Status",
+      editButton: "Edytuj",
+      newInvoiceButton: "Nowa faktura",
+      balanceEyebrow: "Saldo",
+      balanceOutstanding: "Do zapłaty",
+      balancePaidThisYear: "Zapłacono w tym roku",
+      recentDocuments: "Ostatnie dokumenty",
+    },
+    addByNip: {
+      lookupButton: "Pobierz dane po NIP",
+      lookupButtonBusy: "Pobieranie…",
+      error: "Nie udało się pobrać danych kontrahenta po NIP.",
+    },
+    dataQuality: {
+      title: "Jakość danych",
+      missingNip: (n: number) => `${n} ${n === 1 ? 'kontrahent nie ma' : 'kontrahentów nie ma'} NIP — nie można ich e-fakturować.`,
+    },
+  },
+
+  compliance: {
+    pageEyebrow: "Compliance",
+    pageTitle: "Raporty & JPK",
+    pageDescription: "Dolor sit ament consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    noCompanyTitle: "Brak aktywnej firmy",
+    noCompanyDescription:
+        "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na raportach i JPK.",
+    notAvailableTitle: "Raporty i JPK są jeszcze niedostępne",
+    notAvailableDescription: "Widok zostanie udostępniony po wdrożeniu obsługi raportów i wysyłki JPK_V7M.",
   },
 
   outgoingInvoices: {
@@ -279,7 +379,12 @@ export const t = {
     noCompanyTitle: "Brak aktywnej firmy",
     noCompanyDescription:
       "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na dokumentach sprzedażowych.",
-    addButton: "+ Nowa faktura",
+    addButton: "Nowa faktura",
+    filters: {
+      all: "Wszystkie",
+      drafts: "Szkice",
+    },
+    pageSummary: (shown: number, total: number, grossOnPage: string) => `${shown} z ${total} · suma brutto na stronie ${grossOnPage}`,
     metricCards: {
       totalLabel: "Wszystkie faktury",
       totalHint: "Łączna liczba dokumentów sprzedażowych.",
@@ -297,6 +402,26 @@ export const t = {
       createFirstInvoice: "Utwórz pierwszą fakturę",
       addContractor: "Dodaj kontrahenta",
     },
+    routeErrorTitle: "Błąd widoku faktur",
+    routeErrorBackLabel: "Wróć do faktur",
+  },
+
+  invoicesTable: {
+    numberColumn: "Numer",
+    dateColumn: "Data",
+    contractorColumn: "Kontrahent",
+    environmentColumn: "Środowisko",
+    netColumn: "Netto",
+    vatColumn: "VAT",
+    grossColumn: "Brutto",
+    statusColumn: "Status",
+    paymentColumn: "Płatność",
+    paymentDraft: "SZKIC",
+    paymentBlocked: "ZABLOKOWANA",
+    ksefColumn: "KSeF",
+    draftFallback: "Szkic",
+    noContractorFallback: "Brak kontrahenta",
+    detailsLink: "Szczegóły",
   },
 
   serviceCatalog: {
@@ -333,6 +458,21 @@ export const t = {
       saveFailed: "Błąd zapisu.",
       deleteFailed: "Błąd usuwania.",
       updateFailed: "Błąd aktualizacji.",
+    },
+    columns: {
+      name: "Nazwa",
+      unit: "J.m.",
+      vatRate: "VAT",
+      status: "Status",
+    },
+    detail: {
+      eyebrow: "Usługa",
+      close: "Zamknij",
+      selectPrompt: "Wybierz pozycję z listy, aby zobaczyć szczegóły.",
+      unit: "Jednostka",
+      vatRate: "Stawka VAT",
+      description: "Opis",
+      status: "Status",
     },
   },
 
@@ -384,12 +524,71 @@ export const t = {
     noContractorsDescription:
       "Ta forma wymaga wskazania kontrahenta. Dodaj go najpierw w module kontrahentów, a potem wróć do faktury.",
     addContractor: "Dodaj kontrahenta",
-    catalogPickerButton: "Wybierz z katalogu",
-    catalogPickerDefault: "— wybierz usługę —",
+    catalogueHint: (shown: number, total: number) => `${shown} z ${total} · ↓↑ aby poruszać się, ↵ aby wybrać`,
+    catalogueNoMatches: "Brak pasujących pozycji w katalogu.",
+    catalogueNothingFits: "Nic nie pasuje?",
+    catalogueSaveToCatalogue: "Przejdź do katalogu usług",
     saleDateLabel: "Data sprzedaży",
     issueDateLabel: "Data wystawienia",
     noContractorSelected:
       "Najpierw wybierz kontrahenta, aby zobaczyć jego stawki.",
+    contractorLabel: "Kontrahent",
+    contractorPlaceholder: "— wybierz kontrahenta —",
+    noNipFallback: "brak NIP",
+    paymentDetailsTitle: "Szczegóły płatności",
+    bankAccountPlaceholder: "00 0000 0000 0000 0000 0000 0000",
+    summaryTitle: "Podsumowanie",
+    notesTitle: "Uwagi do faktury",
+    notesPdfHint: "Treść uwag zostanie wydrukowana na fakturze PDF.",
+    notesKsefHint: "Nie jest przesyłana do KSeF.",
+    notesPlaceholder: "Opcjonalne uwagi, warunki, informacje dodatkowe…",
+    saveDraftButton: "Zapisz szkic",
+    saveChangesButton: "Zapisz zmiany",
+    savingButton: "Zapisywanie…",
+    cancelButton: "Anuluj",
+    contractorRequiredError: "Wybierz kontrahenta.",
+    lineItemRequiredError: "Dodaj co najmniej jedną pozycję faktury.",
+    invalidLineNumberError:
+      "Nieprawidłowa wartość liczbowa w ilości lub cenie pozycji faktury.",
+    unknownSaveError: "Nieznany błąd podczas zapisu.",
+    buyerSectionEyebrow: "Nabywca",
+    datesSectionEyebrow: "Daty i płatność",
+    blockersTitle: (n: number) => `${n} ${n === 1 ? 'blokada' : 'blokady'}`,
+    blockers: {
+      noContractor: "Wybierz kontrahenta.",
+      noLineItems: "Dodaj co najmniej jedną pozycję z nazwą.",
+      invalidLinePrice: "Uzupełnij prawidłową cenę netto dla każdej pozycji.",
+    },
+    editPageEyebrow: "Faktury",
+    editPageTitle: "Edytuj szkic faktury",
+    editPageDescription: "Wprowadź zmiany i zapisz szkic.",
+    editNotDraftError: (status: string) =>
+      `Edycja jest możliwa tylko dla szkiców (status faktury: ${status})`,
+    backToInvoiceButton: "← Powrót do faktury",
+  },
+
+  invoiceLineItemsEditor: {
+    nameColumn: "Nazwa",
+    quantityColumn: "Ilość",
+    unitColumn: "J.m.",
+    unitNetPriceColumn: "Cena netto",
+    vatRateColumn: "Stawka VAT",
+    grossValueColumn: "Wartość brutto",
+    itemNameAriaLabel: "Nazwa pozycji",
+    quantityAriaLabel: "Ilość",
+    unitAriaLabel: "Jednostka miary",
+    unitNetPriceAriaLabel: "Cena netto",
+    vatRateAriaLabel: "Stawka VAT",
+    removeLineAriaLabel: "Usuń pozycję",
+    itemNamePlaceholder: "Nazwa usługi lub towaru",
+    addLineButton: "+ Dodaj pozycję",
+    positionLabel: (position: number) => `Pozycja ${position}`,
+    removeButton: "Usuń",
+    nameFieldLabel: "Nazwa / opis",
+    unitFieldLabel: "Jednostka miary",
+    quantityFieldLabel: "Ilość",
+    unitNetPriceFieldLabel: "Cena netto",
+    vatRateFieldLabel: "Stawka VAT",
   },
 
   home: {
@@ -402,7 +601,10 @@ export const t = {
 
   header: {
     subtitle: "Cyfrowa przestrzeń księgowa",
+    companyContext: "Aktywna firma",
+    ksefContext: "Środowisko KSeF",
     navAriaLabel: "Nawigacja główna",
+    searchPlaceholder: "Szukaj faktur, NIP, ref. KSeF…",
     nav: {
       dashboard: "Pulpit",
       login: "Logowanie",
@@ -411,10 +613,45 @@ export const t = {
 
   login: {
     tagline: "Dostęp do platformy",
-    headline: "Logowanie",
+    brandName: "Księgowy Vibe",
+    headline: "Faktury, OCR i KSeF bez chaosu starych systemów.",
     description:
-      "Zaloguj się przez Google OAuth2, aby przejść do pulpitu firmy.",
+      "Jedna przestrzeń robocza na dokumenty wychodzące i przychodzące, zbudowana wokół statusu rozliczenia w KSeF — zawsze wiesz, które faktury istnieją prawnie.",
+    featureBulletFa3: "Faktury strukturalne FA(3), rozliczane w kilka sekund",
+    featureBulletOffline24: "Kolejka offline24 z terminem na kolejny dzień roboczy",
+    featureBulletOcr: "OCR dla papieru i PDF, dopasowany do wpisów bankowych",
+    openSourceTag: "OPEN SOURCE · SAMODZIELNY HOSTING · AGPL",
+    formTitle: "Logowanie",
+    formSubtitle: "Zaloguj się przez Google OAuth2, aby przejść do pulpitu firmy.",
     googleButton: "Kontynuuj z Google",
+    ksefNote: "Uwierzytelnianie w KSeF odbywa się osobno dla każdej firmy, tokenem lub certyfikatem — nigdy hasłem do tego konta.",
+  },
+
+  onboarding: {
+    settingUp: (companyName: string) => `Konfigurowanie: ${companyName}`,
+    settingUpGeneric: "Konfigurowanie konta",
+    saveAndFinishLater: "Zapisz i dokończ później",
+    ksefReminder: "Każdy podatnik VAT musi być w stanie odbierać faktury z KSeF. Ukończ krok 3, zanim wystawisz pierwszy dokument.",
+    steps: {
+      account: { title: "Konto", hint: "E-mail potwierdzony" },
+      company: { title: "Dane firmy", hint: "Pobrane z rejestru NIP" },
+      ksef: { title: "Połączenie z KSeF", hint: "Token lub certyfikat" },
+      team: { title: "Zaproś księgowego", hint: "Opcjonalnie" },
+    },
+    ksef: {
+      loadError: "Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.",
+    },
+    team: {
+      title: "Zaproś księgowego",
+      description: "Wyślij zaproszenie do księgowego lub biura rachunkowego. Otrzyma dostęp z rolą Księgowy.",
+      emailLabel: "Adres e-mail *",
+      emailPlaceholder: "ksiegowy@example.com",
+      sendInvite: "Wyślij zaproszenie",
+      sending: "Wysyłanie…",
+      error: "Nie udało się utworzyć zaproszenia.",
+      linkReady: (expiresAt: string) => `Zaproszenie utworzone, wygasa ${expiresAt}. Nie wysyłamy e-maila — przekaż ten link ręcznie:`,
+      finish: "Zakończ i przejdź do panelu",
+    },
   },
 
   invoiceActions: {
@@ -468,9 +705,16 @@ export const t = {
     correctionImpactType2: "2 – korekta in plus na dzień wystawienia korekty",
     correctionImpactType3: "3 – inny termin rozliczenia",
     correctionConfirm: "Wystaw korektę",
-    productionConfirm: "Wykonujesz operację w środowisku PRODUKCYJNYM KSeF. Czy na pewno chcesz kontynuować?",
     missingTokenWarning: (environment: string) => `Brak tokenu KSeF dla środowiska ${environment}. Przejdź do ustawień, aby go skonfigurować.`,
     goToSettings: "Przejdź do ustawień",
+    activeEnvironmentLabel: "Aktywne środowisko KSeF",
+    productionConfirmTitle: "Potwierdź wysyłkę do środowiska PRODUKCYJNEGO",
+    productionConfirmDescription: "To zgłoszenie trafi do prawdziwego systemu KSeF i nie da się go cofnąć. Sprawdź dane przed potwierdzeniem.",
+    productionConfirmInvoiceNumberLabel: "Numer faktury",
+    productionConfirmInvoiceNumberFallback: "Brak numeru",
+    productionConfirmAmountLabel: "Kwota brutto",
+    productionConfirmEnvironmentLabel: "Środowisko",
+    productionConfirmCancel: "Wróć, nie wysyłaj",
   },
 
   invoiceDetail: {
@@ -485,6 +729,20 @@ export const t = {
     issuedOn: (date: string) => `Wystawiona ${date}`,
     correctionBannerPrefix: "Korekta faktury:",
     correctionBannerViewOriginal: "Zobacz oryginał",
+    paidLabel: "Opłacona",
+    unpaidLabel: "Nieopłacona",
+    receivedSuffix: "otrzymano",
+    ksefReferenceHint: "Numer referencyjny KSeF nadany po przyjęciu faktury.",
+    stepper: {
+      created: "Utworzona",
+      sent: "Wysłana do KSeF",
+      accepted: "Przyjęta — legalnie wystawiona",
+      rejected: "Odrzucona przez KSeF",
+      paid: "Opłacona",
+      doneMeta: "Zrealizowano",
+      pendingMeta: "Oczekuje",
+      due: (date: string) => `Termin ${date}`,
+    },
     metrics: {
       net: "Netto",
       vat: "VAT",
@@ -499,6 +757,7 @@ export const t = {
       OTHER: "Inna",
     } as Record<string, string>,
     sections: {
+      clearanceTitle: "Rozliczenie w KSeF",
       seller: "Sprzedawca",
       buyer: "Nabywca",
       documentDetails: "Szczegóły dokumentu",

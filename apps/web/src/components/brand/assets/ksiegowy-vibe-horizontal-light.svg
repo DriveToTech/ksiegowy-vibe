@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 120" width="620" height="120" role="img" aria-label="Księgowy Vibe">
+  <title>Księgowy Vibe</title>
+  <g transform="translate(0,2) scale(0.96)">
+  <defs>
+    <linearGradient id="hl-bars" gradientUnits="userSpaceOnUse" x1="6" y1="96" x2="86" y2="24">
+      <stop offset="0" stop-color="#7AA7F2"></stop><stop offset="1" stop-color="#B39CFB"></stop>
+    </linearGradient>
+    <linearGradient id="hl-arrow" gradientUnits="userSpaceOnUse" x1="4" y1="94" x2="98" y2="10">
+      <stop offset="0" stop-color="#8FB6F7"></stop><stop offset="1" stop-color="#C0AEFF"></stop>
+    </linearGradient>
+    <mask id="hl-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+      <rect x="0" y="0" width="120" height="120" fill="#fff"></rect>
+      <circle cx="82" cy="90" r="25" fill="#000"></circle>
+    </mask>
+  </defs>
+  <g mask="url(#hl-cut)">
+    <g fill="#B6BCE0" opacity="0.2">
+      <rect x="20" y="38" width="15" height="58" rx="4"></rect>
+      <rect x="44" y="18" width="15" height="78" rx="4"></rect>
+    </g>
+    <g fill="url(#hl-bars)">
+      <rect x="6" y="64" width="18" height="32" rx="4"></rect>
+      <rect x="30" y="48" width="18" height="48" rx="4"></rect>
+      <rect x="54" y="28" width="18" height="68" rx="4"></rect>
+    </g>
+    <path d="M4 94C30 88 54 70 70 40L82 26" fill="none" stroke="url(#hl-arrow)" stroke-width="9" stroke-linecap="round"></path>
+    <path d="M98 10 91.6 34.8 73.2 16.4Z" fill="url(#hl-arrow)"></path>
+  </g>
+  <circle cx="82" cy="90" r="18" fill="none" stroke="#B39CFB" stroke-width="7"></circle>
+  <path d="M74 90 80 96 92 83" fill="none" stroke="#B39CFB" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path></g>
+  <defs>
+    <linearGradient id="hl-w" gradientUnits="userSpaceOnUse" x1="140" y1="90" x2="600" y2="20">
+      <stop offset="0" stop-color="#7AA7F2"></stop><stop offset="1" stop-color="#B39CFB"></stop>
+    </linearGradient>
+  </defs>
+  <g font-family="Sora, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="56" letter-spacing="-1.6">
+    <text x="140" y="78" font-weight="700" fill="url(#hl-w)">Księgowy</text>
+    <text x="418" y="78" font-weight="300" fill="rgba(20,24,48,0.5)" letter-spacing="0.5">Vibe</text>
+  </g>
+</svg>

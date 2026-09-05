@@ -18,8 +18,8 @@ export function FloatingLabelSelect({
       <select
         id={id}
         className={cn(
-          'h-14 w-full appearance-none rounded-[1rem] border border-outline/40 bg-surface-raised/65 px-3 pb-1.5 pt-5 pr-8 text-sm font-medium text-foreground outline-none backdrop-blur-xl transition',
-          'focus:border-primary focus:ring-4 focus:ring-primary/15 focus-visible:ring-4 focus-visible:ring-primary/15',
+          'h-14 w-full appearance-none rounded-control border border-outline-control bg-surface-raised px-3 pb-1.5 pt-5 pr-8 text-sm font-medium text-foreground outline-none transition',
+          'focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
           'disabled:cursor-not-allowed disabled:opacity-60',
           className,
         )}

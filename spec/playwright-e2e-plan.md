@@ -84,3 +84,7 @@ Create `apps/e2e/tests/smoke.spec.ts` with a basic test verifying the app loads 
   create `KOR` draft from an accepted invoice, verify correction banner, issue the correction, and confirm the explicit `Wyślij korektę do KSeF` action.
 - The Playwright app server must expose both `API_URL` and `NEXT_PUBLIC_API_URL` to the mock API so server-side and browser-side requests hit the same test backend.
 - `apps/e2e/tests/navigation.spec.ts` scopes sidebar link interactions to the `Nawigacja dashboardu` landmark, while the desktop dashboard shell keeps the lower sidebar content scrollable so quick actions do not block clicks on shorter viewports.
+
+## Safe demo screenshot runtime
+
+The Playwright mock API serves only synthetic data for screenshot work. It covers the populated dashboard, issued and draft outgoing invoices, invoice detail/edit, incoming OCR review, contractor list/detail, settings (including KSeF and backup), service catalogue, and the compliance report route. See [the screenshot index](../docs/screenshots/README.md) for the fixture policy and capture commands.

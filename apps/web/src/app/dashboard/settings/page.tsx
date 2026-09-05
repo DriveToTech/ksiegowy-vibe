@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getCompany, getCompanyBackupPolicy, getCompanyBackupStatus, getCompanyKsefSettings, getInvites, getMembers } from '../../../lib/api';
+import { Banner } from '../../../components/molecules/Banner';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { PageHeader } from '../../../components/molecules/PageHeader';
 import { getActiveCompanyRole, requireAuthSession } from '../../../lib/auth';
@@ -8,6 +9,8 @@ import { CompanyBackupPolicyForm } from './CompanyBackupPolicyForm';
 import { InvoiceNumberPatternForm } from './InvoiceNumberPatternForm';
 import { KsefSettingsForm } from './KsefSettingsForm';
 import { MembersTab } from './MembersTab';
+import { SettingsWorkspace } from './SettingsWorkspace';
+import { Surface } from '../../../components/atoms/Surface';
 import { t } from '../../../lib/translations';
 
 export default async function DashboardSettingsPage() {
@@ -71,49 +74,56 @@ export default async function DashboardSettingsPage() {
         <SummaryCard label="Zaproszenia" value={String(invites.length)} />
         <SummaryCard label="Twoja rola" value={role === 'ADMIN' ? 'Administrator' : role === 'ACCOUNTANT' ? 'Księgowy' : 'Podgląd'} strong />
       </div>
-      <CompanyDetailsForm company={company} canEdit={canEditCompany} />
-      {isAdmin && ksefSettingsResult.ksefSettings ? (
-        <KsefSettingsForm companyId={activeCompanyId} settings={ksefSettingsResult.ksefSettings} />
-      ) : null}
-      {isAdmin && !ksefSettingsResult.ksefSettings ? (
-        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error/30 bg-error-soft/45 p-5 text-sm text-error-ink xl:max-w-4xl">
-          Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.
-        </div>
-      ) : null}
-      {isAdmin ? (
-        <InvoiceNumberPatternForm companyId={activeCompanyId} currentPattern={company?.invoiceNumberPattern ?? null} />
-      ) : null}
-      {isAdmin && backupSettings ? (
-        <CompanyBackupPolicyForm
-          companyId={activeCompanyId}
-          initialBackupSettings={backupSettings}
-          initialBackupStatus={backupStatus}
-          hasBackupStatusError={backupStatusResult.hasError}
-        />
-      ) : null}
-      {isAdmin && !backupSettings ? (
-        <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-error/30 bg-error-soft/45 p-5 text-sm text-error-ink xl:max-w-4xl">
-          Nie udało się pobrać ustawień backupu firmy. Odśwież stronę i spróbuj ponownie.
-        </div>
-      ) : null}
-      <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline/15 bg-surface-panel/55 p-5 backdrop-blur-xl xl:max-w-4xl">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.settings.serviceCatalogLink}</p>
-        <p className="mt-1 text-sm text-muted">
-          {t.serviceCatalog.pageDescription}
-        </p>
-        <Link
-          href="/dashboard/settings/service-catalog"
-          className="mt-3 inline-block text-sm font-semibold text-primary transition hover:text-primary/80"
-        >
-          {t.settings.serviceCatalogLink} →
-        </Link>
-      </div>
-      <MembersTab
-        companyId={activeCompanyId}
-        currentUserId={session.user?.id ?? ''}
-        isAdmin={isAdmin}
-        initialMembers={members}
-        initialInvites={invites}
+
+      <SettingsWorkspace
+        sections={{
+          company: <CompanyDetailsForm company={company} canEdit={canEditCompany} />,
+          ksef: isAdmin ? (
+            ksefSettingsResult.ksefSettings ? (
+              <KsefSettingsForm companyId={activeCompanyId} settings={ksefSettingsResult.ksefSettings} />
+            ) : (
+              <Banner tone="error">Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.</Banner>
+            )
+          ) : undefined,
+          numbering: isAdmin ? (
+            <InvoiceNumberPatternForm companyId={activeCompanyId} currentPattern={company?.invoiceNumberPattern ?? null} />
+          ) : undefined,
+          products: (
+            <Surface tone="panel" className="space-y-3 p-6">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t.settings.serviceCatalogLink}</h2>
+                <p className="mt-1 text-sm text-muted">{t.serviceCatalog.pageDescription}</p>
+              </div>
+              <Link
+                href="/dashboard/settings/service-catalog"
+                className="inline-block text-sm font-semibold text-primary transition hover:text-primary/80"
+              >
+                {t.settings.serviceCatalogLink} →
+              </Link>
+            </Surface>
+          ),
+          team: (
+            <MembersTab
+              companyId={activeCompanyId}
+              currentUserId={session.user?.id ?? ''}
+              isAdmin={isAdmin}
+              initialMembers={members}
+              initialInvites={invites}
+            />
+          ),
+          backup: isAdmin ? (
+            backupSettings ? (
+              <CompanyBackupPolicyForm
+                companyId={activeCompanyId}
+                initialBackupSettings={backupSettings}
+                initialBackupStatus={backupStatus}
+                hasBackupStatusError={backupStatusResult.hasError}
+              />
+            ) : (
+              <Banner tone="error">Nie udało się pobrać ustawień backupu firmy. Odśwież stronę i spróbuj ponownie.</Banner>
+            )
+          ) : undefined,
+        }}
       />
     </div>
   );
@@ -121,7 +131,7 @@ export default async function DashboardSettingsPage() {
 
 function SummaryCard({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="rounded-[2rem_1.25rem_2.25rem_1.5rem] border border-outline/15 bg-surface-panel/55 p-4 backdrop-blur-xl">
+    <div className="rounded-card border border-outline bg-surface-panel p-4">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{label}</p>
       <p className={strong ? 'mt-2 text-lg font-semibold text-primary' : 'mt-2 text-lg font-semibold text-foreground'}>{value}</p>
     </div>

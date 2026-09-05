@@ -7,6 +7,7 @@ import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { FormField } from '../../../components/molecules/FormField';
 import { t } from '../../../lib/translations';
@@ -74,20 +75,12 @@ export function MembersTab({
 
   return (
     <div className="space-y-6">
-      {error && (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
-          {error}
-        </Surface>
-      )}
-      {success && (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      )}
+      {error && <Banner tone="error">{error}</Banner>}
+      {success && <Banner tone="success">{success}</Banner>}
 
-      <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:mr-10">
+      <Surface tone="panel" className="space-y-5 p-6 xl:mr-10">
         <div>
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             {t.members.title(members.length)}
           </h2>
           <p className="mt-1 text-sm text-muted">Role członków zespołu i dostęp do pracy na dokumentach firmy.</p>
@@ -102,7 +95,7 @@ export function MembersTab({
           <>
             <div className="hidden overflow-x-auto lg:block">
               <table className="min-w-full border-collapse text-sm">
-                <thead className="bg-surface-muted/75 text-left text-muted">
+                <thead className="bg-surface-muted text-left text-muted">
                   <tr>
                     <HeaderCell>{t.members.columns.email}</HeaderCell>
                     <HeaderCell>{t.members.columns.name}</HeaderCell>
@@ -112,7 +105,7 @@ export function MembersTab({
                 </thead>
                 <tbody>
                   {members.map((member) => (
-                    <tr key={member.userId} className="border-t border-outline/10 hover:bg-surface-raised/35">
+                    <tr key={member.userId} className="border-t border-outline hover:bg-surface-row-hover">
                       <BodyCell>{member.user.email}</BodyCell>
                       <BodyCell>{member.user.name ?? '—'}</BodyCell>
                       <BodyCell>
@@ -135,7 +128,7 @@ export function MembersTab({
                           {member.userId !== currentUserId ? (
                             <Button
                               variant="ghost"
-                              className="text-error-ink hover:bg-error-soft"
+                              className="text-error-ink hover:bg-error"
                               onClick={() => handleRemove(member.userId, member.user.email)}
                             >
                               {t.members.remove}
@@ -151,7 +144,7 @@ export function MembersTab({
 
             <div className="grid gap-4 lg:hidden">
               {members.map((member) => (
-                <Surface key={member.userId} tone="glass" shape="organic" className="space-y-4 p-4">
+                <Surface key={member.userId} tone="inset" className="space-y-4 p-4">
                   <div className="space-y-1">
                     <p className="font-semibold text-foreground">{member.user.email}</p>
                     <p className="text-sm text-muted">{member.user.name ?? '—'}</p>
@@ -176,7 +169,7 @@ export function MembersTab({
                     {isAdmin && member.userId !== currentUserId ? (
                       <Button
                         variant="ghost"
-                        className="w-full text-error-ink hover:bg-error-soft"
+                        className="w-full text-error-ink hover:bg-error"
                         onClick={() => handleRemove(member.userId, member.user.email)}
                       >
                         {t.members.remove}
@@ -191,9 +184,9 @@ export function MembersTab({
       </Surface>
 
       {invites.length > 0 ? (
-        <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:translate-x-6">
+        <Surface tone="panel" className="space-y-5 p-6 xl:translate-x-6">
           <div>
-            <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               {t.members.pendingInvites}
             </h2>
             <p className="mt-1 text-sm text-muted">Zaproszenia oczekujące na wykorzystanie przez nowych członków zespołu.</p>
@@ -201,7 +194,7 @@ export function MembersTab({
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {invites.map((invite) => (
-              <Surface key={invite.id} tone="glass" shape="organic" className="space-y-3 p-4">
+              <Surface key={invite.id} tone="inset" className="space-y-3 p-4">
                 <div>
                   <p className="font-semibold text-foreground">{invite.email}</p>
                   <p className="mt-1 text-sm text-muted">{t.members.roles[invite.role]}</p>
@@ -217,9 +210,9 @@ export function MembersTab({
       ) : null}
 
       {isAdmin ? (
-        <Surface tone="glass" shape="organic" className="space-y-5 p-6 max-w-4xl">
+        <Surface tone="panel" className="space-y-5 p-6 max-w-4xl">
           <div>
-            <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               {t.members.inviteSection}
             </h2>
             <p className="mt-1 text-sm text-muted">Wyślij nowe zaproszenie i przypisz poziom uprawnień przed dołączeniem do firmy.</p>

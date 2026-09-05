@@ -1,5 +1,7 @@
 # Quality And Verification Subtasks
 
+> **Superseded.** The visual system described here (Aeon Ethereal) was replaced by **Aurora Solid** — see `spec/aurora-solid-redesign-plan.md` for the current source of truth on tokens, components, and screen layouts. This file is kept as historical record; do not build against it.
+
 ## Status
 - Overall: `completed`
 - Completed:
@@ -9,10 +11,10 @@
   - major desktop/mobile routes were rebuilt responsively
   - accessibility and consistency pass completed on shared UI primitives
   - route-level error boundaries added for main dashboard groups
-  - floating mobile navigation and final Aeon polish applied
+  - persistent mobile navigation and final Aeon polish applied
 - Optional follow-up:
   - full manual comparison against all Stitch reference screens
-  - optional smoke/E2E coverage
+  - visual baseline regeneration and no-update verification use Playwright `1.59.1` with `mcr.microsoft.com/playwright:v1.59.1-noble`
 
 ## Objective
 Validate that the UI rebuild is production-ready, responsive, and still functionally correct.
@@ -35,7 +37,8 @@ Validate that the UI rebuild is production-ready, responsive, and still function
 7. Run `pnpm --filter @ksiegowy/web typecheck`. Status: completed.
 8. Run `pnpm --filter @ksiegowy/web build`. Status: completed.
 9. Manually compare implemented layouts against Stitch screen references. Status: optional follow-up.
-10. Confirm no generated Stitch HTML was copied into the implementation. Status: completed.
+   10. Confirm no generated Stitch HTML was copied into the implementation. Status: completed.
+11. Verify the authenticated 390px app header fits brand, company, KSeF, theme, and session controls into at most two rows without horizontal overflow. Status: completed.
 
 ## Exit Criteria
 - build passes
@@ -50,6 +53,14 @@ Current assessment:
 - `major desktop/mobile routes match the intended visual direction`: completed for implementation scope
 - `key user flows still function`: completed based on current build and preserved integrations
 - `no placeholder core route remains`: completed
+- `390px authenticated header stays within two usable rows`: completed
+
+Visual baseline commands:
+
+```bash
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:' --update-snapshots"
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:'"
+```
 
 ## Risks To Watch
 - regression from layout refactors in client components

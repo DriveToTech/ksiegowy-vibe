@@ -17,20 +17,23 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
+| [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
 | [Backup Restore Drill](docs/backup-restore-drill.md) | Repeatable restore drill steps with evidence capture |
+| [Demo Screenshots](docs/screenshots/README.md) | Synthetic mock-API fixture and commands for safe UI screenshot capture |
 
 ## Features
 
 - **KSeF Integration** — Submit VAT invoices and sync incoming invoices from the National e-Invoice System (FA(3) XML generation, XSD validation, session management, offline queue with retry)
 - **KSeF Environment Context Switcher** — Per-user `TEST` / `PRODUCTION` environment switching with separate credentials, sessions, invoice visibility, and invoice KSeF state per environment. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
-- **Invoice Management** — Full lifecycle: draft → issue → PDF/XML generation → KSeF submission, including KOR correction invoices linked to accepted KSeF originals, with support for formal corrections such as invoice-number fixes
+- **Invoice Management** — Full lifecycle: draft → issue → PDF/XML generation → KSeF submission, including KOR correction invoices linked to accepted KSeF originals, with support for formal corrections such as invoice-number fixes and catalogue-based line-item selection
 - **Incoming Invoices** — Upload PDFs/images with OCR, or sync directly from KSeF; review & confirm
 - **Multi-company Support** — Manage multiple VAT entities with role-based access (Admin / Accountant / Viewer)
 - **Contractor Management** — Buyer/seller database with NIP lookup (GUS API)
 - **VAT Reporting** — VAT register with CSV export
+- **Reports & JPK** — UI placeholder; report generation and JPK_V7M submission are not available yet
 - **Backup** — Platform-managed PostgreSQL + iCloud backup, plus company-admin Google Drive backup policy (manual, invoice-issued trigger, daily/weekly schedule via host cron one-shot job)
-- **Authentication** — Google OAuth2 with JWT (httpOnly cookies)
+- **Authentication** — Google OAuth2 with short-lived access tokens, refresh tokens, and httpOnly cookies
 
 ## Tech Stack
 
@@ -79,10 +82,28 @@ ksiegowy-vibe/
 └── PLAN.md               # Implementation roadmap
 ```
 
-## Frontend Branding
+## Frontend Design System
 
-- The web app root layout uses `apps/web/src/components/brand/assets/logo.png` as the favicon via Next.js metadata, so browser tab branding stays aligned with the shared brand asset.
-- The desktop dashboard sidebar keeps the lower sidebar content scrollable so quick actions never overlap primary navigation targets on shorter viewports.
+The visual system is **Aurora Solid** — opaque layered surfaces, no `blur()`/`backdrop-filter`, one shadow per page frame, Sora + IBM Plex Mono typography. Tokens live as CSS custom properties in `apps/web/src/app/globals.css` and are exposed to Tailwind v4 via `@theme inline`.
+
+Source of truth: **`spec/aurora-solid-redesign-plan.md`** (plan and phase history) and **`docs/specs/aurora-solid-tokens.md`** (the token spec: both themes, contrast findings, component states). `spec/stitch-ui-implementation-plan.md` and `spec/ui/00-06` describe the previous "Aeon Ethereal" system and are superseded historical record.
+
+- The web app uses the themed SVG wordmarks from `apps/web/src/components/brand/assets/` in the app and onboarding headers, the stacked lockup on the login panel, and the SVG mark as the favicon.
+- The 60px chrome bar is the sole global brand anchor and contains company, KSeF, theme, and session context.
+- The 226px desktop rail contains navigation plus contextual status widgets (JPK_V7M filing deadline, rejected-invoice count); page actions live beside the content they affect.
+- Light mode is the default, with an explicit dark preference stored locally in the browser. Both themes are held to WCAG AA on text and interactive boundaries.
+- Mobile retains persistent bottom navigation in a reserved shell region and scrollable main content, so content and focused controls are not covered while scrolling.
+
+## First-Run Flow
+
+A signed-in user with no company is redirected from `/dashboard` into the onboarding wizard at `/onboarding`, rather than seeing an empty dashboard:
+
+1. **Account** — already satisfied by sign-in.
+2. **Company data** — NIP register lookup (`GET /companies/lookup`) then create (`POST /companies`).
+3. **KSeF connection** — token per environment (`PATCH /companies/:id/ksef-settings`).
+4. **Invite your accountant** — optional (`POST /companies/:companyId/invites`); no email is sent, so the UI surfaces a copyable invite link.
+
+Progress is not stored separately — the wizard resumes by deriving the first incomplete step from the session and the company record, so "Save and finish later" is simply a link back to `/dashboard`. Invited users join an existing company through `POST /invites/:token/accept` and never enter this flow.
 
 ## Prerequisites
 
@@ -132,13 +153,13 @@ On first run this builds both Docker images (takes a few minutes). Subsequent st
 #### 3. Run database migrations
 
 ```bash
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
 ```
 
 #### 4. (Optional) Seed initial data
 
 ```bash
-docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
+pnpm db:seed
 ```
 
 See [Seed Scripts](#seed-scripts) for available options including KSeF test data.
@@ -233,6 +254,7 @@ pnpm dev
 
 | Variable | Description |
 |----------|-------------|
+| `POSTGRES_HOST_PORT` | Host port for the Docker PostgreSQL service; defaults to `5432`, while the container remains on `5432` |
 | `OPENROUTER_API_KEY` | Required for incoming invoice OCR |
 | `GDRIVE_CLIENT_ID` | Google Drive backup |
 | `GDRIVE_CLIENT_SECRET` | Google Drive backup |
@@ -575,6 +597,30 @@ pnpm --filter @ksiegowy/e2e test:debug
 pnpm --filter @ksiegowy/e2e report
 ```
 
+Visual dashboard baselines must be generated and verified with the exact
+Playwright dependency and matching Linux container image (`1.59.1`):
+
+```bash
+# Regenerate the three dashboard baselines
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:' --update-snapshots"
+
+# Verify without changing baselines
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:'"
+```
+
+Do not use a floating Playwright package range or a different container image
+for visual comparisons.
+
+Focused dashboard and responsive header checks:
+
+```bash
+pnpm --filter @ksiegowy/web typecheck
+pnpm --filter @ksiegowy/web lint
+pnpm --filter @ksiegowy/e2e test
+```
+
+At a 390px viewport, the authenticated app header keeps the brand and theme/session controls on the first row, company and KSeF controls on the second row, and verifies that the page does not overflow horizontally.
+
 ### First run setup
 
 Playwright browsers must be installed once before running tests:
@@ -629,7 +675,7 @@ pnpm tsx scripts/seed.ts --email your@email.com
 pnpm tsx scripts/seed.ts --reset
 
 # Docker
-docker compose exec api node node_modules/.bin/tsx scripts/seed.ts
+pnpm db:seed
 ```
 
 Creates:
@@ -724,7 +770,8 @@ All company-scoped routes require a valid JWT and active company membership.
 | POST | `/companies/:companyId/invoices/:id/send-to-ksef` | Submit to KSeF |
 | GET/POST | `/companies/:companyId/incoming` | Incoming invoices + OCR upload |
 | POST | `/companies/:companyId/incoming/ksef-sync` | Sync incoming invoices from KSeF |
-| GET/POST/PATCH/DELETE | `/companies/:companyId/contractors` | Contractor CRUD |
+| GET/POST/PATCH/DELETE | `/companies/:companyId/contractors` | Contractor CRUD (list supports `status`/`year` query params, returns per-contractor `turnover`) |
+| GET | `/companies/:companyId/contractors/:id/summary` | Per-contractor financial summary: year turnover/paid, all-time outstanding, recent documents |
 | GET/POST/PATCH/DELETE | `/companies/:companyId/members` | User membership |
 | GET/POST | `/companies/:companyId/invites` | User invitations |
 | GET | `/companies/:companyId/reports` | VAT register + CSV export |
@@ -847,7 +894,7 @@ The script fails fast on missing configuration, requires a real browser API URL 
 ```bash
 cp .env.example .env        # fill in secrets
 docker compose up -d --build
-docker compose exec api node node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+pnpm --filter @ksiegowy/api exec prisma migrate deploy
 ```
 
 File uploads are persisted via a bind mount at `./storage` on the host.

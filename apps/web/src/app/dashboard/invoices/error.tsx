@@ -1,6 +1,7 @@
 'use client';
 
 import { RouteErrorState } from '../../../components/templates/RouteErrorState';
+import { t } from '../../../lib/translations';
 
 export default function InvoicesError({
   error,
@@ -11,11 +12,11 @@ export default function InvoicesError({
 }) {
   return (
     <RouteErrorState
-      title="Błąd widoku faktur"
+      title={t.outgoingInvoices.routeErrorTitle}
       error={error}
       reset={reset}
       backHref="/dashboard/invoices"
-      backLabel="Wróć do faktur"
+      backLabel={t.outgoingInvoices.routeErrorBackLabel}
     />
   );
 }

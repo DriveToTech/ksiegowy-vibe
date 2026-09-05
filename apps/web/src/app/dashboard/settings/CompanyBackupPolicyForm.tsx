@@ -20,6 +20,7 @@ import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
 import { Surface } from '../../../components/atoms/Surface';
+import { Banner } from '../../../components/molecules/Banner';
 import { FormField } from '../../../components/molecules/FormField';
 
 interface CompanyBackupPolicyFormProps {
@@ -224,42 +225,38 @@ export function CompanyBackupPolicyForm({
   };
 
   return (
-    <Surface tone="glass" shape="organic" className="space-y-5 p-6 xl:max-w-4xl">
+    <Surface tone="panel" className="space-y-5 p-6 xl:max-w-4xl">
       <div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">Kopie zapasowe</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Kopie zapasowe</h2>
         <p className="mt-1 text-sm text-muted">
           Platformowy backup PostgreSQL jest zarządzany operacyjnie (tylko podgląd). Backup plików firmowych do Google Drive konfigurujesz na poziomie firmy.
         </p>
       </div>
 
       {error ? (
-        <Surface className="border-error/20 bg-error-soft/70 px-4 py-3 text-sm text-error-ink" role="alert">
+        <Banner tone="error">
           <p>{error.message}</p>
           {error.code === 'REAUTHORIZATION_REQUIRED' ? (
             <div className="mt-3">
               <a
                 href={googleDriveConnectUrl}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+                className="inline-flex h-10 items-center justify-center rounded-control bg-surface-panel px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
               >
                 Połącz ponownie Google Drive
               </a>
             </div>
           ) : null}
-        </Surface>
+        </Banner>
       ) : null}
-      {success ? (
-        <Surface className="border-success/20 bg-success/25 px-4 py-3 text-sm text-success-ink">
-          {success}
-        </Surface>
-      ) : null}
+      {success ? <Banner tone="success">{success}</Banner> : null}
 
       {hasBackupStatusError ? (
-        <Surface className="border-outline/20 bg-surface-muted/50 px-4 py-3 text-sm text-muted" role="status">
+        <Banner tone="info">
           Nie udało się pobrać wskaźników statusu backupu. Ustawienia polityki Google Drive nadal możesz edytować.
-        </Surface>
+        </Banner>
       ) : null}
 
-      <div className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/45 p-4">
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Platform PostgreSQL backup</p>
@@ -267,7 +264,7 @@ export function CompanyBackupPolicyForm({
               {postgresqlStatus?.summary ?? 'Status platformowego backupu PostgreSQL jest chwilowo niedostępny.'}
             </p>
           </div>
-          <Badge tone={postgresqlStatus ? backupStatusBadgeTone[postgresqlStatus.status] : 'neutral'}>
+          <Badge tone={postgresqlStatus ? backupStatusBadgeTone[postgresqlStatus.status] : 'draft'}>
             {postgresqlStatus ? backupStatusLabel[postgresqlStatus.status] : 'Niedostępny'}
           </Badge>
         </div>
@@ -279,7 +276,7 @@ export function CompanyBackupPolicyForm({
         </p>
       </div>
 
-      <div className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/45 p-4">
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Google Drive backup firmy</p>
@@ -305,7 +302,7 @@ export function CompanyBackupPolicyForm({
           <div className="mt-3">
             <a
               href={googleDriveConnectUrl}
-              className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+              className="inline-flex h-10 items-center justify-center rounded-control bg-secondary-surface px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
             >
               Połącz ponownie Google Drive
             </a>
@@ -324,7 +321,7 @@ export function CompanyBackupPolicyForm({
         </p>
       </div>
 
-      <div className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/45 p-4">
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Polityka backupu Google Drive</p>
@@ -355,29 +352,29 @@ export function CompanyBackupPolicyForm({
             />
           </div>
         ) : (
-          <div className="mt-4 rounded-[1rem] border border-warning/30 bg-warning/20 px-4 py-3 text-sm text-warning-ink">
+          <Banner tone="warning" className="mt-4">
             {requiresGoogleDriveReauthorization
               ? 'Google Drive wymaga ponownego połączenia. Backup ręczny i automatyczny pozostają wstrzymane do czasu odnowienia autoryzacji.'
               : 'Google Drive nie jest jeszcze podłączony. Najpierw połącz konto, aby uruchamiać backup ręczny i harmonogram.'}
             <div className="mt-3">
               <a
                 href={googleDriveConnectUrl}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-surface-panel/70 px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised/80"
+                className="inline-flex h-10 items-center justify-center rounded-control bg-surface-panel px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
               >
                 {requiresGoogleDriveReauthorization ? 'Połącz ponownie Google Drive' : 'Połącz Google Drive'}
               </a>
             </div>
-          </div>
+          </Banner>
         )}
 
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2 rounded-[1rem] border border-outline/20 bg-surface/40 px-4 py-3">
+          <div className="md:col-span-2 rounded-control border border-outline bg-surface-raised px-4 py-3">
             <label className="inline-flex items-center gap-3 text-sm text-foreground">
               <input
                 type="checkbox"
                 checked={automaticOnInvoiceIssued}
                 onChange={(event) => setAutomaticOnInvoiceIssued(event.target.checked)}
-                className="h-4 w-4 rounded border-outline/40 text-primary focus:ring-primary/30"
+                className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
                 disabled={!isGoogleDriveConnected || saveBusy}
               />
               Automatycznie uruchamiaj backup po wystawieniu faktury
@@ -476,7 +473,7 @@ export function CompanyBackupPolicyForm({
         </div>
 
         {lastRunResult ? (
-          <div className="mt-4 rounded-[1rem] border border-outline/20 bg-surface/40 p-4 text-sm">
+          <div className="mt-4 rounded-control border border-outline bg-surface-raised p-4 text-sm">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Wynik ostatniego uruchomienia</p>
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               <ReadOnlyItem label="Backup run ID" value={lastRunResult.backupRunId} />
@@ -490,14 +487,14 @@ export function CompanyBackupPolicyForm({
         ) : null}
       </div>
 
-      <details className="rounded-[1.4rem] border border-outline/20 bg-surface-raised/35 p-4">
+      <details className="rounded-card border border-outline bg-surface-raised p-4">
         <summary className="cursor-pointer list-none text-sm font-semibold text-foreground marker:hidden">
           Zaawansowane szczegóły statusu backupu
         </summary>
-        <div className="mt-4 space-y-4 border-t border-outline/15 pt-4">
+        <div className="mt-4 space-y-4 border-t border-outline pt-4">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Status ogólny</p>
-            <Badge tone={backupStatus ? overallStatusBadgeTone[backupStatus.overallStatus] : 'neutral'}>
+            <Badge tone={backupStatus ? overallStatusBadgeTone[backupStatus.overallStatus] : 'draft'}>
               {backupStatus ? overallStatusLabel[backupStatus.overallStatus] : 'Niedostępny'}
             </Badge>
           </div>
@@ -582,12 +579,12 @@ const backupStatusLabel: Record<PlatformPostgresqlBackupStatus, string> = {
   UNAVAILABLE: 'Niedostępny',
 };
 
-const backupStatusBadgeTone: Record<PlatformPostgresqlBackupStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
+const backupStatusBadgeTone: Record<PlatformPostgresqlBackupStatus, 'success' | 'warning' | 'danger' | 'draft'> = {
   FRESH: 'success',
   STALE: 'warning',
   MISSING: 'danger',
   INCOMPLETE: 'danger',
-  UNAVAILABLE: 'neutral',
+  UNAVAILABLE: 'draft',
 };
 
 const overallStatusLabel: Record<CompanyBackupOverallStatus, string> = {
@@ -597,11 +594,11 @@ const overallStatusLabel: Record<CompanyBackupOverallStatus, string> = {
   UNKNOWN: 'Nieznany',
 };
 
-const overallStatusBadgeTone: Record<CompanyBackupOverallStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
+const overallStatusBadgeTone: Record<CompanyBackupOverallStatus, 'success' | 'warning' | 'danger' | 'draft'> = {
   HEALTHY: 'success',
   DEGRADED: 'warning',
   CRITICAL: 'danger',
-  UNKNOWN: 'neutral',
+  UNKNOWN: 'draft',
 };
 
 const postgresqlReasonCodeLabel: Record<PlatformPostgresqlBackupReasonCode, string> = {

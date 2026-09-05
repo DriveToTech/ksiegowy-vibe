@@ -5,6 +5,7 @@ import { Button } from '../../../../../components/atoms/Button';
 import { ErrorState } from '../../../../../components/molecules/ErrorState';
 import { PageHeader } from '../../../../../components/molecules/PageHeader';
 import { requireAuthSession } from '../../../../../lib/auth';
+import { t } from '../../../../../lib/translations';
 import EditInvoiceForm from './EditInvoiceForm';
 
 export default async function EditInvoicePage({
@@ -22,11 +23,11 @@ export default async function EditInvoicePage({
     const { activeCompanyId } = await getActiveCompany();
     companyId = activeCompanyId;
   } catch (e) {
-    errorMsg = e instanceof Error ? e.message : 'Błąd pobierania danych firmy';
+    errorMsg = e instanceof Error ? e.message : t.invoiceDetail.errors.companyLoadFailed;
   }
 
   if (errorMsg || !companyId) {
-    return <ErrorState message={errorMsg ?? 'Nie znaleziono firmy.'} />;
+    return <ErrorState message={errorMsg ?? t.invoiceDetail.errors.companyNotFound} />;
   }
 
   let invoice;
@@ -35,9 +36,9 @@ export default async function EditInvoicePage({
   } catch (e) {
     return (
       <div className="space-y-4">
-        <ErrorState message={e instanceof Error ? e.message : 'Błąd pobierania faktury'} />
+        <ErrorState message={e instanceof Error ? e.message : t.invoiceDetail.errors.invoiceLoadFailed} />
         <Link href={`/dashboard/invoices/${id}`}>
-          <Button variant="secondary">← Powrót do faktury</Button>
+          <Button variant="secondary">{t.newInvoice.backToInvoiceButton}</Button>
         </Link>
       </div>
     );
@@ -46,9 +47,9 @@ export default async function EditInvoicePage({
   if (invoice.status !== 'DRAFT') {
     return (
       <div className="space-y-4">
-        <ErrorState message={`Edycja jest możliwa tylko dla szkiców (status faktury: ${invoice.status})`} />
+        <ErrorState message={t.newInvoice.editNotDraftError(invoice.status)} />
         <Link href={`/dashboard/invoices/${id}`}>
-          <Button variant="secondary">← Powrót do faktury</Button>
+          <Button variant="secondary">{t.newInvoice.backToInvoiceButton}</Button>
         </Link>
       </div>
     );
@@ -70,9 +71,9 @@ export default async function EditInvoicePage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Faktury"
-        title="Edytuj szkic faktury"
-        description="Wprowadź zmiany i zapisz szkic."
+        eyebrow={t.newInvoice.editPageEyebrow}
+        title={t.newInvoice.editPageTitle}
+        description={t.newInvoice.editPageDescription}
       />
       <EditInvoiceForm
         companyId={companyId}

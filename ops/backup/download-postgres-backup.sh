@@ -56,7 +56,7 @@ if [[ ! -f "${backup_output_directory}/${manifest_file_name}" ]]; then
   exit 1
 fi
 
-if ! (cd "${backup_output_directory}" && sha256sum --check "${checksum_file_name}" --status); then
+if ! (cd "${backup_output_directory}" && sha256sum -cs "${checksum_file_name}"); then
   echo "[download-postgres-backup] Integrity check FAILED for ${backup_file_name}."
   exit 1
 fi

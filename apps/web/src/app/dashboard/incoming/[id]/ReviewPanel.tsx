@@ -130,9 +130,9 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
   ];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-      <Surface tone="glass" shape="organic" className="overflow-hidden xl:mr-6">
-        <div className="border-b border-outline/20 px-5 py-4">
+    <div className="grid gap-6 xl:grid-cols-2">
+      <Surface tone="panel" className="overflow-hidden">
+        <div className="border-b border-outline px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-foreground">{t.review.documentPanel}</p>
@@ -155,8 +155,8 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
         )}
       </Surface>
 
-      <Surface tone="glass" shape="organic" className="flex flex-col overflow-hidden xl:translate-y-8">
-        <div className="border-b border-outline/20 px-5 py-4">
+      <Surface tone="panel" className="flex flex-col overflow-hidden">
+        <div className="border-b border-outline px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-foreground">{t.review.ocrPanel}</p>
@@ -201,13 +201,13 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
             </div>
 
             {invoice.ksefReference && (
-              <div className="rounded-md bg-surface-raised/40 px-4 py-3">
+              <div className="rounded-control bg-surface-raised px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.review.ksefReferenceLabel}</p>
                 <p className="mt-1 break-all font-mono text-sm text-foreground">{invoice.ksefReference}</p>
               </div>
             )}
 
-            <div className="rounded-md bg-surface-raised/40 px-4 py-3">
+            <div className="rounded-control bg-surface-raised px-4 py-3">
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.review.fields.environment}</p>
               <div className="mt-2">
                 <InvoiceEnvironmentChip environment={invoice.environment} />
@@ -253,7 +253,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
           </section>
         </div>
 
-        <div className="border-t border-outline/20 px-5 py-4">
+        <div className="border-t border-outline px-5 py-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             {error ? <p className="text-sm text-error-ink">{error}</p> : <div />}
 
@@ -282,12 +282,12 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
                 </>
               ) : null}
               {invoice.status === 'CONFIRMED' ? (
-                <span className="inline-flex min-h-11 items-center rounded-md bg-success/25 px-4 text-sm font-semibold text-success-ink">
+                <span className="inline-flex min-h-11 items-center rounded-chip bg-success px-4 text-sm font-semibold text-success-ink">
                   {t.review.confirmed}
                 </span>
               ) : null}
               {invoice.status === 'REJECTED' ? (
-                <span className="inline-flex min-h-11 items-center rounded-md bg-error-soft px-4 text-sm font-semibold text-error-ink">
+                <span className="inline-flex min-h-11 items-center rounded-chip bg-error px-4 text-sm font-semibold text-error-ink">
                   {t.review.rejected}
                 </span>
               ) : null}
@@ -325,7 +325,7 @@ function InfoCard({
   rows: Array<{ label: string; value: string }>;
 }) {
   return (
-    <Surface tone="glass" shape="organic" className="space-y-3 p-4">
+    <Surface tone="panel" className="space-y-3 p-4">
       <h3 className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{title}</h3>
       <div className="space-y-2 text-sm">
         {rows.map((row) => (
