@@ -258,7 +258,7 @@ pnpm dev
 | `OPENROUTER_API_KEY` | Required for incoming invoice OCR |
 | `GDRIVE_CLIENT_ID` | Google Drive backup |
 | `GDRIVE_CLIENT_SECRET` | Google Drive backup |
-| `GDRIVE_REDIRECT_URI` | Google Drive backup OAuth callback URL |
+| `GDRIVE_REDIRECT_URI` | Google Drive backup OAuth callback URL, including any public API path prefix |
 | `RESEND_API_KEY` | Email PDF delivery |
 | `GUS_API_KEY` | NIP lookup via GUS API |
 | `STORAGE_BASE_PATH` | File storage path (default: `./storage`) |

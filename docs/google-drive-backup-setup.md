@@ -117,6 +117,10 @@ GDRIVE_REDIRECT_URI=http://localhost:3001/backup/gdrive/callback
 GDRIVE_REDIRECT_URI=https://api.example.com/backup/gdrive/callback
 ```
 
+If the API is exposed behind a public path prefix, include that prefix in the
+redirect URI. The application uses this path for the OAuth state cookie, so the
+public callback path and `GDRIVE_REDIRECT_URI` must match exactly.
+
 > The value in `GDRIVE_REDIRECT_URI` must be **identical** to the redirect URI configured in Google Cloud Console.
 
 ---
@@ -130,7 +134,7 @@ GDRIVE_REDIRECT_URI=https://api.example.com/backup/gdrive/callback
 - **Missing test users**
   - If the consent screen is in **Testing**, the Google account used for authorization must be added as a test user
 - **Wrong callback host**
-  - Use the API callback route: `/backup/gdrive/callback`
+  - Use the externally reachable API callback route, including any public path prefix
 - **Reusing the login OAuth app by accident**
   - Backup credentials are expected to be configured separately from `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` used for login
 
