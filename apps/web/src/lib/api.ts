@@ -11,6 +11,7 @@ import type {
   CompanyBackupSettings,
   Contractor,
   ContractorServiceRate,
+  DashboardSummary,
   IncomingInvoiceDetail,
   IncomingInvoiceSummary,
   Invite,
@@ -34,6 +35,7 @@ export type {
   CompanyGoogleDriveBackupPolicy,
   Contractor,
   ContractorServiceRate,
+  DashboardSummary,
   CreateCompanyBody,
   CreateDraftBody,
   IncomingInvoiceDetail,
@@ -142,6 +144,14 @@ export async function getInvoices(
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   const activeKsefEnvironment = await getActiveKsefEnvironment();
   return apiFetch(`/companies/${companyId}/invoices${qs}`, {
+    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
+  });
+}
+
+export async function getDashboardSummary(companyId: string): Promise<DashboardSummary> {
+  const activeKsefEnvironment = await getActiveKsefEnvironment();
+
+  return apiFetch<DashboardSummary>(`/companies/${companyId}/dashboard-summary`, {
     headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
   });
 }

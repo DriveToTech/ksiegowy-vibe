@@ -16,7 +16,7 @@ const statusTabs = [
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; ksefStatus?: string }>;
 }) {
   const session = await requireAuthSession('/dashboard/invoices');
   const companyId = session.activeCompanyId;
@@ -42,12 +42,19 @@ export default async function InvoicesPage({
     );
   }
 
-  const { page: pageParam, status: statusParam } = await searchParams;
+  const { page: pageParam, status: statusParam, ksefStatus: ksefStatusParam } = await searchParams;
   const page = Number(pageParam) > 0 ? Number(pageParam) : 1;
   const activeStatus = statusParam === 'DRAFT' ? 'DRAFT' : undefined;
+  const activeKsefStatus = ['not_submitted', 'pending', 'accepted', 'rejected'].includes(ksefStatusParam ?? '')
+    ? ksefStatusParam
+    : undefined;
 
   const [invoicesResult, contractors] = await Promise.all([
-    getInvoices(companyId, { page: String(page), ...(activeStatus ? { status: activeStatus } : {}) }),
+    getInvoices(companyId, {
+      page: String(page),
+      ...(activeStatus ? { status: activeStatus } : {}),
+      ...(activeKsefStatus ? { ksefStatus: activeKsefStatus } : {}),
+    }),
     getContractors(companyId).catch(() => []),
   ]);
   const { data: invoices, total, limit } = invoicesResult;
@@ -108,13 +115,13 @@ export default async function InvoicesPage({
               {t.outgoingInvoices.pageSummary(invoices.length, total, formatMoney(totalGrossOnPage))}
             </p>
             <div className="flex items-center justify-between gap-4 sm:justify-end">
-              <Link href={`/dashboard/invoices?page=${page - 1}${activeStatus ? `&status=${activeStatus}` : ''}`}>
+              <Link href={`/dashboard/invoices?page=${page - 1}${activeStatus ? `&status=${activeStatus}` : ''}${activeKsefStatus ? `&ksefStatus=${activeKsefStatus}` : ''}`}>
                 <Button variant="secondary" size="sm" disabled={page <= 1}>
                   {t.pagination.previous}
                 </Button>
               </Link>
               <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)}</p>
-              <Link href={`/dashboard/invoices?page=${page + 1}${activeStatus ? `&status=${activeStatus}` : ''}`}>
+              <Link href={`/dashboard/invoices?page=${page + 1}${activeStatus ? `&status=${activeStatus}` : ''}${activeKsefStatus ? `&ksefStatus=${activeKsefStatus}` : ''}`}>
                 <Button variant="secondary" size="sm" disabled={page >= totalPages}>
                   {t.pagination.next}
                 </Button>
