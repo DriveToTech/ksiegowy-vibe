@@ -61,6 +61,11 @@ const verifyAndParseBackupOAuthState = (state: string, secret: string): BackupOA
   return parsedPayload;
 };
 
+const getBackupOAuthCookiePath = (): string => {
+  const redirectUri = process.env['GDRIVE_REDIRECT_URI'] ?? 'http://localhost:3001/backup/gdrive/callback';
+  return new URL(redirectUri).pathname || '/';
+};
+
 const assertAdmin = (
   user: AccessTokenPayload,
   companyId: string,
@@ -89,13 +94,6 @@ export const backupRoutes: FastifyPluginAsync = async (fastify): Promise<void> =
       assertAdmin(user, companyId, fastify);
 
       const oauthState = createBackupOAuthState(companyId, fastify.authConfig.jwt.accessSecret);
-      reply.setCookie(backupOAuthStateCookieName, oauthState, {
-        path: '/backup/gdrive/callback',
-        httpOnly: true,
-        sameSite: fastify.authConfig.cookies.sameSite,
-        secure: fastify.authConfig.cookies.secure,
-        maxAge: backupOAuthStateMaxAgeSeconds,
-      });
 
       let authUrl: string;
       try {
@@ -103,6 +101,14 @@ export const backupRoutes: FastifyPluginAsync = async (fastify): Promise<void> =
       } catch (err: unknown) {
         throw fastify.httpErrors.internalServerError(err instanceof Error ? err.message : String(err));
       }
+
+      reply.setCookie(backupOAuthStateCookieName, oauthState, {
+        path: getBackupOAuthCookiePath(),
+        httpOnly: true,
+        sameSite: fastify.authConfig.cookies.sameSite,
+        secure: fastify.authConfig.cookies.secure,
+        maxAge: backupOAuthStateMaxAgeSeconds,
+      });
 
       return reply.redirect(authUrl);
     }
@@ -122,7 +128,7 @@ export const backupRoutes: FastifyPluginAsync = async (fastify): Promise<void> =
 
       const cookieState = request.cookies[backupOAuthStateCookieName];
       reply.clearCookie(backupOAuthStateCookieName, {
-        path: '/backup/gdrive/callback',
+        path: getBackupOAuthCookiePath(),
         httpOnly: true,
         sameSite: fastify.authConfig.cookies.sameSite,
         secure: fastify.authConfig.cookies.secure,
