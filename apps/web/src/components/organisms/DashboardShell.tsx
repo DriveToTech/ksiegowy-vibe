@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { getIncomingInvoices, getInvoices } from '../../lib/api';
+import { getDashboardSummary } from '../../lib/api';
 import type { AuthSession } from '../../lib/auth';
 import { t } from '../../lib/translations';
 import { AppHeader } from './AppHeader';
@@ -14,8 +14,6 @@ const navigationItems = [
   { href: '/dashboard/compliance', label: t.nav.compliance, mobileLabel: t.nav.compliance, icon: 'contractors' as const },
   { href: '/dashboard/settings', label: t.nav.settings, mobileLabel: t.nav.settings, icon: 'settings' as const },
 ];
-
-const INCOMING_NEEDS_ACTION_STATUSES = new Set(['UPLOADED', 'OCR_PROCESSING', 'OCR_DONE', 'OCR_FAILED']);
 
 interface DashboardShellProps {
   children: ReactNode;
@@ -49,17 +47,10 @@ function jpkDeadlineWidget(now: Date) {
 export async function DashboardShell({ children, session }: DashboardShellProps) {
   const companyId = session.activeCompanyId;
 
-  const [outgoingTotal, incomingNeedsAction, recentRejected] = companyId
-    ? await Promise.all([
-        getInvoices(companyId, { limit: '1' }).then((result) => result.total).catch(() => null),
-        getIncomingInvoices(companyId, { limit: '100' })
-          .then((result) => result.data.filter((invoice) => INCOMING_NEEDS_ACTION_STATUSES.has(invoice.status)).length)
-          .catch(() => null),
-        getInvoices(companyId, { limit: '50' })
-          .then((result) => result.data.filter((invoice) => invoice.ksefStatus === 'rejected').length)
-          .catch(() => null),
-      ])
-    : [null, null, null];
+  const summary = companyId ? await getDashboardSummary(companyId).catch(() => null) : null;
+  const outgoingTotal = summary?.totalInvoices ?? null;
+  const incomingNeedsAction = summary?.attention.incoming ?? null;
+  const recentRejected = summary?.attention.rejected ?? null;
 
   const items = navigationItems.map((item) => {
     if (item.href === '/dashboard/invoices' && outgoingTotal !== null) {

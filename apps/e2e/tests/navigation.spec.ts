@@ -144,7 +144,11 @@ test('dashboard exposes one visible navigation surface and semantic state', asyn
   await expect(page.getByRole('complementary')).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Nawigacja dashboardu', exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Mobilna nawigacja dashboardu' })).toBeHidden();
-  await expect(page.getByRole('link', { name: 'Przegląd' })).toHaveAttribute('aria-current', 'page');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Nawigacja dashboardu', exact: true })
+      .getByRole('link', { name: 'Przegląd', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('button', { name: 'Włącz ciemny motyw' })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByText('TEST', { exact: true }).first()).toBeVisible();
 

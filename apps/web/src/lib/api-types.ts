@@ -122,6 +122,36 @@ export interface InvoiceSummary {
   contractor?: { id: string; name: string; nip: string | null } | null;
 }
 
+export interface DashboardSummary {
+  environment: CompanyKsefEnvironment;
+  totalInvoices: number;
+  contractorCount: number;
+  ksefCounts: {
+    accepted: number;
+    pending: number;
+    rejected: number;
+    notSubmitted: number;
+  };
+  salesByMonth: Array<{
+    year: number;
+    month: number;
+    gross: string;
+    vat: string;
+    invoiceCount: number;
+  }>;
+  currentMonth: {
+    gross: string;
+    vat: string;
+    invoiceCount: number;
+  };
+  attention: {
+    rejected: number;
+    notSubmitted: number;
+    incoming: number;
+  };
+  recentInvoices: InvoiceSummary[];
+}
+
 export interface InvoiceDetail {
   id: string;
   companyId: string;

@@ -16,6 +16,7 @@ import { contractorServiceRatesRoutes } from './routes/contractor-service-rates.
 import { serviceTemplatesRoutes } from './routes/service-templates.js';
 import { outgoingInvoiceRoutes } from './routes/invoices/outgoing.js';
 import { incomingInvoiceRoutes } from './routes/invoices/incoming.js';
+import { dashboardSummaryRoutes } from './routes/dashboard-summary.js';
 import { membersRoutes } from './routes/members.js';
 import { ksefRoutes } from './routes/ksef.js';
 import { reportsRoutes } from './routes/reports.js';
@@ -52,6 +53,7 @@ export const buildApp = async (options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(serviceTemplatesRoutes);
   await app.register(outgoingInvoiceRoutes);
   await app.register(incomingInvoiceRoutes);
+  await app.register(dashboardSummaryRoutes);
   await app.register(membersRoutes);
   await app.register(ksefRoutes);
   await app.register(reportsRoutes);
