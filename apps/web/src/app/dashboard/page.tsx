@@ -24,7 +24,12 @@ export default async function DashboardPage() {
     redirect('/onboarding');
   }
 
-  const summary = await getDashboardSummary(companyId);
+  const activeEnvironment = session.activeKsefEnvironment;
+  if (!activeEnvironment) {
+    redirect('/onboarding');
+  }
+
+  const summary = await getDashboardSummary(companyId, activeEnvironment);
   const now = new Date();
   const kpiCounts = { ...summary.ksefCounts, inClearance: summary.ksefCounts.pending };
   const monthBuckets = summary.salesByMonth.map((bucket) => ({
@@ -63,12 +68,8 @@ export default async function DashboardPage() {
         description={t.dashboard.pageDescription}
         actions={
           <>
-            <Link href="/dashboard/incoming">
-              <Button variant="secondary">{t.dashboard.goToIncoming}</Button>
-            </Link>
-            <Link href="/dashboard/invoices/new">
-              <Button>{t.dashboard.createInvoice}</Button>
-            </Link>
+            <Button href="/dashboard/incoming" variant="secondary">{t.dashboard.goToIncoming}</Button>
+            <Button href="/dashboard/invoices/new">{t.dashboard.createInvoice}</Button>
           </>
         }
       />
@@ -149,9 +150,7 @@ export default async function DashboardPage() {
             description={summary.contractorCount > 0 ? t.dashboard.emptyInvoicesDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
             action={
               summary.contractorCount === 0 ? (
-                <Link href="/dashboard/contractors">
-                  <Button variant="secondary">{t.dashboard.addContractor}</Button>
-                </Link>
+                <Button href="/dashboard/contractors" variant="secondary">{t.dashboard.addContractor}</Button>
               ) : undefined
             }
           />
@@ -162,7 +161,7 @@ export default async function DashboardPage() {
             compact
             header={
               summary.totalInvoices > recent.length ? (
-                <Link href="/dashboard/invoices" className="ml-auto text-xs font-semibold text-primary transition hover:text-primary-strong">
+                <Link href="/dashboard/invoices" className="ml-auto inline-flex min-h-11 items-center text-xs font-semibold text-primary transition hover:text-primary-strong">
                   {t.dashboard.recentDocuments.seeAll(summary.totalInvoices)}
                 </Link>
               ) : undefined

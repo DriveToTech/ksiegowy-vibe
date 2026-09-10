@@ -16,10 +16,7 @@ import { VatBreakdownTable } from '../../../../components/molecules/VatBreakdown
 import { calcLine, emptyLine, InvoiceLineItemsEditor, type LineItem } from '../../../../components/organisms/InvoiceLineItemsEditor';
 import { parseDecimalValue } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+import type { KsefEnvironment } from '../../../../lib/ksef-environment';
 
 function addDays(iso: string, days: number): string {
   const d = new Date(iso);
@@ -31,24 +28,27 @@ function addDays(iso: string, days: number): string {
 
 export default function NewInvoiceForm({
   companyId,
+  activeEnvironment,
+  initialDate,
   defaultBankAccount,
   contractors,
   serviceTemplates = [],
   contractorRates = [],
 }: {
   companyId: string;
+  activeEnvironment: KsefEnvironment;
+  initialDate: string;
   defaultBankAccount: string | null;
   contractors: Contractor[];
   serviceTemplates?: ServiceTemplate[];
   contractorRates?: ContractorServiceRate[];
 }) {
   const router = useRouter();
-  const today = todayIso();
 
   const [contractorId, setContractorId] = useState(contractors[0]?.id ?? '');
-  const [issueDate, setIssueDate] = useState(today);
+  const [issueDate, setIssueDate] = useState(initialDate);
   const [saleDate, setSaleDate] = useState('');
-  const [paymentDueDate, setPaymentDueDate] = useState(addDays(today, 14));
+  const [paymentDueDate, setPaymentDueDate] = useState(addDays(initialDate, 14));
   const [paymentMethod, setPaymentMethod] = useState<'BANK_TRANSFER' | 'CASH'>('BANK_TRANSFER');
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
   const [notes, setNotes] = useState('');
@@ -75,7 +75,10 @@ export default function NewInvoiceForm({
     if (!contractorId) items.push(t.newInvoice.blockers.noContractor);
     const namedLines = lines.filter((l) => l.name.trim());
     if (namedLines.length === 0) items.push(t.newInvoice.blockers.noLineItems);
-    const unpricedLines = namedLines.filter((l) => !l.unitNetPrice.trim() || parseDecimalValue(l.unitNetPrice) === null);
+    const unpricedLines = namedLines.filter((l) => {
+      const unitNetPrice = parseDecimalValue(l.unitNetPrice);
+      return !l.unitNetPrice.trim() || unitNetPrice === null || unitNetPrice < 0;
+    });
     if (unpricedLines.length > 0) items.push(t.newInvoice.blockers.invalidLinePrice);
     return items;
   }, [contractorId, lines]);
@@ -100,7 +103,12 @@ export default function NewInvoiceForm({
       quantityValue: parseDecimalValue(l.quantity),
       unitNetPriceValue: parseDecimalValue(l.unitNetPrice),
     }));
-    if (parsedLines.some((l) => l.quantityValue === null || l.unitNetPriceValue === null)) {
+    if (parsedLines.some((l) => (
+      l.quantityValue === null ||
+      l.unitNetPriceValue === null ||
+      l.quantityValue < 0 ||
+      l.unitNetPriceValue < 0
+    ))) {
       setError(t.newInvoice.invalidLineNumberError);
       return;
     }
@@ -121,7 +129,7 @@ export default function NewInvoiceForm({
         unitNetPrice: l.unitNetPriceValue!.toString(),
         vatRate: l.vatRate,
       })),
-    })
+    }, activeEnvironment)
       .then((invoice) => router.push(`/dashboard/invoices/${invoice.id}`))
       .catch((err) => {
         setError(err instanceof Error ? err.message : t.newInvoice.unknownSaveError);
@@ -162,7 +170,7 @@ export default function NewInvoiceForm({
 
           <Surface tone="panel" className="space-y-3 p-5">
             <h2 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.newInvoice.datesSectionEyebrow}</h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <FormField label={t.newInvoice.issueDateLabel} htmlFor="issueDate" required className="space-y-1.5">
                 <Input
                   id="issueDate"
@@ -224,13 +232,15 @@ export default function NewInvoiceForm({
               {t.newInvoice.notesPdfHint} <span className="font-medium text-foreground-secondary">{t.newInvoice.notesKsefHint}</span>
             </p>
           </div>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t.newInvoice.notesPlaceholder}
-            rows={4}
-          />
+          <FormField label={t.newInvoice.notesTitle} htmlFor="notes">
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t.newInvoice.notesPlaceholder}
+              rows={4}
+            />
+          </FormField>
         </Surface>
 
         <Surface tone="panel" className="space-y-1.5 p-5">
@@ -246,7 +256,7 @@ export default function NewInvoiceForm({
         </Surface>
       </div>
 
-      <div className="flex flex-col gap-4 lg:sticky lg:top-0">
+      <div className="flex flex-col gap-4">
         <Surface tone="panel" className="p-5">
           <h2 className="mb-3 text-sm font-semibold text-foreground">{t.newInvoice.summaryTitle}</h2>
           <VatBreakdownTable lines={lines} totals={totals} />
@@ -272,7 +282,7 @@ export default function NewInvoiceForm({
           </Button>
           <Link
             href="/dashboard/invoices"
-            className="text-center text-sm font-medium text-muted transition hover:text-foreground"
+            className="inline-flex min-h-11 items-center justify-center text-center text-sm font-medium text-muted transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {t.newInvoice.cancelButton}
           </Link>

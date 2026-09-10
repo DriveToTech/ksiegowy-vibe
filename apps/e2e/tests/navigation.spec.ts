@@ -76,23 +76,25 @@ test('mobile keeps bottom navigation and hides desktop sidebar', async ({ authen
   await expect(page.getByRole('complementary')).toBeHidden();
   const mobileNavigation = page.getByRole('navigation', { name: 'Mobilna nawigacja dashboardu' });
   await expect(mobileNavigation).toBeVisible();
-  await expect(mobileNavigation.getByRole('link')).toHaveCount(6);
+  await expect(mobileNavigation.getByRole('link')).toHaveCount(3);
+  await expect(mobileNavigation.getByRole('button', { name: 'Więcej' })).toHaveCount(1);
 
-  for (const [accessibleName, visibleLabel] of [
-    ['Przegląd', 'Start'],
-    ['Faktury wychodzące', 'Sprzedaż'],
-    ['Faktury przychodzące', 'Zakupy'],
-    ['Kontrahenci', 'Kontrahenci'],
-    ['Raporty & JPK', 'Raporty & JPK'],
-    ['Ustawienia', 'Ustawienia'],
+  for (const [accessibleName, destination] of [
+    ['Start', '/dashboard'],
+    ['Sprzedaż', '/dashboard/invoices'],
+    ['Zakupy', '/dashboard/incoming'],
   ]) {
     const link = mobileNavigation.getByRole('link', { name: accessibleName });
     await expect(link).toBeVisible();
-    await expect(link.getByText(visibleLabel, { exact: true })).toBeVisible();
+    await expect(link).toHaveAttribute('href', destination);
     const linkBox = await link.boundingBox();
     expect(linkBox?.width).toBeGreaterThanOrEqual(44);
     expect(linkBox?.height).toBeGreaterThanOrEqual(44);
   }
+
+  const moreButtonBox = await mobileNavigation.getByRole('button', { name: 'Więcej' }).boundingBox();
+  expect(moreButtonBox?.width).toBeGreaterThanOrEqual(44);
+  expect(moreButtonBox?.height).toBeGreaterThanOrEqual(44);
 });
 
 test('clicking Kontrahenci navigates to contractors page', async ({ authenticatedPage: page }) => {

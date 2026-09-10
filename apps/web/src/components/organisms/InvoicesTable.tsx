@@ -4,7 +4,7 @@ import type { InvoiceSummary } from '../../lib/api-types';
 import { formatDate, formatMoney } from '../../lib/format';
 import { t } from '../../lib/translations';
 import { Badge } from '../atoms/Badge';
-import { InvoiceEnvironmentChip, KsefStatusChip } from '../molecules/StatusChip';
+import { InvoiceEnvironmentChip, InvoiceStatusChip, KsefStatusChip } from '../molecules/StatusChip';
 
 interface InvoicesTableProps {
   invoices: InvoiceSummary[];
@@ -16,12 +16,13 @@ interface InvoicesTableProps {
 /**
  * The list endpoint (GET /companies/:id/invoices) does not select
  * paymentReceived/paymentDueDate — only the single-invoice detail endpoint
- * does — so DRAFT and rejected-blocked are the only payment states this
+ * does — so DRAFT, ISSUING, and rejected-blocked are the only payment states this
  * table can derive honestly from the data it has. Paid/unpaid needs those
  * two fields added to the list serializer (flagged separately as an API gap).
  */
-function paymentBadge(invoice: InvoiceSummary): { label: string; tone: 'draft' | 'primary' } | null {
+function paymentBadge(invoice: InvoiceSummary): { label: string; tone: 'draft' | 'primary' | 'warning' } | null {
   if (invoice.status === 'DRAFT') return { label: t.invoicesTable.paymentDraft, tone: 'draft' };
+  if (invoice.status === 'ISSUING') return { label: t.invoicesTable.paymentIssuing, tone: 'warning' };
   if (invoice.ksefStatus === 'rejected') return { label: t.invoicesTable.paymentBlocked, tone: 'draft' };
   return null;
 }
@@ -38,8 +39,11 @@ export function InvoicesTable({ invoices, showNet = true, compact = false, heade
                 <HeaderCell>{t.invoicesTable.numberColumn}</HeaderCell>
                 <HeaderCell>{t.invoicesTable.dateColumn}</HeaderCell>
                 <HeaderCell>{t.invoicesTable.contractorColumn}</HeaderCell>
-                {showNet ? <HeaderCell className="text-right">{t.invoicesTable.netColumn}</HeaderCell> : null}
+                <HeaderCell className="hidden text-center xl:table-cell">{t.invoicesTable.environmentColumn}</HeaderCell>
+                {showNet ? <HeaderCell className="hidden text-right 2xl:table-cell">{t.invoicesTable.netColumn}</HeaderCell> : null}
+                {showNet ? <HeaderCell className="hidden text-right 2xl:table-cell">{t.invoicesTable.vatColumn}</HeaderCell> : null}
                 <HeaderCell className="text-right">{t.invoicesTable.grossColumn}</HeaderCell>
+                <HeaderCell className="text-center">{t.invoicesTable.statusColumn}</HeaderCell>
                 <HeaderCell className="text-center">{t.invoicesTable.paymentColumn}</HeaderCell>
                 <HeaderCell className="hidden text-right xl:table-cell">{t.invoicesTable.ksefColumn}</HeaderCell>
               </tr>
@@ -54,13 +58,20 @@ export function InvoicesTable({ invoices, showNet = true, compact = false, heade
                         href={`/dashboard/invoices/${invoice.id}`}
                         className="inline-flex min-h-11 items-center font-mono text-[12px] font-medium text-foreground transition hover:text-primary"
                       >
-                        {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
+                        {invoice.invoiceNumber ?? (invoice.status === 'ISSUING' ? t.invoicesTable.issuingFallback : t.invoicesTable.draftFallback)}
                       </Link>
                     </BodyCell>
                     <BodyCell className="text-muted">{formatDate(invoice.issueDate)}</BodyCell>
                     <BodyCell className="max-w-0 truncate">{invoice.contractor?.name ?? '—'}</BodyCell>
-                    {showNet ? <BodyCell className="text-right tabular-nums text-foreground-secondary">{formatMoney(invoice.totalNet)}</BodyCell> : null}
+                    <BodyCell className="hidden text-center xl:table-cell">
+                      <InvoiceEnvironmentChip environment={invoice.environment} />
+                    </BodyCell>
+                    {showNet ? <BodyCell className="hidden text-right tabular-nums text-foreground-secondary 2xl:table-cell">{formatMoney(invoice.totalNet)}</BodyCell> : null}
+                    {showNet ? <BodyCell className="hidden text-right tabular-nums text-foreground-secondary 2xl:table-cell">{formatMoney(invoice.totalVat)}</BodyCell> : null}
                     <BodyCell className="text-right tabular-nums font-medium">{formatMoney(invoice.totalGross)}</BodyCell>
+                    <BodyCell className="text-center">
+                      <InvoiceStatusChip status={invoice.status} />
+                    </BodyCell>
                     <BodyCell className="text-center">
                       {payment ? <Badge tone={payment.tone}>{payment.label}</Badge> : <span className="text-muted">—</span>}
                     </BodyCell>
@@ -75,29 +86,33 @@ export function InvoicesTable({ invoices, showNet = true, compact = false, heade
         </div>
       </div>
 
-      <div className="grid gap-4 lg:hidden">
+      <div className="grid min-w-0 max-w-full gap-4 lg:hidden">
         {header ? <div className="flex items-center justify-between">{header}</div> : null}
         {invoices.map((invoice) => {
           const payment = paymentBadge(invoice);
           return (
-            <div key={invoice.id} className="space-y-4 rounded-card border border-outline bg-surface-panel p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <div key={invoice.id} className="min-w-0 max-w-full space-y-4 overflow-hidden rounded-card border border-outline bg-surface-panel p-5">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
                   <Link
                     href={`/dashboard/invoices/${invoice.id}`}
-                    className="font-mono text-base font-medium text-foreground"
+                    className="inline-flex min-h-11 max-w-full items-center break-all font-mono text-base font-medium text-foreground"
                   >
-                    {invoice.invoiceNumber ?? t.invoicesTable.draftFallback}
+                    {invoice.invoiceNumber ?? (invoice.status === 'ISSUING' ? t.invoicesTable.issuingFallback : t.invoicesTable.draftFallback)}
                   </Link>
-                  <p className="mt-1 text-sm text-muted">{invoice.contractor?.name ?? t.invoicesTable.noContractorFallback}</p>
+                  <p className="mt-1 truncate text-sm text-muted">{invoice.contractor?.name ?? t.invoicesTable.noContractorFallback}</p>
                 </div>
-                <KsefStatusChip status={invoice.ksefStatus} />
+                <div className="flex max-w-full shrink-0 flex-wrap justify-end gap-2">
+                  <InvoiceStatusChip status={invoice.status} />
+                  <KsefStatusChip status={invoice.ksefStatus} />
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailItem label={t.invoicesTable.dateColumn} value={formatDate(invoice.issueDate)} />
                 <DetailItem label={t.invoicesTable.grossColumn} value={formatMoney(invoice.totalGross)} align="right" />
-                {!compact ? <DetailItem label={t.invoicesTable.netColumn} value={formatMoney(invoice.totalNet)} /> : null}
+                {!compact && showNet ? <DetailItem label={t.invoicesTable.netColumn} value={formatMoney(invoice.totalNet)} /> : null}
+                {!compact && showNet ? <DetailItem label={t.invoicesTable.vatColumn} value={formatMoney(invoice.totalVat)} align="right" /> : null}
                 <div className="space-y-1">
                   <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{t.invoicesTable.environmentColumn}</p>
                   <InvoiceEnvironmentChip environment={invoice.environment} />
@@ -121,11 +136,11 @@ export function InvoicesTable({ invoices, showNet = true, compact = false, heade
 }
 
 function HeaderCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.13em] text-muted ${className}`}>{children}</th>;
+  return <th className={`px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.13em] text-muted ${className}`}>{children}</th>;
 }
 
 function BodyCell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 align-middle text-foreground ${className}`}>{children}</td>;
+  return <td className={`px-3 py-3 align-middle text-foreground ${className}`}>{children}</td>;
 }
 
 function DetailItem({

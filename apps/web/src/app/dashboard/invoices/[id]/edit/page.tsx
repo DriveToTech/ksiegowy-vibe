@@ -1,5 +1,4 @@
-import Link from 'next/link';
-import { getActiveCompany, getInvoice, getContractors, getServiceTemplates, getContractorServiceRates } from '../../../../../lib/api';
+import { getInvoice, getContractors, getServiceTemplates, getContractorServiceRates } from '../../../../../lib/api';
 import type { ContractorServiceRate } from '../../../../../lib/api';
 import { Button } from '../../../../../components/atoms/Button';
 import { ErrorState } from '../../../../../components/molecules/ErrorState';
@@ -16,30 +15,21 @@ export default async function EditInvoicePage({
   const { id } = await params;
   const session = await requireAuthSession(`/dashboard/invoices/${id}/edit`);
 
-  let companyId: string | null = null;
-  let errorMsg: string | null = null;
+  const companyId = session.activeCompanyId;
+  const activeEnvironment = session.activeKsefEnvironment;
 
-  try {
-    const { activeCompanyId } = await getActiveCompany();
-    companyId = activeCompanyId;
-  } catch (e) {
-    errorMsg = e instanceof Error ? e.message : t.invoiceDetail.errors.companyLoadFailed;
-  }
-
-  if (errorMsg || !companyId) {
-    return <ErrorState message={errorMsg ?? t.invoiceDetail.errors.companyNotFound} />;
+  if (!companyId || !activeEnvironment) {
+    return <ErrorState message={t.invoiceDetail.errors.companyNotFound} />;
   }
 
   let invoice;
   try {
-    invoice = await getInvoice(companyId, id);
+    invoice = await getInvoice(companyId, id, activeEnvironment);
   } catch (e) {
     return (
       <div className="space-y-4">
         <ErrorState message={e instanceof Error ? e.message : t.invoiceDetail.errors.invoiceLoadFailed} />
-        <Link href={`/dashboard/invoices/${id}`}>
-          <Button variant="secondary">{t.newInvoice.backToInvoiceButton}</Button>
-        </Link>
+        <Button href={`/dashboard/invoices/${id}`} variant="secondary">{t.newInvoice.backToInvoiceButton}</Button>
       </div>
     );
   }
@@ -48,15 +38,13 @@ export default async function EditInvoicePage({
     return (
       <div className="space-y-4">
         <ErrorState message={t.newInvoice.editNotDraftError(invoice.status)} />
-        <Link href={`/dashboard/invoices/${id}`}>
-          <Button variant="secondary">{t.newInvoice.backToInvoiceButton}</Button>
-        </Link>
+        <Button href={`/dashboard/invoices/${id}`} variant="secondary">{t.newInvoice.backToInvoiceButton}</Button>
       </div>
     );
   }
 
   const [contractors, serviceTemplates] = await Promise.all([
-    getContractors(companyId),
+    getContractors(companyId, activeEnvironment),
     getServiceTemplates(companyId).catch(() => []),
   ]);
 
@@ -66,8 +54,6 @@ export default async function EditInvoicePage({
     ),
   ).then((results) => results.flat());
 
-  void session;
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -75,8 +61,9 @@ export default async function EditInvoicePage({
         title={t.newInvoice.editPageTitle}
         description={t.newInvoice.editPageDescription}
       />
-      <EditInvoiceForm
-        companyId={companyId}
+        <EditInvoiceForm
+          companyId={companyId}
+          activeEnvironment={activeEnvironment}
         invoice={invoice}
         contractors={contractors}
         serviceTemplates={serviceTemplates}

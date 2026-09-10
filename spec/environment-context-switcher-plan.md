@@ -4,6 +4,7 @@
 - Overall: `completed`
 - Document type: implementation spec
 - Confirmed product decision: the switcher changes only the current user's context, not the company's shared KSeF setting
+- Verification boundary: API automated coverage is green; real migration application, live KSeF/reconciliation, staging backup/restore, and iOS Safari manual checks remain release gates
 
 ## Objective
 Make the active `TEST` or `PRODUCTION` context visible across the dashboard and let the user switch it quickly, without silently changing company-wide configuration for other users.
@@ -63,8 +64,8 @@ The implementation must keep KSeF operations safe:
 ## Scope
 In scope:
 - visible environment indicator in the shell
-- fast environment switcher in the shell
-- persisted user selection
+- passive environment indicator in the shell
+- persisted user selection managed by the dedicated settings/context flow
 - environment-aware KSeF credential storage
 - environment-aware KSeF session storage
 - environment-aware invoice KSeF state
@@ -99,7 +100,7 @@ This means:
 
 ```mermaid
 flowchart LR
-    User[User switches environment] --> WebShell[Web shell stores active_ksef_environment]
+    User[User switches environment] --> WebShell[Web shell stores company-scoped active_ksef_environment_{companyId}]
     WebShell --> ServerRender[Server components read active environment]
     WebShell --> ClientCalls[Client fetch sends x-ksef-environment]
     ServerRender --> ApiServerCalls[Server fetch sends x-ksef-environment]
@@ -246,8 +247,8 @@ Targets:
 
 Tasks:
 1. Introduce a shared environment resolver that accepts only `TEST` or `PRODUCTION`.
-2. Read the chosen environment from header `x-ksef-environment` for KSeF-sensitive requests.
-3. Fallback to `Company.ksefEnv` when the header is absent.
+2. Require exactly one `x-ksef-environment` header for financially scoped and KSeF-sensitive mutations.
+3. Keep validated header/query, cookie, and `Company.ksefEnv` fallbacks only for compatible read-only paths during rollout.
 4. Update client fetch helpers to send `x-ksef-environment`.
 5. Update server-side fetch helpers to forward `x-ksef-environment`.
 6. Update CORS config to allow the custom header when needed.
@@ -311,10 +312,8 @@ Targets:
 
 Tasks:
 1. Add a clear shell badge for the active environment.
-2. Add a fast switcher in the same shell area as the company switcher.
-3. Persist user selection in a cookie:
-   - `active_ksef_environment`
-4. On desktop and mobile, keep the environment indicator visible near company context.
+2. Keep environment changes in the dedicated settings/context flow.
+3. On desktop and mobile, keep the passive environment indicator visible near company context.
 5. Show the active environment in risky KSeF actions:
    - submit invoice
    - check KSeF status
@@ -328,23 +327,25 @@ Tasks:
 
 Exit criteria:
 - users can always see the current environment
-- users can change it in one quick action
+- users can change it through the dedicated settings/context flow
 - KSeF-sensitive screens show explicit environment feedback
 
 ## UX Rules
 - `TEST` must be visually different from `PRODUCTION`.
 - `PRODUCTION` should feel more dangerous and explicit.
 - The shell indicator must be visible without opening settings.
-- The switch must not be hidden behind the KSeF settings form.
+- The passive indicator must remain visible without opening settings.
 - If `PRODUCTION` is selected, show stronger confirmation language on external KSeF actions.
 - If a token is missing for the selected environment, show a direct path to settings.
 
 ## Migration Strategy
-1. Deploy schema changes first.
-2. Backfill credentials and invoice KSeF state from legacy fields using the company's current default environment.
-3. Ship environment-aware read and write paths.
-4. Keep legacy invoice and company KSeF fields as transitional compatibility only.
-5. After validation, remove legacy reads in a cleanup slice.
+1. Take and verify a staging or pre-production backup, checksum, and isolated restore.
+2. Deploy schema changes first using the immutable release artifact.
+3. Backfill credentials and invoice KSeF state from legacy fields using the company's current default environment.
+4. Ship environment-aware read and write paths.
+5. Keep legacy invoice and company KSeF fields as transitional compatibility only.
+6. After validation, remove legacy reads in a cleanup slice.
+7. Roll back with a compatible application release or forward migration; application rollback alone does not undo a successful migration.
 
 ## Risks
 1. Global invoice KSeF fields are deeply used today.
@@ -389,6 +390,11 @@ Add Playwright coverage for:
 - incoming sync flow uses the selected environment
 - missing token in selected environment blocks KSeF action with clear message
 
+### Release gates
+- Apply and verify migrations against a real staging database.
+- Run authorized live KSeF TEST and controlled PRODUCTION submission/reconciliation flows.
+- Manually verify iOS Safari keyboard focus/scroll and safe-area clearance.
+
 ## Documentation Updates
 Update after implementation:
 - `README.md`
@@ -397,6 +403,7 @@ Update after implementation:
 - add a focused runbook section describing:
   - default environment
   - user-selected environment
+  - explicit mutation header and migration rollback requirements
   - per-environment token management
   - expected behavior when one environment is not configured
 

@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Button } from '../components/atoms/Button';
 import { PublicPageLayout } from '../components/templates/PublicPageLayout';
@@ -26,9 +25,7 @@ export default async function HomePage() {
         </div>
 
         <div className="flex justify-center">
-          <Link href="/login">
-            <Button size="lg">{t.home.loginButton}</Button>
-          </Link>
+          <Button href="/login" size="lg">{t.home.loginButton}</Button>
         </div>
       </div>
     </PublicPageLayout>

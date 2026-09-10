@@ -149,15 +149,16 @@ export function EditContractorForm({
           />
         </FormField>
 
-        <div className="flex items-center gap-3 md:col-span-2">
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(e) => setField('isActive', e.target.checked)}
-              className="h-4 w-4 rounded border-outline"
-            />
-            {t.contractors.fields.isActive}
+          <div className="flex items-center gap-3 md:col-span-2">
+            <label htmlFor="edit-is-active" className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+              <input
+                id="edit-is-active"
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(e) => setField('isActive', e.target.checked)}
+                className="h-5 w-5 rounded border-outline"
+              />
+              {t.contractors.fields.isActive}
           </label>
         </div>
 
@@ -165,13 +166,13 @@ export function EditContractorForm({
           <Button type="submit" disabled={busy}>
             {busy ? t.contractors.actions.saving : t.contractors.actions.save}
           </Button>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => router.push('/dashboard/contractors')}
-            className="text-sm font-medium text-muted transition hover:text-foreground"
           >
             {t.contractors.actions.cancel}
-          </button>
+          </Button>
         </div>
       </form>
     </Surface>
