@@ -5,6 +5,7 @@ import type { InvoiceStatus, KsefStatus } from '../lib/api-types';
 
 const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   DRAFT: 'Szkic',
+  ISSUING: 'Wystawianie',
   ISSUED: 'Wystawiona',
   CANCELLED: 'Anulowana',
 };
@@ -14,6 +15,7 @@ const INVOICE_STATUS_COLORS: Record<
   { bg: string; color: string }
 > = {
   DRAFT: { bg: '#f3f4f6', color: '#374151' },
+  ISSUING: { bg: '#fef9c3', color: '#854d0e' },
   ISSUED: { bg: '#dbeafe', color: '#1e40af' },
   CANCELLED: { bg: '#f3f4f6', color: '#6b7280' },
 };

@@ -11,6 +11,7 @@ import { Badge } from '../../../../components/atoms/Badge';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
 import { Select } from '../../../../components/atoms/Select';
+import { NativeDialog } from '../../../../components/atoms/NativeDialog';
 import { Banner } from '../../../../components/molecules/Banner';
 import { FormField } from '../../../../components/molecules/FormField';
 import { cn } from '../../../../lib/cn';
@@ -22,6 +23,7 @@ const VAT_RATE_LABELS: Record<VatRate, string> = {
 };
 
 type StatusFilter = 'active' | 'archived' | 'all';
+type MobileView = 'list' | 'detail' | 'create';
 
 interface FormState {
   name: string;
@@ -54,10 +56,15 @@ export function ServiceCatalogManager({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(initialTemplates[0]?.id ?? null);
+  const [mobileView, setMobileView] = useState<MobileView>('list');
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState<FormState>(emptyForm());
+  const [form, setForm] = useState<FormState>(() => (
+    initialTemplates[0] ? formFromTemplate(initialTemplates[0]) : emptyForm()
+  ));
+  const [formTemplateId, setFormTemplateId] = useState<string | null>(initialTemplates[0]?.id ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templateToArchive, setTemplateToArchive] = useState<ServiceTemplate | null>(null);
 
   const filtered = useMemo(() => templates.filter((template) => {
     const matchesStatus =
@@ -70,23 +77,45 @@ export function ServiceCatalogManager({
 
   const effectiveSelectedId = filtered.some((template) => template.id === selectedId) ? selectedId : filtered[0]?.id ?? null;
   const selected = !isCreating ? templates.find((template) => template.id === effectiveSelectedId) ?? null : null;
-  const activeForm = isCreating ? form : selected ? formFromTemplate(selected) : form;
+  const hasRecords = templates.length > 0;
+  const activeForm = !isCreating && selected && formTemplateId !== selected.id
+    ? formFromTemplate(selected)
+    : form;
 
   const updateField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => ({
+      ...(selected && formTemplateId !== selected.id ? formFromTemplate(selected) : prev),
+      [field]: value,
+    }));
+    setFormTemplateId(selected?.id ?? null);
   };
 
   const selectRow = (id: string) => {
+    const template = templates.find((item) => item.id === id);
+    if (!template) return;
     setIsCreating(false);
     setSelectedId(id);
+    setForm(formFromTemplate(template));
+    setFormTemplateId(id);
     setError(null);
+    setMobileView('detail');
   };
 
   const startCreate = () => {
     setIsCreating(true);
     setSelectedId(null);
     setForm(emptyForm());
+    setFormTemplateId(null);
     setError(null);
+    setMobileView('create');
+  };
+
+  const closeMobileView = () => {
+    setMobileView('list');
+    if (isCreating) {
+      setIsCreating(false);
+      setSelectedId(filtered[0]?.id ?? null);
+    }
   };
 
   const handleSave = () => {
@@ -112,17 +141,19 @@ export function ServiceCatalogManager({
           : prev.map((template) => (template.id === saved.id ? saved : template))));
         setIsCreating(false);
         setSelectedId(saved.id);
+        setForm(formFromTemplate(saved));
+        setFormTemplateId(saved.id);
+        setMobileView('detail');
       })
       .catch((err) => setError(err instanceof Error ? err.message : t.serviceCatalog.errors.saveFailed))
       .finally(() => setSubmitting(false));
   };
 
-  const handleArchive = () => {
-    if (!selected) return;
+  const executeArchive = (templateId: string) => {
     setSubmitting(true);
     setError(null);
-    deleteServiceTemplate(companyId, selected.id)
-      .then(() => setTemplates((prev) => prev.map((template) => (template.id === selected.id ? { ...template, isActive: false } : template))))
+    deleteServiceTemplate(companyId, templateId)
+      .then(() => setTemplates((prev) => prev.map((template) => (template.id === templateId ? { ...template, isActive: false } : template))))
       .catch((err) => setError(err instanceof Error ? err.message : t.serviceCatalog.errors.deleteFailed))
       .finally(() => setSubmitting(false));
   };
@@ -139,10 +170,19 @@ export function ServiceCatalogManager({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_372px] lg:items-start">
-      <div className="space-y-4">
+      <div className={cn('space-y-4', mobileView !== 'list' && 'hidden lg:block')}>
+        <div className="flex items-center justify-between gap-3 lg:hidden">
+          <p className="text-sm font-semibold text-foreground">{t.serviceCatalog.columns.name}</p>
+          <Button type="button" variant="secondary" onClick={startCreate}>
+            {t.serviceCatalog.addButton}
+          </Button>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1 sm:max-w-xs">
+            <label htmlFor="service-catalog-search" className="sr-only">{t.contractors.searchPlaceholder}</label>
             <Input
+              id="service-catalog-search"
               type="search"
               placeholder={t.contractors.searchPlaceholder}
               value={search}
@@ -151,29 +191,43 @@ export function ServiceCatalogManager({
           </div>
           <div className="flex items-center gap-1 rounded-control border border-outline bg-surface-panel p-1">
             {(['all', 'active', 'archived'] as StatusFilter[]).map((filter) => (
-              <button
+              <Button
                 key={filter}
                 type="button"
+                variant={statusFilter === filter ? 'primary' : 'secondary'}
+                size="sm"
                 onClick={() => setStatusFilter(filter)}
-                className={cn(
-                  'rounded-control px-3 py-1.5 text-xs font-semibold transition',
-                  statusFilter === filter ? 'bg-primary text-primary-ink' : 'text-muted hover:text-foreground',
-                )}
+                className="text-xs font-semibold"
               >
                 {filter === 'all' ? t.contractors.filterAll : filter === 'active' ? t.contractors.filterActive : t.serviceCatalog.inactive}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
         {filtered.length === 0 ? (
-          <p className="rounded-card border border-outline bg-surface-panel p-6 text-center text-sm text-muted">
-            {t.serviceCatalog.emptyState}
-          </p>
+          <div className="rounded-card border border-outline bg-surface-panel p-6 text-center text-sm text-muted">
+            <p>{hasRecords ? t.contractors.emptyFiltered : t.serviceCatalog.emptyState}</p>
+            {hasRecords ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('all');
+                }}
+                className="mt-3 font-semibold"
+              >
+                {t.contractors.filterAll}
+              </Button>
+            ) : null}
+          </div>
         ) : (
-          <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
+          <>
+            <div className="hidden overflow-hidden rounded-card border border-outline bg-surface-panel lg:block">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="bg-surface-muted text-left">
                     <HeaderCell>{t.serviceCatalog.columns.name}</HeaderCell>
@@ -186,14 +240,25 @@ export function ServiceCatalogManager({
                   {filtered.map((template) => (
                     <tr
                       key={template.id}
-                      onClick={() => selectRow(template.id)}
                       className={cn(
-                        'cursor-pointer border-t border-outline transition hover:bg-surface-row-hover',
+                        'border-t border-outline transition hover:bg-surface-row-hover',
                         !isCreating && template.id === effectiveSelectedId && 'bg-surface-row-hover',
                       )}
                     >
-                      <BodyCell className={template.isActive ? 'font-medium text-foreground' : 'text-muted line-through'}>
-                        {template.name}
+                      <BodyCell className="p-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => selectRow(template.id)}
+                          aria-pressed={template.id === effectiveSelectedId}
+                          className={cn(
+                            'w-full justify-start rounded-none px-4 text-left font-medium focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary',
+                            template.isActive ? 'text-foreground' : 'text-muted line-through',
+                          )}
+                        >
+                          {template.name}
+                        </Button>
                       </BodyCell>
                       <BodyCell className="text-muted">{template.unit}</BodyCell>
                       <BodyCell className="text-right text-foreground-secondary">
@@ -209,15 +274,62 @@ export function ServiceCatalogManager({
                 </tbody>
               </table>
             </div>
-          </div>
+            </div>
+
+            <div className="overflow-hidden rounded-card border border-outline bg-surface-panel lg:hidden">
+              {filtered.map((template) => (
+                <Button
+                  key={template.id}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => selectRow(template.id)}
+                  aria-pressed={template.id === effectiveSelectedId}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 border-t border-outline px-4 py-3 text-left transition first:border-t-0 hover:bg-surface-row-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+                >
+                  <span className="min-w-0">
+                    <span className={cn(
+                      'block truncate text-sm font-medium',
+                      template.isActive ? 'text-foreground' : 'text-muted line-through',
+                    )}>
+                      {template.name}
+                    </span>
+                    <span className="mt-1 block truncate text-xs text-muted">
+                      {template.unit} · {VAT_RATE_LABELS[template.vatRate as VatRate] ?? template.vatRate}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Badge tone={template.isActive ? 'success' : 'draft'}>
+                      {template.isActive ? t.contractors.status.active : t.serviceCatalog.inactive}
+                    </Badge>
+                    <span aria-hidden="true" className="text-lg text-muted">→</span>
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
-      <div className="rounded-card border border-outline bg-chrome p-[22px]">
+      <div className={cn(
+        'rounded-card border border-outline bg-chrome p-[22px]',
+        mobileView === 'list' ? 'hidden lg:block' : 'block',
+      )}>
         <div className="mb-3.5 flex items-start justify-between gap-3">
-          <p className="text-[17px] font-semibold leading-tight text-foreground">
+          <div className="space-y-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={closeMobileView}
+              className="justify-start px-0 text-sm font-normal text-muted hover:text-foreground lg:hidden"
+            >
+              ← {t.serviceCatalog.detail.close}
+            </Button>
+            <p className="text-[17px] font-semibold leading-tight text-foreground">
             {isCreating ? t.serviceCatalog.addButton : selected?.name ?? t.serviceCatalog.detail.eyebrow}
-          </p>
+            </p>
+          </div>
           <Button type="button" variant="secondary" size="sm" onClick={startCreate} disabled={isCreating}>
             {t.serviceCatalog.addButton}
           </Button>
@@ -229,27 +341,27 @@ export function ServiceCatalogManager({
           <p className="text-sm text-muted">{t.serviceCatalog.detail.selectPrompt}</p>
         ) : (
           <div className="flex flex-col gap-3.5">
-            <FormField label={t.serviceCatalog.fields.name} required>
-              <Input value={activeForm.name} onChange={(e) => updateField('name', e.target.value)} placeholder={t.serviceCatalog.fields.namePlaceholder} />
-            </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label={t.serviceCatalog.detail.unit}>
-                <Input value={activeForm.unit} onChange={(e) => updateField('unit', e.target.value)} placeholder="szt." />
-              </FormField>
-              <FormField label={t.serviceCatalog.detail.vatRate}>
-                <Select value={activeForm.vatRate} onChange={(e) => updateField('vatRate', e.target.value as VatRate)}>
+             <FormField label={t.serviceCatalog.fields.name} htmlFor="service-template-name" required>
+               <Input id="service-template-name" value={activeForm.name} onChange={(e) => updateField('name', e.target.value)} placeholder={t.serviceCatalog.fields.namePlaceholder} />
+             </FormField>
+             <div className="grid grid-cols-2 gap-3">
+               <FormField label={t.serviceCatalog.detail.unit} htmlFor="service-template-unit">
+                 <Input id="service-template-unit" value={activeForm.unit} onChange={(e) => updateField('unit', e.target.value)} placeholder="szt." />
+               </FormField>
+               <FormField label={t.serviceCatalog.detail.vatRate} htmlFor="service-template-vat-rate">
+                 <Select id="service-template-vat-rate" value={activeForm.vatRate} onChange={(e) => updateField('vatRate', e.target.value as VatRate)}>
                   {VAT_RATES.map((rate) => <option key={rate} value={rate}>{VAT_RATE_LABELS[rate]}</option>)}
                 </Select>
               </FormField>
             </div>
-            <FormField label={t.serviceCatalog.detail.description}>
-              <Input value={activeForm.description} onChange={(e) => updateField('description', e.target.value)} placeholder={t.serviceCatalog.fields.descriptionPlaceholder} />
+             <FormField label={t.serviceCatalog.detail.description} htmlFor="service-template-description">
+               <Input id="service-template-description" value={activeForm.description} onChange={(e) => updateField('description', e.target.value)} placeholder={t.serviceCatalog.fields.descriptionPlaceholder} />
             </FormField>
 
             <div className="mt-auto flex gap-2 pt-2">
               {!isCreating && selected ? (
                 selected.isActive ? (
-                  <Button type="button" variant="danger" className="flex-1" onClick={handleArchive} disabled={submitting}>
+                   <Button type="button" variant="danger" className="flex-1" onClick={() => setTemplateToArchive(selected)} disabled={submitting}>
                     {t.serviceCatalog.actions.deactivate}
                   </Button>
                 ) : (
@@ -265,6 +377,31 @@ export function ServiceCatalogManager({
           </div>
         )}
       </div>
+
+      <NativeDialog
+        open={templateToArchive !== null}
+        onClose={() => setTemplateToArchive(null)}
+        title={t.serviceCatalog.actions.deactivate}
+      >
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="ghost" data-dialog-cancel onClick={() => setTemplateToArchive(null)} disabled={submitting}>
+            {t.serviceCatalog.actions.cancel}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              if (!templateToArchive) return;
+              const templateId = templateToArchive.id;
+              setTemplateToArchive(null);
+              executeArchive(templateId);
+            }}
+            disabled={submitting}
+          >
+            {t.serviceCatalog.actions.deactivate}
+          </Button>
+        </div>
+      </NativeDialog>
     </div>
   );
 }

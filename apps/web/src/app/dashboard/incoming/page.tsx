@@ -1,8 +1,7 @@
-import Link from 'next/link';
-import { getActiveCompany, getCompanyKsefSettings, getIncomingInvoices } from '../../../lib/api';
+import { getCompanyKsefSettings, getIncomingInvoices } from '../../../lib/api';
+import { requireAuthSession } from '../../../lib/auth';
 import { Button } from '../../../components/atoms/Button';
 import { EmptyState } from '../../../components/molecules/EmptyState';
-import { ErrorState } from '../../../components/molecules/ErrorState';
 import { MetricCard } from '../../../components/molecules/MetricCard';
 import { PageHeader } from '../../../components/molecules/PageHeader';
 import { IncomingInvoicesTable } from '../../../components/organisms/IncomingInvoicesTable';
@@ -15,22 +14,29 @@ export default async function IncomingPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const { activeCompanyId: companyId } = await getActiveCompany().catch(() => ({ activeCompanyId: null }));
+  const session = await requireAuthSession('/dashboard/incoming');
+  const { activeCompanyId: companyId, companies } = session;
 
   if (!companyId) {
-    return <ErrorState message={t.incoming.noCompany} />;
+    return <EmptyState title={t.incoming.noCompany} description="" />;
+  }
+
+  const activeEnvironment = session.activeKsefEnvironment;
+  if (!activeEnvironment) {
+    return <EmptyState title={t.incoming.noCompany} description="" />;
   }
 
   const { page: pageParam } = await searchParams;
   const page = Number(pageParam) > 0 ? Number(pageParam) : 1;
 
-  const result = await getIncomingInvoices(companyId, { page: String(page) }).catch(() => ({ data: [], total: 0, page: 1, limit: 20 }));
+  const result = await getIncomingInvoices(companyId, activeEnvironment, { page: String(page) });
   const totalPages = Math.max(1, Math.ceil(result.total / result.limit));
   const processingCount = result.data.filter((invoice) => invoice.status === 'OCR_PROCESSING').length;
   const confirmedCount = result.data.filter((invoice) => invoice.status === 'CONFIRMED').length;
 
   const ksefSettings = await getCompanyKsefSettings(companyId).catch(() => null);
   const ksefCredentialStatuses = ksefSettings?.credentials ?? undefined;
+  const initialDate = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -40,8 +46,14 @@ export default async function IncomingPage({
         description={t.incoming.pageDescription}
         actions={
           <>
-            <UploadButton companyId={companyId} />
-            <KsefSyncButton companyId={companyId} ksefCredentialStatuses={ksefCredentialStatuses} />
+             <UploadButton companyId={companyId} activeEnvironment={activeEnvironment} />
+             <KsefSyncButton
+               companyId={companyId}
+                companyName={companies.find((company) => company.id === companyId)?.name ?? 'wybranej firmy'}
+                activeEnvironment={activeEnvironment}
+                initialDate={initialDate}
+                ksefCredentialStatuses={ksefCredentialStatuses}
+             />
           </>
         }
       />
@@ -62,17 +74,25 @@ export default async function IncomingPage({
               {t.incoming.total(result.total)}
             </p>
             <div className="flex items-center justify-between gap-4 sm:justify-end">
-              <Link href={`/dashboard/incoming?page=${page - 1}`}>
-                <Button variant="secondary" size="sm" disabled={page <= 1}>
+              {page <= 1 ? (
+                <Button type="button" variant="secondary" size="sm" disabled>
                   {t.pagination.previous}
                 </Button>
-              </Link>
+              ) : (
+                <Button href={`/dashboard/incoming?page=${page - 1}`} variant="secondary" size="sm">
+                  {t.pagination.previous}
+                </Button>
+              )}
               <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)}</p>
-              <Link href={`/dashboard/incoming?page=${page + 1}`}>
-                <Button variant="secondary" size="sm" disabled={page >= totalPages}>
+              {page >= totalPages ? (
+                <Button type="button" variant="secondary" size="sm" disabled>
                   {t.pagination.next}
                 </Button>
-              </Link>
+              ) : (
+                <Button href={`/dashboard/incoming?page=${page + 1}`} variant="secondary" size="sm">
+                  {t.pagination.next}
+                </Button>
+              )}
             </div>
           </div>
         </>

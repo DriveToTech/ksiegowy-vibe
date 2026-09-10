@@ -152,6 +152,7 @@ export function CompanyDetailsForm({ company, canEdit, redirectTo = '/dashboard'
               onChange={(event) => updateField('nip', event.target.value.replace(/\D/g, '').slice(0, 10))}
               required={isCreateMode}
               inputMode="numeric"
+              aria-label="NIP"
               disabled={!isCreateMode || lookupBusy}
             />
             {isCreateMode ? (
