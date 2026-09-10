@@ -15,6 +15,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Infrastructure](docs/infrastructure.md) | Docker setup, CI/CD pipelines, environment variables, data persistence, and deployment checklist |
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
+| [Mobile-first UX Remediation](docs/specs/mobile-first-remediation.md) | Mobile interaction tokens, shell/navigation contracts, secure KSeF switching, component states, and regression matrix |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
@@ -25,7 +26,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 ## Features
 
 - **KSeF Integration** — Submit VAT invoices and sync incoming invoices from the National e-Invoice System (FA(3) XML generation, XSD validation, session management, offline queue with retry)
-- **KSeF Environment Context Switcher** — Per-user `TEST` / `PRODUCTION` environment switching with separate credentials, sessions, invoice visibility, and invoice KSeF state per environment. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
+- **KSeF Environment Context** — Per-user `TEST` / `PRODUCTION` environment context with separate credentials, sessions, invoice visibility, invoice KSeF state, and direct PDF/file access per environment. The shell shows a passive environment indicator; context changes stay in the dedicated settings flow. Token presence is exposed without token values so KSeF actions can fail closed. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
 - **Invoice Management** — Full lifecycle: draft → issue → PDF/XML generation → KSeF submission, including KOR correction invoices linked to accepted KSeF originals, with support for formal corrections such as invoice-number fixes and catalogue-based line-item selection
 - **Incoming Invoices** — Upload PDFs/images with OCR, or sync directly from KSeF; review & confirm
 - **Multi-company Support** — Manage multiple VAT entities with role-based access (Admin / Accountant / Viewer)
@@ -546,7 +547,8 @@ pnpm test          # Run all tests
 pnpm lint          # Lint all packages
 pnpm typecheck     # Type check all packages
 
-pnpm db:migrate    # Create a new Prisma migration
+pnpm db:migrate          # Create/apply migrations on a branch-aligned database
+pnpm db:migrate:deploy   # Apply committed migrations without migrate-dev drift/reset behavior
 pnpm db:studio     # Open Prisma Studio (DB GUI)
 pnpm db:seed       # Seed initial data
 ```
@@ -573,10 +575,12 @@ End-to-end tests live in `apps/e2e/` and cover authentication, navigation, contr
 
 Playwright starts two servers automatically before running tests:
 
-1. **Mock API** (`apps/e2e/mock-api/server.js`) on port `3099` — a lightweight Node.js HTTP server that simulates the real API without a database. It handles all routes needed by the dashboard (auth, companies, contractors, invoices, members) and returns deterministic test data.
-2. **Next.js web** (`apps/web`) on port `3000` — started with `API_URL=http://localhost:3099` so server components call the mock instead of the real API.
+1. **Mock API** (`apps/e2e/mock-api/server.js`) on port `3199` — a lightweight Node.js HTTP server that simulates the real API without a database. It handles the routes needed by the dashboard and returns deterministic synthetic data.
+2. **Next.js web** (`apps/web`) on port `3200` — started with both `API_URL=http://localhost:3199` and `NEXT_PUBLIC_API_URL=http://localhost:3199` so server-side and browser-side calls use the mock.
 
 Authentication is simulated by injecting an `auth_token` cookie before each test via a shared fixture (`tests/fixtures/auth.ts`). No Google OAuth or real JWT is needed.
+
+The Playwright config starts both servers fresh (`reuseExistingServer: false`) and uses exactly one worker locally and in CI because the mock API keeps mutable fixture maps in one process. Local retries are `0`; CI retries are `2`.
 
 ### Running
 
@@ -598,7 +602,9 @@ pnpm --filter @ksiegowy/e2e report
 ```
 
 Visual dashboard baselines must be generated and verified with the exact
-Playwright dependency and matching Linux container image (`1.59.1`):
+Playwright dependency and matching Linux container image (`1.59.1`). Setting
+`VISUAL_REGRESSION=true` enables the `chromium-linux` project; the default
+project does not run the visual tests:
 
 ```bash
 # Regenerate the three dashboard baselines
@@ -619,7 +625,7 @@ pnpm --filter @ksiegowy/web lint
 pnpm --filter @ksiegowy/e2e test
 ```
 
-At a 390px viewport, the authenticated app header keeps the brand and theme/session controls on the first row, company and KSeF controls on the second row, and verifies that the page does not overflow horizontally.
+At a 390px viewport, the authenticated app header keeps the brand and theme/session controls on the first row, the company and passive KSeF indicator on the second row, and verifies that the page does not overflow horizontally.
 
 ### First run setup
 
@@ -633,13 +639,13 @@ pnpm --filter @ksiegowy/e2e exec playwright install chromium
 
 | | Local | CI |
 |---|---|---|
-| Web server | Reused if already running on `:3000` | Always started fresh |
-| Mock API | Reused if already running on `:3099` | Always started fresh |
-| Workers | Parallel (all CPUs) | 1 (sequential) |
+| Web server | Fresh `:3200` server | Fresh `:3200` server |
+| Mock API | Fresh `:3199` server | Fresh `:3199` server |
+| Workers | 1 (sequential) | 1 (sequential) |
 | Retries | 0 | 2 |
 | Report | Opens on failure | Uploaded as artifact |
 
-> **Note for local development:** If you have the Next.js dev server already running (e.g. via `pnpm dev`), Playwright reuses it. That server must have been started with `API_URL=http://localhost:3099` for dashboard tests to work correctly. If not, kill the existing server first — Playwright will start a fresh one with the correct env.
+> **Note for local development:** Playwright does not reuse an existing Next.js or mock API process. The config starts the web server on `:3200` with both API variables set to `http://localhost:3199`.
 
 ### Test structure
 
@@ -654,7 +660,10 @@ apps/e2e/
 │   ├── dashboard.spec.ts  # Dashboard metrics, empty state, auth redirect
 │   ├── contractors.spec.ts # Contractor list, search, new contractor form
 │   ├── invoices.spec.ts   # Invoice list, new invoice form, line items
-│   └── navigation.spec.ts # Sidebar navigation and routing
+│   ├── incoming.spec.ts   # Incoming invoice actions and KSeF import modal
+│   ├── mobile-regression.spec.ts # Mobile width/theme, shell, route, and safety checks
+│   ├── navigation.spec.ts # Sidebar navigation and routing
+│   └── onboarding.spec.ts # First-run company, KSeF, and team flow
 └── playwright.config.ts
 ```
 
@@ -835,6 +844,20 @@ PATCH /companies/:id/ksef-settings
   "ksefEnv": "TEST"
 }
 ```
+
+## Remediation Baseline And Release Gates
+
+The mobile-first remediation and backend safety changes are implemented as a code and automated-coverage baseline. The recorded API verification result is 140 tests passing with a clean typecheck. This repository does not claim that the current Prisma migrations were applied to a shared database, that live KSeF submission/reconciliation was verified, or that iOS Safari manual verification was completed.
+
+KSeF-sensitive and financially scoped mutations require exactly one `x-ksef-environment` header with `TEST` or `PRODUCTION`. Missing, repeated, invalid, or mismatched values are rejected; mutations must not infer the target environment from a cookie or company default. Read-only routes may retain compatibility fallbacks during rollout. The browser shell selection is persisted synchronously in the company-scoped `active_ksef_environment_{companyId}` cookie and browser/API mutation clients send the explicit header.
+
+Before release:
+
+- [ ] Apply the current Prisma migration set to a real staging database from the immutable release artifact and run migration/schema/data preflight checks.
+- [ ] Take and verify a staging or pre-production backup, checksum, and isolated restore before production schema rollout.
+- [ ] Run authorized live KSeF TEST and controlled PRODUCTION flows, including interrupted submission handling and manual reconciliation.
+- [ ] Manually verify iOS Safari software-keyboard focus/scroll behavior, safe-area insets, and bottom-navigation clearance.
+- [ ] Use a rollback plan that recognizes application rollback does not undo a successful Prisma migration; use a compatible release or forward migration, or isolated restore/cutover for unsafe schema/data state.
 
 ## Deployment
 

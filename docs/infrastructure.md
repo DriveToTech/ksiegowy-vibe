@@ -519,7 +519,7 @@ This slice keeps backup scheduling flows separate intentionally:
 | API (Fastify) | 3001 | REST API, internal or reverse-proxied |
 | PostgreSQL | 5432 | Internal only, not exposed in production |
 | Adminer | 8080 | Dev/ops tool, start with `--profile tools` |
-| Mock API (E2E) | 3099 | Test environment only |
+| Mock API (E2E) | 3199 | Test environment only |
 
 ---
 

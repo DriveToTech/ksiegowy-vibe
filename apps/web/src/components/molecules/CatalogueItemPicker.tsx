@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, useState, type AriaAttributes, type KeyboardEvent } from 'react';
 import type { ContractorServiceRate, ServiceTemplate } from '../../lib/api-types';
 import { cn } from '../../lib/cn';
 import { formatMoney } from '../../lib/format';
@@ -9,6 +9,9 @@ import { t } from '../../lib/translations';
 import { Input } from '../atoms/Input';
 
 interface CatalogueItemPickerProps {
+  id?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: AriaAttributes['aria-invalid'];
   serviceTemplates: ServiceTemplate[];
   contractorRates: ContractorServiceRate[];
   contractorId: string;
@@ -27,6 +30,9 @@ function formatVatRate(vatRate: string): string {
 }
 
 export function CatalogueItemPicker({
+  id,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
   serviceTemplates,
   contractorRates,
   contractorId,
@@ -48,7 +54,17 @@ export function CatalogueItemPicker({
   //    avoids reflowing the rows below on every keystroke.
   if (serviceTemplates.length === 0) {
     return (
-      <Input type="text" aria-label={ariaLabel} value={value} onChange={(event) => onNameChange(event.target.value)} placeholder={placeholder} className={className} />
+      <Input
+        id={id}
+        type="text"
+        aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
+        value={value}
+        onChange={(event) => onNameChange(event.target.value)}
+        placeholder={placeholder}
+        className={className}
+      />
     );
   }
 
@@ -100,9 +116,12 @@ export function CatalogueItemPicker({
       }}
     >
       <Input
+        id={id}
         type="text"
         role="combobox"
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
         aria-expanded={isOpen}
         aria-controls={listboxId}
         aria-autocomplete="list"
@@ -165,7 +184,7 @@ export function CatalogueItemPicker({
 
           <div className="flex items-center justify-between border-t border-outline bg-surface-panel px-[13px] py-[9px]">
             <span className="text-[12px] text-muted">{t.newInvoice.catalogueNothingFits}</span>
-            <Link href="/dashboard/settings/service-catalog" className="text-[12px] font-medium text-primary">
+            <Link href="/dashboard/settings/service-catalog" className="inline-flex min-h-11 items-center text-[12px] font-medium text-primary">
               {t.newInvoice.catalogueSaveToCatalogue}
             </Link>
           </div>

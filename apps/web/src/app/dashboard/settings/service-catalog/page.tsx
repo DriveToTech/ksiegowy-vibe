@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getServiceTemplates } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
@@ -22,17 +21,13 @@ export default async function ServiceCatalogPage() {
         <EmptyState
           title={t.settings.noCompany}
           description={t.serviceCatalog.noCompanyDescription}
-          action={
-            <Link href="/dashboard/settings">
-              <Button>{t.settings.goToSettings}</Button>
-            </Link>
-          }
+          action={<Button href="/dashboard/settings">{t.settings.goToSettings}</Button>}
         />
       </div>
     );
   }
 
-  const templates = await getServiceTemplates(companyId, true).catch(() => []);
+  const templates = await getServiceTemplates(companyId, true);
 
   return (
     <div className="space-y-6">

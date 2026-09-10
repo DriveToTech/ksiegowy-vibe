@@ -4,23 +4,26 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE } from '../../../../lib/api-base';
 import type { IncomingInvoiceDetail, IncomingInvoiceStatus } from '../../../../lib/api-types';
-import { getActiveKsefEnvironmentFromBrowser, KSEF_ENVIRONMENT_HEADER_NAME } from '../../../../lib/ksef-environment';
+import { KSEF_ENVIRONMENT_HEADER_NAME, type KsefEnvironment } from '../../../../lib/ksef-environment';
 import { Button } from '../../../../components/atoms/Button';
+import { NativeDialog } from '../../../../components/atoms/NativeDialog';
 import { Input } from '../../../../components/atoms/Input';
 import { Surface } from '../../../../components/atoms/Surface';
 import { Textarea } from '../../../../components/atoms/Textarea';
 import { FormField } from '../../../../components/molecules/FormField';
 import { IncomingStatusChip, InvoiceEnvironmentChip } from '../../../../components/molecules/StatusChip';
+import { parseDecimalValue } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 
 interface Props {
   invoice: IncomingInvoiceDetail;
   companyId: string;
+  activeEnvironment: KsefEnvironment;
 }
 
 const TERMINAL_STATUSES = new Set(['OCR_DONE', 'OCR_FAILED', 'CONFIRMED', 'REJECTED']);
 
-export function ReviewPanel({ invoice: initial, companyId }: Props) {
+export function ReviewPanel({ invoice: initial, companyId, activeEnvironment }: Props) {
   const router = useRouter();
   const [invoice, setInvoice] = useState(initial);
   const [form, setForm] = useState({
@@ -33,14 +36,16 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
     notes: initial.notes ?? '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
   const evtRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     if (TERMINAL_STATUSES.has(invoice.status)) return;
 
     const es = new EventSource(
-      `${API_BASE}/companies/${companyId}/incoming/${invoice.id}/ocr-status`,
+      `${API_BASE}/companies/${companyId}/incoming/${invoice.id}/ocr-status?environment=${encodeURIComponent(activeEnvironment)}`,
       { withCredentials: true }
     );
 
@@ -58,25 +63,46 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
     evtRef.current = es;
 
     return () => { es.close(); };
-  }, [invoice.id, invoice.status, companyId, router]);
+  }, [invoice.id, invoice.status, companyId, activeEnvironment, router]);
 
   const handleConfirm = async () => {
     setSubmitting(true);
     setError(null);
+    setFieldErrors({});
+
+    const nextFieldErrors: Partial<Record<keyof typeof form, string>> = {};
+    for (const key of ['totalNet', 'totalVat', 'totalGross'] as const) {
+      if (form[key].trim() && parseDecimalValue(form[key]) === null) {
+        nextFieldErrors[key] = 'Podaj kwotę z przecinkiem lub kropką dziesiętną.';
+      }
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError('Sprawdź wyróżnione pola.');
+      setSubmitting(false);
+      return;
+    }
+
+    const normalizedTotals = {
+      totalNet: parseDecimalValue(form.totalNet)?.toString(),
+      totalVat: parseDecimalValue(form.totalVat)?.toString(),
+      totalGross: parseDecimalValue(form.totalGross)?.toString(),
+    };
 
     const response = await fetch(`${API_BASE}/companies/${companyId}/incoming/${invoice.id}/confirm`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser(),
+        [KSEF_ENVIRONMENT_HEADER_NAME]: activeEnvironment,
       },
       body: JSON.stringify({
         ...(form.invoiceNumber && { invoiceNumber: form.invoiceNumber }),
         ...(form.issueDate && { issueDate: form.issueDate }),
-        ...(form.totalNet && { totalNet: form.totalNet }),
-        ...(form.totalVat && { totalVat: form.totalVat }),
-        ...(form.totalGross && { totalGross: form.totalGross }),
+        ...(normalizedTotals.totalNet && { totalNet: normalizedTotals.totalNet }),
+        ...(normalizedTotals.totalVat && { totalVat: normalizedTotals.totalVat }),
+        ...(normalizedTotals.totalGross && { totalGross: normalizedTotals.totalGross }),
         ...(form.currency && { currency: form.currency }),
         ...(form.notes && { notes: form.notes }),
       }),
@@ -98,23 +124,30 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
     router.push('/dashboard/incoming');
   };
 
-  const handleReject = async () => {
-    if (!window.confirm(t.review.rejectPrompt)) return;
+  const executeReject = async () => {
     setSubmitting(true);
 
     const response = await fetch(`${API_BASE}/companies/${companyId}/incoming/${invoice.id}/reject`, {
       method: 'POST',
       credentials: 'include',
-      headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser() },
-    }).catch(() => null);
+      headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeEnvironment },
+    }).catch((requestError: unknown) => {
+      setError(requestError instanceof Error ? requestError.message : t.review.rejectFailed);
+      setSubmitting(false);
+      return null;
+    });
 
-    if (response?.ok) {
+    if (!response) return;
+
+    if (response.ok) {
       router.push('/dashboard/incoming');
     } else {
-      setError(t.review.rejectFailed);
+      setError(`${t.review.rejectFailed}: ${response.status}`);
       setSubmitting(false);
     }
   };
+
+  const handleReject = () => setIsRejectConfirmationOpen(true);
 
   const isEditable = invoice.status === 'OCR_DONE' || invoice.status === 'OCR_FAILED' || invoice.status === 'UPLOADED';
   const scanFile = invoice.fileRecords.find((f) => f.type === 'incoming_scan');
@@ -144,7 +177,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
 
         {scanFile ? (
           <iframe
-            src={`${API_BASE}/files/${scanFile.id}`}
+            src={`${API_BASE}/files/${scanFile.id}?environment=${encodeURIComponent(activeEnvironment)}`}
             className="min-h-[540px] w-full border-0 bg-surface-raised xl:min-h-[780px]"
             title={t.review.documentPanel}
           />
@@ -217,16 +250,21 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
             <div className="grid gap-4 md:grid-cols-2">
               {formFields.map(([key, label]) => {
                 const isNotesField = key === 'notes';
-                const inputType = key === 'issueDate' ? 'date' : key.includes('total') ? 'number' : 'text';
+                const isDecimalField = key === 'totalNet' || key === 'totalVat' || key === 'totalGross';
+                const inputType = key === 'issueDate' ? 'date' : 'text';
+                const fieldId = `incoming-review-${key}`;
 
                 return (
                   <FormField
                     key={key}
                     label={label}
+                    htmlFor={fieldId}
+                    error={fieldErrors[key]}
                     className={isNotesField ? 'md:col-span-2' : undefined}
                   >
                     {isNotesField ? (
                       <Textarea
+                        id={fieldId}
                         value={form[key]}
                         disabled={!isEditable || submitting}
                         onChange={(event) =>
@@ -236,13 +274,14 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
                       />
                     ) : (
                       <Input
+                        id={fieldId}
                         type={inputType}
+                        inputMode={isDecimalField ? 'decimal' : undefined}
                         value={form[key]}
                         disabled={!isEditable || submitting}
                         onChange={(event) =>
                           setForm((prev) => ({ ...prev, [key]: event.target.value }))
                         }
-                        step={inputType === 'number' ? '0.01' : undefined}
                         className={key.includes('total') ? 'tabular-nums' : ''}
                       />
                     )}
@@ -255,7 +294,7 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
 
         <div className="border-t border-outline px-5 py-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {error ? <p className="text-sm text-error-ink">{error}</p> : <div />}
+            {error ? <p role="alert" className="text-sm text-error-ink">{error}</p> : <div />}
 
             <div className="flex flex-wrap gap-3">
               {isEditable ? (
@@ -295,6 +334,29 @@ export function ReviewPanel({ invoice: initial, companyId }: Props) {
           </div>
         </div>
       </Surface>
+
+      <NativeDialog
+        open={isRejectConfirmationOpen}
+        onClose={() => setIsRejectConfirmationOpen(false)}
+        title={t.review.reject}
+        description={t.review.rejectPrompt}
+      >
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="ghost" data-dialog-cancel onClick={() => setIsRejectConfirmationOpen(false)}>
+            {t.review.cancel}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              setIsRejectConfirmationOpen(false);
+              void executeReject();
+            }}
+          >
+            {t.review.reject}
+          </Button>
+        </div>
+      </NativeDialog>
     </div>
   );
 }

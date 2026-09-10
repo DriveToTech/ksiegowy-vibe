@@ -5,18 +5,21 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { issueInvoice, submitKsef, recordPayment, createCorrection, revertToDraft, sendInvoiceEmail, pdfUrl, checkKsefStatus } from '../../../../lib/api-client';
 import type { CompanyKsefCredentialStatus, InvoiceStatus, KsefStatus } from '../../../../lib/api-types';
-import { getActiveKsefEnvironmentFromBrowser } from '../../../../lib/ksef-environment';
+import type { KsefEnvironment } from '../../../../lib/ksef-environment';
 import { cn } from '../../../../lib/cn';
 import { Button } from '../../../../components/atoms/Button';
 import { Input } from '../../../../components/atoms/Input';
+import { Select } from '../../../../components/atoms/Select';
+import { NativeDialog } from '../../../../components/atoms/NativeDialog';
 import { Surface } from '../../../../components/atoms/Surface';
 import { Banner } from '../../../../components/molecules/Banner';
-import { formatMoney } from '../../../../lib/format';
+import { FormField } from '../../../../components/molecules/FormField';
+import { formatMoney, parseDecimalValue } from '../../../../lib/format';
 import { t } from '../../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
-  TEST: 'border-success bg-success text-success-ink',
-  PRODUCTION: 'border-warning bg-warning text-warning-ink',
+  TEST: 'border-warning bg-warning text-warning-ink',
+  PRODUCTION: 'border-error bg-error text-error-ink',
 };
 
 function EnvironmentBadge({ environment }: { environment: string }) {
@@ -27,7 +30,7 @@ function EnvironmentBadge({ environment }: { environment: string }) {
         environmentBadgeClasses[environment] ?? environmentBadgeClasses.TEST,
       )}
     >
-      {environment}
+      {environment === 'PRODUCTION' ? 'PRODUKCJA' : 'TEST'}
     </span>
   );
 }
@@ -72,7 +75,7 @@ function ProductionConfirmPanel({
         </div>
       </dl>
       <div className="flex flex-wrap gap-3">
-        <Button type="button" onClick={onCancel} autoFocus>
+        <Button type="button" variant="ghost" data-dialog-cancel onClick={onCancel}>
           {t.invoiceActions.productionConfirmCancel}
         </Button>
         <Button type="button" variant="secondary" onClick={onConfirm} disabled={isSubmitting}>
@@ -84,6 +87,9 @@ function ProductionConfirmPanel({
 }
 
 function resolveErrorTitle(message: string): string {
+  if (message.includes('issuance is already in progress')) return t.invoiceActions.issuanceAlreadyInProgressError;
+  if (message.includes('issuance was stale and reset to DRAFT')) return t.invoiceActions.issuanceResetError;
+  if (message.includes('manual artifact recovery is required')) return t.invoiceActions.issuanceArtifactRecoveryError;
   if (message.includes('KSeF submission failed')) return t.invoiceActions.ksefSubmissionError;
   if (message.includes('no KSeF token configured')) return t.invoiceActions.ksefNoTokenError;
   if (message.includes('Invoice totals do not match')) return t.invoiceActions.ksefTotalsError;
@@ -92,6 +98,9 @@ function resolveErrorTitle(message: string): string {
 }
 
 function resolveErrorDetail(message: string): string | null {
+  if (message.includes('issuance is already in progress')) return t.invoiceActions.issuanceAlreadyInProgressDetail;
+  if (message.includes('issuance was stale and reset to DRAFT')) return t.invoiceActions.issuanceResetDetail;
+  if (message.includes('manual artifact recovery is required')) return t.invoiceActions.issuanceArtifactRecoveryDetail;
   if (message.includes('failed before receiving a response') || message.includes('Check network connectivity')) {
     return t.invoiceActions.ksefNetworkError;
   }
@@ -115,10 +124,11 @@ interface Props {
   ksefStatus: KsefStatus;
   totalGross: string;
   paymentReceived: string;
+  activeEnvironment: KsefEnvironment;
   ksefCredentialStatuses?: CompanyKsefCredentialStatus[];
 }
 
-export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, invoiceType, status, ksefStatus, totalGross, paymentReceived, ksefCredentialStatuses }: Props) {
+export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, invoiceType, status, ksefStatus, totalGross, paymentReceived, activeEnvironment, ksefCredentialStatuses }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -131,26 +141,31 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
   const [correctionMode, setCorrectionMode] = useState<'cancellation' | 'formal'>('cancellation');
   const [correctedInvoiceNumber, setCorrectedInvoiceNumber] = useState('');
   const [pendingProductionAction, setPendingProductionAction] = useState<'ksef' | 'correct' | null>(null);
+  const [pendingProductionEnvironment, setPendingProductionEnvironment] = useState<KsefEnvironment | null>(null);
   const isCorrectionInvoice = invoiceType === 'KOR';
   const isSubmitKsefInFlight = useRef(false);
   const isCorrectInFlight = useRef(false);
 
-  const activeEnvironment = getActiveKsefEnvironmentFromBrowser();
   const activeCredential = ksefCredentialStatuses?.find((credential) => credential.environment === activeEnvironment);
-  const hasToken = activeCredential ? activeCredential.hasToken : true;
+  const hasToken = activeCredential?.hasToken ?? false;
 
   const handleIssue = () => {
     setError(null);
     setLoading('issue');
-    issueInvoice(companyId, invoiceId)
+    issueInvoice(companyId, invoiceId, activeEnvironment)
       .then(() => router.refresh())
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        const message = e instanceof Error ? e.message : String(e);
+        setError(message);
+        if (message.includes('issuance was stale and reset to DRAFT')) router.refresh();
+      })
       .finally(() => setLoading(null));
   };
 
   const handleSubmitKsef = () => {
     if (activeEnvironment === 'PRODUCTION') {
       setPendingProductionAction('ksef');
+      setPendingProductionEnvironment(activeEnvironment);
       return;
     }
     performSubmitKsef();
@@ -158,11 +173,13 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
 
   const performSubmitKsef = () => {
     if (isSubmitKsefInFlight.current) return;
+    const requestEnvironment = pendingProductionEnvironment ?? activeEnvironment;
     isSubmitKsefInFlight.current = true;
     setPendingProductionAction(null);
+    setPendingProductionEnvironment(null);
     setError(null);
     setLoading('ksef');
-    submitKsef(companyId, invoiceId)
+    submitKsef(companyId, invoiceId, requestEnvironment)
       .then((result) => {
         if (result.ksefReference) {
           setSuccess(`${t.invoiceActions.ksefSentAccepted} ${result.ksefReference}`);
@@ -178,7 +195,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
   const handleCheckKsefStatus = () => {
     setError(null);
     setLoading('ksef-check');
-    checkKsefStatus(companyId, invoiceId)
+    checkKsefStatus(companyId, invoiceId, activeEnvironment)
       .then((result) => {
         if (result.status === 'accepted') {
           setSuccess(`${t.invoiceActions.ksefStatusAccepted} ${result.ksefReferenceNumber ?? ''}`);
@@ -196,7 +213,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
   const handleEdit = () => {
     setError(null);
     setLoading('edit');
-    revertToDraft(companyId, invoiceId)
+    revertToDraft(companyId, invoiceId, activeEnvironment)
       .then(() => router.refresh())
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(null));
@@ -212,6 +229,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
     }
     if (activeEnvironment === 'PRODUCTION') {
       setPendingProductionAction('correct');
+      setPendingProductionEnvironment(activeEnvironment);
       return;
     }
     performCorrect();
@@ -219,13 +237,15 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
 
   const performCorrect = () => {
     if (isCorrectInFlight.current) return;
+    const requestEnvironment = pendingProductionEnvironment ?? activeEnvironment;
     isCorrectInFlight.current = true;
     const normalizedCorrectedInvoiceNumber = correctedInvoiceNumber.trim();
     const normalizedCorrectionReason = correctionReason.trim();
     setPendingProductionAction(null);
+    setPendingProductionEnvironment(null);
     setError(null);
     setLoading('correct');
-    createCorrection(companyId, invoiceId, {
+    createCorrection(companyId, invoiceId, requestEnvironment, {
       ...(normalizedCorrectionReason ? { reason: normalizedCorrectionReason } : {}),
       ...(correctionImpactType ? { impactType: correctionImpactType } : {}),
       correctionMode,
@@ -239,7 +259,7 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
   const handleSendEmail = () => {
     setError(null);
     setLoading('email');
-    sendInvoiceEmail(companyId, invoiceId)
+    sendInvoiceEmail(companyId, invoiceId, activeEnvironment)
       .then(() => { setSuccess(t.invoiceActions.emailSent); setTimeout(() => setSuccess(null), 5000); })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(null));
@@ -247,16 +267,23 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
 
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedPaymentAmount = parseDecimalValue(paymentAmount);
+    if (parsedPaymentAmount === null || parsedPaymentAmount < 0) {
+      setError('Podaj prawidłową kwotę płatności.');
+      return;
+    }
     setError(null);
     setLoading('payment');
-    recordPayment(companyId, invoiceId, paymentAmount)
+    recordPayment(companyId, invoiceId, parsedPaymentAmount.toString(), activeEnvironment)
       .then(() => { setShowPayment(false); router.refresh(); })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(null));
   };
 
   const canRecordPayment = status === 'ISSUED';
-  const isPaid = parseFloat(paymentReceived) >= parseFloat(totalGross) && parseFloat(totalGross) > 0;
+  const receivedAmount = parseDecimalValue(paymentReceived);
+  const grossAmount = parseDecimalValue(totalGross);
+  const isPaid = receivedAmount !== null && grossAmount !== null && receivedAmount >= grossAmount && grossAmount > 0;
 
   const errorTitle = error ? resolveErrorTitle(error) : null;
   const errorDetail = error ? resolveErrorDetail(error) : null;
@@ -274,6 +301,20 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
         </Banner>
       )}
       {success && <Banner tone="success">{success}</Banner>}
+      {status === 'ISSUING' && (
+        <Banner tone="warning">
+          <p className="font-semibold text-warning-ink">{t.invoiceActions.issuanceInProgressTitle}</p>
+          <p className="mt-1 text-sm">{t.invoiceActions.issuanceInProgressDescription}</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Button type="button" variant="secondary" onClick={() => router.refresh()}>
+              {t.invoiceActions.refreshInvoice}
+            </Button>
+            <Button type="button" onClick={handleIssue} disabled={loading === 'issue'}>
+              {loading === 'issue' ? t.invoiceActions.issuing : t.invoiceActions.retryIssuance}
+            </Button>
+          </div>
+        </Banner>
+      )}
       <div className="flex flex-wrap gap-3">
         {status === 'DRAFT' && (
           <>
@@ -284,12 +325,12 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
                   ? t.invoiceActions.issueCorrection
                   : t.invoiceActions.issue}
             </Button>
-            <Link
+            <Button
+              variant="secondary"
               href={`/dashboard/invoices/${invoiceId}/edit`}
-              className="inline-flex h-11 items-center justify-center rounded-control bg-secondary-surface px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
             >
               {t.invoiceActions.editInvoice}
-            </Link>
+            </Button>
           </>
         )}
         {status === 'ISSUED' && ksefStatus === 'not_submitted' && (
@@ -331,14 +372,14 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
         )}
         {status === 'ISSUED' && (
           <>
-            <a
-              href={pdfUrl(companyId, invoiceId)}
+            <Button
+              variant="secondary"
+              href={pdfUrl(companyId, invoiceId, activeEnvironment)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 items-center justify-center rounded-control bg-secondary-surface px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
             >
               {t.invoiceActions.downloadPdf}
-            </a>
+            </Button>
             <Button onClick={handleSendEmail} disabled={loading === 'email'} variant="secondary">
               {loading === 'email' ? t.invoiceActions.sendingEmail : t.invoiceActions.sendEmail}
             </Button>
@@ -346,24 +387,35 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
         )}
       </div>
 
-      {pendingProductionAction === 'ksef' && (
-        <Banner tone="warning" className="p-5">
+      <NativeDialog
+        open={pendingProductionAction === 'ksef'}
+         onClose={() => {
+           setPendingProductionAction(null);
+           setPendingProductionEnvironment(null);
+         }}
+        title={t.invoiceActions.productionConfirmTitle}
+        description={t.invoiceActions.productionConfirmDescription}
+      >
+        <div className="rounded-inset border border-warning bg-warning p-4">
           <ProductionConfirmPanel
             invoiceNumber={invoiceNumber}
             totalGross={totalGross}
             confirmLabel={isCorrectionInvoice ? t.invoiceActions.submitCorrectionKsef : t.invoiceActions.submitKsef}
             confirmingLabel={t.invoiceActions.submittingKsef}
             isSubmitting={loading === 'ksef'}
-            onCancel={() => setPendingProductionAction(null)}
+            onCancel={() => {
+              setPendingProductionAction(null);
+              setPendingProductionEnvironment(null);
+            }}
             onConfirm={performSubmitKsef}
           />
-        </Banner>
-      )}
+        </div>
+      </NativeDialog>
 
       {!hasToken && (
         <Banner tone="warning">
           <p>{t.invoiceActions.missingTokenWarning(activeEnvironment)}{' '}
-            <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
+            <Link href="/dashboard/settings" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 hover:no-underline">
               {t.invoiceActions.goToSettings}
             </Link>
           </p>
@@ -374,18 +426,18 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
         <Surface tone="panel" className="space-y-4 p-4">
           <form onSubmit={handleRecordPayment} className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="min-w-[180px] flex-1">
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                {t.invoiceActions.paymentAmountLabel}
-              </label>
+              <FormField label={t.invoiceActions.paymentAmountLabel} htmlFor="payment-amount" required>
               <Input
-                type="number"
-                step="0.01"
+                id="payment-amount"
+                type="text"
+                inputMode="decimal"
                 min="0"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 required
                 className="tabular-nums"
               />
+              </FormField>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button type="submit" disabled={loading === 'payment'}>
@@ -399,91 +451,95 @@ export default function InvoiceActions({ companyId, invoiceId, invoiceNumber, in
         </Surface>
       )}
 
-      {showCorrectionModal && pendingProductionAction === 'correct' && (
-        <Banner tone="warning" className="p-5">
+      <NativeDialog
+        open={pendingProductionAction === 'correct'}
+         onClose={() => {
+           setPendingProductionAction(null);
+           setPendingProductionEnvironment(null);
+         }}
+        title={t.invoiceActions.productionConfirmTitle}
+        description={t.invoiceActions.productionConfirmDescription}
+      >
+        <div className="rounded-inset border border-warning bg-warning p-4">
           <ProductionConfirmPanel
             invoiceNumber={invoiceNumber}
             totalGross={totalGross}
             confirmLabel={t.invoiceActions.correctionConfirm}
             confirmingLabel={t.invoiceActions.correcting}
             isSubmitting={loading === 'correct'}
-            onCancel={() => setPendingProductionAction(null)}
+            onCancel={() => {
+              setPendingProductionAction(null);
+              setPendingProductionEnvironment(null);
+            }}
             onConfirm={performCorrect}
           />
-        </Banner>
-      )}
+        </div>
+      </NativeDialog>
 
-      {showCorrectionModal && pendingProductionAction !== 'correct' && (
-        <Surface tone="panel" className="space-y-4 p-5">
-          <h3 className="text-base font-semibold text-foreground">{t.invoiceActions.correctionModalTitle}</h3>
+      <NativeDialog
+        open={showCorrectionModal && pendingProductionAction !== 'correct'}
+        onClose={() => {
+           setShowCorrectionModal(false);
+           setPendingProductionAction(null);
+           setPendingProductionEnvironment(null);
+        }}
+        title={t.invoiceActions.correctionModalTitle}
+      >
+        <div className="space-y-4">
           <form onSubmit={handleCorrect} className="space-y-4">
-            <div>
-              <label htmlFor="correctionMode" className="mb-2 block text-sm font-semibold text-foreground">
-                {t.invoiceActions.correctionModeLabel}
-              </label>
-              <select
-                id="correctionMode"
+            <FormField label={`${t.invoiceActions.correctionModeLabel} (wybór)`} htmlFor="correction-mode">
+              <Select
+                id="correction-mode"
                 value={correctionMode}
                 onChange={(e) => setCorrectionMode(e.target.value as 'cancellation' | 'formal')}
-                className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <option value="cancellation">{t.invoiceActions.correctionModeCancellation}</option>
-                <option value="formal">{t.invoiceActions.correctionModeFormal}</option>
-              </select>
-            </div>
+                <option value="formal">{t.invoiceActions.correctionModeFormal.replace(/^Korekta\s+/u, '')}</option>
+              </Select>
+            </FormField>
             {correctionMode === 'formal' ? (
-              <div>
-                <label htmlFor="correctedInvoiceNumber" className="mb-2 block text-sm font-semibold text-foreground">
-                  {t.invoiceActions.correctedInvoiceNumberLabel}
-                </label>
+              <FormField label={t.invoiceActions.correctedInvoiceNumberLabel} htmlFor="corrected-invoice-number">
                 <Input
-                  id="correctedInvoiceNumber"
+                  id="corrected-invoice-number"
                   type="text"
                   value={correctedInvoiceNumber}
                   onChange={(e) => setCorrectedInvoiceNumber(e.target.value)}
                   placeholder={t.invoiceActions.correctedInvoiceNumberPlaceholder}
                 />
-              </div>
+              </FormField>
             ) : null}
-            <div>
-              <label htmlFor="correctionReason" className="mb-2 block text-sm font-semibold text-foreground">
-                {t.invoiceActions.correctionReasonLabel}
-              </label>
+            <FormField label={t.invoiceActions.correctionReasonLabel} htmlFor="correction-reason">
               <Input
-                id="correctionReason"
+                id="correction-reason"
                 type="text"
                 value={correctionReason}
                 onChange={(e) => setCorrectionReason(e.target.value)}
                 placeholder=""
               />
-            </div>
-            <div>
-              <label htmlFor="correctionImpactType" className="mb-2 block text-sm font-semibold text-foreground">
-                {t.invoiceActions.correctionImpactTypeLabel}
-              </label>
-              <select
-                id="correctionImpactType"
+            </FormField>
+            <FormField label={t.invoiceActions.correctionImpactTypeLabel} htmlFor="correction-impact-type">
+              <Select
+                id="correction-impact-type"
                 value={correctionImpactType}
                 onChange={(e) => setCorrectionImpactType(e.target.value)}
-                className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <option value="">{t.invoiceActions.correctionImpactTypePlaceholder}</option>
                 <option value="1">{t.invoiceActions.correctionImpactType1}</option>
                 <option value="2">{t.invoiceActions.correctionImpactType2}</option>
                 <option value="3">{t.invoiceActions.correctionImpactType3}</option>
-              </select>
-            </div>
+              </Select>
+            </FormField>
             <div className="flex flex-wrap gap-3">
               <Button type="submit" disabled={loading === 'correct'}>
                 {loading === 'correct' ? t.invoiceActions.correcting : t.invoiceActions.correctionConfirm}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => { setShowCorrectionModal(false); setPendingProductionAction(null); }}>
+              <Button type="button" variant="ghost" data-dialog-cancel onClick={() => { setShowCorrectionModal(false); setPendingProductionAction(null); setPendingProductionEnvironment(null); }}>
                 {t.invoiceActions.cancel}
               </Button>
             </div>
           </form>
-        </Surface>
-      )}
+        </div>
+      </NativeDialog>
     </div>
   );
 }

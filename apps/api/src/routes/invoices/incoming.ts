@@ -1,7 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { IncomingInvoiceStatus, KsefEnvironment } from '@prisma/client';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
-import { resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
+import {
+  requireExplicitKsefEnvironment,
+  resolveEffectiveKsefEnvironment,
+} from '../../lib/ksef-environment.js';
 import { saveFile } from '../../services/storage/local-fs.js';
 import { startOcrPipeline } from '../../services/ocr/process.js';
 import { isValidNip } from '@ksiegowy/shared-utils';
@@ -220,7 +223,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       const data = await (request as unknown as { file(): Promise<{ filename: string; mimetype: string; toBuffer(): Promise<Buffer> }> }).file();
       if (!data) throw fastify.httpErrors.badRequest('No file uploaded');
@@ -236,29 +239,27 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         throw fastify.httpErrors.payloadTooLarge('File exceeds 20 MB limit');
       }
 
-      const fileRecord = await saveFile(fastify.prisma, {
-        companyId,
-        type: 'incoming_scan',
-        ext: data.mimetype === 'application/pdf' ? 'pdf' : data.mimetype.split('/')[1] ?? 'bin',
-        mimeType: data.mimetype,
-        data: buffer,
-        storageBase,
-      });
-
       const incoming = await fastify.prisma.incomingInvoice.create({
         data: {
           companyId,
           environment: selectedEnvironment,
           status: 'UPLOADED',
-          fileRecords: { connect: { id: fileRecord.id } },
         },
         include: { contractor: { select: { id: true, name: true, nip: true } }, fileRecords: true },
       });
 
-      // Update the fileRecord to link it to the incomingInvoice
-      await fastify.prisma.fileRecord.update({
-        where: { id: fileRecord.id },
-        data: { incomingInvoiceId: incoming.id },
+      await saveFile(fastify.prisma, {
+        companyId,
+        incomingInvoiceId: incoming.id,
+        type: 'incoming_scan',
+        ext: data.mimetype === 'application/pdf' ? 'pdf' : data.mimetype.split('/')[1] ?? 'bin',
+        mimeType: data.mimetype,
+        data: buffer,
+        storageBase,
+        environment: selectedEnvironment,
+      }).catch(async (error: unknown) => {
+        await fastify.prisma.incomingInvoice.delete({ where: { id: incoming.id } }).catch(() => undefined);
+        throw error;
       });
 
       // Fire-and-forget OCR
@@ -477,7 +478,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       const invoice = assertIncomingInvoiceEnvironmentAccess(
         await fastify.prisma.incomingInvoice.findUnique({ where: { id } }),
@@ -493,6 +494,17 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       // Resolve contractorId — explicit > auto-link by NIP
       let contractorId = body.contractorId ?? invoice.contractorId;
+      if (body.contractorId) {
+        const contractor = await fastify.prisma.contractor.findUnique({
+          where: { id: body.contractorId },
+          select: { companyId: true },
+        });
+
+        if (!contractor || contractor.companyId !== companyId) {
+          throw fastify.httpErrors.notFound('Contractor not found');
+        }
+      }
+
       if (!contractorId) {
         const nip = invoice.sellerNip;
         if (nip && isValidNip(nip)) {
@@ -561,7 +573,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       const inv = assertIncomingInvoiceEnvironmentAccess(
         await fastify.prisma.incomingInvoice.findUnique({ where: { id }, select: { companyId: true, environment: true, status: true } }),
@@ -614,7 +626,7 @@ export const incomingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const membership = assertAccess(user, companyId, fastify);
       if (membership.role === 'VIEWER') throw fastify.httpErrors.forbidden('Insufficient role');
 
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       const from = new Date(dateFrom);
       const to = new Date(dateTo);

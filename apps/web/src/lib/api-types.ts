@@ -1,5 +1,6 @@
 export type InvoiceStatus =
   | 'DRAFT'
+  | 'ISSUING'
   | 'ISSUED'
   | 'CANCELLED';
 
@@ -24,7 +25,7 @@ export interface Company {
   bankName: string | null;
   bankAccount: string | null;
   vatStatus: string;
-  ksefEnv: string;
+  ksefEnv: CompanyKsefEnvironment;
   invoiceNumberPattern: string | null;
   createdAt: string;
   updatedAt: string;

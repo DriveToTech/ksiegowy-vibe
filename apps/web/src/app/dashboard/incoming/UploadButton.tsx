@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { API_BASE } from '../../../lib/api-base';
-import { getActiveKsefEnvironmentFromBrowser, KSEF_ENVIRONMENT_HEADER_NAME } from '../../../lib/ksef-environment';
+import { KSEF_ENVIRONMENT_HEADER_NAME, type KsefEnvironment } from '../../../lib/ksef-environment';
 import { Button } from '../../../components/atoms/Button';
 import { t } from '../../../lib/translations';
 
-export function UploadButton({ companyId }: { companyId: string }) {
+export function UploadButton({ companyId, activeEnvironment }: { companyId: string; activeEnvironment: KsefEnvironment }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
@@ -25,7 +25,7 @@ export function UploadButton({ companyId }: { companyId: string }) {
     const response = await fetch(`${API_BASE}/companies/${companyId}/incoming`, {
       method: 'POST',
       credentials: 'include',
-      headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: getActiveKsefEnvironmentFromBrowser() },
+      headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeEnvironment },
       body: formData,
     }).catch((err: unknown) => {
       setError(err instanceof Error ? err.message : t.errors.uploadFailed(0, ''));

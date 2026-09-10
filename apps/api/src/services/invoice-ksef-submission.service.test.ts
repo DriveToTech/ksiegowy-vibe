@@ -14,6 +14,8 @@ const buildStoredAmount = (value: string) => ({
 const buildStoredInvoice = (
   overrides: Partial<StoredInvoiceForKsefSubmission> = {}
 ): StoredInvoiceForKsefSubmission => ({
+  companyId: 'company-1',
+  environment: 'TEST',
   invoiceNumber: 'FV 12/4/2026',
   issueDate: new Date('2026-04-10T00:00:00.000Z'),
   saleDate: new Date('2026-04-10T00:00:00.000Z'),
@@ -109,6 +111,8 @@ describe('buildIssuedInvoiceDataForKsefSubmission()', () => {
 
   it('builds KOR payload with original invoice references required by FA(3)', async () => {
     const invoiceFindUnique = vi.fn(async () => ({
+      companyId: 'company-1',
+      environment: 'TEST',
       invoiceNumber: 'FV 9/3/2026',
       issueDate: new Date('2026-03-28T00:00:00.000Z')
     }));
@@ -130,7 +134,7 @@ describe('buildIssuedInvoiceDataForKsefSubmission()', () => {
 
     expect(invoiceFindUnique).toHaveBeenCalledWith({
       where: { id: 'original-invoice-1' },
-      select: { invoiceNumber: true, issueDate: true }
+      select: { companyId: true, environment: true, invoiceNumber: true, issueDate: true }
     });
     expect(result.correction).toEqual({
       originalInvoiceNumber: 'FV 9/3/2026',

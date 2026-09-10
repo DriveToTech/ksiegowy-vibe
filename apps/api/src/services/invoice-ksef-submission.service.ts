@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { KsefEnvironment, PrismaClient } from '@prisma/client';
 import type { InvoiceData, InvoiceLineInput, InvoiceParty, VatRate } from '@ksiegowy/types';
 
 interface StoredInvoiceAmount {
@@ -30,6 +30,8 @@ interface StoredInvoiceContractorForKsefSubmission {
 }
 
 export interface StoredInvoiceForKsefSubmission {
+  companyId: string;
+  environment: KsefEnvironment;
   invoiceNumber: string | null;
   issueDate: Date;
   saleDate: Date | null;
@@ -147,10 +149,14 @@ export const buildIssuedInvoiceDataForKsefSubmission = async (
 
   const correctedInvoice = await prisma.invoice.findUnique({
     where: { id: invoice.correctedInvoiceId },
-    select: { invoiceNumber: true, issueDate: true }
+    select: { companyId: true, environment: true, invoiceNumber: true, issueDate: true }
   });
 
-  if (!correctedInvoice) {
+  if (
+    !correctedInvoice ||
+    correctedInvoice.companyId !== invoice.companyId ||
+    correctedInvoice.environment !== invoice.environment
+  ) {
     throw new Error(`Original invoice ${invoice.correctedInvoiceId} not found`);
   }
 

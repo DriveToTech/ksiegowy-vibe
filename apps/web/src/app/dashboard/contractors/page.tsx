@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getContractors } from '../../../lib/api';
 import { Button } from '../../../components/atoms/Button';
 import { EmptyState } from '../../../components/molecules/EmptyState';
@@ -22,20 +21,21 @@ export default async function DashboardContractorsPage() {
         <EmptyState
           title={t.contractors.noCompany}
           description=""
-          action={
-            <Link href="/dashboard/settings">
-              <Button>{t.settings.goToSettings}</Button>
-            </Link>
-          }
+          action={<Button href="/dashboard/settings">{t.settings.goToSettings}</Button>}
         />
       </div>
     );
   }
 
+  const activeEnvironment = session.activeKsefEnvironment;
+  if (!activeEnvironment) {
+    return <EmptyState title={t.contractors.noCompany} description="" />;
+  }
+
   const role = getActiveCompanyRole(session);
   const canEdit = role === 'ADMIN' || role === 'ACCOUNTANT';
 
-  const contractors = await getContractors(companyId, { status: 'all' }).catch((error: unknown) => {
+  const contractors = await getContractors(companyId, activeEnvironment, { status: 'all' }).catch((error: unknown) => {
     throw error instanceof Error ? error : new Error(t.contractors.errors.loadFailed);
   });
 
@@ -45,14 +45,10 @@ export default async function DashboardContractorsPage() {
         eyebrow={t.contractors.pageEyebrow}
         title={t.contractors.pageTitle}
         description={t.contractors.pageDescription}
-        actions={canEdit ? (
-          <Link href="/dashboard/contractors/new">
-            <Button>{t.contractors.addButton}</Button>
-          </Link>
-        ) : null}
+        actions={canEdit ? <Button href="/dashboard/contractors/new">{t.contractors.addButton}</Button> : null}
       />
 
-      <ContractorList contractors={contractors} canEdit={canEdit} companyId={companyId} />
+      <ContractorList contractors={contractors} canEdit={canEdit} companyId={companyId} activeEnvironment={activeEnvironment} />
     </div>
   );
 }

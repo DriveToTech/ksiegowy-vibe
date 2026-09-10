@@ -155,6 +155,35 @@ describe('GET /companies/:companyId/contractors', () => {
 
     await app.close();
   });
+
+  it('rejects a cookie-only environment for financial turnover reads', async () => {
+    const contractorFindMany = vi.fn(async () => []);
+    const invoiceGroupBy = vi.fn(async () => []);
+    const prisma = {
+      contractor: { findMany: contractorFindMany },
+      invoice: { groupBy: invoiceGroupBy },
+    } as unknown as PrismaClient;
+
+    const app = await buildApp({ logger: false, prismaClient: prisma, authConfig });
+    const authToken = signAccessToken(app, {
+      sub: 'user-1',
+      email: 'test@example.com',
+      name: 'Test User',
+      companies: [{ id: 'company-1', role: 'ADMIN' }],
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/companies/company-1/contractors',
+      cookies: { auth_token: authToken, active_ksef_environment: 'PRODUCTION' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(contractorFindMany).not.toHaveBeenCalled();
+    expect(invoiceGroupBy).not.toHaveBeenCalled();
+
+    await app.close();
+  });
 });
 
 // ── GET /companies/:companyId/contractors/:id/summary ───────────────────────
@@ -233,6 +262,45 @@ describe('GET /companies/:companyId/contractors/:id/summary', () => {
     });
 
     expect(response.statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it('uses the explicit header environment even when the legacy cookie disagrees', async () => {
+    const contractorFindUnique = vi.fn(async () => createContractor());
+    const invoiceAggregate = vi.fn(async () => ({
+      _sum: { totalGross: new Prisma.Decimal('100.00'), paymentReceived: new Prisma.Decimal('20.00') },
+    }));
+    const invoiceFindMany = vi.fn(async () => []);
+    const prisma = {
+      contractor: { findUnique: contractorFindUnique },
+      invoice: { aggregate: invoiceAggregate, findMany: invoiceFindMany },
+    } as unknown as PrismaClient;
+
+    const app = await buildApp({ logger: false, prismaClient: prisma, authConfig });
+    const authToken = signAccessToken(app, {
+      sub: 'user-1',
+      email: 'test@example.com',
+      name: 'Test User',
+      companies: [{ id: 'company-1', role: 'ADMIN' }],
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/companies/company-1/contractors/contractor-1/summary?year=2026',
+      headers: { 'x-ksef-environment': 'PRODUCTION' },
+      cookies: { auth_token: authToken, active_ksef_environment: 'TEST' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(invoiceAggregate).toHaveBeenCalledTimes(2);
+    expect(invoiceAggregate.mock.calls.every(([input]) => input.where.environment === 'PRODUCTION')).toBe(true);
+    expect(invoiceFindMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-1', contractorId: 'contractor-1', environment: 'PRODUCTION' },
+      orderBy: { issueDate: 'desc' },
+      take: 3,
+      select: { id: true, invoiceNumber: true, invoiceType: true, issueDate: true, totalGross: true },
+    });
 
     await app.close();
   });

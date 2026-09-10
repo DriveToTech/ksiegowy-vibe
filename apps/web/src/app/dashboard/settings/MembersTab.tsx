@@ -6,6 +6,7 @@ import { createInvite, updateMemberRole, removeMember } from '../../../lib/api-c
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
+import { NativeDialog } from '../../../components/atoms/NativeDialog';
 import { Surface } from '../../../components/atoms/Surface';
 import { Banner } from '../../../components/molecules/Banner';
 import { EmptyState } from '../../../components/molecules/EmptyState';
@@ -20,12 +21,16 @@ export function MembersTab({
   isAdmin,
   initialMembers,
   initialInvites,
+  membersLoadError,
+  invitesLoadError,
 }: {
   companyId: string;
   currentUserId: string;
   isAdmin: boolean;
   initialMembers: Member[];
   initialInvites: Invite[];
+  membersLoadError?: string;
+  invitesLoadError?: string;
 }) {
   const [members, setMembers] = useState(initialMembers);
   const [invites, setInvites] = useState(initialInvites);
@@ -34,6 +39,7 @@ export function MembersTab({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ userId: string; email: string } | null>(null);
 
   const notify = (msg: string) => {
     setSuccess(msg);
@@ -63,14 +69,15 @@ export function MembersTab({
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Error'));
   };
 
-  const handleRemove = (userId: string, email: string) => {
-    if (!confirm(t.members.removeConfirm(email))) return;
+  const executeRemove = (userId: string) => {
+    setBusy(true);
     removeMember(companyId, userId)
       .then(() => {
         setMembers((prev) => prev.filter((m) => m.userId !== userId));
         notify(t.members.memberRemoved);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Error'));
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Error'))
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -86,7 +93,9 @@ export function MembersTab({
           <p className="mt-1 text-sm text-muted">Role członków zespołu i dostęp do pracy na dokumentach firmy.</p>
         </div>
 
-        {members.length === 0 ? (
+        {membersLoadError ? (
+          <Banner tone="error">{membersLoadError}</Banner>
+        ) : members.length === 0 ? (
           <EmptyState
             title="Brak członków"
             description="Po dodaniu użytkowników będą widoczni tutaj wraz z przypisaną rolą."
@@ -111,6 +120,8 @@ export function MembersTab({
                       <BodyCell>
                         {isAdmin && member.userId !== currentUserId ? (
                           <Select
+                            id={`member-role-${member.userId}-desktop`}
+                            aria-label={`${t.members.roleLabel}: ${member.user.email}`}
                             value={member.role}
                             onChange={(e) => handleRoleChange(member.userId, e.target.value as MemberRole)}
                             className="max-w-[200px]"
@@ -129,7 +140,8 @@ export function MembersTab({
                             <Button
                               variant="ghost"
                               className="text-error-ink hover:bg-error"
-                              onClick={() => handleRemove(member.userId, member.user.email)}
+                              onClick={() => setMemberToRemove({ userId: member.userId, email: member.user.email })}
+                              disabled={busy}
                             >
                               {t.members.remove}
                             </Button>
@@ -154,6 +166,8 @@ export function MembersTab({
                       <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Rola</p>
                       {isAdmin && member.userId !== currentUserId ? (
                         <Select
+                          id={`member-role-${member.userId}-mobile`}
+                          aria-label={`${t.members.roleLabel}: ${member.user.email}`}
                           value={member.role}
                           onChange={(e) => handleRoleChange(member.userId, e.target.value as MemberRole)}
                           className="mt-2"
@@ -170,7 +184,8 @@ export function MembersTab({
                       <Button
                         variant="ghost"
                         className="w-full text-error-ink hover:bg-error"
-                        onClick={() => handleRemove(member.userId, member.user.email)}
+                        onClick={() => setMemberToRemove({ userId: member.userId, email: member.user.email })}
+                        disabled={busy}
                       >
                         {t.members.remove}
                       </Button>
@@ -183,7 +198,7 @@ export function MembersTab({
         )}
       </Surface>
 
-      {invites.length > 0 ? (
+      {invitesLoadError || invites.length > 0 ? (
         <Surface tone="panel" className="space-y-5 p-6 xl:translate-x-6">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -192,20 +207,24 @@ export function MembersTab({
             <p className="mt-1 text-sm text-muted">Zaproszenia oczekujące na wykorzystanie przez nowych członków zespołu.</p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {invites.map((invite) => (
-              <Surface key={invite.id} tone="inset" className="space-y-3 p-4">
-                <div>
-                  <p className="font-semibold text-foreground">{invite.email}</p>
-                  <p className="mt-1 text-sm text-muted">{t.members.roles[invite.role]}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Wygasa</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">{invite.expiresAt.slice(0, 10)}</p>
-                </div>
-              </Surface>
-            ))}
-          </div>
+          {invitesLoadError ? (
+            <Banner tone="error">{invitesLoadError}</Banner>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {invites.map((invite) => (
+                <Surface key={invite.id} tone="inset" className="space-y-3 p-4">
+                  <div>
+                    <p className="font-semibold text-foreground">{invite.email}</p>
+                    <p className="mt-1 text-sm text-muted">{t.members.roles[invite.role]}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Wygasa</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">{invite.expiresAt.slice(0, 10)}</p>
+                  </div>
+                </Surface>
+              ))}
+            </div>
+          )}
         </Surface>
       ) : null}
 
@@ -219,8 +238,9 @@ export function MembersTab({
           </div>
 
           <form onSubmit={handleInvite} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
-            <FormField label={t.members.emailLabel}>
+            <FormField label={t.members.emailLabel} htmlFor="members-invite-email">
               <Input
+                id="members-invite-email"
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
@@ -228,8 +248,8 @@ export function MembersTab({
                 placeholder={t.members.emailPlaceholder}
               />
             </FormField>
-            <FormField label={t.members.roleLabel}>
-              <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as MemberRole)}>
+            <FormField label={t.members.roleLabel} htmlFor="members-invite-role">
+              <Select id="members-invite-role" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as MemberRole)}>
                 {ROLES.map((role) => (
                   <option key={role} value={role}>{t.members.roles[role]}</option>
                 ))}
@@ -241,6 +261,32 @@ export function MembersTab({
           </form>
         </Surface>
       ) : null}
+
+      <NativeDialog
+        open={memberToRemove !== null}
+        onClose={() => setMemberToRemove(null)}
+        title="Usuń członka"
+        description={memberToRemove ? t.members.removeConfirm(memberToRemove.email) : undefined}
+      >
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="ghost" data-dialog-cancel onClick={() => setMemberToRemove(null)} disabled={busy}>
+            {t.review.cancel}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              if (!memberToRemove) return;
+              const userId = memberToRemove.userId;
+              setMemberToRemove(null);
+              executeRemove(userId);
+            }}
+            disabled={busy}
+          >
+            {t.members.remove}
+          </Button>
+        </div>
+      </NativeDialog>
     </div>
   );
 }

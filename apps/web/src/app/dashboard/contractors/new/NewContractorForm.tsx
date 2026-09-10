@@ -87,6 +87,7 @@ export function NewContractorForm({ companyId }: { companyId: string }) {
               value={form.nip}
               onChange={(e) => setField('nip', e.target.value.replace(/\D/g, '').slice(0, 10))}
               inputMode="numeric"
+              aria-label={t.contractors.fields.nip}
               disabled={lookupBusy}
             />
             <Button
@@ -134,13 +135,13 @@ export function NewContractorForm({ companyId }: { companyId: string }) {
           <Button type="submit" disabled={busy}>
             {busy ? t.contractors.actions.adding : t.contractors.actions.add}
           </Button>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => router.push('/dashboard/contractors')}
-            className="text-sm font-medium text-muted transition hover:text-foreground"
           >
             {t.contractors.actions.cancel}
-          </button>
+          </Button>
         </div>
       </form>
     </Surface>

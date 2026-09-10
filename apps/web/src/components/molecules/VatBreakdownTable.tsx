@@ -1,5 +1,5 @@
 import type { VatRate } from '../../lib/api-types';
-import { formatMoney } from '../../lib/format';
+import { formatMoney, parseDecimalValue } from '../../lib/format';
 
 const VAT_RATES: VatRate[] = ['23', '8', '5', '0', 'zw', 'np', 'oo'];
 
@@ -30,8 +30,8 @@ function vatMultiplier(rate: VatRate): number {
 }
 
 function calcLine(line: LineInput): { net: number; vat: number; gross: number } {
-  const qty = parseFloat(line.quantity) || 0;
-  const price = parseFloat(line.unitNetPrice) || 0;
+  const qty = parseDecimalValue(line.quantity) ?? 0;
+  const price = parseDecimalValue(line.unitNetPrice) ?? 0;
   const net = Math.round(qty * price * 100) / 100;
   const vat = Math.round(net * vatMultiplier(line.vatRate) * 100) / 100;
   return { net, vat, gross: Math.round((net + vat) * 100) / 100 };

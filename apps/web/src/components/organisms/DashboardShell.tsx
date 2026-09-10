@@ -3,16 +3,25 @@ import Link from 'next/link';
 import { getIncomingInvoices, getInvoices } from '../../lib/api';
 import type { AuthSession } from '../../lib/auth';
 import { t } from '../../lib/translations';
+import { AppIcon } from '../icons/AppIcon';
 import { AppHeader } from './AppHeader';
 import { DashboardNavigation } from './DashboardNavigation';
 
 const navigationItems = [
-  { href: '/dashboard', label: t.nav.overview, mobileLabel: 'Start', icon: 'overview' as const },
-  { href: '/dashboard/invoices', label: t.nav.outgoingInvoices, mobileLabel: 'Sprzedaż', icon: 'outgoing' as const },
-  { href: '/dashboard/incoming', label: t.nav.incomingInvoices, mobileLabel: 'Zakupy', icon: 'incoming' as const },
-  { href: '/dashboard/contractors', label: t.nav.contractors, mobileLabel: t.nav.contractors, icon: 'contractors' as const },
-  { href: '/dashboard/compliance', label: t.nav.compliance, mobileLabel: t.nav.compliance, icon: 'contractors' as const },
+  { href: '/dashboard', label: t.nav.overview, mobileLabel: t.nav.mobileOverview, icon: 'overview' as const },
+  { href: '/dashboard/invoices', label: t.nav.outgoingInvoices, mobileLabel: t.nav.mobileOutgoingInvoices, icon: 'outgoing' as const },
+  { href: '/dashboard/incoming', label: t.nav.incomingInvoices, mobileLabel: t.nav.mobileIncomingInvoices, icon: 'incoming' as const },
+  { href: '/dashboard/contractors', label: t.nav.contractors, mobileLabel: t.nav.mobileContractors, icon: 'contractors' as const },
+  { href: '/dashboard/compliance', label: t.nav.compliance, mobileLabel: t.nav.mobileCompliance, icon: 'compliance' as const },
   { href: '/dashboard/settings', label: t.nav.settings, mobileLabel: t.nav.settings, icon: 'settings' as const },
+];
+
+const mobileNavigationItems = [navigationItems[0], navigationItems[2]];
+const mobileOutgoingNavigationItems = [navigationItems[1]];
+const mobileMoreNavigationItems = [
+  { href: '/dashboard/contractors', label: t.nav.mobileContractors, icon: 'contractors' as const },
+  { href: '/dashboard/compliance', label: t.nav.mobileCompliance, icon: 'compliance' as const },
+  { href: '/dashboard/settings', label: t.nav.settings, icon: 'settings' as const },
 ];
 
 const INCOMING_NEEDS_ACTION_STATUSES = new Set(['UPLOADED', 'OCR_PROCESSING', 'OCR_DONE', 'OCR_FAILED']);
@@ -49,13 +58,13 @@ function jpkDeadlineWidget(now: Date) {
 export async function DashboardShell({ children, session }: DashboardShellProps) {
   const companyId = session.activeCompanyId;
 
-  const [outgoingTotal, incomingNeedsAction, recentRejected] = companyId
+  const [outgoingTotal, incomingNeedsAction, recentRejected] = companyId && session.activeKsefEnvironment
     ? await Promise.all([
-        getInvoices(companyId, { limit: '1' }).then((result) => result.total).catch(() => null),
-        getIncomingInvoices(companyId, { limit: '100' })
+        getInvoices(companyId, session.activeKsefEnvironment, { limit: '1' }).then((result) => result.total).catch(() => null),
+        getIncomingInvoices(companyId, session.activeKsefEnvironment, { limit: '100' })
           .then((result) => result.data.filter((invoice) => INCOMING_NEEDS_ACTION_STATUSES.has(invoice.status)).length)
           .catch(() => null),
-        getInvoices(companyId, { limit: '50' })
+        getInvoices(companyId, session.activeKsefEnvironment, { limit: '50' })
           .then((result) => result.data.filter((invoice) => invoice.ksefStatus === 'rejected').length)
           .catch(() => null),
       ])
@@ -94,7 +103,7 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
                 <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t.dashboardRail.rejectedEyebrow}</p>
                 <p className="text-xl font-semibold tracking-[-0.02em] text-foreground">{t.dashboardRail.rejectedCount(recentRejected)}</p>
                 <p className="text-xs leading-[1.45] text-muted">{t.dashboardRail.rejectedDescription}</p>
-                <Link href="/dashboard/invoices" className="pt-0.5 text-xs font-semibold text-primary">
+                <Link href="/dashboard/invoices" className="inline-flex min-h-11 items-center pt-0.5 text-xs font-semibold text-primary">
                   {t.dashboardRail.rejectedLink}
                 </Link>
               </div>
@@ -112,17 +121,27 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
             </div>
           </aside>
 
-          <main id="dashboard-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 space-y-6 overflow-y-auto p-4 pb-24 sm:p-6 lg:p-[22px_26px_26px] lg:pb-[26px]">
+          <main id="dashboard-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto p-4 pb-[calc(64px+env(safe-area-inset-bottom))] sm:p-6 lg:p-[22px_26px_26px] lg:pb-[26px]">
             {children}
           </main>
         </div>
 
-        <div className="shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] px-4 lg:hidden">
+        <div className="h-[calc(64px+env(safe-area-inset-bottom))] shrink-0 bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
           <nav
             aria-label="Mobilna nawigacja dashboardu"
-            className="mx-auto grid max-w-xl grid-cols-5 gap-2 rounded-inset border border-outline bg-chrome p-2"
+            className="grid h-16 w-full grid-cols-5 border-y border-outline bg-chrome"
           >
-            <DashboardNavigation items={navigationItems} mobile />
+            <DashboardNavigation items={mobileNavigationItems} mobile />
+            <button
+              type="button"
+              disabled
+              aria-label="Asystent podatkowy AI — wkrótce"
+              title="Asystent podatkowy AI — wkrótce"
+              className="flex min-h-11 min-w-0 items-center justify-center rounded-inset text-muted disabled:cursor-not-allowed disabled:opacity-100"
+            >
+              <AppIcon name="assistant" className="h-5 w-5" />
+            </button>
+            <DashboardNavigation items={mobileOutgoingNavigationItems} mobile moreItems={mobileMoreNavigationItems} />
           </nav>
         </div>
       </div>

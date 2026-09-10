@@ -1,4 +1,5 @@
 import type { SelectHTMLAttributes } from 'react';
+import { useId } from 'react';
 import { cn } from '../../lib/cn';
 
 interface FloatingLabelSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
@@ -13,14 +14,17 @@ export function FloatingLabelSelect({
   children,
   ...props
 }: FloatingLabelSelectProps) {
+  const generatedId = useId();
+  const selectId = id ?? `floating-label-select-${generatedId}`;
+
   return (
     <div className="relative">
       <select
-        id={id}
+        id={selectId}
         className={cn(
-          'h-14 w-full appearance-none rounded-control border border-outline-control bg-surface-raised px-3 pb-1.5 pt-5 pr-8 text-sm font-medium text-foreground outline-none transition',
+          'h-14 w-full appearance-none rounded-control border border-outline-control bg-surface-raised px-3 pb-1.5 pt-5 pr-8 text-base font-medium text-foreground outline-none transition aria-invalid:border-error-ink',
           'focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-          'disabled:cursor-not-allowed disabled:opacity-60',
+          'disabled:cursor-not-allowed disabled:border-outline disabled:bg-surface-muted disabled:text-foreground-disabled disabled:opacity-100',
           className,
         )}
         {...props}
@@ -28,7 +32,7 @@ export function FloatingLabelSelect({
         {children}
       </select>
       <label
-        htmlFor={id}
+        htmlFor={selectId}
         className="pointer-events-none absolute left-3 top-2 whitespace-nowrap text-xs text-muted"
       >
         {label}

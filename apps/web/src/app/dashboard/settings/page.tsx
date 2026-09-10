@@ -38,10 +38,16 @@ export default async function DashboardSettingsPage() {
   const isAdmin = role === 'ADMIN';
   const canEditCompany = role === 'ADMIN' || role === 'ACCOUNTANT';
 
-  const [company, members, invites, ksefSettingsResult, backupSettingsResult, backupStatusResult] = await Promise.all([
+  const [company, membersResult, invitesResult, ksefSettingsResult, backupSettingsResult, backupStatusResult] = await Promise.all([
     getCompany(activeCompanyId),
-    getMembers(activeCompanyId).catch(() => []),
-    isAdmin ? getInvites(activeCompanyId).catch(() => []) : Promise.resolve([]),
+    getMembers(activeCompanyId)
+      .then((members) => ({ members, hasError: false }))
+      .catch(() => ({ members: [] as Awaited<ReturnType<typeof getMembers>>, hasError: true })),
+    isAdmin
+      ? getInvites(activeCompanyId)
+          .then((invites) => ({ invites, hasError: false }))
+          .catch(() => ({ invites: [] as Awaited<ReturnType<typeof getInvites>>, hasError: true }))
+      : Promise.resolve({ invites: [], hasError: false }),
     isAdmin
       ? getCompanyKsefSettings(activeCompanyId)
           .then((ksefSettings) => ({ ksefSettings, hasError: false }))
@@ -59,8 +65,11 @@ export default async function DashboardSettingsPage() {
       : Promise.resolve({ backupStatus: null, hasError: false }),
   ]);
 
+  const { members, hasError: hasMembersError } = membersResult;
+  const { invites, hasError: hasInvitesError } = invitesResult;
   const backupSettings = backupSettingsResult.backupSettings;
   const backupStatus = backupStatusResult.backupStatus;
+  const sampleDate = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -70,8 +79,8 @@ export default async function DashboardSettingsPage() {
         description="Zarządzaj dostępami do firmy, rolami użytkowników i oczekującymi zaproszeniami."
       />
       <div className="grid gap-4 md:grid-cols-3 xl:max-w-4xl">
-        <SummaryCard label="Członkowie" value={String(members.length)} />
-        <SummaryCard label="Zaproszenia" value={String(invites.length)} />
+        <SummaryCard label="Członkowie" value={hasMembersError ? '—' : String(members.length)} />
+        <SummaryCard label="Zaproszenia" value={hasInvitesError ? '—' : String(invites.length)} />
         <SummaryCard label="Twoja rola" value={role === 'ADMIN' ? 'Administrator' : role === 'ACCOUNTANT' ? 'Księgowy' : 'Podgląd'} strong />
       </div>
 
@@ -85,8 +94,8 @@ export default async function DashboardSettingsPage() {
               <Banner tone="error">Nie udało się pobrać ustawień KSeF. Odśwież stronę i spróbuj ponownie.</Banner>
             )
           ) : undefined,
-          numbering: isAdmin ? (
-            <InvoiceNumberPatternForm companyId={activeCompanyId} currentPattern={company?.invoiceNumberPattern ?? null} />
+           numbering: isAdmin ? (
+             <InvoiceNumberPatternForm companyId={activeCompanyId} currentPattern={company?.invoiceNumberPattern ?? null} sampleDate={sampleDate} />
           ) : undefined,
           products: (
             <Surface tone="panel" className="space-y-3 p-6">
@@ -96,7 +105,7 @@ export default async function DashboardSettingsPage() {
               </div>
               <Link
                 href="/dashboard/settings/service-catalog"
-                className="inline-block text-sm font-semibold text-primary transition hover:text-primary/80"
+                className="inline-flex min-h-11 items-center text-sm font-semibold text-primary transition hover:text-primary/80"
               >
                 {t.settings.serviceCatalogLink} →
               </Link>
@@ -109,6 +118,8 @@ export default async function DashboardSettingsPage() {
               isAdmin={isAdmin}
               initialMembers={members}
               initialInvites={invites}
+              membersLoadError={hasMembersError ? 'Nie udało się pobrać członków firmy. Odśwież stronę i spróbuj ponownie.' : undefined}
+              invitesLoadError={hasInvitesError ? 'Nie udało się pobrać oczekujących zaproszeń. Odśwież stronę i spróbuj ponownie.' : undefined}
             />
           ),
           backup: isAdmin ? (

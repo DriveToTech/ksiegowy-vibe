@@ -1,13 +1,23 @@
 import type { PrismaClient } from '@prisma/client';
+import type { FastifyRequest } from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { KSEF_ENVIRONMENT_HEADER, readRequestedKsefEnvironment, resolveEffectiveKsefEnvironment } from './ksef-environment.js';
+import {
+  KSEF_ENVIRONMENT_HEADER,
+  requireExplicitKsefEnvironment,
+  readRequestedKsefEnvironment,
+  resolveEffectiveKsefEnvironment,
+} from './ksef-environment.js';
 
 const mockBadRequest = (message: string) => new Error(message);
 const mockNotFound = (message: string) => new Error(message);
 
-const buildRequest = (headers: Record<string, string | string[] | undefined> = {}) =>
+const buildRequest = (
+  headers: Record<string, string | string[] | undefined> = {},
+  query: { environment?: unknown } = {},
+) =>
   ({
     headers,
+    query,
     ksefEnvironment: undefined,
     server: {
       httpErrors: {
@@ -15,7 +25,7 @@ const buildRequest = (headers: Record<string, string | string[] | undefined> = {
         notFound: mockNotFound,
       },
     },
-  }) as never;
+  }) as unknown as FastifyRequest;
 
 describe('readRequestedKsefEnvironment()', () => {
   afterEach(() => {
@@ -44,6 +54,33 @@ describe('readRequestedKsefEnvironment()', () => {
     const result = readRequestedKsefEnvironment(request);
 
     expect(result).toBeNull();
+  });
+
+  it('returns the environment query parameter when no header is present', () => {
+    const request = buildRequest({}, { environment: 'PRODUCTION' });
+
+    const result = readRequestedKsefEnvironment(request);
+
+    expect(result).toBe('PRODUCTION');
+  });
+
+  it('prefers the header over the environment query parameter', () => {
+    const request = buildRequest(
+      { [KSEF_ENVIRONMENT_HEADER]: 'TEST' },
+      { environment: 'PRODUCTION' },
+    );
+
+    const result = readRequestedKsefEnvironment(request);
+
+    expect(result).toBe('TEST');
+  });
+
+  it('throws badRequest when the environment query parameter is invalid', () => {
+    const request = buildRequest({}, { environment: 'STAGING' });
+
+    expect(() => readRequestedKsefEnvironment(request)).toThrow(
+      'Invalid environment query parameter. Expected TEST or PRODUCTION.',
+    );
   });
 
   it('returns null when header value is undefined', () => {
@@ -202,5 +239,26 @@ describe('resolveEffectiveKsefEnvironment()', () => {
       `Invalid ${KSEF_ENVIRONMENT_HEADER} header`,
     );
     expect(companyFindUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe('requireExplicitKsefEnvironment()', () => {
+  it('accepts only one exact supported header value', () => {
+    const request = buildRequest({ [KSEF_ENVIRONMENT_HEADER]: 'PRODUCTION' });
+
+    expect(requireExplicitKsefEnvironment(request)).toBe('PRODUCTION');
+  });
+
+  it('rejects a missing, repeated, cookie-only, or invalid header', () => {
+    for (const headers of [
+      {},
+      { [KSEF_ENVIRONMENT_HEADER]: ['TEST', 'PRODUCTION'] },
+      { cookie: 'active_ksef_environment=PRODUCTION' },
+      { [KSEF_ENVIRONMENT_HEADER]: 'production' },
+    ]) {
+      expect(() => requireExplicitKsefEnvironment(buildRequest(headers))).toThrow(
+        `Invalid or missing ${KSEF_ENVIRONMENT_HEADER} header`,
+      );
+    }
   });
 });

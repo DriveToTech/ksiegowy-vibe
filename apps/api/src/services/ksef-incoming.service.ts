@@ -7,6 +7,11 @@ import { getOrCreateKsefSession, initKsefSession } from './ksef.service.js';
 
 const PAGE_SIZE = 100;
 
+const isUniqueConstraintViolation = (error: unknown): boolean => {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  return error.code === 'P2002';
+};
+
 const resolveFallbackTotalGross = (header: {
   gross?: string;
   net?: string;
@@ -98,16 +103,25 @@ export const syncIncomingInvoicesFromKsef = async (
         // v2 uses ksefNumber; v1 used ksefReferenceNumber
         const ksefReference = header.ksefNumber ?? header.ksefReferenceNumber ?? '';
 
+        if (!ksefReference.trim()) {
+          skipped++;
+          logger.error(
+            { companyId, syncId: syncRecord.id },
+            'KSeF incoming invoice skipped because it has no KSeF reference'
+          );
+          continue;
+        }
+
         // Case A: already linked to this KSeF reference (scoped by environment)
         const existingLinked = await prisma.incomingInvoice.findFirst({
-          where: { companyId, environment: selectedEnvironment, ksefEnvironment: selectedEnvironment, ksefReference },
+          where: { companyId, environment: selectedEnvironment, ksefReference },
           select: { id: true }
         });
 
         if (existingLinked) {
           await prisma.incomingInvoice.update({
             where: { id: existingLinked.id },
-            data: { ksefFetchedAt: new Date() }
+            data: { ksefEnvironment: selectedEnvironment, ksefFetchedAt: new Date() }
           });
           skipped++;
           continue;
@@ -118,7 +132,14 @@ export const syncIncomingInvoicesFromKsef = async (
         const metadataInvoiceNumber = header.invoiceNumber ?? null;
         const existingUpload = metadataInvoiceNumber
           ? await prisma.incomingInvoice.findFirst({
-            where: { companyId, environment: selectedEnvironment, sellerNip, invoiceNumber: metadataInvoiceNumber, ksefReference: null, ksefEnvironment: selectedEnvironment },
+            where: {
+              companyId,
+              environment: selectedEnvironment,
+              source: 'upload',
+              sellerNip,
+              invoiceNumber: metadataInvoiceNumber,
+              ksefReference: null,
+            },
             select: { id: true }
           })
           : null;
@@ -126,7 +147,13 @@ export const syncIncomingInvoicesFromKsef = async (
         if (existingUpload) {
           await prisma.incomingInvoice.update({
             where: { id: existingUpload.id },
-            data: { ksefReference, ksefFetchedAt: new Date(), status: 'KSEF_SYNCED' }
+            data: {
+              environment: selectedEnvironment,
+              ksefEnvironment: selectedEnvironment,
+              ksefReference,
+              ksefFetchedAt: new Date(),
+              status: 'KSEF_SYNCED',
+            }
           });
           linked++;
           continue;
@@ -171,52 +198,81 @@ export const syncIncomingInvoicesFromKsef = async (
           if (existing) {
             contractorId = existing.id;
           } else {
-            const created = await prisma.contractor.create({
-              data: {
-                companyId,
-                nip: sellerNip,
-                name: parsed.sellerName,
-                addressLine1: parsed.sellerAddress ?? null,
-                countryCode: 'PL',
-                isActive: true
-              },
-              select: { id: true }
-            });
-            contractorId = created.id;
+            try {
+              const created = await prisma.contractor.create({
+                data: {
+                  companyId,
+                  nip: sellerNip,
+                  name: parsed.sellerName,
+                  addressLine1: parsed.sellerAddress ?? null,
+                  countryCode: 'PL',
+                  isActive: true
+                },
+                select: { id: true }
+              });
+              contractorId = created.id;
+            } catch (error: unknown) {
+              if (!isUniqueConstraintViolation(error)) throw error;
+
+              const concurrentlyCreated = await prisma.contractor.findUnique({
+                where: { companyId_nip: { companyId, nip: sellerNip } },
+                select: { id: true },
+              });
+
+              if (!concurrentlyCreated) throw error;
+              contractorId = concurrentlyCreated.id;
+            }
           }
         }
 
-        await prisma.incomingInvoice.create({
-          data: {
-            companyId,
-            environment: selectedEnvironment,
-            source: 'ksef',
-            ksefEnvironment: selectedEnvironment,
-            status: 'CONFIRMED',
-            ksefReference,
-            ksefFetchedAt: new Date(),
-            confirmedAt: new Date(),
-            sellerNip,
-            sellerName: parsed.sellerName,
-            sellerAddress: parsed.sellerAddress,
-            buyerName: parsed.buyerName,
-            buyerNip: parsed.buyerNip,
-            invoiceNumber: parsed.invoiceNumber,
-            issueDate: new Date(parsed.issueDate),
-            saleDate: parsed.saleDate !== null ? new Date(parsed.saleDate) : null,
-            totalNet: parsed.totalNet,
-            totalVat: parsed.totalVat,
-            totalGross: parsed.totalGross,
-            currency: parsed.currency,
-            dueDate: parsed.dueDate !== null ? new Date(parsed.dueDate) : null,
-            bankAccount: parsed.bankAccount,
-            paymentMethod: parsed.paymentMethod,
-            lineItemsJson: parsed.lineItems as object[],
-            contractorId
-          }
-        });
+        try {
+          await prisma.incomingInvoice.create({
+            data: {
+              companyId,
+              environment: selectedEnvironment,
+              source: 'ksef',
+              ksefEnvironment: selectedEnvironment,
+              status: 'CONFIRMED',
+              ksefReference,
+              ksefFetchedAt: new Date(),
+              confirmedAt: new Date(),
+              sellerNip,
+              sellerName: parsed.sellerName,
+              sellerAddress: parsed.sellerAddress,
+              buyerName: parsed.buyerName,
+              buyerNip: parsed.buyerNip,
+              invoiceNumber: parsed.invoiceNumber,
+              issueDate: new Date(parsed.issueDate),
+              saleDate: parsed.saleDate !== null ? new Date(parsed.saleDate) : null,
+              totalNet: parsed.totalNet,
+              totalVat: parsed.totalVat,
+              totalGross: parsed.totalGross,
+              currency: parsed.currency,
+              dueDate: parsed.dueDate !== null ? new Date(parsed.dueDate) : null,
+              bankAccount: parsed.bankAccount,
+              paymentMethod: parsed.paymentMethod,
+              lineItemsJson: parsed.lineItems as object[],
+              contractorId
+            }
+          });
 
-        created++;
+          created++;
+        } catch (error: unknown) {
+          if (!isUniqueConstraintViolation(error)) throw error;
+
+          const concurrentlyCreated = await prisma.incomingInvoice.findFirst({
+            where: { companyId, environment: selectedEnvironment, ksefReference },
+            select: { id: true },
+          });
+
+          if (!concurrentlyCreated) throw error;
+
+          await prisma.incomingInvoice.update({
+            where: { id: concurrentlyCreated.id },
+            data: { ksefFetchedAt: new Date() },
+          });
+          skipped++;
+        }
       }
 
       if (!queryResult.hasMore) break;

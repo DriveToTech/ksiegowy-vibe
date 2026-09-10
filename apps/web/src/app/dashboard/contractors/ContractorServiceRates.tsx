@@ -9,8 +9,10 @@ import {
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { Select } from '../../../components/atoms/Select';
+import { NativeDialog } from '../../../components/atoms/NativeDialog';
 import { FormField } from '../../../components/molecules/FormField';
 import { ErrorState } from '../../../components/molecules/ErrorState';
+import { parseDecimalValue } from '../../../lib/format';
 import { t } from '../../../lib/translations';
 
 const VAT_RATE_LABELS: Record<VatRate, string> = {
@@ -34,6 +36,7 @@ export function ContractorServiceRates({
   const [unitNetPrice, setUnitNetPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rateToDelete, setRateToDelete] = useState<ContractorServiceRate | null>(null);
 
   const availableTemplates = templates.filter(
     (tmpl) => !rates.some((rate) => rate.serviceTemplateId === tmpl.id),
@@ -41,12 +44,13 @@ export function ContractorServiceRates({
 
   const handleAdd = () => {
     if (!selectedTemplateId) { setError(t.contractorRates.errors.serviceRequired); return; }
-    if (!unitNetPrice.trim()) { setError(t.contractorRates.errors.priceRequired); return; }
+    const parsedPrice = parseDecimalValue(unitNetPrice);
+    if (parsedPrice === null || parsedPrice < 0) { setError(t.contractorRates.errors.priceRequired); return; }
     setSubmitting(true);
     setError(null);
     upsertContractorServiceRate(companyId, contractorId, {
       serviceTemplateId: selectedTemplateId,
-      unitNetPrice: unitNetPrice.trim(),
+      unitNetPrice: parsedPrice.toString(),
     })
       .then((created) => {
         setRates((prev) => [...prev, created].sort((a, b) => a.serviceTemplate.name.localeCompare(b.serviceTemplate.name)));
@@ -56,7 +60,7 @@ export function ContractorServiceRates({
       .finally(() => setSubmitting(false));
   };
 
-  const handleDelete = (rateId: string) => {
+  const executeDelete = (rateId: string) => {
     setSubmitting(true);
     setError(null);
     deleteContractorServiceRate(companyId, contractorId, rateId)
@@ -112,7 +116,7 @@ export function ContractorServiceRates({
                     variant="ghost"
                     size="sm"
                     className="text-error-ink hover:bg-error"
-                    onClick={() => handleDelete(rate.id)}
+                    onClick={() => setRateToDelete(rate)}
                     disabled={submitting}
                   >
                     {t.contractorRates.actions.delete}
@@ -125,9 +129,16 @@ export function ContractorServiceRates({
       ) : null}
 
       {showForm ? (
-        <div className="grid gap-3 rounded-card border border-outline bg-surface-raised p-4 sm:grid-cols-[1fr_1fr_auto]">
-          <FormField label={t.contractorRates.fields.service}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleAdd();
+          }}
+          className="grid gap-3 rounded-card border border-outline bg-surface-raised p-4 sm:grid-cols-[1fr_1fr_auto]"
+        >
+          <FormField label={t.contractorRates.fields.service} htmlFor="contractor-rate-service" required>
             <Select
+              id="contractor-rate-service"
               value={selectedTemplateId}
               onChange={(e) => setSelectedTemplateId(e.target.value)}
             >
@@ -139,11 +150,12 @@ export function ContractorServiceRates({
               ))}
             </Select>
           </FormField>
-          <FormField label={t.contractorRates.fields.price}>
+          <FormField label={t.contractorRates.fields.price} htmlFor="contractor-rate-price" required>
             <Input
-              type="number"
+              id="contractor-rate-price"
+              type="text"
+              inputMode="decimal"
               min="0"
-              step="0.01"
               value={unitNetPrice}
               onChange={(e) => setUnitNetPrice(e.target.value)}
               placeholder={t.contractorRates.fields.pricePlaceholder}
@@ -151,14 +163,14 @@ export function ContractorServiceRates({
             />
           </FormField>
           <div className="flex items-end gap-2">
-            <Button type="button" onClick={handleAdd} disabled={submitting}>
+            <Button type="submit" disabled={submitting}>
               {submitting ? t.contractorRates.actions.saving : t.contractorRates.actions.add}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setShowForm(false)} disabled={submitting}>
               {t.contractorRates.actions.cancel}
             </Button>
           </div>
-        </div>
+        </form>
       ) : null}
 
       {!showForm && availableTemplates.length > 0 ? (
@@ -171,6 +183,32 @@ export function ContractorServiceRates({
           {t.contractorRates.addButton}
         </Button>
       ) : null}
+
+      <NativeDialog
+        open={rateToDelete !== null}
+        onClose={() => setRateToDelete(null)}
+        title="Usuń stawkę usługi"
+        description={rateToDelete ? `${rateToDelete.serviceTemplate.name} zostanie usunięta dla tego kontrahenta.` : undefined}
+      >
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="ghost" data-dialog-cancel onClick={() => setRateToDelete(null)} disabled={submitting}>
+            {t.contractorRates.actions.cancel}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              if (!rateToDelete) return;
+              const rateId = rateToDelete.id;
+              setRateToDelete(null);
+              executeDelete(rateId);
+            }}
+            disabled={submitting}
+          >
+            {t.contractorRates.actions.delete}
+          </Button>
+        </div>
+      </NativeDialog>
     </div>
   );
 }
