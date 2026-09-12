@@ -88,7 +88,7 @@ Create `apps/e2e/tests/smoke.spec.ts` with a basic test verifying the app loads 
   create `KOR` draft from an accepted invoice, verify correction banner, issue the correction, and confirm the explicit `Wyślij korektę do KSeF` action.
 - The Playwright app server must expose both `API_URL` and `NEXT_PUBLIC_API_URL` to the mock API so server-side and browser-side requests hit the same test backend.
 - `apps/e2e/tests/navigation.spec.ts` scopes sidebar link interactions to the `Nawigacja dashboardu` landmark, while the desktop dashboard shell keeps the lower sidebar content scrollable so quick actions do not block clicks on shorter viewports.
-- `apps/e2e/tests/mobile-regression.spec.ts` covers 320, 360, 390, and 430px viewports in light and dark themes, including the five-slot icon-only mobile navigation with its planned AI assistant placeholder, `Więcej` sheet, passive environment indicator, header controls, safe-area clearance, and mobile route flows.
+- `apps/e2e/tests/mobile-regression.spec.ts` covers 320, 360, 390, and 430px viewports in light and dark themes, including the five-slot reference mobile navigation with its centered 52px AI assistant placeholder, `Więcej` sheet, passive environment indicator, header controls, safe-area clearance, and mobile route flows.
 
 ## Safe demo screenshot runtime
 

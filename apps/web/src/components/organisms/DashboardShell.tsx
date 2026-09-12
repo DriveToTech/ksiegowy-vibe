@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { getIncomingInvoices, getInvoices } from '../../lib/api';
 import type { AuthSession } from '../../lib/auth';
 import { t } from '../../lib/translations';
-import { AppIcon } from '../icons/AppIcon';
 import { AppHeader } from './AppHeader';
 import { DashboardNavigation } from './DashboardNavigation';
 
@@ -121,15 +120,15 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
             </div>
           </aside>
 
-          <main id="dashboard-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto p-4 pb-[calc(64px+env(safe-area-inset-bottom))] sm:p-6 lg:p-[22px_26px_26px] lg:pb-[26px]">
+          <main id="dashboard-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto p-4 pb-[calc(90px+env(safe-area-inset-bottom))] sm:p-6 lg:p-[22px_26px_26px] lg:pb-[26px]">
             {children}
           </main>
         </div>
 
-        <div className="h-[calc(64px+env(safe-area-inset-bottom))] shrink-0 bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <div className="h-[calc(90px+env(safe-area-inset-bottom))] shrink-0 bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
           <nav
             aria-label="Mobilna nawigacja dashboardu"
-            className="grid h-16 w-full grid-cols-5 border-y border-outline bg-chrome"
+            className="box-border flex h-[90px] w-full items-center border-t border-outline bg-chrome px-[18px] pt-3 pb-6"
           >
             <DashboardNavigation items={mobileNavigationItems} mobile />
             <button
@@ -137,9 +136,9 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
               disabled
               aria-label="Asystent podatkowy AI — wkrótce"
               title="Asystent podatkowy AI — wkrótce"
-              className="flex min-h-11 min-w-0 items-center justify-center rounded-inset text-muted disabled:cursor-not-allowed disabled:opacity-100"
+              className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] bg-[image:var(--primary-gradient)] disabled:cursor-not-allowed disabled:opacity-100"
             >
-              <AppIcon name="assistant" className="h-5 w-5" />
+              <span aria-hidden="true" className="h-5 w-5 rounded-[6px] bg-[rgba(12,13,28,0.85)]" />
             </button>
             <DashboardNavigation items={mobileOutgoingNavigationItems} mobile moreItems={mobileMoreNavigationItems} />
           </nav>

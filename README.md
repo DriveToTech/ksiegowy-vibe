@@ -93,7 +93,7 @@ Source of truth: **`spec/aurora-solid-redesign-plan.md`** (plan and phase histor
 - The 60px chrome bar is the sole global brand anchor and contains company, KSeF, theme, and session context.
 - The 226px desktop rail contains navigation plus contextual status widgets (JPK_V7M filing deadline, rejected-invoice count); page actions live beside the content they affect.
 - Light mode is the default, with an explicit dark preference stored locally in the browser. Both themes are held to WCAG AA on text and interactive boundaries.
-- Mobile retains persistent bottom navigation in a reserved shell region and scrollable main content, so content and focused controls are not covered while scrolling.
+- Mobile uses the redesign's 90px persistent bottom navigation: Start, Zakupy, centered AI assistant placeholder, Sprzedaż, and Więcej. The shell reserves the bar and safe-area inset so content and focused controls are not covered while scrolling.
 
 ## First-Run Flow
 

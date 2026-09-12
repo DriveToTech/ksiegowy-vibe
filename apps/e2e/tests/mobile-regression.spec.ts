@@ -48,7 +48,10 @@ for (const mobileTheme of mobileThemes) {
             const bounds = slot.getBoundingClientRect();
             return { width: bounds.width, height: bounds.height };
           }),
-          iconCount: slots.filter((slot) => slot.querySelector('svg')).length,
+          centerControl: (() => {
+            const bounds = slots[2].getBoundingClientRect();
+            return { width: bounds.width, height: bounds.height };
+          })(),
         };
       });
 
@@ -56,10 +59,9 @@ for (const mobileTheme of mobileThemes) {
       expect(navigationSlots.labels).toEqual(['Start', 'Zakupy', 'Asystent podatkowy AI — wkrótce', 'Sprzedaż', 'Więcej']);
       expect(navigationSlots.left).toBe(0);
       expect(navigationSlots.right).toBe(navigationSlots.viewportWidth);
-      expect(new Set(navigationSlots.rowTops).size).toBe(1);
-      expect(Math.max(...navigationSlots.widths) - Math.min(...navigationSlots.widths)).toBeLessThanOrEqual(1);
+      expect(new Set([navigationSlots.rowTops[0], navigationSlots.rowTops[1], navigationSlots.rowTops[3], navigationSlots.rowTops[4]]).size).toBe(1);
+      expect(navigationSlots.centerControl).toEqual({ width: 52, height: 52 });
       expect(navigationSlots.dimensions.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
-      expect(navigationSlots.iconCount).toBe(5);
 
       await expect(mobileNavigation.getByRole('link', { name: 'Start' })).toHaveAttribute('aria-current', 'page');
       for (const directDestination of ['Sprzedaż', 'Zakupy']) {
