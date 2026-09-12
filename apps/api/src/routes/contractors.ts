@@ -1,7 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { isValidNip } from '@ksiegowy/shared-utils';
 import type { AccessTokenPayload } from '../lib/auth-config.js';
-import { resolveEffectiveKsefEnvironment } from '../lib/ksef-environment.js';
+import {
+  KSEF_ENVIRONMENT_HEADER_SCHEMA,
+  requireExplicitKsefEnvironment,
+} from '../lib/ksef-environment.js';
 import { buildContractorSummary, sumTurnoverByContractor } from '../services/contractor-financials.service.js';
 
 // ── JSON Schema definitions ─────────────────────────────────────────────────
@@ -243,6 +246,7 @@ export const contractorsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
     onRequest: [fastify.authenticate],
     schema: {
       params: companyIdParamsSchema,
+      headers: KSEF_ENVIRONMENT_HEADER_SCHEMA,
       querystring: listContractorsQuerystringSchema,
       response: {
         200: {
@@ -258,7 +262,7 @@ export const contractorsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
 
     assertCompanyAccess(user, companyId, fastify);
 
-    const environment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+    const environment = requireExplicitKsefEnvironment(request);
     const isActiveFilter = status === 'all' ? {} : { isActive: status === 'active' };
 
     const [contractors, turnoverByContractor] = await Promise.all([
@@ -426,6 +430,7 @@ export const contractorsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
       onRequest: [fastify.authenticate],
       schema: {
         params: contractorParamsSchema,
+        headers: KSEF_ENVIRONMENT_HEADER_SCHEMA,
         querystring: contractorSummaryQuerystringSchema,
         response: { 200: contractorSummarySchema }
       }
@@ -442,7 +447,7 @@ export const contractorsRoutes: FastifyPluginAsync = async (fastify): Promise<vo
         throw fastify.httpErrors.notFound('Contractor not found');
       }
 
-      const environment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const environment = requireExplicitKsefEnvironment(request);
 
       return buildContractorSummary(fastify.prisma, { companyId, contractorId: id, environment, year });
     }

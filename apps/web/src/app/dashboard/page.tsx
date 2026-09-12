@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getContractors, getIncomingInvoices, getInvoices } from '../../lib/api';
 import { Button } from '../../components/atoms/Button';
 import { EmptyState } from '../../components/molecules/EmptyState';
+import { DashboardDataIssue } from './DashboardDataIssue';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { InvoicesTable } from '../../components/organisms/InvoicesTable';
 import { t } from '../../lib/translations';
@@ -26,11 +27,26 @@ export default async function DashboardPage() {
     redirect('/onboarding');
   }
 
-  const [invoicesResult, incomingResult, contractorCount] = await Promise.all([
-    getInvoices(companyId, { limit: '100' }),
-    getIncomingInvoices(companyId, { limit: '100' }).catch(() => ({ data: [], total: 0, page: 1, limit: 100 })),
-    getContractors(companyId).then((list) => list.length).catch(() => 0),
+  const activeEnvironment = session.activeKsefEnvironment;
+  if (!activeEnvironment) {
+    redirect('/onboarding');
+  }
+
+  const [invoicesRequest, incomingRequest, contractorsRequest] = await Promise.allSettled([
+    getInvoices(companyId, activeEnvironment, { limit: '100' }),
+    getIncomingInvoices(companyId, activeEnvironment, { limit: '100' }),
+    getContractors(companyId, activeEnvironment),
   ]);
+
+  if (invoicesRequest.status === 'rejected') {
+    throw invoicesRequest.reason instanceof Error
+      ? invoicesRequest.reason
+      : new Error('Nie udało się pobrać faktur sprzedażowych.');
+  }
+
+  const invoicesResult = invoicesRequest.value;
+  const incomingInvoices = incomingRequest.status === 'fulfilled' ? incomingRequest.value.data : null;
+  const contractorCount = contractorsRequest.status === 'fulfilled' ? contractorsRequest.value.length : null;
   const invoices = invoicesResult.data;
 
   const now = new Date();
@@ -65,7 +81,9 @@ export default async function DashboardPage() {
   const monthGross = currentMonthInvoices.reduce((sum, invoice) => sum + (parseFloat(invoice.totalGross) || 0), 0);
   const monthVat = currentMonthInvoices.reduce((sum, invoice) => sum + (parseFloat(invoice.totalVat) || 0), 0);
 
-  const incomingNeedsAction = incomingResult.data.filter((invoice) => INCOMING_NEEDS_ACTION_STATUSES.has(invoice.status)).length;
+  const incomingNeedsAction = incomingInvoices === null
+    ? null
+    : incomingInvoices.filter((invoice) => INCOMING_NEEDS_ACTION_STATUSES.has(invoice.status)).length;
 
   const alerts: Array<{ tone: 'error' | 'warning' | 'primary'; title: string; meta: string }> = [];
   if (kpiCounts.rejected > 0) {
@@ -74,7 +92,7 @@ export default async function DashboardPage() {
   if (kpiCounts.notSubmitted > 0) {
     alerts.push({ tone: 'warning', title: t.dashboard.needsAttention.notSubmitted(kpiCounts.notSubmitted), meta: t.dashboard.needsAttention.notSubmittedMeta });
   }
-  if (incomingNeedsAction > 0) {
+  if (incomingNeedsAction !== null && incomingNeedsAction > 0) {
     alerts.push({ tone: 'primary', title: t.dashboard.needsAttention.incoming(incomingNeedsAction), meta: t.dashboard.needsAttention.incomingMeta });
   }
 
@@ -92,17 +110,20 @@ export default async function DashboardPage() {
         eyebrow={t.dashboard.pageEyebrow}
         title={t.dashboard.pageTitle}
         description={t.dashboard.pageDescription}
-        actions={
+          actions={
           <>
-            <Link href="/dashboard/incoming">
-              <Button variant="secondary">{t.dashboard.goToIncoming}</Button>
-            </Link>
-            <Link href="/dashboard/invoices/new">
-              <Button>{t.dashboard.createInvoice}</Button>
-            </Link>
+            <Button href="/dashboard/incoming" variant="secondary">{t.dashboard.goToIncoming}</Button>
+            <Button href="/dashboard/invoices/new">{t.dashboard.createInvoice}</Button>
           </>
         }
       />
+
+      {incomingRequest.status === 'rejected' ? (
+        <DashboardDataIssue message="Nie udało się pobrać faktur przychodzących. Wskaźnik spraw wymagających uwagi jest niedostępny." />
+      ) : null}
+      {contractorsRequest.status === 'rejected' ? (
+        <DashboardDataIssue message="Nie udało się pobrać kontrahentów. Część informacji i akcje zależne od tej listy są niedostępne." />
+      ) : null}
 
       <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
         <div className="flex items-center justify-between border-b border-outline px-5 py-3.5">
@@ -157,7 +178,9 @@ export default async function DashboardPage() {
 
         <div className="flex flex-col gap-3 rounded-card border border-outline bg-surface-panel p-5">
           <h2 className="text-sm font-semibold text-foreground">{t.dashboard.needsAttention.title}</h2>
-          {alerts.length === 0 ? (
+          {incomingNeedsAction === null ? (
+            <p className="text-sm text-muted">Nie udało się ustalić, czy faktury przychodzące wymagają uwagi.</p>
+          ) : alerts.length === 0 ? (
             <p className="text-sm text-muted">{t.dashboard.needsAttention.empty}</p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -177,12 +200,14 @@ export default async function DashboardPage() {
         {recent.length === 0 ? (
           <EmptyState
             title={t.dashboard.emptyInvoicesTitle}
-            description={contractorCount > 0 ? t.dashboard.emptyInvoicesDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
+            description={contractorCount === null
+              ? 'Brak faktur sprzedażowych. Nie udało się pobrać liczby kontrahentów.'
+              : contractorCount > 0
+                ? t.dashboard.emptyInvoicesDescription
+                : t.outgoingInvoices.emptyState.withoutContractorsDescription}
             action={
               contractorCount === 0 ? (
-                <Link href="/dashboard/contractors">
-                  <Button variant="secondary">{t.dashboard.addContractor}</Button>
-                </Link>
+                <Button href="/dashboard/contractors" variant="secondary">{t.dashboard.addContractor}</Button>
               ) : undefined
             }
           />
@@ -193,7 +218,7 @@ export default async function DashboardPage() {
             compact
             header={
               invoicesResult.total > recent.length ? (
-                <Link href="/dashboard/invoices" className="ml-auto text-xs font-semibold text-primary transition hover:text-primary-strong">
+                <Link href="/dashboard/invoices" className="ml-auto inline-flex min-h-11 items-center text-xs font-semibold text-primary transition hover:text-primary-strong">
                   {t.dashboard.recentDocuments.seeAll(invoicesResult.total)}
                 </Link>
               ) : undefined

@@ -801,21 +801,21 @@ The platform supports per-user KSeF environment switching between `TEST` and `PR
 
 ### Environment resolution flow
 
-The user's cookie-based `active_ksef_environment` selection is sent to the API as the `x-ksef-environment` header on every KSeF-sensitive request. The API resolver (`resolveEffectiveKsefEnvironment`) determines the effective environment using this priority:
+The browser shell stores the selection synchronously in the company-scoped `active_ksef_environment_{companyId}` cookie and sends it as the `x-ksef-environment` header. Financially scoped and KSeF-sensitive mutations require exactly one valid header value, `TEST` or `PRODUCTION`; they do not infer a target environment from a cookie or company default. Read-only resolution (`resolveEffectiveKsefEnvironment`) may retain compatibility fallbacks using this priority:
 
-1. **Header** — `x-ksef-environment` header value (set by the web shell from the user's cookie)
-2. **Company default** — `Company.ksefEnv` when the header is absent
-3. **Fallback** — `TEST` when neither header nor company default is set
+1. **Explicit request context** — validated `x-ksef-environment` header or environment query value
+2. **Legacy cookie** — the active environment cookie during rollout compatibility
+3. **Company default** — `Company.ksefEnv`
 
 ```mermaid
 flowchart TD
-    A[User request] --> B{x-ksef-environment header?}
-    B -->|Yes| C[Use header value]
-    B -->|No| D{Company.ksefEnv set?}
-    D -->|Yes| E[Use company default]
-    D -->|No| F[Default to TEST]
-    C --> G[Resolve credentials for environment]
-    E --> G
+    A[User request] --> B{Mutation?}
+    B -->|Yes| C{Exactly one valid header?}
+    C -->|No| D[Reject request]
+    C -->|Yes| G[Resolve credentials for environment]
+    B -->|No| E{Header or query value?}
+    E -->|Yes| G
+    E -->|No| F[Use legacy cookie or company default]
     F --> G
     G --> H{Token found?}
     H -->|Yes| I[Execute KSeF action]
@@ -877,4 +877,4 @@ When the selected environment has no token configured:
 
 - The shell displays a persistent environment badge (`TEST` or `PRODUCTION`) visible without opening settings.
 - `PRODUCTION` actions require explicit confirmation with stronger language.
-- The environment switcher persists the user's selection in a cookie (`active_ksef_environment`) that survives page refreshes.
+- The environment switcher persists the user's selection synchronously in the company-scoped `active_ksef_environment_{companyId}` cookie with a 30-day max age, `path=/`, and `SameSite=Lax`; it survives page refreshes without a server persistence endpoint.

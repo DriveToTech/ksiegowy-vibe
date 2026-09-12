@@ -26,6 +26,7 @@ enum CompanyMembershipRole {
 
 enum InvoiceStatus {
   DRAFT
+  ISSUING
   ISSUED
   CANCELLED
 }
@@ -191,6 +192,7 @@ model Invoice {
   contractorId         String?
   invoiceNumber        String?
   status               InvoiceStatus         @default(DRAFT)
+  issuingStartedAt     DateTime?
   invoiceType          InvoiceType           @default(VAT)
   issueDate            DateTime
   saleDate             DateTime?
@@ -222,6 +224,7 @@ model Invoice {
   correctionMode       InvoiceCorrectionMode?
   correctionReason     String?
   correctionImpactType String?
+  correctionRequestHash String?              @unique
   ksefReference        String?
   ksefStatus           InvoiceKsefStatus     @default(NOT_SENT)
   ksefSubmittedAt      DateTime?
@@ -291,6 +294,7 @@ model KsefSubmission {
   responseBody           String?
   errorMessage           String?
   httpStatusCode         Int?
+  externalMutationStarted Boolean            @default(false)
   submittedAt            DateTime?
   acceptedAt             DateTime?
   createdAt              DateTime             @default(now())
@@ -348,6 +352,7 @@ model FileRecord {
   mimeType          String
   sizeBytes         Int
   checksum          String? // SHA-256
+  storageIdempotencyKey String? @unique
   backedUpAt        DateTime?
   createdAt         DateTime         @default(now())
   company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -404,6 +409,7 @@ model IncomingInvoice {
   @@index([companyId, environment, createdAt])
   @@index([companyId, ksefReference])
   @@index([companyId, ksefEnvironment, ksefReference])
+  @@unique([companyId, environment, ksefReference])
 }
 
 model GoogleDriveCredential {

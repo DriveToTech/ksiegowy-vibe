@@ -238,12 +238,12 @@ export function CompanyBackupPolicyForm({
           <p>{error.message}</p>
           {error.code === 'REAUTHORIZATION_REQUIRED' ? (
             <div className="mt-3">
-              <a
+              <Button
                 href={googleDriveConnectUrl}
-                className="inline-flex h-10 items-center justify-center rounded-control bg-surface-panel px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
+                variant="secondary"
               >
                 Połącz ponownie Google Drive
-              </a>
+              </Button>
             </div>
           ) : null}
         </Banner>
@@ -300,12 +300,12 @@ export function CompanyBackupPolicyForm({
 
         {requiresGoogleDriveReauthorization ? (
           <div className="mt-3">
-            <a
+            <Button
               href={googleDriveConnectUrl}
-              className="inline-flex h-10 items-center justify-center rounded-control bg-secondary-surface px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
+              variant="secondary"
             >
               Połącz ponownie Google Drive
-            </a>
+            </Button>
           </div>
         ) : null}
 
@@ -357,24 +357,25 @@ export function CompanyBackupPolicyForm({
               ? 'Google Drive wymaga ponownego połączenia. Backup ręczny i automatyczny pozostają wstrzymane do czasu odnowienia autoryzacji.'
               : 'Google Drive nie jest jeszcze podłączony. Najpierw połącz konto, aby uruchamiać backup ręczny i harmonogram.'}
             <div className="mt-3">
-              <a
+              <Button
                 href={googleDriveConnectUrl}
-                className="inline-flex h-10 items-center justify-center rounded-control bg-surface-panel px-4 text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised"
+                variant="secondary"
               >
                 {requiresGoogleDriveReauthorization ? 'Połącz ponownie Google Drive' : 'Połącz Google Drive'}
-              </a>
+              </Button>
             </div>
           </Banner>
         )}
 
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-5 grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2 rounded-control border border-outline bg-surface-raised px-4 py-3">
-            <label className="inline-flex items-center gap-3 text-sm text-foreground">
+            <label htmlFor="backup-automatic-on-invoice-issued" className="inline-flex min-h-11 items-center gap-3 text-sm text-foreground">
               <input
+                id="backup-automatic-on-invoice-issued"
                 type="checkbox"
                 checked={automaticOnInvoiceIssued}
                 onChange={(event) => setAutomaticOnInvoiceIssued(event.target.checked)}
-                className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                className="h-5 w-5 rounded border-outline text-primary focus:ring-primary/30"
                 disabled={!isGoogleDriveConnected || saveBusy}
               />
               Automatycznie uruchamiaj backup po wystawieniu faktury
@@ -613,6 +614,7 @@ function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('pl-PL', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'UTC',
   });
 }
 

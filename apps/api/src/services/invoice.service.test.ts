@@ -1,7 +1,25 @@
 import type { PrismaClient } from '@prisma/client';
-import { describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { assignNextInvoiceNumber, createInvoiceDraft } from './invoice.service.js';
+import {
+  assignNextInvoiceNumber,
+  createInvoiceDraft,
+  finalizeInvoiceIssuance,
+  issueInvoice,
+} from './invoice.service.js';
+
+const createdStorageDirectories: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    createdStorageDirectories.splice(0).map((directory) =>
+      fs.rm(directory, { recursive: true, force: true })
+    )
+  );
+});
 
 // ── assignNextInvoiceNumber ────────────────────────────────────────────────────
 
@@ -314,5 +332,113 @@ describe('createInvoiceDraft()', () => {
 
     const callArg = invoiceCreate.mock.calls[0]![0] as { data: Record<string, unknown> };
     expect(callArg.data.environment).toBe('PRODUCTION');
+  });
+});
+
+describe('issueInvoice()', () => {
+  it('commits stale ISSUING recovery as DRAFT without allocating another number', async () => {
+    const invoiceUpdate = vi.fn(async () => ({}));
+    const staleInvoice = {
+      id: 'invoice-1',
+      status: 'ISSUING',
+      invoiceNumber: 'FV 1/9/2026',
+      issuingStartedAt: new Date(Date.now() - 10 * 60 * 1000),
+      updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback: (transactionClient: unknown) => Promise<unknown>) => callback({
+        $queryRaw: vi.fn(async () => [{ id: 'invoice-1' }]),
+        invoice: {
+          findUnique: vi.fn(async () => staleInvoice),
+          update: invoiceUpdate,
+        },
+        fileRecord: {
+          findMany: vi.fn(async () => []),
+        },
+      })),
+    } as unknown as PrismaClient;
+
+    await expect(issueInvoice(prisma, 'invoice-1', 'company-1', 'TEST')).rejects.toThrow(
+      'issuance was stale and reset to DRAFT; retry issuance',
+    );
+    expect(invoiceUpdate).toHaveBeenCalledWith({
+      where: { id: 'invoice-1' },
+      data: { status: 'DRAFT', issuedAt: null, issuingStartedAt: null },
+    });
+  });
+
+  it('rejects a concurrent fresh ISSUING request instead of becoming a second writer', async () => {
+    const invoiceUpdate = vi.fn();
+    const prisma = {
+      $transaction: vi.fn(async (callback: (transactionClient: unknown) => Promise<unknown>) => callback({
+        $queryRaw: vi.fn(async () => [{ id: 'invoice-1' }]),
+        invoice: {
+          findUnique: vi.fn(async () => ({
+            id: 'invoice-1',
+            status: 'ISSUING',
+            invoiceNumber: 'FV 1/9/2026',
+            issuingStartedAt: new Date(),
+            updatedAt: new Date(),
+          })),
+          update: invoiceUpdate,
+        },
+        fileRecord: {
+          findMany: vi.fn(),
+        },
+      })),
+    } as unknown as PrismaClient;
+
+    await expect(issueInvoice(prisma, 'invoice-1', 'company-1', 'TEST')).rejects.toThrow(
+      'issuance is already in progress',
+    );
+    expect(invoiceUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('finalizeInvoiceIssuance()', () => {
+  it('does not mark ISSUING as ISSUED when a file is missing or corrupt', async () => {
+    const storageDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'ksiegowy-storage-'));
+    createdStorageDirectories.push(storageDirectory);
+    const corruptPdfPath = path.join(storageDirectory, 'invoice.pdf');
+    await fs.writeFile(corruptPdfPath, 'corrupt pdf');
+
+    const invoiceUpdate = vi.fn();
+    const prisma = {
+      $transaction: vi.fn(async (callback: (transactionClient: unknown) => Promise<unknown>) => callback({
+        $queryRaw: vi.fn(async () => [{ id: 'invoice-1', status: 'ISSUING' }]),
+        fileRecord: {
+          findMany: vi.fn(async () => [
+            {
+              type: 'outgoing_pdf',
+              path: corruptPdfPath,
+              checksum: 'expected-pdf-checksum',
+              sizeBytes: 10,
+            },
+            {
+              type: 'outgoing_xml',
+              path: path.join(storageDirectory, 'missing.xml'),
+              checksum: 'expected-xml-checksum',
+              sizeBytes: 10,
+            },
+          ]),
+        },
+        invoice: {
+          findUnique: vi.fn(),
+          update: invoiceUpdate,
+        },
+      })),
+    } as unknown as PrismaClient;
+
+    await expect(
+      finalizeInvoiceIssuance(
+        prisma,
+        'invoice-1',
+        'company-1',
+        'TEST',
+        'expected-pdf-checksum',
+        'expected-xml-checksum',
+      )
+    ).rejects.toThrow('Invoice artifacts are not both persisted; invoice remains ISSUING');
+    expect(invoiceUpdate).not.toHaveBeenCalled();
   });
 });

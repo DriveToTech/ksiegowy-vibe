@@ -1,16 +1,28 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { Resend } from 'resend';
+import { createHash } from 'node:crypto';
 import type { KsefEnvironment } from '@prisma/client';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
-import { resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
+import {
+  KSEF_ENVIRONMENT_QUERY_SCHEMA,
+  requireExplicitKsefEnvironment,
+  resolveEffectiveKsefEnvironment,
+} from '../../lib/ksef-environment.js';
 import {
   createInvoiceDraft,
+  finalizeInvoiceIssuance,
   issueInvoice,
   type CreateInvoiceDraftInput,
   type DraftLineInput
 } from '../../services/invoice.service.js';
 import { buildIssuedInvoiceDataForKsefSubmission } from '../../services/invoice-ksef-submission.service.js';
-import { submitInvoiceToKsef, pollKsefSubmissionStatus } from '../../services/ksef.service.js';
+import {
+  attachKsefSubmissionReferences,
+  KsefManualReconciliationRequiredError,
+  KsefSubmissionConflictError,
+  submitInvoiceToKsef,
+  pollKsefSubmissionStatus,
+} from '../../services/ksef.service.js';
 import { saveFile, readFile } from '../../services/storage/local-fs.js';
 import { triggerCompanyBackupAfterInvoiceIssued } from '../../services/backup/company-backup-policy.js';
 import { calculateInvoiceTotals } from '@ksiegowy/fa3-xml';
@@ -266,6 +278,16 @@ const submitKsefResponseSchema = {
   required: ['referenceNumber', 'submissionId']
 } as const;
 
+const ksefReconciliationBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['sessionReferenceNumber', 'referenceNumber'],
+  properties: {
+    sessionReferenceNumber: { type: 'string', minLength: 1 },
+    referenceNumber: { type: 'string', minLength: 1 },
+  },
+} as const;
+
 const recordPaymentBodySchema = {
   type: 'object',
   additionalProperties: false,
@@ -298,6 +320,10 @@ interface InvoiceParams {
   id: string;
 }
 
+interface KsefEnvironmentQuery {
+  environment?: 'TEST' | 'PRODUCTION';
+}
+
 interface RecordPaymentBody {
   amount: string;
   receivedAt?: string;
@@ -308,6 +334,11 @@ interface CreateCorrectionBody {
   impactType?: '1' | '2' | '3';
   correctionMode?: 'cancellation' | 'formal';
   correctedInvoiceNumber?: string;
+}
+
+interface KsefReconciliationBody {
+  sessionReferenceNumber: string;
+  referenceNumber: string;
 }
 
 type DatabaseInvoiceCorrectionMode = 'CANCELLATION' | 'FORMAL';
@@ -387,6 +418,17 @@ export const resolveInvoiceKsefState = (invoice: {
     status: invoiceKsefState?.status ?? 'NOT_SENT',
     ksefReference: invoiceKsefState?.ksefReference ?? null,
   };
+};
+
+export const requireAcceptedKsefReference = (state: {
+  status: string;
+  ksefReference: string | null;
+}): string => {
+  if (state.status !== 'ACCEPTED' || !state.ksefReference?.trim()) {
+    throw new Error('Accepted invoice is missing its KSeF reference');
+  }
+
+  return state.ksefReference;
 };
 
 export const mapCorrectionModeToDatabase = (
@@ -704,7 +746,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         params: companyIdParamsSchema,
         body: createDraftBodySchema,
         response: {
-          201: invoiceResponseSchema
+          201: invoiceResponseSchema,
         }
       }
     },
@@ -714,10 +756,21 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const body = request.body;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot create invoices');
+      }
+
+      if (body.contractorId !== undefined) {
+        const contractor = await fastify.prisma.contractor.findUnique({
+          where: { id: body.contractorId },
+          select: { companyId: true },
+        });
+
+        if (!contractor || contractor.companyId !== companyId) {
+          throw fastify.httpErrors.notFound('Contractor not found');
+        }
       }
 
       const input: CreateInvoiceDraftInput = {
@@ -778,9 +831,20 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const body = request.body;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot edit invoices');
+      }
+
+      if (body.contractorId !== undefined) {
+        const contractor = await fastify.prisma.contractor.findUnique({
+          where: { id: body.contractorId },
+          select: { companyId: true },
+        });
+
+        if (!contractor || contractor.companyId !== companyId) {
+          throw fastify.httpErrors.notFound('Contractor not found');
+        }
       }
 
       const existing = assertInvoiceEnvironmentAccess(
@@ -821,6 +885,22 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       });
 
       const updated = await fastify.prisma.$transaction(async (tx) => {
+        const lockedInvoice = await tx.$queryRaw<Array<{ status: string }>>`
+          SELECT status
+          FROM "Invoice"
+          WHERE id = ${id}
+            AND "companyId" = ${companyId}
+            AND environment = ${selectedEnvironment}::"KsefEnvironment"
+          FOR UPDATE
+        `;
+
+        if (lockedInvoice.length === 0) throw fastify.httpErrors.notFound('Invoice not found');
+        if (lockedInvoice[0]!.status !== 'DRAFT') {
+          throw fastify.httpErrors.conflict(
+            `Only DRAFT invoices can be edited (current status: ${lockedInvoice[0]!.status})`,
+          );
+        }
+
         await tx.invoiceLine.deleteMany({ where: { invoiceId: id } });
         await tx.invoiceVatBreakdown.deleteMany({ where: { invoiceId: id } });
 
@@ -877,7 +957,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
    * GET /companies/:companyId/invoices/:id
    * Returns a single invoice with lines and vatBreakdown.
    */
-  fastify.get<{ Params: InvoiceParams }>(
+  fastify.get<{ Params: InvoiceParams; Querystring: KsefEnvironmentQuery }>(
     '/companies/:companyId/invoices/:id',
     {
       onRequest: [fastify.authenticate],
@@ -911,8 +991,9 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
   /**
    * POST /companies/:companyId/invoices/:id/issue
-   * Transitions DRAFT → ISSUED: assigns invoice number, generates PDF + XML,
-   * saves both files to storage, creates FileRecord rows.
+   * Transitions DRAFT → ISSUING → ISSUED: reserves the invoice number, then
+   * generates and verifies PDF + XML before creating the final status.
+   * Stale ISSUING rows are reset to DRAFT while retaining their number.
    */
   fastify.post<{ Params: InvoiceParams }>(
     '/companies/:companyId/invoices/:id/issue',
@@ -930,31 +1011,73 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot issue invoices');
       }
 
-      assertInvoiceEnvironmentAccess(
+      const invoiceBeforeIssue = assertInvoiceEnvironmentAccess(
         await fastify.prisma.invoice.findUnique({
           where: { id },
-          select: { companyId: true, environment: true }
+          select: { companyId: true, environment: true, status: true }
         }),
         companyId,
         selectedEnvironment,
         fastify,
       );
 
+      if (invoiceBeforeIssue.status === 'ISSUED') {
+        const storedArtifacts = await fastify.prisma.fileRecord.findMany({
+          where: {
+            invoiceId: id,
+            companyId,
+            type: { in: ['outgoing_pdf', 'outgoing_xml'] },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        const storedPdf = storedArtifacts.find((file) => file.type === 'outgoing_pdf');
+        const storedXml = storedArtifacts.find((file) => file.type === 'outgoing_xml');
+
+        if (!storedPdf || !storedXml) {
+          throw fastify.httpErrors.conflict(
+            'Issued invoice artifacts are missing; manual artifact recovery is required'
+          );
+        }
+
+        await Promise.all([
+          readFile(fastify.prisma, storedPdf.id, companyId, selectedEnvironment),
+          readFile(fastify.prisma, storedXml.id, companyId, selectedEnvironment),
+        ]).catch(() => {
+          throw fastify.httpErrors.conflict(
+            'Issued invoice artifacts are missing; manual artifact recovery is required'
+          );
+        });
+
+        const storedInvoice = await fastify.prisma.invoice.findUnique({
+          where: { id },
+          include: buildInvoiceDetailInclude(selectedEnvironment),
+        });
+
+        if (!storedInvoice) throw fastify.httpErrors.notFound('Invoice not found after issuing');
+        return serializeInvoice(storedInvoice);
+      }
+
       let result;
       try {
-        result = await issueInvoice(fastify.prisma, id, companyId);
+        result = await issueInvoice(fastify.prisma, id, companyId, selectedEnvironment);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('not found')) throw fastify.httpErrors.notFound(msg);
-        if (msg.includes('not in DRAFT')) throw fastify.httpErrors.conflict(msg);
-        if (msg.includes('must have')) throw fastify.httpErrors.badRequest(msg);
-        throw fastify.httpErrors.internalServerError(msg);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (errorMessage.includes('not found')) throw fastify.httpErrors.notFound(errorMessage);
+        if (
+          errorMessage.includes('not in DRAFT') ||
+          errorMessage.includes('issuance is already in progress') ||
+          errorMessage.includes('issuance was stale and reset to DRAFT')
+        ) {
+          throw fastify.httpErrors.conflict(errorMessage);
+        }
+        if (errorMessage.includes('must have')) throw fastify.httpErrors.badRequest(errorMessage);
+        throw fastify.httpErrors.internalServerError(errorMessage);
       }
 
       const { invoice, pdfBuffer, xmlString, pdfChecksum, xmlChecksum } = result;
@@ -966,6 +1089,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         invoiceId: id,
         type: 'outgoing_pdf',
         ext: 'pdf',
+        environment: selectedEnvironment,
         mimeType: 'application/pdf',
         data: pdfBuffer,
         storageBase,
@@ -978,11 +1102,21 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         invoiceId: id,
         type: 'outgoing_xml',
         ext: 'xml',
+        environment: selectedEnvironment,
         mimeType: 'application/xml',
         data: Buffer.from(xmlString, 'utf-8'),
         storageBase,
         date: issueDate
       });
+
+      await finalizeInvoiceIssuance(
+        fastify.prisma,
+        id,
+        companyId,
+        selectedEnvironment,
+        pdfChecksum,
+        xmlChecksum,
+      );
 
       void triggerCompanyBackupAfterInvoiceIssued(
         fastify.prisma,
@@ -1022,7 +1156,8 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
     {
       onRequest: [fastify.authenticate],
       schema: {
-        params: invoiceParamsSchema
+        params: invoiceParamsSchema,
+        querystring: KSEF_ENVIRONMENT_QUERY_SCHEMA,
       }
     },
     async (request, reply) => {
@@ -1053,7 +1188,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       let fileData;
       try {
-        fileData = await readFile(fastify.prisma, pdfRecord.id, companyId);
+        fileData = await readFile(fastify.prisma, pdfRecord.id, companyId, selectedEnvironment);
       } catch (err: unknown) {
         const statusCode = (err as { statusCode?: number }).statusCode;
         if (statusCode === 404) throw fastify.httpErrors.notFound('PDF file missing from storage');
@@ -1116,7 +1251,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       let fileData;
       try {
-        fileData = await readFile(fastify.prisma, xmlRecord.id, companyId);
+        fileData = await readFile(fastify.prisma, xmlRecord.id, companyId, selectedEnvironment);
       } catch (err: unknown) {
         const statusCode = (err as { statusCode?: number }).statusCode;
         if (statusCode === 404) throw fastify.httpErrors.notFound('XML file missing from storage');
@@ -1164,7 +1299,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot submit to KSeF');
       }
 
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       const encryptionKey = process.env['ENCRYPTION_KEY'];
       if (!encryptionKey) {
@@ -1215,9 +1350,63 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         fastify.log.error({ invoiceId: id, companyId, err }, 'KSeF submission failed');
+        if (err instanceof KsefSubmissionConflictError) {
+          throw fastify.httpErrors.conflict(msg);
+        }
         throw fastify.httpErrors.badGateway(`KSeF submission failed: ${msg}`);
       }
     }
+  );
+
+  /**
+   * POST /companies/:companyId/invoices/:id/ksef-reconcile
+   * Stores KSeF references found by an operator after an interrupted submit,
+   * then uses the normal status endpoint. It never sends the invoice again.
+   */
+  fastify.post<{ Params: InvoiceParams; Body: KsefReconciliationBody }>(
+    '/companies/:companyId/invoices/:id/ksef-reconcile',
+    {
+      onRequest: [fastify.authenticate],
+      schema: {
+        params: invoiceParamsSchema,
+        body: ksefReconciliationBodySchema,
+        response: { 200: ksefStatusResponseSchema },
+      },
+    },
+    async (request) => {
+      const user = request.user as AccessTokenPayload;
+      const { companyId, id } = request.params;
+      const membership = assertCompanyAccess(user, companyId, fastify);
+      if (membership.role === 'VIEWER') {
+        throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot reconcile KSeF submissions');
+      }
+
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
+      const encryptionKey = process.env['ENCRYPTION_KEY'];
+      if (!encryptionKey) throw fastify.httpErrors.internalServerError('ENCRYPTION_KEY is not configured');
+      if (!request.body.sessionReferenceNumber.trim() || !request.body.referenceNumber.trim()) {
+        throw fastify.httpErrors.badRequest('Both KSeF sessionReferenceNumber and referenceNumber are required');
+      }
+
+      try {
+        const submissionId = await attachKsefSubmissionReferences(
+          fastify.prisma,
+          id,
+          companyId,
+          selectedEnvironment,
+          request.body.sessionReferenceNumber,
+          request.body.referenceNumber,
+        );
+        return await pollKsefSubmissionStatus(fastify.prisma, submissionId, companyId, encryptionKey);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (error instanceof KsefManualReconciliationRequiredError) {
+          throw fastify.httpErrors.conflict(message);
+        }
+        fastify.log.error({ invoiceId: id, companyId, error }, 'Manual KSeF reconciliation failed');
+        throw fastify.httpErrors.badGateway(`KSeF reconciliation failed: ${message}`);
+      }
+    },
   );
 
   /**
@@ -1267,6 +1456,9 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         fastify.log.error({ invoiceId: id, submissionId: latestSubmission.id, err }, 'KSeF poll failed');
+        if (err instanceof KsefManualReconciliationRequiredError) {
+          throw fastify.httpErrors.conflict(msg);
+        }
         throw fastify.httpErrors.badGateway(`KSeF status poll failed: ${msg}`);
       }
     }
@@ -1302,7 +1494,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot send emails');
       }
 
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       const resendApiKey = process.env['RESEND_API_KEY'];
       if (!resendApiKey) {
@@ -1343,7 +1535,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       }
 
       const { readFile } = await import('../../services/storage/local-fs.js');
-      const fileData = await readFile(fastify.prisma, pdfRecord.id, companyId).catch(() => null);
+       const fileData = await readFile(fastify.prisma, pdfRecord.id, companyId, selectedEnvironment).catch(() => null);
       if (!fileData) {
         throw fastify.httpErrors.internalServerError('PDF file missing from storage');
       }
@@ -1398,7 +1590,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot revert invoices');
       }
@@ -1467,6 +1659,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         params: invoiceParamsSchema,
         body: createCorrectionBodySchema,
         response: {
+          200: invoiceResponseSchema,
           201: invoiceResponseSchema
         }
       }
@@ -1480,7 +1673,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot create correction invoices');
       }
 
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
 
       const original = assertInvoiceEnvironmentAccess(
         await fastify.prisma.invoice.findUnique({
@@ -1494,11 +1687,18 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
 
       const originalKsefState = resolveInvoiceKsefState(original);
 
-      if (originalKsefState.status !== 'ACCEPTED') {
-        throw fastify.httpErrors.conflict(
-          `Only invoices accepted by KSeF can be corrected (current KSeF status: ${originalKsefState.status})`
-        );
-      }
+       if (originalKsefState.status !== 'ACCEPTED') {
+         throw fastify.httpErrors.conflict(
+           `Only invoices accepted by KSeF can be corrected (current KSeF status: ${originalKsefState.status})`
+         );
+       }
+
+       let originalKsefReference: string;
+       try {
+         originalKsefReference = requireAcceptedKsefReference(originalKsefState);
+       } catch (error) {
+         throw fastify.httpErrors.conflict(error instanceof Error ? error.message : String(error));
+       }
 
       const { impactType } = request.body;
       const normalizedCorrection = (() => {
@@ -1542,47 +1742,108 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         vatAmount: `${normalizedCorrection.amountPrefix}${b.vatAmount.toString()}`
       }));
 
-      const correction = await fastify.prisma.invoice.create({
-        data: {
+      const correctionRequestHash = createHash('sha256')
+        .update(JSON.stringify({
           companyId,
           environment: selectedEnvironment,
-          contractorId: original.contractorId,
-          invoiceType: 'KOR',
-          issueDate: new Date(),
-          paymentMethod: original.paymentMethod,
-          currency: original.currency,
-          correctedInvoiceId: original.id,
-          correctedKsefRef: originalKsefState.ksefReference,
-          correctedInvoiceNumber: normalizedCorrection.correctedInvoiceNumber,
+          originalInvoiceId: original.id,
           correctionMode: normalizedCorrection.correctionMode,
+          correctedInvoiceNumber: normalizedCorrection.correctedInvoiceNumber,
           correctionReason: normalizedCorrection.correctionReason,
           correctionImpactType: impactType ?? null,
-          sellerName: original.sellerName,
-          sellerNip: original.sellerNip,
-          sellerAddress1: original.sellerAddress1,
-          sellerAddress2: original.sellerAddress2,
-          buyerName: original.buyerName,
-          buyerNip: original.buyerNip,
-          buyerAddress1: original.buyerAddress1,
-          buyerAddress2: original.buyerAddress2,
-          buyerCountry: original.buyerCountry,
-          totalNet: `${normalizedCorrection.amountPrefix}${original.totalNet.toString()}`,
-          totalVat: `${normalizedCorrection.amountPrefix}${original.totalVat.toString()}`,
-          totalGross: `${normalizedCorrection.amountPrefix}${original.totalGross.toString()}`,
-          notes: normalizedCorrection.correctionMode === 'FORMAL' && normalizedCorrection.correctedInvoiceNumber !== null
-            ? `Korekta formalna faktury ${original.invoiceNumber ?? id}. Prawidlowy numer: ${normalizedCorrection.correctedInvoiceNumber}`
-            : `Korekta faktury ${original.invoiceNumber ?? id}`,
-          lines: { create: korLines },
-          vatBreakdown: { create: korBreakdown }
-        },
-        include: {
-          ...buildInvoiceDetailInclude(selectedEnvironment)
-        }
-      });
+        }))
+        .digest('hex');
 
-      fastify.log.info({ correctionId: correction.id, originalId: id, companyId }, 'KOR correction invoice created');
+      const isUniqueConstraintViolation = (error: unknown): boolean => {
+        if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+        return error.code === 'P2002';
+      };
 
-      return reply.code(201).send(serializeInvoice(correction));
+      let correctionWasAlreadyCreated = false;
+      let correction: typeof original | null;
+
+      try {
+        correction = await fastify.prisma.$transaction(async (transactionClient) => {
+          const existingCorrection = await transactionClient.invoice.findUnique({
+            where: { correctionRequestHash },
+            include: buildInvoiceDetailInclude(selectedEnvironment),
+          });
+
+          if (existingCorrection) {
+            correctionWasAlreadyCreated = true;
+            return existingCorrection;
+          }
+
+          const lockedOriginal = await transactionClient.$queryRaw<Array<{ id: string }>>`
+            SELECT id
+            FROM "Invoice"
+            WHERE id = ${id}
+              AND "companyId" = ${companyId}
+              AND environment = ${selectedEnvironment}::"KsefEnvironment"
+            FOR UPDATE
+          `;
+
+          if (lockedOriginal.length === 0) {
+            throw fastify.httpErrors.notFound('Invoice not found');
+          }
+
+          return transactionClient.invoice.create({
+            data: {
+              companyId,
+              environment: selectedEnvironment,
+              contractorId: original.contractorId,
+              invoiceType: 'KOR',
+              issueDate: new Date(),
+              paymentMethod: original.paymentMethod,
+              currency: original.currency,
+              correctedInvoiceId: original.id,
+              correctedKsefRef: originalKsefReference,
+              correctionRequestHash,
+              correctedInvoiceNumber: normalizedCorrection.correctedInvoiceNumber,
+              correctionMode: normalizedCorrection.correctionMode,
+              correctionReason: normalizedCorrection.correctionReason,
+              correctionImpactType: impactType ?? null,
+              sellerName: original.sellerName,
+              sellerNip: original.sellerNip,
+              sellerAddress1: original.sellerAddress1,
+              sellerAddress2: original.sellerAddress2,
+              buyerName: original.buyerName,
+              buyerNip: original.buyerNip,
+              buyerAddress1: original.buyerAddress1,
+              buyerAddress2: original.buyerAddress2,
+              buyerCountry: original.buyerCountry,
+              totalNet: `${normalizedCorrection.amountPrefix}${original.totalNet.toString()}`,
+              totalVat: `${normalizedCorrection.amountPrefix}${original.totalVat.toString()}`,
+              totalGross: `${normalizedCorrection.amountPrefix}${original.totalGross.toString()}`,
+              notes: normalizedCorrection.correctionMode === 'FORMAL' && normalizedCorrection.correctedInvoiceNumber !== null
+                ? `Korekta formalna faktury ${original.invoiceNumber ?? id}. Prawidlowy numer: ${normalizedCorrection.correctedInvoiceNumber}`
+                : `Korekta faktury ${original.invoiceNumber ?? id}`,
+              lines: { create: korLines },
+              vatBreakdown: { create: korBreakdown }
+            },
+            include: buildInvoiceDetailInclude(selectedEnvironment),
+          });
+        });
+      } catch (error: unknown) {
+        if (!isUniqueConstraintViolation(error)) throw error;
+
+        correction = await fastify.prisma.invoice.findUnique({
+          where: { correctionRequestHash },
+          include: buildInvoiceDetailInclude(selectedEnvironment),
+        });
+        correctionWasAlreadyCreated = true;
+
+        if (!correction) throw error;
+      }
+
+      if (!correction) throw new Error('Correction invoice was not created');
+
+      fastify.log.info(
+        { correctionId: correction.id, originalId: id, companyId, correctionWasAlreadyCreated },
+        correctionWasAlreadyCreated ? 'KOR correction invoice already existed' : 'KOR correction invoice created'
+      );
+
+      return reply.code(correctionWasAlreadyCreated ? 200 : 201).send(serializeInvoice(correction));
     }
   );
 
@@ -1607,7 +1868,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
       const { companyId, id } = request.params;
 
       const membership = assertCompanyAccess(user, companyId, fastify);
-      const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+      const selectedEnvironment = requireExplicitKsefEnvironment(request);
       if (membership.role === 'VIEWER') {
         throw fastify.httpErrors.forbidden('Insufficient role: VIEWER cannot record payments');
       }
@@ -1622,9 +1883,9 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         fastify,
       );
 
-      if (invoice.status === 'DRAFT' || invoice.status === 'CANCELLED') {
-        throw fastify.httpErrors.conflict(`Cannot record payment for invoice with status ${invoice.status}`);
-      }
+       if (invoice.status !== 'ISSUED') {
+         throw fastify.httpErrors.conflict(`Cannot record payment for invoice with status ${invoice.status}`);
+       }
 
       const updated = await fastify.prisma.invoice.update({
         where: { id },

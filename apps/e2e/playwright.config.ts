@@ -22,10 +22,12 @@ const projects = [
 export default defineConfig({
   testDir: './tests',
   snapshotPathTemplate: '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}',
-  fullyParallel: true,
+  // The mock API keeps mutable fixture maps in one process. A single worker keeps
+  // mutation tests isolated without multiplying the browser project matrix.
+  fullyParallel: false,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: isCI ? 1 : undefined,
+  workers: 1,
   reporter: isCI ? [['html', { open: 'never' }], ['github']] : [['html', { open: 'on-failure' }]],
   use: {
     baseURL: `http://localhost:${e2eAppPort}`,

@@ -58,9 +58,7 @@ export default async function LoginPage({
             <p className="text-sm text-muted">{t.login.formSubtitle}</p>
           </div>
 
-          <a href={`${apiUrl}/auth/google`} className="block">
-            <Button size="lg" className="w-full">{t.login.googleButton}</Button>
-          </a>
+          <Button href={`${apiUrl}/auth/google`} size="lg" className="w-full">{t.login.googleButton}</Button>
 
           <div className="rounded-inset border-l-[3px] border-primary bg-surface-raised px-3.5 py-3 text-[12.5px] leading-relaxed text-foreground-secondary">
             {t.login.ksefNote}

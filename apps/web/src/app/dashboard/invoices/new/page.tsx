@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getContractors, getServiceTemplates, getContractorServiceRates } from '../../../../lib/api';
 import type { ContractorServiceRate } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
@@ -24,19 +23,23 @@ export default async function NewInvoicePage() {
           title={t.newInvoice.noCompanyTitle}
           description={t.newInvoice.noCompanyDescription}
           action={
-            <Link href="/dashboard/settings">
-              <Button>{t.settings.goToSettings}</Button>
-            </Link>
+            <Button href="/dashboard/settings">{t.settings.goToSettings}</Button>
           }
         />
       </div>
     );
   }
 
+  const activeEnvironment = session.activeKsefEnvironment;
+  if (!activeEnvironment) {
+    return <EmptyState title={t.newInvoice.noCompanyTitle} description={t.newInvoice.noCompanyDescription} />;
+  }
+
   const company = session.companies.find((candidateCompany) => candidateCompany.id === companyId);
+  const initialDate = new Date().toISOString().slice(0, 10);
 
   const [contractors, serviceTemplates] = await Promise.all([
-    getContractors(companyId),
+    getContractors(companyId, activeEnvironment),
     getServiceTemplates(companyId).catch(() => []),
   ]);
 
@@ -59,9 +62,7 @@ export default async function NewInvoicePage() {
           title={t.newInvoice.noContractorsTitle}
           description={t.newInvoice.noContractorsDescription}
           action={
-            <Link href="/dashboard/contractors">
-              <Button>{t.newInvoice.addContractor}</Button>
-            </Link>
+            <Button href="/dashboard/contractors">{t.newInvoice.addContractor}</Button>
           }
         />
       </div>
@@ -77,6 +78,8 @@ export default async function NewInvoicePage() {
       />
       <NewInvoiceForm
         companyId={companyId}
+        activeEnvironment={activeEnvironment}
+        initialDate={initialDate}
         defaultBankAccount={company?.bankAccount ?? null}
         contractors={contractors}
         serviceTemplates={serviceTemplates}

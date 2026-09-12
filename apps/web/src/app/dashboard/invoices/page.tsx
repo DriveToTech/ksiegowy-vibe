@@ -32,14 +32,15 @@ export default async function InvoicesPage({
         <EmptyState
           title={t.outgoingInvoices.noCompanyTitle}
           description={t.outgoingInvoices.noCompanyDescription}
-          action={
-            <Link href="/dashboard/settings">
-              <Button>{t.settings.goToSettings}</Button>
-            </Link>
-          }
+          action={<Button href="/dashboard/settings">{t.settings.goToSettings}</Button>}
         />
       </div>
     );
+  }
+
+  const activeEnvironment = session.activeKsefEnvironment;
+  if (!activeEnvironment) {
+    return <EmptyState title={t.outgoingInvoices.noCompanyTitle} description={t.outgoingInvoices.noCompanyDescription} />;
   }
 
   const { page: pageParam, status: statusParam } = await searchParams;
@@ -47,8 +48,8 @@ export default async function InvoicesPage({
   const activeStatus = statusParam === 'DRAFT' ? 'DRAFT' : undefined;
 
   const [invoicesResult, contractors] = await Promise.all([
-    getInvoices(companyId, { page: String(page), ...(activeStatus ? { status: activeStatus } : {}) }),
-    getContractors(companyId).catch(() => []),
+    getInvoices(companyId, activeEnvironment, { page: String(page), ...(activeStatus ? { status: activeStatus } : {}) }),
+    getContractors(companyId, activeEnvironment).catch(() => []),
   ]);
   const { data: invoices, total, limit } = invoicesResult;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -62,9 +63,15 @@ export default async function InvoicesPage({
         title={t.outgoingInvoices.pageTitle}
         description={t.outgoingInvoices.pageDescription}
         actions={
-          <Button href="/dashboard/invoices/new" variant="primaryQuiet" disabled={!hasContractors}>
-            {t.dashboard.createInvoice}
-          </Button>
+          hasContractors ? (
+            <Button href="/dashboard/invoices/new" variant="primaryQuiet">
+              {t.dashboard.createInvoice}
+            </Button>
+          ) : (
+            <Button type="button" variant="primaryQuiet" disabled>
+              {t.dashboard.createInvoice}
+            </Button>
+          )
         }
       />
 
@@ -74,9 +81,9 @@ export default async function InvoicesPage({
             key={tab.label}
             href={tab.value ? `/dashboard/invoices?status=${tab.value}` : '/dashboard/invoices'}
             className={
-              (tab.value ?? undefined) === activeStatus
-                ? 'rounded-chip bg-foreground/10 px-3.5 py-1.5 text-[12.5px] font-medium text-foreground'
-                : 'rounded-chip px-3.5 py-1.5 text-[12.5px] text-muted transition hover:text-foreground-secondary'
+                (tab.value ?? undefined) === activeStatus
+                ? 'inline-flex min-h-11 items-center rounded-chip bg-foreground/10 px-3.5 py-1.5 text-[12.5px] font-medium text-foreground'
+                : 'inline-flex min-h-11 items-center rounded-chip px-3.5 py-1.5 text-[12.5px] text-muted transition hover:text-foreground-secondary'
             }
           >
             {tab.label}
@@ -86,17 +93,23 @@ export default async function InvoicesPage({
 
       {total === 0 ? (
         <EmptyState
-          title={t.outgoingInvoices.emptyState.title}
-          description={hasContractors ? t.outgoingInvoices.emptyState.withContractorsDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
+          title={activeStatus ? t.outgoingInvoices.filters.drafts : t.outgoingInvoices.emptyState.title}
+          description={activeStatus
+            ? t.contractors.emptyFiltered
+            : hasContractors
+              ? t.outgoingInvoices.emptyState.withContractorsDescription
+              : t.outgoingInvoices.emptyState.withoutContractorsDescription}
           action={
-            hasContractors ? (
+            activeStatus ? (
+              <Button href="/dashboard/invoices" variant="secondary">
+                {t.outgoingInvoices.filters.all}
+              </Button>
+            ) : hasContractors ? (
               <Button href="/dashboard/invoices/new" variant="primaryQuiet">
                 {t.outgoingInvoices.emptyState.createFirstInvoice}
               </Button>
             ) : (
-              <Link href="/dashboard/contractors">
-                <Button>{t.outgoingInvoices.emptyState.addContractor}</Button>
-              </Link>
+              <Button href="/dashboard/contractors">{t.outgoingInvoices.emptyState.addContractor}</Button>
             )
           }
         />
@@ -108,17 +121,33 @@ export default async function InvoicesPage({
               {t.outgoingInvoices.pageSummary(invoices.length, total, formatMoney(totalGrossOnPage))}
             </p>
             <div className="flex items-center justify-between gap-4 sm:justify-end">
-              <Link href={`/dashboard/invoices?page=${page - 1}${activeStatus ? `&status=${activeStatus}` : ''}`}>
-                <Button variant="secondary" size="sm" disabled={page <= 1}>
+              {page <= 1 ? (
+                <Button type="button" variant="secondary" size="sm" disabled>
                   {t.pagination.previous}
                 </Button>
-              </Link>
+              ) : (
+                <Button
+                  href={`/dashboard/invoices?page=${page - 1}${activeStatus ? `&status=${activeStatus}` : ''}`}
+                  variant="secondary"
+                  size="sm"
+                >
+                  {t.pagination.previous}
+                </Button>
+              )}
               <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)}</p>
-              <Link href={`/dashboard/invoices?page=${page + 1}${activeStatus ? `&status=${activeStatus}` : ''}`}>
-                <Button variant="secondary" size="sm" disabled={page >= totalPages}>
+              {page >= totalPages ? (
+                <Button type="button" variant="secondary" size="sm" disabled>
                   {t.pagination.next}
                 </Button>
-              </Link>
+              ) : (
+                <Button
+                  href={`/dashboard/invoices?page=${page + 1}${activeStatus ? `&status=${activeStatus}` : ''}`}
+                  variant="secondary"
+                  size="sm"
+                >
+                  {t.pagination.next}
+                </Button>
+              )}
             </div>
           </div>
         </>

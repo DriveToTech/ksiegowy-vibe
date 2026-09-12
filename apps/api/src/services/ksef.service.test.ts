@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import type { InvoiceData } from '@ksiegowy/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const refreshAuthSession = vi.fn();
@@ -17,9 +18,21 @@ vi.mock('@ksiegowy/shared-utils', () => ({
   encrypt: vi.fn((value: string) => ({ enc: `encrypted:${value}`, iv: 'generated-iv' })),
 }));
 
+vi.mock('@ksiegowy/fa3-xml', () => ({
+  buildFa3Xml: vi.fn(() => '<xml />'),
+}));
+
 import { createKsefClient } from '@ksiegowy/ksef-client';
 import { decrypt, encrypt } from '@ksiegowy/shared-utils';
-import { getOrCreateKsefSession, initKsefSession, pollKsefSubmissionStatus, upsertInvoiceKsefState, loadCompanyKsefAuthConfiguration } from './ksef.service.js';
+import {
+  getOrCreateKsefSession,
+  initKsefSession,
+  KsefSubmissionConflictError,
+  pollKsefSubmissionStatus,
+  submitInvoiceToKsef,
+  upsertInvoiceKsefState,
+  loadCompanyKsefAuthConfiguration,
+} from './ksef.service.js';
 
 describe('initKsefSession()', () => {
   beforeEach(() => {
@@ -268,11 +281,14 @@ describe('pollKsefSubmissionStatus()', () => {
     const ksefSubmissionFindUnique = vi.fn(async () => ({
       id: 'submission-pending-2',
       environment: 'TEST',
+      companyId: 'company-1',
       invoiceId: 'invoice-1',
       referenceNumber: '20260415-EE-16E5AD7000-00F836FC7C-45',
       sessionReferenceNumber: '20260415-SO-16E5A6B000-B28515B915-67',
       invoice: {
         id: 'invoice-1',
+        companyId: 'company-1',
+        environment: 'TEST',
         ksefStatus: 'SUBMITTED',
         ksefReference: '8982160168-20260411-5144C4800000-D5',
         ksefAcceptedAt: new Date('2026-04-11T09:33:32.400Z')
@@ -342,6 +358,34 @@ describe('pollKsefSubmissionStatus()', () => {
   });
 });
 
+describe('submitInvoiceToKsef()', () => {
+  it('rejects a concurrent or already completed submission before contacting KSeF', async () => {
+    const transaction = vi.fn(async (callback: (transactionClient: unknown) => Promise<unknown>) =>
+      callback({
+        $queryRaw: vi.fn(async () => [{ id: 'invoice-1' }]),
+        invoiceKsefState: {
+          findUnique: vi.fn(async () => ({ status: 'SUBMITTED', lastSubmissionId: 'submission-1' })),
+        },
+        ksefSubmission: {
+          findUnique: vi.fn(async () => ({ status: 'SUBMITTED' })),
+        },
+      })
+    );
+    const prisma = { $transaction: transaction } as unknown as PrismaClient;
+
+    await expect(
+      submitInvoiceToKsef(
+        prisma,
+        'invoice-1',
+        'company-1',
+        {} as unknown as InvoiceData,
+        'encryption-key',
+        'TEST',
+      )
+    ).rejects.toBeInstanceOf(KsefSubmissionConflictError);
+  });
+});
+
 describe('upsertInvoiceKsefState()', () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -383,6 +427,20 @@ describe('upsertInvoiceKsefState()', () => {
         lastSubmissionId: 'submission-1',
       },
     });
+  });
+
+  it('rejects ACCEPTED state without a KSeF reference', async () => {
+    const invoiceKsefStateUpsert = vi.fn(async () => ({}));
+    const prisma = { invoiceKsefState: { upsert: invoiceKsefStateUpsert } } as unknown as PrismaClient;
+
+    await expect(upsertInvoiceKsefState(prisma, {
+      invoiceId: 'invoice-1',
+      environment: 'TEST',
+      status: 'ACCEPTED',
+      ksefReference: null,
+    })).rejects.toThrow('KSeF ACCEPTED state requires a non-empty ksefReference');
+
+    expect(invoiceKsefStateUpsert).not.toHaveBeenCalled();
   });
 
   it('allows TEST and PRODUCTION states to coexist independently for the same invoice', async () => {

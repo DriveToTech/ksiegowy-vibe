@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getActiveCompany, getCompanyKsefSettings, getInvoice } from '../../../../lib/api';
+import { getCompanyKsefSettings, getInvoice } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
 import { Surface } from '../../../../components/atoms/Surface';
 import { Banner } from '../../../../components/molecules/Banner';
@@ -7,6 +7,8 @@ import { ClearanceStepper, type ClearanceStep } from '../../../../components/mol
 import { EmptyState } from '../../../../components/molecules/EmptyState';
 import { ErrorState } from '../../../../components/molecules/ErrorState';
 import { formatDate, formatMoney } from '../../../../lib/format';
+import { requireAuthSession } from '../../../../lib/auth';
+import type { KsefEnvironment } from '../../../../lib/ksef-environment';
 import { t } from '../../../../lib/translations';
 import InvoiceActions from './InvoiceActions';
 
@@ -47,33 +49,25 @@ export default async function InvoiceDetailPage({
 }) {
   const { id } = await params;
 
-  let companyId: string | null = null;
-  let errorMsg: string | null = null;
+  const session = await requireAuthSession(`/dashboard/invoices/${id}`);
+  const companyId = session.activeCompanyId;
+  const activeEnvironment: KsefEnvironment | null = session.activeKsefEnvironment;
 
-  try {
-    const { activeCompanyId } = await getActiveCompany();
-    companyId = activeCompanyId;
-  } catch (e) {
-    errorMsg = e instanceof Error ? e.message : t.invoiceDetail.errors.companyLoadFailed;
-  }
-
-  if (errorMsg || !companyId) {
+  if (!companyId || !activeEnvironment) {
     return (
-      <ErrorState message={errorMsg ?? t.invoiceDetail.errors.companyNotFound} />
+      <ErrorState message={t.invoiceDetail.errors.companyNotFound} />
     );
   }
 
   let invoice;
   try {
-    invoice = await getInvoice(companyId, id);
+    invoice = await getInvoice(companyId, id, activeEnvironment);
   } catch (e) {
-    errorMsg = e instanceof Error ? e.message : t.invoiceDetail.errors.invoiceLoadFailed;
+    const errorMsg = e instanceof Error ? e.message : t.invoiceDetail.errors.invoiceLoadFailed;
     return (
       <div className="space-y-4">
         <ErrorState message={errorMsg} />
-        <Link href="/dashboard/invoices">
-          <Button variant="secondary">{t.invoiceDetail.backToListButton}</Button>
-        </Link>
+        <Button href="/dashboard/invoices" variant="secondary">{t.invoiceDetail.backToListButton}</Button>
       </div>
     );
   }
@@ -89,7 +83,7 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link href="/dashboard/invoices" className="text-sm font-medium text-muted transition hover:text-foreground">
+      <Link href="/dashboard/invoices" className="inline-flex min-h-11 items-center text-sm font-medium text-muted transition hover:text-foreground">
         {t.invoiceDetail.backToInvoices}
       </Link>
 
@@ -99,7 +93,7 @@ export default async function InvoiceDetailPage({
           <span className="text-sm font-medium text-foreground">{invoice.correctedInvoice.invoiceNumber ?? invoice.correctedInvoice.id}</span>
           <Link
             href={`/dashboard/invoices/${invoice.correctedInvoice.id}`}
-            className="text-sm font-medium text-primary underline underline-offset-2 hover:no-underline"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-2 hover:no-underline"
           >
             {t.invoiceDetail.correctionBannerViewOriginal}
           </Link>
@@ -109,7 +103,7 @@ export default async function InvoiceDetailPage({
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
         <div className="space-y-2">
           <h1 className="font-mono text-[26px] font-medium tracking-[-0.01em] text-foreground">
-            {invoice.invoiceNumber ?? t.invoiceDetail.draftTitle}
+            {invoice.invoiceNumber ?? (invoice.status === 'ISSUING' ? t.invoiceDetail.issuingTitle : t.invoiceDetail.draftTitle)}
           </h1>
           <p className="text-sm text-muted">
             {t.invoiceDetail.issuedOn(formatDate(invoice.issueDate))}
@@ -134,9 +128,10 @@ export default async function InvoiceDetailPage({
         invoiceType={invoice.invoiceType}
         status={invoice.status}
         ksefStatus={invoice.ksefStatus}
-        totalGross={invoice.totalGross}
-        paymentReceived={invoice.paymentReceived}
-        ksefCredentialStatuses={ksefCredentialStatuses}
+         totalGross={invoice.totalGross}
+         paymentReceived={invoice.paymentReceived}
+         activeEnvironment={activeEnvironment}
+         ksefCredentialStatuses={ksefCredentialStatuses}
       />
 
       <Surface tone="panel" className="space-y-5 p-5">

@@ -4,8 +4,8 @@ import { redirect } from 'next/navigation';
 import type { Company } from './api-types';
 import { API_BASE } from './api-base';
 import {
-  ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME,
-  normalizeKsefEnvironment,
+  getActiveKsefEnvironmentCookieName,
+  isKsefEnvironment,
   type KsefEnvironment,
 } from './ksef-environment';
 
@@ -28,7 +28,7 @@ export interface AuthSession {
   companies: Company[];
   companyRoles: Record<string, 'ADMIN' | 'ACCOUNTANT' | 'VIEWER'>;
   activeCompanyId: string | null;
-  activeKsefEnvironment: KsefEnvironment;
+  activeKsefEnvironment: KsefEnvironment | null;
 }
 
 interface SessionRequestResult {
@@ -41,9 +41,14 @@ interface AuthSessionOptions {
   refreshNext?: string;
 }
 
-export async function getActiveKsefEnvironment(): Promise<KsefEnvironment> {
+export async function getActiveKsefEnvironment(companyId: string, companyDefaultEnvironment: KsefEnvironment): Promise<KsefEnvironment> {
   const cookieStore = await cookies();
-  return normalizeKsefEnvironment(cookieStore.get(ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME)?.value);
+  const companyEnvironment = cookieStore.get(getActiveKsefEnvironmentCookieName(companyId))?.value;
+  if (isKsefEnvironment(companyEnvironment)) {
+    return companyEnvironment;
+  }
+
+  return companyDefaultEnvironment;
 }
 
 function buildCookieHeader(cookieStore: Awaited<ReturnType<typeof cookies>>): string | null {
@@ -85,7 +90,6 @@ async function loadAuthSession({
 }: AuthSessionOptions = {}): Promise<AuthSession> {
   const cookieStore = await cookies();
   const cookieHeader = buildCookieHeader(cookieStore);
-  const activeKsefEnvironment = normalizeKsefEnvironment(cookieStore.get(ACTIVE_KSEF_ENVIRONMENT_COOKIE_NAME)?.value);
 
   if (!cookieHeader) {
     return {
@@ -94,7 +98,7 @@ async function loadAuthSession({
       companies: [],
       companyRoles: {},
       activeCompanyId: null,
-      activeKsefEnvironment,
+      activeKsefEnvironment: null,
     };
   }
 
@@ -111,7 +115,7 @@ async function loadAuthSession({
       companies: [],
       companyRoles: {},
       activeCompanyId: null,
-      activeKsefEnvironment,
+      activeKsefEnvironment: null,
     };
   }
 
@@ -133,6 +137,10 @@ async function loadAuthSession({
   const companies = (await companiesResponse.json()) as Company[];
   const savedCompanyId = cookieStore.get('active_company')?.value;
   const activeCompanyId = companies.find((company) => company.id === savedCompanyId)?.id ?? companies[0]?.id ?? null;
+  const activeCompany = companies.find((company) => company.id === activeCompanyId);
+  const activeKsefEnvironment = activeCompany
+    ? await getActiveKsefEnvironment(activeCompany.id, activeCompany.ksefEnv)
+    : null;
 
   return {
     authenticated: true,

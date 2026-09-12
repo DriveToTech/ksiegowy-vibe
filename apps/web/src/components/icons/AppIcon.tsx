@@ -1,6 +1,6 @@
 import type { SVGProps } from 'react';
 
-type IconName = 'overview' | 'outgoing' | 'incoming' | 'contractors' | 'settings' | 'upload';
+type IconName = 'overview' | 'outgoing' | 'incoming' | 'contractors' | 'compliance' | 'settings' | 'more' | 'upload' | 'assistant';
 
 interface AppIconProps extends SVGProps<SVGSVGElement> {
   name: IconName;
@@ -46,6 +46,30 @@ export function AppIcon({ name, ...props }: AppIconProps) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
           <circle cx="12" cy="12" r="3.2" />
           <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l-.1.1a1.8 1.8 0 1 1-2.5-2.5l.1-.1A1 1 0 0 0 6 15a1 1 0 0 0-.9-.6h-.2a1.8 1.8 0 0 1 0-3.6h.2A1 1 0 0 0 6 9.9a1 1 0 0 0-.2-1.1l-.1-.1a1.8 1.8 0 1 1 2.5-2.5l.1.1a1 1 0 0 0 1.1.2h.1a1 1 0 0 0 .6-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1 1 0 0 0 .6.9h.1a1 1 0 0 0 1.1-.2l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1 1 0 0 0-.2 1.1v.1a1 1 0 0 0 .9.6h.2a1.8 1.8 0 0 1 0 3.6h-.2a1 1 0 0 0-.9.6Z" />
+        </svg>
+      );
+    case 'compliance':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M5 4.5h14v15H5z" />
+          <path d="M8.5 8h7" />
+          <path d="M8.5 12h7" />
+          <path d="M8.5 16h4" />
+        </svg>
+      );
+    case 'more':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <circle cx="5" cy="12" r="1" />
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="19" cy="12" r="1" />
+        </svg>
+      );
+    case 'assistant':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4L12 3Z" />
+          <path d="m19 16 .6 2.4L22 19l-2.4.6L19 22l-.6-2.4L16 19l2.4-.6L19 16Z" />
         </svg>
       );
     case 'upload':

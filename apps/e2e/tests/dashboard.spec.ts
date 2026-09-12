@@ -27,7 +27,7 @@ test('dashboard loads with the KSeF clearance KPI grid', async ({ authenticatedP
   await expect(page.getByText('Nie wysłane')).toBeVisible();
 });
 
-test('authenticated header exposes company, KSeF, theme, and session controls in order', async ({ authenticatedPage: page }) => {
+test('authenticated header exposes company, KSeF, theme, and profile controls in order', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard');
 
   const header = page.getByRole('banner');
@@ -37,19 +37,30 @@ test('authenticated header exposes company, KSeF, theme, and session controls in
   await expect(ksefBadge).toBeVisible();
   await expect(ksefBadge).toHaveCSS('color', 'rgb(138, 83, 0)');
   await expect(header.getByRole('button', { name: 'Włącz ciemny motyw' })).toBeVisible();
+  await header.locator('details > summary').click();
+  await expect(header.getByRole('link', { name: 'Ustawienia' })).toBeVisible();
   await expect(header.getByRole('button', { name: /Wyloguj/ })).toBeVisible();
+  await page.getByRole('main').click({ position: { x: 12, y: 12 } });
+  await expect(header.getByRole('button', { name: /Wyloguj/ })).toBeHidden();
 });
 
-test('authenticated mobile header fits its controls into two rows without horizontal overflow', async ({ authenticatedPage: page }) => {
+test('authenticated mobile header fits its controls into two ordered rows without horizontal overflow', async ({ authenticatedPage: page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: 'Panel operacyjny' })).toBeVisible();
 
-  const headerMeasurements = await page.getByRole('banner').evaluate((header) => {
+  const header = page.getByRole('banner');
+  await expect(header.locator('[data-app-header-brand]')).toBeVisible();
+  await expect(header.locator('[data-app-header-theme-session]')).toBeVisible();
+  await expect(header.locator('[data-app-header-company]')).toBeVisible();
+  await expect(header.locator('[data-app-header-ksef]')).toBeVisible();
+
+  const headerMeasurements = await header.evaluate((headerElement) => {
     const elements = [
-      header.querySelector('[data-app-header-brand]'),
-      header.querySelector('[data-app-header-company]'),
-      header.querySelector('[data-app-header-ksef]'),
-      header.querySelector('[data-app-header-theme-session]'),
+      headerElement.querySelector('[data-app-header-brand]'),
+      headerElement.querySelector('[data-app-header-theme-session]'),
+      headerElement.querySelector('[data-app-header-company]'),
+      headerElement.querySelector('[data-app-header-ksef]'),
     ];
 
     return {
@@ -64,7 +75,10 @@ test('authenticated mobile header fits its controls into two rows without horizo
 
   expect(headerMeasurements.documentScrollWidth).toBeLessThanOrEqual(headerMeasurements.viewportWidth);
   expect(headerMeasurements.measuredElementCount).toBe(4);
-  expect(new Set(headerMeasurements.rowTops).size).toBeLessThanOrEqual(2);
+  expect(headerMeasurements.rowTops[0]).toBe(headerMeasurements.rowTops[1]);
+  expect(headerMeasurements.rowTops[1]).toBeLessThan(headerMeasurements.rowTops[2]);
+  expect(headerMeasurements.rowTops[2]).toBe(headerMeasurements.rowTops[3]);
+  expect(new Set(headerMeasurements.rowTops).size).toBe(2);
 });
 
 test('dashboard defaults to light theme and persists an explicit dark choice', async ({ authenticatedPage: page }) => {
@@ -239,7 +253,6 @@ test('shared controls and button variants meet contrast requirements in both the
   // actually wired rather than silently falling back to no background.
   const primaryButtonBackgroundImage = await page
     .getByRole('link', { name: 'Nowa faktura' })
-    .locator('button')
     .evaluate((element) => getComputedStyle(element).backgroundImage);
   expect(primaryButtonBackgroundImage).toContain('linear-gradient');
 });
@@ -285,6 +298,7 @@ test('visual: dashboard light mobile', async ({ authenticatedPage: page }, testI
 test('mobile dashboard content and actions clear navigation at initial and mid-scroll positions', async ({ authenticatedPage: page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: 'Panel operacyjny' })).toBeVisible();
 
   const layoutMeasurements = await page.evaluate(() => {
     document.documentElement.style.scrollBehavior = 'auto';
@@ -376,6 +390,7 @@ for (const viewport of [
       expect(themeBox?.width).toBeGreaterThanOrEqual(44);
       expect(themeBox?.height).toBeGreaterThanOrEqual(44);
 
+      await page.getByRole('banner').locator('details > summary').click();
       const logoutBox = await page.getByRole('button', { name: /Wyloguj/ }).boundingBox();
       expect(logoutBox?.width).toBeGreaterThanOrEqual(44);
       expect(logoutBox?.height).toBeGreaterThanOrEqual(44);

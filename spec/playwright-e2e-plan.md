@@ -1,8 +1,12 @@
 # Playwright E2E Testing Setup
 
+## Status
+
+The planned mock-backed E2E baseline is implemented. This file retains the original setup plan; the current runtime contract is the authoritative section below.
+
 ## Context
 
-The project is a pnpm monorepo with a Next.js 15 frontend (`apps/web`) and Fastify 5 backend (`apps/api`). Unit tests exist for the API (Vitest), but there is no frontend or e2e testing infrastructure. This plan introduces Playwright for end-to-end tests targeting the web app.
+The project is a pnpm monorepo with a Next.js 15 frontend (`apps/web`) and Fastify 5 backend (`apps/api`). API unit tests and a mock-backed Playwright suite exist; the E2E suite does not require a live API or database.
 
 ## Feasibility
 
@@ -27,15 +31,16 @@ Create a dedicated `apps/e2e/` package (not co-located with `apps/web`) to keep 
 ### 2. `playwright.config.ts` Configuration
 
 Key settings:
-- `baseURL`: `http://localhost:3000` (Next.js dev server)
-- `webServer`: auto-start Next.js (`pnpm dev`) before tests run — so `pnpm test:e2e` works locally with one command
-- Use `chromium` only in CI (faster); all browsers optionally for local runs
+- `baseURL`: `http://localhost:3200` (Next.js dev server)
+- `webServer`: auto-start the mock API on `3199` and Next.js dev server on `3200`; both `API_URL` and `NEXT_PUBLIC_API_URL` point to the mock API
+- Use the configured `chromium` project by default; `chromium-linux` is added only when `VISUAL_REGRESSION=true`
 - `testDir`: `./tests`
+- `workers`: `1` in local and CI runs because the mock API keeps mutable fixture maps in one process
 - Capture screenshots and traces on failure for debugging
 
 ### 3. Root `package.json` Script
 
-Add `"test:e2e": "pnpm --filter e2e test"` to root scripts for convenience.
+Add `"test:e2e": "pnpm --filter @ksiegowy/e2e test"` to root scripts for convenience.
 
 ### 4. Register Workspace in pnpm
 
@@ -45,8 +50,7 @@ Add `apps/e2e` to the `packages` list in `pnpm-workspace.yaml`.
 
 Add a new `test-e2e` job:
 - Depends on the `build` job
-- Spins up PostgreSQL 17 (reuse existing pattern from `test-integration`)
-- Starts the API server in the background
+- Uses the Playwright mock API and Next.js web server from `playwright.config.ts`; PostgreSQL is not required
 - Installs Playwright browsers: `npx playwright install --with-deps chromium`
 - Runs `pnpm test:e2e`
 - Uploads Playwright HTML report as a CI artifact on failure
@@ -84,7 +88,10 @@ Create `apps/e2e/tests/smoke.spec.ts` with a basic test verifying the app loads 
   create `KOR` draft from an accepted invoice, verify correction banner, issue the correction, and confirm the explicit `Wyślij korektę do KSeF` action.
 - The Playwright app server must expose both `API_URL` and `NEXT_PUBLIC_API_URL` to the mock API so server-side and browser-side requests hit the same test backend.
 - `apps/e2e/tests/navigation.spec.ts` scopes sidebar link interactions to the `Nawigacja dashboardu` landmark, while the desktop dashboard shell keeps the lower sidebar content scrollable so quick actions do not block clicks on shorter viewports.
+- `apps/e2e/tests/mobile-regression.spec.ts` covers 320, 360, 390, and 430px viewports in light and dark themes, including the five-slot reference mobile navigation with its centered 52px AI assistant placeholder, `Więcej` sheet, passive environment indicator, header controls, safe-area clearance, and mobile route flows.
 
 ## Safe demo screenshot runtime
 
 The Playwright mock API serves only synthetic data for screenshot work. It covers the populated dashboard, issued and draft outgoing invoices, invoice detail/edit, incoming OCR review, contractor list/detail, settings (including KSeF and backup), service catalogue, and the compliance report route. See [the screenshot index](../docs/screenshots/README.md) for the fixture policy and capture commands.
+
+Visual dashboard baselines use the pinned `mcr.microsoft.com/playwright:v1.59.1-noble` image with `VISUAL_REGRESSION=true` and the `chromium-linux` project. Update and verification commands are documented in [`apps/e2e/PLAYWRIGHT_TESTS_SPEC.md`](../apps/e2e/PLAYWRIGHT_TESTS_SPEC.md#visual-regression).

@@ -21,11 +21,7 @@ export default async function NewContractorPage() {
         <EmptyState
           title={t.contractors.noCompany}
           description=""
-          action={
-            <Link href="/dashboard/settings">
-              <Button>{t.settings.goToSettings}</Button>
-            </Link>
-          }
+          action={<Button href="/dashboard/settings">{t.settings.goToSettings}</Button>}
         />
       </div>
     );
@@ -34,8 +30,8 @@ export default async function NewContractorPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 text-sm text-muted">
-        <Link href="/dashboard/contractors" className="transition hover:text-foreground">
-          {t.contractors.breadcrumb}
+        <Link href="/dashboard/contractors" className="inline-flex min-h-11 items-center transition hover:text-foreground">
+          ← {t.contractors.breadcrumb}
         </Link>
         <span>/</span>
         <span className="text-foreground">{t.contractors.newPageTitle}</span>

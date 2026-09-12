@@ -3,6 +3,7 @@ import type { CompanyKsefEnvironment, InvoiceStatus, IncomingInvoiceStatus, Ksef
 
 const invoiceStatusMap: Record<InvoiceStatus, { label: string; tone: 'draft' | 'primary' | 'success' | 'warning' | 'danger' }> = {
   DRAFT: { label: 'Szkic', tone: 'draft' },
+  ISSUING: { label: 'Wystawianie', tone: 'warning' },
   ISSUED: { label: 'Wystawiona', tone: 'primary' },
   CANCELLED: { label: 'Anulowana', tone: 'draft' },
 };
@@ -24,9 +25,9 @@ const incomingStatusMap: Record<IncomingInvoiceStatus, { label: string; tone: 'd
   KSEF_SYNCED: { label: 'Z KSeF', tone: 'primary' },
 };
 
-const environmentToneMap: Record<CompanyKsefEnvironment, 'success' | 'warning'> = {
-  TEST: 'success',
-  PRODUCTION: 'warning',
+const environmentToneMap: Record<CompanyKsefEnvironment, 'warning' | 'danger'> = {
+  TEST: 'warning',
+  PRODUCTION: 'danger',
 };
 
 export function InvoiceStatusChip({ status }: { status: InvoiceStatus }) {
@@ -45,5 +46,5 @@ export function IncomingStatusChip({ status }: { status: IncomingInvoiceStatus }
 }
 
 export function InvoiceEnvironmentChip({ environment }: { environment: CompanyKsefEnvironment }) {
-  return <Badge tone={environmentToneMap[environment]}>{environment}</Badge>;
+  return <Badge tone={environmentToneMap[environment]}>{environment === 'PRODUCTION' ? 'PRODUKCJA' : 'TEST'}</Badge>;
 }
