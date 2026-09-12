@@ -353,6 +353,58 @@ function serializeInvoiceSummary(invoice) {
   };
 }
 
+function createDashboardSummary() {
+  const outgoingInvoices = Array.from(invoices.values()).sort((firstInvoice, secondInvoice) =>
+    String(secondInvoice.createdAt).localeCompare(String(firstInvoice.createdAt)));
+  const issuedInvoices = outgoingInvoices.filter((invoice) => invoice.status === 'ISSUED');
+  const ksefCounts = {
+    accepted: issuedInvoices.filter((invoice) => invoice.ksefStatus === 'accepted').length,
+    pending: issuedInvoices.filter((invoice) => invoice.ksefStatus === 'pending').length,
+    rejected: issuedInvoices.filter((invoice) => invoice.ksefStatus === 'rejected').length,
+    notSubmitted: issuedInvoices.filter((invoice) => invoice.ksefStatus === 'not_submitted').length,
+  };
+  const monthBuckets = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(Date.UTC(DEMO_NOW.getUTCFullYear(), DEMO_NOW.getUTCMonth() - (5 - index), 1));
+    return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, gross: 0, vat: 0, invoiceCount: 0 };
+  });
+
+  for (const invoice of issuedInvoices.filter((item) => item.ksefStatus === 'accepted')) {
+    const date = new Date(invoice.issueDate);
+    const bucket = monthBuckets.find((item) => item.year === date.getUTCFullYear() && item.month === date.getUTCMonth() + 1);
+    if (!bucket) continue;
+    bucket.gross += Number(invoice.totalGross);
+    bucket.vat += Number(invoice.totalVat);
+    bucket.invoiceCount += 1;
+  }
+
+  const currentMonth = monthBuckets[monthBuckets.length - 1];
+  const incomingNeedsAction = Array.from(incomingInvoices.values()).filter((invoice) =>
+    ['UPLOADED', 'OCR_PROCESSING', 'OCR_DONE', 'OCR_FAILED'].includes(invoice.status)).length;
+
+  return {
+    environment: 'TEST',
+    totalInvoices: outgoingInvoices.length,
+    contractorCount: TEST_CONTRACTORS.length,
+    ksefCounts,
+    salesByMonth: monthBuckets.map((bucket) => ({
+      ...bucket,
+      gross: bucket.gross.toFixed(2),
+      vat: bucket.vat.toFixed(2),
+    })),
+    currentMonth: {
+      gross: currentMonth.gross.toFixed(2),
+      vat: currentMonth.vat.toFixed(2),
+      invoiceCount: currentMonth.invoiceCount,
+    },
+    attention: {
+      rejected: ksefCounts.rejected,
+      notSubmitted: ksefCounts.notSubmitted,
+      incoming: incomingNeedsAction,
+    },
+    recentInvoices: outgoingInvoices.slice(0, 6).map(serializeInvoiceSummary),
+  };
+}
+
 function serviceRateListForContractor(contractorId) {
   return TEST_CONTRACTOR_SERVICE_RATES.filter((rate) => rate.contractorId === contractorId);
 }
@@ -814,6 +866,11 @@ const server = http.createServer((req, res) => {
       .catch(() => respond(req, res, 400, { error: 'Invalid JSON body' }));
   }
 
+  if (/^\/companies\/[^/]+\/dashboard-summary$/.test(url) && method === 'GET') {
+    if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
+    return respond(req, res, 200, createDashboardSummary());
+  }
+
   if (/^\/companies\/[^/]+\/invoices$/.test(url) && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
     const searchParameters = new URLSearchParams(rawUrl.split('?')[1] ?? '');
@@ -822,8 +879,10 @@ const server = http.createServer((req, res) => {
     const requestedLimit = Number(searchParameters.get('limit'));
     const limit = Number.isInteger(requestedLimit) && requestedLimit > 0 ? requestedLimit : 20;
     const status = searchParameters.get('status');
+    const ksefStatus = searchParameters.get('ksefStatus');
     const filteredInvoices = Array.from(invoices.values())
       .filter((invoice) => !status || invoice.status === status)
+      .filter((invoice) => !ksefStatus || invoice.ksefStatus === ksefStatus)
       .sort((firstInvoice, secondInvoice) => String(secondInvoice.createdAt).localeCompare(String(firstInvoice.createdAt)));
     const startIndex = (page - 1) * limit;
     return respond(req, res, 200, {

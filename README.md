@@ -15,6 +15,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | [Infrastructure](docs/infrastructure.md) | Docker setup, CI/CD pipelines, environment variables, data persistence, and deployment checklist |
 | [Google Drive Backup Setup](docs/google-drive-backup-setup.md) | How to create Google OAuth credentials for Google Drive backup |
 | [Data Model](docs/data-model.md) | Database schema, entity relationship diagram, enumerations, and design notes |
+| [Dashboard Summary](docs/specs/dashboard-summary.md) | Environment-aware dashboard read model, aggregation semantics, and verification |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |

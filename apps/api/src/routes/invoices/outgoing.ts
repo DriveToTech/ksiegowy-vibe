@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { Resend } from 'resend';
-import type { KsefEnvironment } from '@prisma/client';
+import type { InvoiceKsefStatus, KsefEnvironment, Prisma } from '@prisma/client';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
 import { resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
 import {
@@ -200,6 +200,10 @@ const listQuerySchema = {
       type: 'string',
       enum: ['DRAFT', 'ISSUED', 'CANCELLED']
     },
+    ksefStatus: {
+      type: 'string',
+      enum: ['not_submitted', 'pending', 'accepted', 'rejected']
+    },
     page: { type: 'integer', minimum: 1, default: 1 },
     limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 }
   }
@@ -314,6 +318,7 @@ type DatabaseInvoiceCorrectionMode = 'CANCELLATION' | 'FORMAL';
 
 interface ListQuerystring {
   status?: 'DRAFT' | 'ISSUED' | 'CANCELLED';
+  ksefStatus?: 'not_submitted' | 'pending' | 'accepted' | 'rejected';
   page?: number;
   limit?: number;
 }
@@ -343,6 +348,36 @@ const toKsefStatusApi = (dbStatus: string): 'not_submitted' | 'pending' | 'accep
   if (dbStatus === 'REJECTED') return 'rejected';
   if (dbStatus === 'SUBMITTED' || dbStatus === 'QUEUED' || dbStatus === 'OFFLINE_QUEUED') return 'pending';
   return 'not_submitted';
+};
+
+const buildKsefStatusWhere = (
+  environment: KsefEnvironment,
+  status: ListQuerystring['ksefStatus'],
+): Prisma.InvoiceWhereInput => {
+  if (!status) return {};
+  if (status === 'not_submitted') {
+    return {
+      OR: [
+        { ksefStates: { none: { environment } } },
+        { ksefStates: { some: { environment, status: 'NOT_SENT' as const } } },
+      ],
+    };
+  }
+
+  const databaseStatuses: Record<Exclude<NonNullable<ListQuerystring['ksefStatus']>, 'not_submitted'>, InvoiceKsefStatus[]> = {
+    pending: ['SUBMITTED', 'QUEUED', 'OFFLINE_QUEUED'],
+    accepted: ['ACCEPTED'],
+    rejected: ['REJECTED'],
+  } as const;
+
+  return {
+    ksefStates: {
+      some: {
+        environment,
+        status: { in: databaseStatuses[status] },
+      },
+    },
+  };
 };
 
 const assertCompanyAccess = (
@@ -643,15 +678,16 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
     async (request) => {
       const user = request.user as AccessTokenPayload;
       const { companyId } = request.params;
-      const { status, page = 1, limit = 20 } = request.query;
+      const { status, ksefStatus, page = 1, limit = 20 } = request.query;
 
       assertCompanyAccess(user, companyId, fastify);
       const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
 
-      const where = {
+      const where: Prisma.InvoiceWhereInput = {
         companyId,
         environment: selectedEnvironment,
-        ...(status ? { status } : {})
+        ...(status ? { status } : {}),
+        ...buildKsefStatusWhere(selectedEnvironment, ksefStatus),
       };
 
       const [total, invoices] = await Promise.all([
