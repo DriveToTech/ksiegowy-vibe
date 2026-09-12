@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { getContractors, getIncomingInvoices, getInvoices } from '../../lib/api';
+import { getDashboardSummary } from '../../lib/api';
 import { Button } from '../../components/atoms/Button';
 import { EmptyState } from '../../components/molecules/EmptyState';
 import { PageHeader } from '../../components/molecules/PageHeader';
@@ -8,8 +8,6 @@ import { InvoicesTable } from '../../components/organisms/InvoicesTable';
 import { t } from '../../lib/translations';
 import { formatMoney } from '../../lib/format';
 import { requireAuthSession } from '../../lib/auth';
-
-const INCOMING_NEEDS_ACTION_STATUSES = new Set(['UPLOADED', 'OCR_PROCESSING', 'OCR_DONE', 'OCR_FAILED']);
 
 const kpiCells = [
   { key: 'accepted' as const, dot: 'bg-success-ink', labelKey: 'accepted', hintKey: 'acceptedHint' },
@@ -26,56 +24,27 @@ export default async function DashboardPage() {
     redirect('/onboarding');
   }
 
-  const [invoicesResult, incomingResult, contractorCount] = await Promise.all([
-    getInvoices(companyId, { limit: '100' }),
-    getIncomingInvoices(companyId, { limit: '100' }).catch(() => ({ data: [], total: 0, page: 1, limit: 100 })),
-    getContractors(companyId).then((list) => list.length).catch(() => 0),
-  ]);
-  const invoices = invoicesResult.data;
-
+  const summary = await getDashboardSummary(companyId);
   const now = new Date();
+  const kpiCounts = { ...summary.ksefCounts, inClearance: summary.ksefCounts.pending };
+  const monthBuckets = summary.salesByMonth.map((bucket) => ({
+    ...bucket,
+    label: new Date(Date.UTC(bucket.year, bucket.month - 1, 1))
+      .toLocaleDateString('pl-PL', { month: 'short', timeZone: 'UTC' })
+      .replace('.', '')
+      .toUpperCase(),
+  }));
+  const maxGross = Math.max(1, ...monthBuckets.map((bucket) => Number(bucket.gross)));
 
-  const kpiCounts = {
-    accepted: invoices.filter((invoice) => invoice.ksefStatus === 'accepted').length,
-    inClearance: invoices.filter((invoice) => invoice.ksefStatus === 'pending').length,
-    rejected: invoices.filter((invoice) => invoice.ksefStatus === 'rejected').length,
-    notSubmitted: invoices.filter((invoice) => invoice.status === 'ISSUED' && invoice.ksefStatus === 'not_submitted').length,
-  };
-
-  const monthBuckets = Array.from({ length: 6 }, (_, index) => {
-    const bucketDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (5 - index), 1));
-    return {
-      year: bucketDate.getUTCFullYear(),
-      month: bucketDate.getUTCMonth(),
-      label: bucketDate.toLocaleDateString('pl-PL', { month: 'short', timeZone: 'UTC' }).replace('.', '').toUpperCase(),
-      gross: 0,
-    };
-  });
-  for (const invoice of invoices) {
-    const issueDate = new Date(invoice.issueDate);
-    const bucket = monthBuckets.find((b) => b.year === issueDate.getUTCFullYear() && b.month === issueDate.getUTCMonth());
-    if (bucket) bucket.gross += parseFloat(invoice.totalGross) || 0;
+  const alerts: Array<{ tone: 'error' | 'warning' | 'primary'; title: string; meta: string; href: string }> = [];
+  if (summary.attention.rejected > 0) {
+    alerts.push({ tone: 'error', title: t.dashboard.needsAttention.rejected(summary.attention.rejected), meta: t.dashboard.needsAttention.rejectedMeta, href: '/dashboard/invoices?ksefStatus=rejected' });
   }
-  const maxGross = Math.max(1, ...monthBuckets.map((bucket) => bucket.gross));
-
-  const currentMonthInvoices = invoices.filter((invoice) => {
-    const issueDate = new Date(invoice.issueDate);
-    return issueDate.getUTCFullYear() === now.getUTCFullYear() && issueDate.getUTCMonth() === now.getUTCMonth();
-  });
-  const monthGross = currentMonthInvoices.reduce((sum, invoice) => sum + (parseFloat(invoice.totalGross) || 0), 0);
-  const monthVat = currentMonthInvoices.reduce((sum, invoice) => sum + (parseFloat(invoice.totalVat) || 0), 0);
-
-  const incomingNeedsAction = incomingResult.data.filter((invoice) => INCOMING_NEEDS_ACTION_STATUSES.has(invoice.status)).length;
-
-  const alerts: Array<{ tone: 'error' | 'warning' | 'primary'; title: string; meta: string }> = [];
-  if (kpiCounts.rejected > 0) {
-    alerts.push({ tone: 'error', title: t.dashboard.needsAttention.rejected(kpiCounts.rejected), meta: t.dashboard.needsAttention.rejectedMeta });
+  if (summary.attention.notSubmitted > 0) {
+    alerts.push({ tone: 'warning', title: t.dashboard.needsAttention.notSubmitted(summary.attention.notSubmitted), meta: t.dashboard.needsAttention.notSubmittedMeta, href: '/dashboard/invoices?ksefStatus=not_submitted' });
   }
-  if (kpiCounts.notSubmitted > 0) {
-    alerts.push({ tone: 'warning', title: t.dashboard.needsAttention.notSubmitted(kpiCounts.notSubmitted), meta: t.dashboard.needsAttention.notSubmittedMeta });
-  }
-  if (incomingNeedsAction > 0) {
-    alerts.push({ tone: 'primary', title: t.dashboard.needsAttention.incoming(incomingNeedsAction), meta: t.dashboard.needsAttention.incomingMeta });
+  if (summary.attention.incoming > 0) {
+    alerts.push({ tone: 'primary', title: t.dashboard.needsAttention.incoming(summary.attention.incoming), meta: t.dashboard.needsAttention.incomingMeta, href: '/dashboard/incoming' });
   }
 
   const toneBorderClass: Record<(typeof alerts)[number]['tone'], string> = {
@@ -84,7 +53,7 @@ export default async function DashboardPage() {
     primary: 'border-primary',
   };
 
-  const recent = invoices.slice(0, 6);
+  const recent = summary.recentInvoices;
 
   return (
     <div className="space-y-6">
@@ -141,7 +110,7 @@ export default async function DashboardPage() {
                 <div key={`${bucket.year}-${bucket.month}`} className="flex flex-1 flex-col items-center gap-2">
                   <div
                     className={`w-full rounded-t-[7px] rounded-b-[2px] ${isCurrent ? 'bg-[image:var(--brand-gradient)]' : 'bg-foreground/10'}`}
-                    style={{ height: `${Math.max(4, (bucket.gross / maxGross) * 130)}px` }}
+                    style={{ height: `${Math.max(4, (Number(bucket.gross) / maxGross) * 130)}px` }}
                   />
                   <span className={`font-mono text-[10px] ${isCurrent ? 'text-foreground' : 'text-muted'}`}>{bucket.label}</span>
                 </div>
@@ -149,9 +118,9 @@ export default async function DashboardPage() {
             })}
           </div>
           <div className="flex gap-6 border-t border-outline pt-3">
-            <ChartStat label={t.dashboard.chart.monthGross} value={formatMoney(monthGross)} />
-            <ChartStat label={t.dashboard.chart.vatPayable} value={formatMoney(monthVat)} />
-            <ChartStat label={t.dashboard.metrics.invoicesThisMonthLabel} value={String(currentMonthInvoices.length)} />
+            <ChartStat label={t.dashboard.chart.monthGross} value={formatMoney(summary.currentMonth.gross)} />
+            <ChartStat label={t.dashboard.chart.vatPayable} value={formatMoney(summary.currentMonth.vat)} />
+            <ChartStat label={t.dashboard.metrics.invoicesThisMonthLabel} value={String(summary.currentMonth.invoiceCount)} />
           </div>
         </div>
 
@@ -162,10 +131,10 @@ export default async function DashboardPage() {
           ) : (
             <div className="flex flex-col gap-2">
               {alerts.map((alert) => (
-                <div key={alert.title} className={`rounded-inset border-l-[3px] bg-surface-raised px-3.5 py-3 ${toneBorderClass[alert.tone]}`}>
+                <Link key={alert.title} href={alert.href} className={`rounded-inset border-l-[3px] bg-surface-raised px-3.5 py-3 transition hover:bg-surface-row-hover ${toneBorderClass[alert.tone]}`}>
                   <p className="text-sm font-medium text-foreground">{alert.title}</p>
                   <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-muted">{alert.meta}</p>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -177,9 +146,9 @@ export default async function DashboardPage() {
         {recent.length === 0 ? (
           <EmptyState
             title={t.dashboard.emptyInvoicesTitle}
-            description={contractorCount > 0 ? t.dashboard.emptyInvoicesDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
+            description={summary.contractorCount > 0 ? t.dashboard.emptyInvoicesDescription : t.outgoingInvoices.emptyState.withoutContractorsDescription}
             action={
-              contractorCount === 0 ? (
+              summary.contractorCount === 0 ? (
                 <Link href="/dashboard/contractors">
                   <Button variant="secondary">{t.dashboard.addContractor}</Button>
                 </Link>
@@ -192,9 +161,9 @@ export default async function DashboardPage() {
             showNet={false}
             compact
             header={
-              invoicesResult.total > recent.length ? (
+              summary.totalInvoices > recent.length ? (
                 <Link href="/dashboard/invoices" className="ml-auto text-xs font-semibold text-primary transition hover:text-primary-strong">
-                  {t.dashboard.recentDocuments.seeAll(invoicesResult.total)}
+                  {t.dashboard.recentDocuments.seeAll(summary.totalInvoices)}
                 </Link>
               ) : undefined
             }

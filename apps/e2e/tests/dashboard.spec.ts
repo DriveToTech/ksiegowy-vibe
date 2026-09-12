@@ -27,6 +27,14 @@ test('dashboard loads with the KSeF clearance KPI grid', async ({ authenticatedP
   await expect(page.getByText('Nie wysłane')).toBeVisible();
 });
 
+test('dashboard renders summary-backed attention links', async ({ authenticatedPage: page }) => {
+  await page.goto('/dashboard');
+
+  await expect(page.getByRole('link', { name: /faktura odrzucona przez KSeF/ })).toHaveAttribute('href', '/dashboard/invoices?ksefStatus=rejected');
+  await expect(page.getByRole('link', { name: /faktura oczekuje na wysłanie do KSeF/ })).toHaveAttribute('href', '/dashboard/invoices?ksefStatus=not_submitted');
+  await expect(page.getByRole('link', { name: /przychodzących do zaksięgowania/ })).toHaveAttribute('href', '/dashboard/incoming');
+});
+
 test('authenticated header exposes company, KSeF, theme, and session controls in order', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard');
 
