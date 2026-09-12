@@ -42,8 +42,8 @@ export const mobileInteractionTokens: MobileInteractionTokens = {
   compactControlHeight: 44,
   interactiveGap: 8,
   fieldFontSize: 16,
-  bottomNavigationHeight: 64,
-  bottomNavigationItems: 4,
+  bottomNavigationHeight: 90,
+  bottomNavigationItems: 5,
 };
 
 export const ksefEnvironmentPresentation = {
@@ -81,7 +81,7 @@ Security behavior:
 
 ### Mobile bottom navigation
 
-Render five equal-width icon-only slots:
+Render a 90px mobile navigation bar with 18px horizontal padding and five slots:
 
 ```ts
 export const mobileNavigation = [
@@ -99,9 +99,9 @@ export const mobileMoreDestinations = [
 ] as const;
 ```
 
-The center slot is a disabled, icon-only placeholder for the planned AI tax assistant. The fifth slot is the `Więcej` button, not a route. It opens a bottom sheet containing contractors, reports, and settings. The sheet uses dialog semantics, has an accessible name, traps focus while open, closes with Escape and backdrop activation, and restores focus to `Więcej`. Each slot is at least 44px high, and visible labels are omitted from the bottom bar while accessible labels remain available to assistive technology. The active state must also be conveyed with `aria-current="page"`, not color alone.
+The first two slots are `Start` and `Zakupy`, the center slot is a disabled 52px AI tax assistant control with a 16px radius, the fourth slot is `Sprzedaż`, and the fifth is `Więcej`. The four route/action slots use centered 11.5px labels; the active label uses the primary-strong color. The `Więcej` button opens a bottom sheet containing contractors, reports, and settings. The sheet uses dialog semantics, has an accessible name, traps focus while open, closes with Escape and backdrop activation, and restores focus to `Więcej`. Each interactive slot is at least 44px high, and the active route is also conveyed with `aria-current="page"`.
 
-The navigation region reserves `64px + env(safe-area-inset-bottom)`. Main content receives matching bottom padding so no control can be covered.
+The navigation region reserves `90px + env(safe-area-inset-bottom)`. Main content receives matching bottom padding so no control can be covered.
 
 ## 3. Shared control contract
 
@@ -221,7 +221,7 @@ export const mobileVerification = {
 
 Required automated coverage:
 
-1. Five icon-only bottom-navigation items fit on one row at every target width.
+1. Five bottom-navigation slots fit on one row at every target width, with the 52px AI control centered.
 2. `Więcej` opens and closes accessibly and restores focus.
 3. The shell exposes the active KSeF environment without offering an accidental context switch.
 4. Environment changes remain owned by the dedicated settings/context flow.
@@ -231,7 +231,7 @@ Required automated coverage:
 
 ## 7. Implementation order
 
-1. **Safety and shell:** passive environment indicator, canonical environment tones, five-slot icon-only navigation.
+1. **Safety and shell:** passive environment indicator, canonical environment tones, five-slot reference navigation.
 2. **Shared controls:** 44px targets, 16px mobile fields, invalid/loading contracts, nested-interactive cleanup.
 3. **Mobile workspaces:** contractors and service catalogue, then invoice forms and incoming review.
 4. **State integrity:** separate loading, empty, filtered-empty, and error rendering.

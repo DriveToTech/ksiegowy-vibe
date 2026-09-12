@@ -49,19 +49,21 @@ export function DashboardNavigation({ items, mobile = false, moreItems = [] }: D
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               mobile
-                ? 'min-h-11 min-w-0 rounded-inset px-1 py-3 text-center text-[10px] font-medium leading-tight transition'
+                ? 'min-h-11 min-w-0 flex-1 whitespace-nowrap px-0 py-2.5 text-center text-[11.5px] font-medium leading-none transition'
                 : 'min-h-11 rounded-control border border-transparent px-4 py-2 text-sm font-medium transition',
               isActive
-                ? 'bg-[image:var(--nav-active)] border-[var(--nav-active-border)] text-foreground'
+                ? mobile
+                  ? 'text-primary-strong'
+                  : 'bg-[image:var(--nav-active)] border-[var(--nav-active-border)] text-foreground'
                 : mobile
-                  ? 'bg-surface-raised text-muted hover:text-foreground-secondary'
+                  ? 'text-muted hover:text-foreground-secondary'
                   : 'text-muted hover:bg-foreground/5 hover:text-foreground-secondary',
             )}
           >
             <span className={cn('flex min-w-0 items-center gap-3', mobile ? 'flex-col justify-center gap-1' : 'justify-between')}>
               <span className="flex min-w-0 items-center gap-3">
-                <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
-                <span className={mobile ? 'sr-only' : 'truncate'}>{mobile ? item.mobileLabel ?? item.label : item.label}</span>
+                {!mobile ? <AppIcon name={item.icon} className="h-4 w-4 shrink-0" /> : null}
+                <span className={mobile ? undefined : 'truncate'}>{mobile ? item.mobileLabel ?? item.label : item.label}</span>
               </span>
               {!mobile && item.badge ? (
                 <span className={cn('font-mono text-[11px]', item.badgeTone === 'warning' ? 'text-warning-ink' : 'text-muted')}>
@@ -82,16 +84,13 @@ export function DashboardNavigation({ items, mobile = false, moreItems = [] }: D
             aria-current={isMoreActive ? 'page' : undefined}
             onClick={() => setIsMoreOpen(true)}
             className={cn(
-              'min-h-11 min-w-0 rounded-inset px-1 py-3 text-center text-[10px] font-medium leading-tight transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+              'min-h-11 min-w-0 flex-1 whitespace-nowrap px-0 py-2.5 text-center text-[11.5px] font-medium leading-none transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
               isMoreActive
-                ? 'border border-[var(--nav-active-border)] bg-[image:var(--nav-active)] text-foreground'
-                : 'bg-surface-raised text-muted hover:text-foreground-secondary',
+                ? 'text-primary-strong'
+                : 'text-muted hover:text-foreground-secondary',
             )}
           >
-            <span className="flex min-w-0 flex-col items-center justify-center gap-1">
-              <AppIcon name="more" className="h-4 w-4 shrink-0" />
-              <span className="sr-only">{t.nav.more}</span>
-            </span>
+            {t.nav.more}
           </button>
 
           <NativeDialog
