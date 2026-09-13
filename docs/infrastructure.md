@@ -225,6 +225,16 @@ Stage 3 — runner
 
 The standalone output strips unused Node.js modules — the final image is minimal (~150 MB).
 
+### CI container-build validation
+
+The `container-build` job in `.github/workflows/ci.yml` builds every Dockerfile owned by the repository on pushes and pull requests without publishing images:
+
+- `apps/api/Dockerfile`
+- `apps/web/Dockerfile`
+- `ops/backup/Dockerfile`
+
+The job uses Docker Buildx and a matrix so one failing image is reported independently. PostgreSQL and Adminer are upstream Compose images and are not rebuilt by this job.
+
 ---
 
 ## Local Private Registry Image Publishing
