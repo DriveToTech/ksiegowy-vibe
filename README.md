@@ -545,12 +545,14 @@ pnpm dev           # Start API + web in parallel
 pnpm build         # Build all packages and apps
 pnpm test          # Run all tests
 pnpm lint          # Lint all packages
-pnpm typecheck     # Type check all packages
+pnpm typecheck     # Type check web and build backend TypeScript references
 
 pnpm db:migrate    # Create a new Prisma migration
 pnpm db:studio     # Open Prisma Studio (DB GUI)
 pnpm db:seed       # Seed initial data
 ```
+
+The GitHub Actions `container-build` job builds every repository-owned Docker image (`api`, `web`, and `backup`) on pushes and pull requests without publishing them. This catches Dockerfile, workspace dependency, and production build failures before deployment.
 
 ## KSeF Correction Flow
 
