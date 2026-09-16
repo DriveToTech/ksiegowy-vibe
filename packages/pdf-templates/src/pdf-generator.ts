@@ -29,7 +29,8 @@ export const generateInvoicePdf = async (invoice: InvoiceData): Promise<Buffer> 
     const page = await browser.newPage();
 
     // Set content and wait for fonts to load
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 30_000 });
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
