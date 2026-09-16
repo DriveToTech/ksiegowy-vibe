@@ -1,9 +1,12 @@
+import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { recognize } from 'node-tesseract-ocr';
+import { promisify } from 'node:util';
 import { PDFParse } from 'pdf-parse';
+
+const executeFile = promisify(execFile);
 
 const MIN_NATIVE_TEXT_LENGTH = 100;
 const MIN_TESSERACT_TEXT_LENGTH = 150;
@@ -30,12 +33,11 @@ export async function extractTextWithTesseract(imageBuffers: Buffer[]): Promise<
     try {
       await fs.writeFile(tempFilePath, imageBuffer);
 
-      const tsvOutput = await recognize(tempFilePath, {
-        lang: 'pol',
-        oem: 1,
-        psm: 6,
-        presets: ['tsv'],
-      });
+      const { stdout: tsvOutput } = await executeFile(
+        'tesseract',
+        [tempFilePath, 'stdout', '-l', 'pol', '--oem', '1', '--psm', '6', 'tsv'],
+        { encoding: 'utf8', maxBuffer: 2 * 1024 * 1024, timeout: 30_000 },
+      );
 
       const lines = tsvOutput.split('\n');
       const header = lines[0];

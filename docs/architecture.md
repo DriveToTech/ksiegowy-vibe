@@ -43,8 +43,8 @@ C4Container
   Person(user, "User", "Browser")
 
   System_Boundary(ksiegowy, "ksiegowy-vibe") {
-    Container(web, "Web", "Next.js 15 / React 19", "Server-side rendered frontend. App Router with React Server Components. Port 3000.")
-    Container(api, "API", "Fastify 5 / TypeScript / Node.js 22", "REST API. Handles business logic, auth, KSeF integration, OCR, PDF/XML generation. Port 3001.")
+    Container(web, "Web", "Next.js 16 / React 19", "Server-side rendered frontend. App Router with React Server Components. Port 3000.")
+    Container(api, "API", "Fastify 5 / TypeScript / Node.js 24", "REST API. Handles business logic, auth, KSeF integration, OCR, PDF/XML generation. Port 3001.")
     ContainerDb(db, "Database", "PostgreSQL 17", "Stores all application data: companies, invoices, contractors, KSeF audit trails, backup records.")
     ContainerDb(storage, "File Storage", "Local filesystem (./storage)", "Stores uploaded PDFs/images, generated FA(3) XML files, and invoice PDFs.")
   }

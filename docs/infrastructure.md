@@ -180,7 +180,7 @@ Multi-stage build. Includes system-level OCR and image processing dependencies.
 
 ```
 Stage 1 — deps
-  Base: node:22-bookworm-slim
+  Base: node:24-trixie-slim
   Installs: GraphicsMagick, Tesseract OCR (Polish pack), libxml2-utils
   Installs: pnpm, Node.js workspace dependencies
 
@@ -189,9 +189,10 @@ Stage 2 — builder
   Runs: pnpm build (tsc + swc transpilation for all packages and API)
 
 Stage 3 — runner
-  Base: node:22-bookworm-slim
-  Copies: built artefacts, Prisma client, node_modules
+  Base: node:24-trixie-slim
+  Copies: built artefacts, Prisma client, production node_modules
   Installs: Chromium (for Puppeteer PDF generation)
+  Runs as: node (UID 1000)
   Cmd: node apps/api/dist/main.js
 ```
 
@@ -210,7 +211,7 @@ Multi-stage build using Next.js standalone output mode.
 
 ```
 Stage 1 — deps
-  Base: node:22-alpine
+  Base: node:24-alpine
   Installs: pnpm, workspace dependencies
 
 Stage 2 — builder
@@ -218,12 +219,34 @@ Stage 2 — builder
   Runs: next build (produces standalone output)
 
 Stage 3 — runner
-  Base: node:22-alpine
+  Base: node:24-alpine
   Copies: .next/standalone, .next/static, public/
+  Runs as: node (UID 1000)
   Cmd: node server.js
 ```
 
 The standalone output strips unused Node.js modules — the final image is minimal (~150 MB).
+The runtime stage also removes npm and npx because deployment starts the
+standalone server directly.
+
+### Vulnerability verification
+
+```mermaid
+flowchart LR
+  lockfile[pnpm lockfile] --> dependencies[Dependency install]
+  dependencies --> build[Production build]
+  build --> apiImage[API runtime image]
+  build --> webImage[Web runtime image]
+  apiImage --> trivy[Trivy HIGH/CRITICAL scan]
+  webImage --> trivy
+  trivy --> release[Release decision]
+```
+
+Run `pnpm audit --audit-level=high` before building. Scan both final images
+with Trivy after every dependency or base-image change. Findings from build
+stages are excluded from the production images; runtime OCR, XML validation,
+image conversion, and Chromium dependencies remain because the application
+uses them in production.
 
 ### CI container-build validation
 
@@ -544,6 +567,7 @@ This slice keeps backup scheduling flows separate intentionally:
 - [ ] Run `prisma migrate deploy` after every release
 - [ ] Keep the [Production Migration Recovery](./production-migration-recovery.md) procedure available to the release operator; never use `migrate reset` or in-place database cleanup in production
 - [ ] Mount `./storage` on durable storage (not ephemeral container filesystem)
+- [ ] Ensure the mounted API storage directory is writable by UID 1000 (`node`)
 - [ ] Confirm backup credentials are configured (Google Drive or iCloud)
 - [ ] Configure PostgreSQL backup env vars (`DB_BACKUP_*`) for local-only mode or remote mode
 - [ ] If remote mode is enabled, configure at least one rclone remote and set `DB_BACKUP_RCLONE_CONFIG_PATH`

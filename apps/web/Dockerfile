@@ -2,7 +2,9 @@
 #   docker build -f apps/web/Dockerfile .
 
 # ─── Stage 1: deps ───────────────────────────────────────────────────────────
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
+
+RUN apk upgrade --no-cache
 
 RUN corepack enable
 
@@ -33,7 +35,10 @@ RUN pnpm run build
 
 
 # ─── Stage 3: runner ─────────────────────────────────────────────────────────
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
+
+RUN apk upgrade --no-cache
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 ENV NODE_ENV=production
 
@@ -48,5 +53,7 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+
+USER node
 
 CMD ["node", "apps/web/server.js"]

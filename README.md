@@ -40,8 +40,8 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 
 | Layer | Technology |
 |-------|-----------|
-| API | Fastify 5 + TypeScript (Node.js 22 LTS) |
-| Frontend | Next.js 15 + React 19 (App Router) |
+| API | Fastify 5 + TypeScript (Node.js 24 LTS) |
+| Frontend | Next.js 16 + React 19 (App Router) |
 | Database | PostgreSQL 17 + Prisma 6 |
 | File Storage | Local filesystem (`./storage/`) |
 | Auth | Google OAuth2 + JWT |
@@ -76,7 +76,7 @@ ksiegowy-vibe/
 ├── ops/backup/           # PostgreSQL one-shot backup container + script
 ├── storage/              # Local file storage (gitignored)
 ├── backups/              # Local PostgreSQL backup artifacts (gitignored)
-├── apps/api/Dockerfile   # API container (Node 22, GraphicsMagick, Tesseract)
+├── apps/api/Dockerfile   # API container (Node 24, GraphicsMagick, Tesseract)
 ├── apps/web/Dockerfile   # Web container (Next.js standalone)
 ├── docker-compose.yml    # Full stack: API + Web + PostgreSQL 17 + Adminer
 ├── .dockerignore
@@ -109,7 +109,7 @@ Progress is not stored separately — the wizard resumes by deriving the first i
 ## Prerequisites
 
 ### Local development (pnpm)
-- Node.js 22 LTS
+- Node.js 24 LTS
 - pnpm
 - Docker (for PostgreSQL)
 - GraphicsMagick (`brew install graphicsmagick` / `apt-get install graphicsmagick`)
@@ -119,6 +119,24 @@ Progress is not stored separately — the wizard resumes by deriving the first i
 ### Fully containerised
 - Docker + Docker Compose
 - Google OAuth2 credentials
+
+## Security verification
+
+Dependency policy checks and production image checks use the same lockfile and
+runtime build inputs as deployment:
+
+```bash
+pnpm audit --audit-level=high
+docker build -t ksiegowy-vibepl-api:security -f apps/api/Dockerfile .
+docker build -t ksiegowy-vibepl-web:security -f apps/web/Dockerfile .
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  -v trivy-cache:/root/.cache aquasec/trivy:0.74.0 image \
+  --scanners vuln --severity HIGH,CRITICAL ksiegowy-vibepl-api:security
+```
+
+The final images contain production dependencies only. The API image uses
+Node.js 24 on Debian Trixie, while the web image uses Node.js 24 on Alpine;
+both runtime layers upgrade the base distribution packages during the build.
 
 ## Getting Started
 

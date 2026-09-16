@@ -2,11 +2,11 @@
 #   docker build -f apps/api/Dockerfile .
 
 # ─── Stage 1: deps ───────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS deps
+FROM node:24-trixie-slim AS deps
 
 # Install system dependencies required at runtime (graphicsmagick for pdf2pic,
 # tesseract-ocr + Polish language pack for OCR).
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
       graphicsmagick \
       tesseract-ocr \
       tesseract-ocr-pol \
@@ -70,11 +70,18 @@ RUN pnpm --filter @ksiegowy/pdf-templates run build
 RUN cd apps/api && pnpm exec swc src -d dist --strip-leading-paths
 
 
-# ─── Stage 3: runner ─────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS runner
+# ─── Stage 3: production dependencies ───────────────────────────────────────
+FROM deps AS production-deps
+
+# Keep compilers, test runners, and other build-only packages out of the image.
+RUN CI=true pnpm install --prod --frozen-lockfile
+
+
+# ─── Stage 4: runner ─────────────────────────────────────────────────────────
+FROM node:24-trixie-slim AS runner
 
 # Re-install only the runtime system dependencies (no dev tools).
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
       graphicsmagick \
       tesseract-ocr \
       tesseract-ocr-pol \
@@ -82,19 +89,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       chromium \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable
-
 ENV NODE_ENV=production
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
+
+# The runtime starts Node directly; npm, npx, and Corepack are build-only tools.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # shamefully-hoist=true hoists external packages to node_modules/, but pnpm
 # keeps workspace packages as symlinks: node_modules/@ksiegowy/X -> ../../packages/X.
 # Docker COPY preserves symlinks without dereferencing, so the symlink targets
 # must also exist in the runner. Copy each workspace package (package.json +
 # built dist/) so those symlinks resolve at runtime.
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=production-deps /app/node_modules ./node_modules
 
 COPY --from=builder /app/packages/types/package.json          ./packages/types/package.json
 COPY --from=builder /app/packages/types/dist                  ./packages/types/dist
@@ -118,5 +126,7 @@ COPY --from=builder /app/apps/api/dist  ./dist
 COPY --from=builder /app/apps/api/prisma ./prisma
 
 EXPOSE 3001
+
+USER node
 
 CMD ["node", "dist/main.js"]
