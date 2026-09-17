@@ -135,8 +135,11 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 ```
 
 The final images contain production dependencies only. The API image uses
-Node.js 24 on Debian Trixie, while the web image uses Node.js 24 on Alpine;
-both runtime layers upgrade the base distribution packages during the build.
+Node.js 24 on Alpine, while the web image uses Node.js 24 on Alpine; both
+runtime layers upgrade the base distribution packages during the build.
+Promotion requires scanning both final images with a current Trivy database and
+recording their immutable image digests. Current scan evidence and any release
+blockers are maintained in [the security remediation specification](docs/specs/security-vulnerability-remediation.md).
 
 ## Getting Started
 
