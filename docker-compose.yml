@@ -44,7 +44,6 @@ services:
       STORAGE_BASE_PATH: /app/storage
       POSTGRESQL_BACKUP_ARTIFACTS_PATH: /app/backups/postgresql
       BACKUP_DESTINATION_ROOT: ${BACKUP_DESTINATION_ROOT:-ksiegowy-vibe-backups}
-      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
     volumes:
       - ./storage:/app/storage
       - ${DB_BACKUP_LOCAL_PATH:-./backups/postgresql}:/app/backups/postgresql:ro
