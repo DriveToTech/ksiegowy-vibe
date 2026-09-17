@@ -176,12 +176,12 @@ pnpm db:seed
 
 ### API — `apps/api/Dockerfile`
 
-Multi-stage build. Includes system-level OCR and image processing dependencies.
+Multi-stage build. Includes system-level OCR and PDF rendering dependencies.
 
 ```
 Stage 1 — deps
   Base: node:24-trixie-slim
-  Installs: GraphicsMagick, Tesseract OCR (Polish pack), libxml2-utils
+  Installs: Poppler, Tesseract OCR (Polish pack), libxml2-utils
   Installs: pnpm, Node.js workspace dependencies
 
 Stage 2 — builder
@@ -191,7 +191,7 @@ Stage 2 — builder
 Stage 3 — runner
   Base: node:24-trixie-slim
   Copies: built artefacts, Prisma client, production node_modules
-  Installs: Chromium (for Puppeteer PDF generation)
+  Copies: Puppeteer's pinned Chrome for Testing build and its runtime libraries
   Runs as: node (UID 1000)
   Cmd: node apps/api/dist/main.js
 ```
@@ -200,10 +200,10 @@ Key system dependencies in the final image:
 
 | Dependency | Purpose |
 |-----------|---------|
-| `graphicsmagick` | Image pre-processing before OCR |
+| `poppler-utils` | PDF page rendering before OCR |
 | `tesseract-ocr` + `tesseract-ocr-pol` | Local Polish-language OCR |
 | `libxml2-utils` | XSD validation of FA(3) XML |
-| `chromium` | Headless browser for Puppeteer PDF generation |
+| Puppeteer's pinned Chrome for Testing | Headless browser for PDF generation |
 
 ### Web — `apps/web/Dockerfile`
 
@@ -245,8 +245,8 @@ flowchart LR
 Run `pnpm audit --audit-level=high` before building. Scan both final images
 with Trivy after every dependency or base-image change. Findings from build
 stages are excluded from the production images; runtime OCR, XML validation,
-image conversion, and Chromium dependencies remain because the application
-uses them in production.
+Poppler PDF rendering, and Chrome for Testing dependencies remain because the
+application uses them in production.
 
 ### CI container-build validation
 
@@ -415,7 +415,7 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 | `BACKUP_FRESHNESS_GDRIVE_MAX_AGE_HOURS` | `30` | Max age for latest successful Google Drive `BackupRun` |
 | `BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS` | `30` | Max age for latest successful iCloud `BackupRun` |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | API base URL used by the Next.js frontend |
-| `PUPPETEER_EXECUTABLE_PATH` | *(bundled Chromium)* | Path to Chrome/Chromium. On macOS, point to system Chrome to avoid a 200 MB download. |
+| `PUPPETEER_CACHE_DIR` | `/opt/puppeteer` in the API image | Cache containing Puppeteer's pinned Chrome for Testing build. |
 | `CORS_ORIGIN` | — | Allowed CORS origin for the API |
 
 For Google Drive backup OAuth setup, configure the `GDRIVE_*` variables using the dedicated [Google Drive Backup Setup](./google-drive-backup-setup.md) guide.

@@ -4,13 +4,28 @@
 # ─── Stage 1: deps ───────────────────────────────────────────────────────────
 FROM node:24-trixie-slim AS deps
 
-# Install system dependencies required at runtime (graphicsmagick for pdf2pic,
-# tesseract-ocr + Polish language pack for OCR).
+# Install system dependencies required at runtime (Poppler for PDF rendering,
+# and Tesseract with the Polish language pack for OCR).
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-      graphicsmagick \
+      poppler-utils \
       tesseract-ocr \
       tesseract-ocr-pol \
       libxml2-utils \
+      ca-certificates \
+      libasound2t64 \
+      libatk-bridge2.0-0t64 \
+      libatk1.0-0t64 \
+      libcups2t64 \
+      libdbus-1-3 \
+      libdrm2 \
+      libgbm1 \
+      libgtk-3-0t64 \
+      libwayland-client0 \
+      libxcomposite1 \
+      libxdamage1 \
+      libxfixes3 \
+      libxkbcommon0 \
+      libxrandr2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Enable corepack so the exact pnpm version declared in package.json is used.
@@ -30,11 +45,16 @@ COPY packages/ksef-client/package.json       packages/ksef-client/package.json
 COPY packages/pdf-templates/package.json     packages/pdf-templates/package.json
 COPY apps/api/package.json                   apps/api/package.json
 
-# Skip Puppeteer's bundled Chromium download — the system chromium package is
-# used instead, which is smaller and already present in the runner image.
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Download only Puppeteer's pinned Chrome for Testing build. The headless shell
+# is unnecessary because PDF generation uses Puppeteer's regular headless mode.
+ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
+ENV PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
 
 RUN pnpm install --frozen-lockfile
+
+# Install the exact Chrome for Testing build selected by the locked Puppeteer
+# version. The explicit command works with pnpm's restricted lifecycle scripts.
+RUN pnpm --filter @ksiegowy/pdf-templates exec puppeteer browsers install chrome
 
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
@@ -80,19 +100,36 @@ RUN CI=true pnpm install --prod --frozen-lockfile
 # ─── Stage 4: runner ─────────────────────────────────────────────────────────
 FROM node:24-trixie-slim AS runner
 
-# Re-install only the runtime system dependencies (no dev tools).
+# Re-install only the runtime system dependencies (no dev tools), including
+# the shared libraries required by Chrome for Testing.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-      graphicsmagick \
+      poppler-utils \
       tesseract-ocr \
       tesseract-ocr-pol \
       libxml2-utils \
-      chromium \
+      ca-certificates \
+      libasound2t64 \
+      libatk-bridge2.0-0t64 \
+      libatk1.0-0t64 \
+      libcups2t64 \
+      libdbus-1-3 \
+      libdrm2 \
+      libgbm1 \
+      libgtk-3-0t64 \
+      libwayland-client0 \
+      libxcomposite1 \
+      libxdamage1 \
+      libxfixes3 \
+      libxkbcommon0 \
+      libxrandr2 \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
 
 WORKDIR /app
+
+COPY --from=deps /opt/puppeteer /opt/puppeteer
 
 # The runtime starts Node directly; npm, npx, and Corepack are build-only tools.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx

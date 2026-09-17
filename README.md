@@ -76,7 +76,7 @@ ksiegowy-vibe/
 ├── ops/backup/           # PostgreSQL one-shot backup container + script
 ├── storage/              # Local file storage (gitignored)
 ├── backups/              # Local PostgreSQL backup artifacts (gitignored)
-├── apps/api/Dockerfile   # API container (Node 24, GraphicsMagick, Tesseract)
+├── apps/api/Dockerfile   # API container (Node 24, Poppler, Tesseract)
 ├── apps/web/Dockerfile   # Web container (Next.js standalone)
 ├── docker-compose.yml    # Full stack: API + Web + PostgreSQL 17 + Adminer
 ├── .dockerignore
@@ -112,7 +112,7 @@ Progress is not stored separately — the wizard resumes by deriving the first i
 - Node.js 24 LTS
 - pnpm
 - Docker (for PostgreSQL)
-- GraphicsMagick (`brew install graphicsmagick` / `apt-get install graphicsmagick`)
+- Poppler (`brew install poppler` / `apt-get install poppler-utils`)
 - Tesseract with Polish pack (`brew install tesseract tesseract-lang` / `apt-get install tesseract-ocr tesseract-ocr-pol`)
 - Google OAuth2 credentials
 
@@ -149,7 +149,7 @@ For supported development setups, see [Development Run Modes](docs/development-r
 
 ### Option A — Fully containerised (recommended)
 
-Runs API, web frontend, and database inside Docker. Tesseract and GraphicsMagick are included in the API image — no local installation needed.
+Runs API, web frontend, and database inside Docker. Poppler and Tesseract are included in the API image — no local installation needed.
 
 #### 1. Clone and configure environment
 
@@ -924,7 +924,7 @@ File uploads are persisted via a bind mount at `./storage` on the host.
 
 ```bash
 # System dependencies
-apt-get install -y graphicsmagick tesseract-ocr tesseract-ocr-pol
+apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-pol
 
 pnpm install --frozen-lockfile
 pnpm --filter @ksiegowy/api exec prisma migrate deploy
