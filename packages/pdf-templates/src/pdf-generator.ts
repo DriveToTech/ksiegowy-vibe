@@ -14,6 +14,9 @@ export const generateInvoicePdf = async (invoice: InvoiceData): Promise<Buffer> 
 
   const browser = await puppeteer.launch({
     headless: true,
+    ...(process.env.PUPPETEER_EXECUTABLE_PATH
+      ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
+      : {}),
     args: [
       // Chrome for Testing archives do not include a setuid sandbox helper,
       // and the production container disables unprivileged user namespaces.

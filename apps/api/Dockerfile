@@ -45,16 +45,7 @@ COPY packages/ksef-client/package.json       packages/ksef-client/package.json
 COPY packages/pdf-templates/package.json     packages/pdf-templates/package.json
 COPY apps/api/package.json                   apps/api/package.json
 
-# Download only Puppeteer's pinned Chrome for Testing build. The headless shell
-# is unnecessary because PDF generation uses Puppeteer's regular headless mode.
-ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
-ENV PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
-
 RUN pnpm install --frozen-lockfile
-
-# Install the exact Chrome for Testing build selected by the locked Puppeteer
-# version. The explicit command works with pnpm's restricted lifecycle scripts.
-RUN pnpm --filter @ksiegowy/pdf-templates exec puppeteer browsers install chrome
 
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
@@ -71,6 +62,13 @@ COPY apps/api/               apps/api/
 
 # Generate Prisma client (reads schema only, no database required).
 RUN pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
+
+# Keep the generated Prisma client in a stable path so the runner can use the
+# Alpine-compatible engine without copying the versioned pnpm store path.
+RUN generatedPrismaClient="$(find /app/node_modules/.pnpm -path '*/node_modules/.prisma/client' -type d -print -quit)" \
+    && test -n "$generatedPrismaClient" \
+    && mkdir -p /app/generated-prisma \
+    && cp -R "$generatedPrismaClient" /app/generated-prisma/client
 
 # Build shared packages sequentially before the API so their dist/ and .d.ts
 # files exist when the API tsconfig resolves project references.
@@ -98,40 +96,28 @@ RUN CI=true pnpm install --prod --frozen-lockfile
 
 
 # ─── Stage 4: runner ─────────────────────────────────────────────────────────
-FROM node:24-trixie-slim AS runner
+FROM node:24-alpine AS runner
 
-# Re-install only the runtime system dependencies (no dev tools), including
-# the shared libraries required by Chrome for Testing.
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+# Re-install only the runtime system dependencies (no build tools). Alpine's
+# packages provide Chromium, Poppler, Tesseract, and XML validation without
+# carrying the Debian runtime package set into the final image.
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache \
+      chromium \
       poppler-utils \
       tesseract-ocr \
-      tesseract-ocr-pol \
+      tesseract-ocr-data-pol \
       libxml2-utils \
       ca-certificates \
-      libasound2t64 \
-      libatk-bridge2.0-0t64 \
-      libatk1.0-0t64 \
-      libcups2t64 \
-      libdbus-1-3 \
-      libdrm2 \
-      libgbm1 \
-      libgtk-3-0t64 \
-      libwayland-client0 \
-      libxcomposite1 \
-      libxdamage1 \
-      libxfixes3 \
-      libxkbcommon0 \
-      libxrandr2 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/cache/apk/*
 
 ENV NODE_ENV=production
-ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-COPY --from=deps /opt/puppeteer /opt/puppeteer
-
-# The runtime starts Node directly; npm, npx, and Corepack are build-only tools.
+# The runtime starts Node directly; npm and npx are build-only tools.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # shamefully-hoist=true hoists external packages to node_modules/, but pnpm
@@ -140,6 +126,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 # must also exist in the runner. Copy each workspace package (package.json +
 # built dist/) so those symlinks resolve at runtime.
 COPY --from=production-deps /app/node_modules ./node_modules
+COPY --from=builder /app/generated-prisma/client ./node_modules/.prisma/client
 
 COPY --from=builder /app/packages/types/package.json          ./packages/types/package.json
 COPY --from=builder /app/packages/types/dist                  ./packages/types/dist
