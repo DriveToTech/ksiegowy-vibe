@@ -306,7 +306,7 @@ pnpm dev
 | `BACKUP_FRESHNESS_GDRIVE_MAX_AGE_HOURS` | Max allowed age for latest successful Google Drive `BackupRun` |
 | `BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS` | Max allowed age for latest successful iCloud `BackupRun` |
 | `NEXT_PUBLIC_API_URL` | API base URL for the web frontend (default: `http://localhost:3001`) |
-| `PUPPETEER_EXECUTABLE_PATH` | Path to Chrome/Chromium binary for PDF generation (macOS: point to system Chrome to skip ~200MB download) |
+| `PUPPETEER_EXECUTABLE_PATH` | `/usr/bin/chromium` in the API image; use a local Chrome/Chromium path for local development |
 | `CORS_ORIGIN` | Allowed CORS origin for the API |
 
 ## PostgreSQL Backup Job (first slice)
