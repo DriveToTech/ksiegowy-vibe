@@ -365,6 +365,8 @@ flowchart LR
 | `test-integration` | API integration tests against a live PostgreSQL 17 service container |
 | `test-e2e` | Playwright end-to-end tests (chromium) |
 
+The E2E web server disables the Next.js development indicator so framework controls do not affect application focus-order assertions. Responsive dashboard checks only evaluate a mid-scroll position when the synthetic fixture has scrollable content.
+
 ### `deploy.yml` — Deployment
 
 Triggered automatically after a successful CI run on `main`.
