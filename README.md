@@ -669,8 +669,7 @@ pnpm --filter @ksiegowy/e2e exec playwright install chromium
 | Retries | 0 | 2 |
 | Report | Opens on failure | Uploaded as artifact |
 
-> **Note for local development:** If you have the Next.js dev server already running (e.g. via `pnpm dev`), Playwright reuses it. That server must have been started with `API_URL=http://localhost:3099` for dashboard tests to work correctly. If not, kill the existing server first — Playwright will start a fresh one with the correct env. The development indicator is disabled so framework controls do not enter application focus-order checks.
-> **Note for local development:** Playwright does not reuse an existing Next.js or mock API process. The config starts the web server on `:3200` with both API variables set to `http://localhost:3199`.
+> **Note for local development:** Playwright does not reuse an existing Next.js or mock API process. The config starts the web server on `:3200` with both API variables set to `http://localhost:3199`. The development indicator is disabled so framework controls do not enter application focus-order checks.
 
 ### Test structure
 
