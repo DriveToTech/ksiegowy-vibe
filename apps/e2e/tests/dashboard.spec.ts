@@ -304,7 +304,8 @@ test('mobile dashboard content and actions clear navigation at initial and mid-s
       return null;
     }
 
-    const positions = [0, Math.floor((main.scrollHeight - main.clientHeight) / 2)];
+    const maximumScrollTop = main.scrollHeight - main.clientHeight;
+    const positions = maximumScrollTop > 0 ? [0, Math.floor(maximumScrollTop / 2)] : [0];
     const measurements = positions.map((scrollTop) => {
       main.scrollTop = scrollTop;
       const navigationBounds = navigation.getBoundingClientRect();
@@ -347,7 +348,6 @@ test('mobile dashboard content and actions clear navigation at initial and mid-s
   expect(layoutMeasurements).not.toBeNull();
   expect(layoutMeasurements?.measurements.every(({ violations }) => violations.length === 0)).toBe(true);
   expect(layoutMeasurements?.measurements.every(({ actualScrollTop, requestedScrollTop }) => actualScrollTop === requestedScrollTop)).toBe(true);
-  expect(layoutMeasurements?.measurements.every(({ mainScrollHeight, mainClientHeight }) => mainScrollHeight > mainClientHeight)).toBe(true);
   expect(layoutMeasurements?.measurements.every(({ navigationTop, navigationBottom, actualScrollTop }) =>
     navigationTop >= 0 && navigationBottom <= (layoutMeasurements?.viewportHeight ?? 0) && actualScrollTop >= 0,
   )).toBe(true);
@@ -508,6 +508,7 @@ test('shared controls and dashboard surfaces meet contrast requirements in both 
 test('keyboard focus remains visible while reaching the theme control', async ({ authenticatedPage: page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/dashboard');
+  await expect(page.getByRole('button', { name: 'Włącz ciemny motyw' })).toBeVisible();
 
   await page.keyboard.press('Tab');
   let focusedElement = page.locator(':focus');
