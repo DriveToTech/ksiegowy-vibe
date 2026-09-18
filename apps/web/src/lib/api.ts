@@ -194,14 +194,6 @@ export async function getDashboardSummary(companyId: string): Promise<DashboardS
   });
 }
 
-export async function getDashboardSummary(companyId: string): Promise<DashboardSummary> {
-  const activeKsefEnvironment = await getActiveKsefEnvironment();
-
-  return apiFetch<DashboardSummary>(`/companies/${companyId}/dashboard-summary`, {
-    headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: activeKsefEnvironment },
-  });
-}
-
 export async function getInvoice(companyId: string, invoiceId: string): Promise<InvoiceDetail> {
   const activeKsefEnvironment = await getActiveKsefEnvironment();
 

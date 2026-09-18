@@ -1,8 +1,8 @@
-# Handoff — Personal Mode (Household Budgeting), Phase 2
+# Handoff — Personal Mode (Household Budgeting), Phase 3
 
-## Phase 2 — Savings & Goals completed
+## Phase 1–3 completed
 
-Phase 2 is implemented in the current uncommitted worktree. Shipped scope:
+The household budgeting work is implemented on top of the current `main` branch. Shipped scope includes:
 
 - `Goal`, `GoalMovement`, and `GoalAutomationRule` models and migrations.
 - Goal CRUD, lifecycle (`ACTIVE`, `PAUSED`, `COMPLETED`, `ARCHIVED`), movement
@@ -15,6 +15,14 @@ Phase 2 is implemented in the current uncommitted worktree. Shipped scope:
 - Goals frontend routes, forms, detail/lifecycle/movement/automation components,
   error states, mobile Goals/More navigation, accessibility states, API client/types,
   mock fixtures, and Playwright E2E coverage.
+- Investment positions and transactions with owner-only mutation rules and shared
+  household visibility.
+- Household reports with allocation/drift summaries, tax-return evidence, CSV/PDF
+  exports, privacy controls, and Playwright E2E coverage.
+- Separate company/household migration and Prisma Studio commands, plus scoped
+  PostgreSQL backup and restore documentation.
+- Fixed the outgoing-invoice Server Component event-handler boundary without
+  converting the page to a Client Component.
 
 `HouseholdFileRecord` and receipt/document attachments remain deferred; Phase 2 did not ship that separate slice.
 
@@ -45,27 +53,29 @@ are absent. Working tree changes are not committed or pushed.
 ## Where things are
 
 - **Worktree**: `.worktree/personal-mode-household` (this directory), sibling to the main checkout.
-- **Branch**: `feature/personal-mode-household`, branched off `design/improvements`.
-- **Latest commit**: `b42894483c1c1fd25ac70f0ca3ff41a6ea79fe26` — `fix(household): harden Phase 1 frontend UX and accessibility` (Maciej Trybuła, 2026-08-29 06:07:22 +0200). Phase 2 and the current frontend UX pass are uncommitted.
+- **Branch**: `feature/personal-mode-household`, rebased onto `main`.
+- **Latest commit**: `c2901d7` — `fix(household): fixes after household implementation`.
+  The working tree currently contains only the post-rebase web compatibility fixes
+  described below.
 - **Not pushed, no PR yet.**
 - **Plan file** (full architecture, decisions, and rationale — read this first): `/Users/maciejtrybula/.claude/plans/mutable-brewing-rabin.md`. It was reviewed and signed off by both backend-architect and frontend-architect before implementation; every non-obvious design choice (separate database, `services/*` package layer, transfer model, no JWT household claim, etc.) is explained there with reasoning. Don't re-litigate it without a real reason.
-- **Design source**: `private design reference` (personal-mode section starts ~line 2032, screens 20–32). Phase 1 UI scope is screens 20, 21, 22, 26, 27, 28, 29, 30; goals (23/24/31/32) are now implemented in Phase 2 and investing (25) remains Phase 3.
+- **Design source**: `private design reference` (personal-mode section starts ~line 2032, screens 20–32). Phase 1 UI scope is screens 20, 21, 22, 26, 27, 28, 29, 30; goals (23/24/31/32) and investing (25) are implemented.
 
 ## What's actually done
 
-- `services/household` package: full domain model including Goal, GoalMovement, and GoalAutomationRule; household/backend coverage is included in the 349 passing non-E2E tests reported below.
+- `services/household` package: full domain model including goals, investments, and reports; household/backend coverage is included in the completed non-E2E test suite.
 - Separate `ksiegowy_household` Postgres database, wired through docker-compose, CI, backups.
 - `apps/api/src/routes/household/*` thin controllers, live-DB membership guard (no JWT claim), household cron jobs.
-- `/household` frontend route tree: dashboard, ledger (list/detail/new/import), envelopes (read-only), commitments (list/detail/new), settings, onboarding. Mode switch, green theme, household switcher.
+- `/household` frontend route tree: dashboard, ledger (list/detail/new/import), envelopes (read-only), commitments (list/detail/new), goals, investing, reports, settings, onboarding. Mode switch, green theme, household switcher.
 - Company-vs-household onboarding entrypoint at `/onboarding`.
-- Playwright E2E: Phase 1 coverage (7/7 in final verification), Goals coverage (9/9 serially and 9/9 in parallel).
+- Playwright E2E: Phase 1 coverage, Goals coverage, and Phase 3 investing/report coverage are included.
 - One full round of post-build bug fixing already done in this session (see "Bugs already found and fixed" below) plus one full UX-audit-driven fix pass (see "UX audit fixes already applied").
 
-**Latest final verification**: recursive typecheck passed for 9/9 scoped projects, recursive lint passed for 9/9, and non-E2E tests passed with 349 passed, 0 failed, and 1 skipped. The root test script duplicated execution in its raw output; 349 is the unique passing-test count, not 698. The web build passed with a warning that the Next.js ESLint plugin was not detected. Goals E2E passed 9/9 serially and 9/9 in parallel; Phase 1 household regression passed 7/7. `git diff --check` passed. Prisma schema validation passed after loading `.env`; migration status/integration deployment was blocked because `localhost:55433` was unavailable and `HOUSEHOLD_INTEGRATION_DATABASE_URL` was unset. No production security sign-off is implied.
+**Latest verification**: after the rebase, repository typecheck passed, web unit tests passed 17/17, and `git diff --check` passed. Earlier focused verification also covered household, API, Phase 1, and Phase 3 suites. Prisma schema validation and local migration deployment were previously completed; broader real-PostgreSQL integration/concurrency testing remains limited. No production security sign-off is implied.
 
 ## What's NOT done
 
-**Phase 3 (investing, reports)**: not started. `HouseholdFileRecord` receipt/document attachments remain separately deferred.
+`HouseholdFileRecord` receipt/document attachments remain separately deferred; they are not part of Phase 3.
 
 **Deferred Phase 1 UI polish** (explicitly out of scope for the fix pass that just landed, not silently dropped — a UX audit agent found these, listed here so they don't get lost):
 - Receipt/OCR capture, document drop zones — separately deferred (`HouseholdFileRecord`); not shipped with Goals Phase 2.
@@ -85,8 +95,8 @@ are absent. Working tree changes are not committed or pushed.
 - Introduced Phase 2 residuals: projections intentionally cover fixed rules only; percentage and round-up rules are not forecast; automation catch-up and round-up processing are bounded (36 months / 500 source transactions per rule per run); goal movement history is capped at 100 rows in detail views. These are product limits, not security sign-off.
 - Pre-existing security-review risks remain separate from Phase 2: refresh-token revocation, cross-household category relations, commitment term limits, and manual transfer/import replay. Transfer `PATCH` remains permitted by the backend, and the web build warns that the Next ESLint plugin was not detected.
 - Integration prerequisites remain: `HOUSEHOLD_DATABASE_URL` must point to a reachable database and the household migrations must be deployed before API startup; OAuth testing on these worktree ports still requires the documented Google redirect URI.
-- Full E2E remains a separate diagnostic from the focused Phase 2 gates: serial runs reported 66 passed, 3 failed, and 3 skipped; parallel runs reported 55 passed, 14 failed, and 3 skipped. Persistent failures are `dashboard.spec.ts:342` (expects `/onboarding`, received `/onboarding/company`) and `navigation.spec.ts:9` and `:79` (expect 5 links, received 6 including Compliance). The additional parallel-only failures are caused by shared mutable mock state. These failures do not change the focused Goals or final Phase 1 regression results and should not be read as a production or full-suite security sign-off.
-- Nothing pushed, no PR opened against `design/improvements`.
+- Full E2E remains a separate diagnostic from the focused household gates; the latest recorded full run passed 81 tests with 3 skipped. This should not be read as a production or full-suite security sign-off.
+- Nothing pushed, no PR opened against `main`.
 - Google Cloud Console: if you're testing OAuth login against this worktree's ports, the redirect URI `http://localhost:3011/auth/google/callback` needs to be added to the OAuth client's Authorized redirect URIs list (Console-side, can't be done from code) — this was already communicated to the user mid-session, may or may not be done on their end.
 
 ## How to run this worktree
@@ -152,6 +162,6 @@ Two systemic root causes behind a chunk of the earlier findings were fixed in th
 
 ## Suggested next steps, in order
 
-1. ~~Fresh visual/UX pass~~ — done. No live viewport was captured because port `3010` was not running; implementation review found no blocker.
-2. Push + open PR against `design/improvements` once the uncommitted Phase 2 work is reviewed and verified.
-3. Plan Phase 3 investing and reports; keep `HouseholdFileRecord` separately tracked rather than implying it shipped with Goals.
+1. Commit the post-rebase web compatibility fixes after review.
+2. Push and open a PR against `main`.
+3. Run broader PostgreSQL integration, backup, and restore verification when the environment is available.
