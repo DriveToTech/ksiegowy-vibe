@@ -14,6 +14,6 @@
   "dependencies": {
     "@ksiegowy/shared-utils": "workspace:*",
     "@ksiegowy/types": "workspace:*",
-    "puppeteer": "^23.0.0"
+    "puppeteer": "^25.11.0"
   }
 }

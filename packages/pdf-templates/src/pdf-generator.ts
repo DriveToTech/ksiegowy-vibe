@@ -12,12 +12,14 @@ import { buildInvoiceHtml } from './invoice-template.js';
 export const generateInvoicePdf = async (invoice: InvoiceData): Promise<Buffer> => {
   const html = buildInvoiceHtml(invoice);
 
-  const executablePath = process.env['PUPPETEER_EXECUTABLE_PATH'];
-
   const browser = await puppeteer.launch({
     headless: true,
-    ...(executablePath ? { executablePath } : {}),
+    ...(process.env.PUPPETEER_EXECUTABLE_PATH
+      ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
+      : {}),
     args: [
+      // Chrome for Testing archives do not include a setuid sandbox helper,
+      // and the production container disables unprivileged user namespaces.
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
@@ -29,7 +31,8 @@ export const generateInvoicePdf = async (invoice: InvoiceData): Promise<Buffer> 
     const page = await browser.newPage();
 
     // Set content and wait for fonts to load
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 30_000 });
 
     const pdfBuffer = await page.pdf({
       format: 'A4',

@@ -8,8 +8,6 @@ import { extractNativePdfText, extractTextWithTesseract } from './ocr-text-extra
 import type { ExtractedInvoice } from '@ksiegowy/types';
 
 const PDF_MIME = 'application/pdf';
-const MAX_PAGES = 5;
-
 /**
  * Starts the OCR pipeline for an IncomingInvoice in the background (fire-and-forget).
  * Updates the IncomingInvoice status and extracted fields when done.
@@ -54,7 +52,7 @@ async function runOcr(prisma: PrismaClient, incomingInvoiceId: string, logger: F
   const getImageBuffers = async (): Promise<Buffer[]> => {
     if (imageBuffers) return imageBuffers;
     const pages = await pdfToImages(fileBuffer);
-    imageBuffers = pages.slice(0, MAX_PAGES);
+    imageBuffers = pages;
     return imageBuffers;
   };
 
