@@ -176,33 +176,39 @@ pnpm db:seed
 
 ### API — `apps/api/Dockerfile`
 
-Multi-stage build. Includes system-level OCR and image processing dependencies.
+Multi-stage build. Includes system-level OCR and PDF rendering dependencies.
 
 ```
 Stage 1 — deps
-  Base: node:22-bookworm-slim
-  Installs: GraphicsMagick, Tesseract OCR (Polish pack), libxml2-utils
+  Base: node:24-trixie-slim
+  Installs: Poppler, Tesseract OCR (Polish pack), libxml2-utils
   Installs: pnpm, Node.js workspace dependencies
 
 Stage 2 — builder
   Runs: prisma generate
   Runs: pnpm build (tsc + swc transpilation for all packages and API)
 
-Stage 3 — runner
-  Base: node:22-bookworm-slim
-  Copies: built artefacts, Prisma client, node_modules
-  Installs: Chromium (for Puppeteer PDF generation)
-  Cmd: node apps/api/dist/main.js
+Stage 3 — production-deps
+  Base: node:24-alpine
+  Installs: production workspace dependencies on musl so native optional packages
+  use Alpine-compatible bindings
+
+Stage 4 — runner
+  Base: node:24-alpine
+  Copies: built artefacts, Prisma client, production node_modules
+  Installs: Alpine Chromium, Poppler, Tesseract OCR (Polish pack), libxml2-utils
+  Runs as: node (UID 1000)
+  Cmd: node dist/main.js
 ```
 
 Key system dependencies in the final image:
 
 | Dependency | Purpose |
 |-----------|---------|
-| `graphicsmagick` | Image pre-processing before OCR |
-| `tesseract-ocr` + `tesseract-ocr-pol` | Local Polish-language OCR |
+| `poppler-utils` | PDF page rendering before OCR |
+| `tesseract-ocr` + `tesseract-ocr-data-pol` | Local Polish-language OCR |
 | `libxml2-utils` | XSD validation of FA(3) XML |
-| `chromium` | Headless browser for Puppeteer PDF generation |
+| `chromium` | Headless browser for PDF generation |
 
 ### Web — `apps/web/Dockerfile`
 
@@ -210,7 +216,7 @@ Multi-stage build using Next.js standalone output mode.
 
 ```
 Stage 1 — deps
-  Base: node:22-alpine
+  Base: node:24-alpine
   Installs: pnpm, workspace dependencies
 
 Stage 2 — builder
@@ -218,12 +224,36 @@ Stage 2 — builder
   Runs: next build (produces standalone output)
 
 Stage 3 — runner
-  Base: node:22-alpine
+  Base: node:24-alpine
   Copies: .next/standalone, .next/static, public/
+  Runs as: node (UID 1000)
   Cmd: node server.js
 ```
 
 The standalone output strips unused Node.js modules — the final image is minimal (~150 MB).
+The runtime stage also removes npm and npx because deployment starts the
+standalone server directly.
+
+### Vulnerability verification
+
+```mermaid
+flowchart LR
+  lockfile[pnpm lockfile] --> dependencies[Dependency install]
+  dependencies --> build[Production build]
+  build --> apiImage[API runtime image]
+  build --> webImage[Web runtime image]
+  apiImage --> trivy[Trivy HIGH/CRITICAL scan]
+  webImage --> trivy
+  trivy --> release[Release decision]
+```
+
+Run `pnpm audit --audit-level=high` before building. Scan both final images
+with Trivy after every dependency or base-image change. Findings from build
+stages are excluded from the production images; runtime OCR, XML validation,
+Poppler PDF rendering, Alpine Chromium, and OCR dependencies remain because the
+application uses them in production. Production Node dependencies are installed
+inside the Alpine stage so native optional packages select musl-compatible
+bindings.
 
 ### CI container-build validation
 
@@ -335,6 +365,8 @@ flowchart LR
 | `test-integration` | API integration tests against a live PostgreSQL 17 service container |
 | `test-e2e` | Playwright end-to-end tests (chromium) |
 
+The E2E web server disables the Next.js development indicator so framework controls do not affect application focus-order assertions. Responsive dashboard checks only evaluate a mid-scroll position when the synthetic fixture has scrollable content.
+
 ### `deploy.yml` — Deployment
 
 Triggered automatically after a successful CI run on `main`.
@@ -392,7 +424,7 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 | `BACKUP_FRESHNESS_GDRIVE_MAX_AGE_HOURS` | `30` | Max age for latest successful Google Drive `BackupRun` |
 | `BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS` | `30` | Max age for latest successful iCloud `BackupRun` |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | API base URL used by the Next.js frontend |
-| `PUPPETEER_EXECUTABLE_PATH` | *(bundled Chromium)* | Path to Chrome/Chromium. On macOS, point to system Chrome to avoid a 200 MB download. |
+| `PUPPETEER_EXECUTABLE_PATH` | `/usr/bin/chromium` in the API image | Chromium executable used by Puppeteer for PDF generation. |
 | `CORS_ORIGIN` | — | Allowed CORS origin for the API |
 
 For Google Drive backup OAuth setup, configure the `GDRIVE_*` variables using the dedicated [Google Drive Backup Setup](./google-drive-backup-setup.md) guide.
@@ -544,6 +576,7 @@ This slice keeps backup scheduling flows separate intentionally:
 - [ ] Run `prisma migrate deploy` after every release
 - [ ] Keep the [Production Migration Recovery](./production-migration-recovery.md) procedure available to the release operator; never use `migrate reset` or in-place database cleanup in production
 - [ ] Mount `./storage` on durable storage (not ephemeral container filesystem)
+- [ ] Ensure the mounted API storage directory is writable by UID 1000 (`node`)
 - [ ] Confirm backup credentials are configured (Google Drive or iCloud)
 - [ ] Configure PostgreSQL backup env vars (`DB_BACKUP_*`) for local-only mode or remote mode
 - [ ] If remote mode is enabled, configure at least one rclone remote and set `DB_BACKUP_RCLONE_CONFIG_PATH`
