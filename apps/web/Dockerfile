@@ -6,6 +6,10 @@ FROM node:24-alpine AS deps
 
 RUN apk upgrade --no-cache
 
+ARG PACKAGE_REGISTRY=https://registry.npmjs.org
+ENV COREPACK_DEFAULT_TO_LATEST=0
+ENV COREPACK_NPM_REGISTRY=${PACKAGE_REGISTRY}
+ENV NPM_CONFIG_REGISTRY=${PACKAGE_REGISTRY}
 RUN corepack enable
 
 WORKDIR /app
@@ -16,7 +20,11 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 # Copy only the package manifests so pnpm can resolve the workspace graph.
 COPY apps/web/package.json apps/web/package.json
 
-RUN pnpm install --frozen-lockfile
+RUN for attempt in 1 2 3 4 5; do \
+      pnpm install --frozen-lockfile && exit 0; \
+      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+      sleep 5; \
+    done
 
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────

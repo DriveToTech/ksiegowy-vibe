@@ -188,12 +188,17 @@ Stage 2 — builder
   Runs: prisma generate
   Runs: pnpm build (tsc + swc transpilation for all packages and API)
 
-Stage 3 — runner
-  Base: node:24-trixie-slim
+Stage 3 — production-deps
+  Base: node:24-alpine
+  Installs: production workspace dependencies on musl so native optional packages
+  use Alpine-compatible bindings
+
+Stage 4 — runner
+  Base: node:24-alpine
   Copies: built artefacts, Prisma client, production node_modules
-  Copies: Puppeteer's pinned Chrome for Testing build and its runtime libraries
+  Installs: Alpine Chromium, Poppler, Tesseract OCR (Polish pack), libxml2-utils
   Runs as: node (UID 1000)
-  Cmd: node apps/api/dist/main.js
+  Cmd: node dist/main.js
 ```
 
 Key system dependencies in the final image:
@@ -201,9 +206,9 @@ Key system dependencies in the final image:
 | Dependency | Purpose |
 |-----------|---------|
 | `poppler-utils` | PDF page rendering before OCR |
-| `tesseract-ocr` + `tesseract-ocr-pol` | Local Polish-language OCR |
+| `tesseract-ocr` + `tesseract-ocr-data-pol` | Local Polish-language OCR |
 | `libxml2-utils` | XSD validation of FA(3) XML |
-| Puppeteer's pinned Chrome for Testing | Headless browser for PDF generation |
+| `chromium` | Headless browser for PDF generation |
 
 ### Web — `apps/web/Dockerfile`
 
@@ -245,8 +250,10 @@ flowchart LR
 Run `pnpm audit --audit-level=high` before building. Scan both final images
 with Trivy after every dependency or base-image change. Findings from build
 stages are excluded from the production images; runtime OCR, XML validation,
-Poppler PDF rendering, and Chrome for Testing dependencies remain because the
-application uses them in production.
+Poppler PDF rendering, Alpine Chromium, and OCR dependencies remain because the
+application uses them in production. Production Node dependencies are installed
+inside the Alpine stage so native optional packages select musl-compatible
+bindings.
 
 ### CI container-build validation
 
@@ -415,7 +422,7 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 | `BACKUP_FRESHNESS_GDRIVE_MAX_AGE_HOURS` | `30` | Max age for latest successful Google Drive `BackupRun` |
 | `BACKUP_FRESHNESS_ICLOUD_MAX_AGE_HOURS` | `30` | Max age for latest successful iCloud `BackupRun` |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | API base URL used by the Next.js frontend |
-| `PUPPETEER_CACHE_DIR` | `/opt/puppeteer` in the API image | Cache containing Puppeteer's pinned Chrome for Testing build. |
+| `PUPPETEER_EXECUTABLE_PATH` | `/usr/bin/chromium` in the API image | Chromium executable used by Puppeteer for PDF generation. |
 | `CORS_ORIGIN` | — | Allowed CORS origin for the API |
 
 For Google Drive backup OAuth setup, configure the `GDRIVE_*` variables using the dedicated [Google Drive Backup Setup](./google-drive-backup-setup.md) guide.

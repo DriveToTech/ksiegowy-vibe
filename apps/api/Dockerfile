@@ -28,7 +28,11 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
       libxrandr2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Enable corepack so the exact pnpm version declared in package.json is used.
+# Enable Corepack so the exact pnpm version declared in package.json is used.
+ARG PACKAGE_REGISTRY=https://registry.npmjs.org
+ENV COREPACK_DEFAULT_TO_LATEST=0
+ENV COREPACK_NPM_REGISTRY=${PACKAGE_REGISTRY}
+ENV NPM_CONFIG_REGISTRY=${PACKAGE_REGISTRY}
 RUN corepack enable
 
 WORKDIR /app
@@ -45,7 +49,11 @@ COPY packages/ksef-client/package.json       packages/ksef-client/package.json
 COPY packages/pdf-templates/package.json     packages/pdf-templates/package.json
 COPY apps/api/package.json                   apps/api/package.json
 
-RUN pnpm install --frozen-lockfile
+RUN for attempt in 1 2 3 4 5; do \
+      pnpm install --frozen-lockfile && exit 0; \
+      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+      sleep 5; \
+    done
 
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
@@ -89,10 +97,32 @@ RUN cd apps/api && pnpm exec swc src -d dist --strip-leading-paths
 
 
 # ─── Stage 3: production dependencies ───────────────────────────────────────
-FROM deps AS production-deps
+FROM node:24-alpine AS production-deps
+
+RUN apk upgrade --no-cache
+
+ARG PACKAGE_REGISTRY=https://registry.npmjs.org
+ENV COREPACK_DEFAULT_TO_LATEST=0
+ENV COREPACK_NPM_REGISTRY=${PACKAGE_REGISTRY}
+ENV NPM_CONFIG_REGISTRY=${PACKAGE_REGISTRY}
+RUN corepack enable
+
+WORKDIR /app
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY packages/types/package.json             packages/types/package.json
+COPY packages/shared-utils/package.json      packages/shared-utils/package.json
+COPY packages/fa3-xml/package.json           packages/fa3-xml/package.json
+COPY packages/ksef-client/package.json       packages/ksef-client/package.json
+COPY packages/pdf-templates/package.json     packages/pdf-templates/package.json
+COPY apps/api/package.json                   apps/api/package.json
 
 # Keep compilers, test runners, and other build-only packages out of the image.
-RUN CI=true pnpm install --prod --frozen-lockfile
+RUN for attempt in 1 2 3 4 5; do \
+      CI=true pnpm install --prod --frozen-lockfile && exit 0; \
+      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+      sleep 5; \
+    done
 
 
 # ─── Stage 4: runner ─────────────────────────────────────────────────────────
