@@ -5,15 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { syncIncomingFromKsef } from '../../../lib/api-client';
 import type { CompanyKsefCredentialStatus } from '../../../lib/api-types';
-import { getActiveKsefEnvironmentFromBrowser } from '../../../lib/ksef-environment';
+import type { KsefEnvironment } from '../../../lib/ksef-environment';
 import { cn } from '../../../lib/cn';
 import { Button } from '../../../components/atoms/Button';
+import { Input } from '../../../components/atoms/Input';
+import { NativeDialog } from '../../../components/atoms/NativeDialog';
 import { Banner } from '../../../components/molecules/Banner';
 import { t } from '../../../lib/translations';
 
 const environmentBadgeClasses: Record<string, string> = {
-  TEST: 'border-success bg-success text-success-ink',
-  PRODUCTION: 'border-warning bg-warning text-warning-ink',
+  TEST: 'border-warning bg-warning text-warning-ink',
+  PRODUCTION: 'border-error bg-error text-error-ink',
 };
 
 function EnvironmentBadge({ environment }: { environment: string }) {
@@ -24,42 +26,39 @@ function EnvironmentBadge({ environment }: { environment: string }) {
         environmentBadgeClasses[environment] ?? environmentBadgeClasses.TEST,
       )}
     >
-      {environment}
+      {environment === 'PRODUCTION' ? 'PRODUKCJA' : 'TEST'}
     </span>
   );
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
-const firstDayOfMonth = () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-
 interface KsefSyncButtonProps {
   companyId: string;
+  companyName: string;
+  activeEnvironment: KsefEnvironment;
+  initialDate: string;
   ksefCredentialStatuses?: CompanyKsefCredentialStatus[];
 }
 
-export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncButtonProps) {
+export function KsefSyncButton({ companyId, companyName, activeEnvironment, initialDate, ksefCredentialStatuses }: KsefSyncButtonProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [dateFrom, setDateFrom] = useState(firstDayOfMonth());
-  const [dateTo, setDateTo] = useState(today());
+  const [dateFrom, setDateFrom] = useState(`${initialDate.slice(0, 7)}-01`);
+  const [dateTo, setDateTo] = useState(initialDate);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isProductionConfirmationOpen, setIsProductionConfirmationOpen] = useState(false);
+  const [pendingSyncEnvironment, setPendingSyncEnvironment] = useState<KsefEnvironment | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const activeEnvironment = getActiveKsefEnvironmentFromBrowser();
   const activeCredential = ksefCredentialStatuses?.find((credential) => credential.environment === activeEnvironment);
-  const hasToken = activeCredential ? activeCredential.hasToken : true;
+  const hasToken = activeCredential?.hasToken ?? false;
 
-  const handleSync = async () => {
-    if (activeEnvironment === 'PRODUCTION') {
-      if (!window.confirm(t.incoming.ksefSync.productionConfirm)) return;
-    }
-
+  const executeSync = async (requestEnvironment: KsefEnvironment = activeEnvironment) => {
     setIsSyncing(true);
     setResult(null);
     setError(null);
 
-    await syncIncomingFromKsef(companyId, dateFrom, dateTo)
+    await syncIncomingFromKsef(companyId, dateFrom, dateTo, requestEnvironment)
       .then((syncResult) => {
         setResult(t.incoming.ksefSync.success(syncResult.created, syncResult.linked, syncResult.skipped));
         router.refresh();
@@ -72,8 +71,20 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
       });
   };
 
+  const handleSync = () => {
+    if (activeEnvironment === 'PRODUCTION') {
+      setIsProductionConfirmationOpen(true);
+      setPendingSyncEnvironment(activeEnvironment);
+      return;
+    }
+
+    void executeSync(activeEnvironment);
+  };
+
   const handleClose = () => {
     setIsModalOpen(false);
+    setIsProductionConfirmationOpen(false);
+    setPendingSyncEnvironment(null);
     setResult(null);
     setError(null);
   };
@@ -84,39 +95,29 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
         {t.incoming.ksefSync.button}
       </Button>
 
-      {isModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="ksef-sync-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(8,10,20,0.72)] p-4"
-          onClick={(event) => { if (event.target === event.currentTarget) handleClose(); }}
-        >
-          <div className="w-full max-w-md rounded-card border border-outline-strong bg-surface-panel p-6 space-y-5">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h2 id="ksef-sync-title" className="text-xl font-semibold tracking-tight text-foreground">
-                {t.incoming.ksefSync.modalTitle}
-              </h2>
-              <EnvironmentBadge environment={activeEnvironment} />
-            </div>
-            <p className="text-sm text-muted">
-              {t.incoming.ksefSync.modalDescription}
-            </p>
+      <NativeDialog
+        open={isModalOpen && !isProductionConfirmationOpen}
+        onClose={handleClose}
+        title={t.incoming.ksefSync.modalTitle}
+        description={t.incoming.ksefSync.modalDescription}
+      >
+        <div className="space-y-5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted">{t.incoming.ksefSync.environmentLabel}</span>
+            <EnvironmentBadge environment={activeEnvironment} />
           </div>
 
-            <div className="space-y-3">
+          <div className="space-y-3">
               <div className="space-y-1">
                 <label htmlFor="ksef-sync-date-from" className="text-sm font-medium text-foreground">
                   {t.incoming.ksefSync.dateFrom}
                 </label>
-                <input
+                <Input
                   id="ksef-sync-date-from"
                   type="date"
                   value={dateFrom}
                   max={dateTo}
                   onChange={(event) => setDateFrom(event.target.value)}
-                  className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
               </div>
 
@@ -124,26 +125,21 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
                 <label htmlFor="ksef-sync-date-to" className="text-sm font-medium text-foreground">
                   {t.incoming.ksefSync.dateTo}
                 </label>
-                <input
+                <Input
                   id="ksef-sync-date-to"
                   type="date"
                   value={dateTo}
                   min={dateFrom}
-                  max={today()}
+                  max={initialDate}
                   onChange={(event) => setDateTo(event.target.value)}
-                  className="w-full rounded-control border border-outline-control bg-surface-raised px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
             </div>
-            </div>
-
-            <p className="text-sm text-muted">
-              {t.incoming.ksefSync.environmentLabel}: <span className="font-semibold text-foreground">{activeEnvironment}</span>
-            </p>
+          </div>
 
             {!hasToken && (
               <Banner tone="warning">
                 <p>{t.incoming.ksefSync.missingTokenWarning(activeEnvironment)}{' '}
-                  <Link href="/dashboard/settings" className="font-semibold underline underline-offset-2 hover:no-underline">
+                  <Link href="/dashboard/settings" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 hover:no-underline">
                     {t.incoming.ksefSync.goToSettings}
                   </Link>
                 </p>
@@ -154,21 +150,57 @@ export function KsefSyncButton({ companyId, ksefCredentialStatuses }: KsefSyncBu
 
             {error !== null && <Banner tone="error">{error}</Banner>}
 
-            <div className="flex justify-end gap-3 pt-1">
-              <Button type="button" variant="ghost" onClick={handleClose} disabled={isSyncing}>
+          <div className="flex justify-end gap-3 pt-1">
+              <Button type="button" variant="ghost" data-dialog-cancel onClick={handleClose} disabled={isSyncing}>
                 {t.incoming.ksefSync.cancel}
               </Button>
             <Button
-              type="button"
-              onClick={() => { void handleSync(); }}
-              disabled={isSyncing || !dateFrom || !dateTo || !hasToken}
-            >
+                type="button"
+                loading={isSyncing}
+                onClick={handleSync}
+                disabled={!dateFrom || !dateTo || !hasToken}
+              >
                 {isSyncing ? t.incoming.ksefSync.syncing : t.incoming.ksefSync.confirm}
               </Button>
-            </div>
           </div>
         </div>
-      )}
+      </NativeDialog>
+
+      <NativeDialog
+        open={isProductionConfirmationOpen}
+        onClose={() => {
+          setIsProductionConfirmationOpen(false);
+          setPendingSyncEnvironment(null);
+        }}
+        title={t.incoming.ksefSync.productionConfirmTitle}
+        description={t.incoming.ksefSync.productionConfirmDescription(companyName)}
+      >
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            data-dialog-cancel
+            onClick={() => {
+              setIsProductionConfirmationOpen(false);
+              setPendingSyncEnvironment(null);
+            }}
+          >
+            {t.incoming.ksefSync.cancel}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              setIsProductionConfirmationOpen(false);
+              const requestEnvironment = pendingSyncEnvironment ?? activeEnvironment;
+              setPendingSyncEnvironment(null);
+              void executeSync(requestEnvironment);
+            }}
+          >
+            {t.incoming.ksefSync.confirm}
+          </Button>
+        </div>
+      </NativeDialog>
     </>
   );
 }

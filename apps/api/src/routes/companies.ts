@@ -1,6 +1,7 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import type { AccessTokenPayload } from '../lib/auth-config.js';
+import { requireExplicitKsefEnvironment } from '../lib/ksef-environment.js';
 import { fetchCompanyByNip } from '../services/company-registry.service.js';
 import { encrypt } from '@ksiegowy/shared-utils';
 
@@ -233,6 +234,19 @@ const readEncryptionKey = (fastify: Parameters<FastifyPluginAsync>[0]): string =
   return encryptionKey;
 };
 
+const requireMatchingKsefEnvironment = (
+  request: FastifyRequest,
+  expectedEnvironment: 'TEST' | 'PRODUCTION',
+): void => {
+  const selectedEnvironment = requireExplicitKsefEnvironment(request);
+
+  if (selectedEnvironment !== expectedEnvironment) {
+    throw request.server.httpErrors.badRequest(
+      `x-ksef-environment must match the requested environment ${expectedEnvironment}`
+    );
+  }
+};
+
 // ── Plugin ───────────────────────────────────────────────────────────────────
 
 export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
@@ -385,7 +399,7 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
   /**
    * GET /companies/:id/ksef-settings
    * Returns the default KSeF environment and per-environment token presence.
-   * Requires ADMIN role.
+   * Requires company membership. Token values are never returned.
    */
   fastify.get<{ Params: CompanyParams }>('/companies/:id/ksef-settings', {
     onRequest: [fastify.authenticate],
@@ -399,7 +413,9 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
     const user = request.user as AccessTokenPayload;
     const { id } = request.params;
 
-    assertAdminCompanyAccess(user, id, fastify);
+    if (!user.companies.some((company) => company.id === id)) {
+      throw fastify.httpErrors.forbidden('Access denied');
+    }
 
     const [company, credentials] = await Promise.all([
       fastify.prisma.company.findUnique({
@@ -454,6 +470,7 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
       const { id, environment } = request.params;
 
       assertAdminCompanyAccess(user, id, fastify);
+      requireMatchingKsefEnvironment(request, environment);
 
       const encryptionKey = readEncryptionKey(fastify);
       const { enc, iv } = encrypt(request.body.ksefToken, encryptionKey);
@@ -516,6 +533,7 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
       const { defaultEnvironment } = request.body;
 
       assertAdminCompanyAccess(user, id, fastify);
+      requireMatchingKsefEnvironment(request, defaultEnvironment);
 
       const credential = await fastify.prisma.companyKsefCredential.findUnique({
         where: { companyId_environment: { companyId: id, environment: defaultEnvironment } },
@@ -568,6 +586,7 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
       const { id } = request.params;
 
       assertAdminCompanyAccess(user, id, fastify);
+      requireMatchingKsefEnvironment(request, request.body.ksefEnv);
 
       const encryptionKey = readEncryptionKey(fastify);
 

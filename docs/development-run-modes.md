@@ -89,6 +89,17 @@ pnpm db:seed
 pnpm dev
 ```
 
+For an existing database that may already contain migrations from another
+branch, use the forward-only deployment command instead:
+
+```bash
+pnpm db:migrate:deploy
+```
+
+`pnpm db:migrate` remains the development command for creating migrations on a
+database aligned with the current branch. Do not use `prisma migrate reset` to
+hide migration-history drift.
+
 Optional Adminer:
 
 ```bash

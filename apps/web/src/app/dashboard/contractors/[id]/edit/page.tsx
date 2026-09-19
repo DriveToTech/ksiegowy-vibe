@@ -28,8 +28,8 @@ export default async function EditContractorPage({ params }: { params: Promise<{
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 text-sm text-muted">
-        <Link href="/dashboard/contractors" className="transition hover:text-foreground">
-          {t.contractors.breadcrumb}
+        <Link href="/dashboard/contractors" className="inline-flex min-h-11 items-center transition hover:text-foreground">
+          ← {t.contractors.breadcrumb}
         </Link>
         <span>/</span>
         <span className="text-foreground">{contractor.name}</span>

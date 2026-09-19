@@ -1,13 +1,4 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures/auth';
-
-// Each onboarding step is a route the Next.js dev server compiles on first visit, which can
-// briefly Fast-Refresh the page right as a test starts typing and drop the keystroke. Settling
-// on network idle after landing on a step — before filling anything — avoids that race without
-// masking a real regression (the ksef-settings 403 check below still fails loudly if it occurs).
-async function settle(page: Page): Promise<void> {
-  await page.waitForLoadState('networkidle');
-}
 
 // Covers the Phase 4 first-run onboarding wizard: a signed-in user with no company is
 // redirected from /dashboard to /onboarding and walks through company -> ksef -> team as
@@ -23,10 +14,15 @@ test('new user with no company is guided through company, ksef, and team steps t
   await page.goto('/dashboard');
   await expect(page).toHaveURL(/\/onboarding\/company$/);
   await expect(page.getByRole('heading', { name: 'Skonfiguruj firmę' })).toBeVisible();
-  await settle(page);
+  // Next dev can finish the RSC navigation before the client form has hydrated; a reload gives
+  // the form a stable client boundary before interaction without relying on network idle.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Skonfiguruj firmę' })).toBeVisible();
 
   // Step 1 — company details, via the NIP lookup that reuses CompanyDetailsForm.
-  await page.getByLabel('NIP').fill('1122334455');
+  await page.getByLabel('NIP').fill('');
+  await page.getByLabel('NIP').pressSequentially('1122334455');
+  await expect(page.getByRole('button', { name: 'Pobierz dane po NIP' })).toBeEnabled();
   await page.getByRole('button', { name: 'Pobierz dane po NIP' }).click();
   await expect(page.getByText('Dane firmy zostały pobrane z rejestru po NIP')).toBeVisible();
   await expect(page.getByLabel('Nazwa firmy')).toHaveValue('Registry Demo Company 1122334455');
@@ -43,17 +39,22 @@ test('new user with no company is guided through company, ksef, and team steps t
   await expect(page).toHaveURL(/\/onboarding\/ksef$/);
   await expect(page.getByRole('heading', { name: 'Integracja KSeF' })).toBeVisible();
   await expect(page.getByText('Nie udało się pobrać ustawień KSeF')).toHaveCount(0);
-  await settle(page);
+  // The KSeF form is another client boundary reached through a full-page session refresh.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Integracja KSeF' })).toBeVisible();
 
   // Step 2 — ksef: saving a working credential doubles as "Continue" (no separate nav control).
   await page.getByLabel('Token API KSeF (TEST)').fill('mock-ksef-token');
+  const credentialResponse = page.waitForResponse((response) =>
+    response.request().method() === 'PUT' && response.url().endsWith('/ksef-credentials/TEST'),
+  );
   await page.getByRole('button', { name: 'Zapisz token TEST' }).click();
+  await credentialResponse;
   await expect(page).toHaveURL(/\/onboarding\/team$/);
 
   // Step 3 — team: optional invite. No email is actually sent — the UI must surface a
   // copyable invite link instead.
   await expect(page.getByRole('heading', { name: 'Zaproś księgowego' })).toBeVisible();
-  await settle(page);
   await page.getByLabel('Adres e-mail *').fill('bookkeeper@example.test');
   await page.getByRole('button', { name: 'Wyślij zaproszenie' }).click();
   await expect(page.getByText('Zaproszenie utworzone')).toBeVisible();
@@ -69,7 +70,6 @@ test('new user with no company is guided through company, ksef, and team steps t
 
 test('"Save and finish later" returns to the dashboard once a company has been created', async ({ onboardingPage: page }) => {
   await page.goto('/onboarding/company');
-  await settle(page);
 
   await page.getByLabel('Nazwa firmy').fill('Deferred Demo Ledger LLC');
   await page.getByLabel('NIP').fill('9988776655');

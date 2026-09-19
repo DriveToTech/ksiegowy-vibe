@@ -10,7 +10,30 @@ declare module 'fastify' {
   }
 }
 
-const KSEF_ENVIRONMENTS: readonly KsefEnvironment[] = ['TEST', 'PRODUCTION'];
+export const KSEF_ENVIRONMENTS: readonly KsefEnvironment[] = ['TEST', 'PRODUCTION'];
+
+export const KSEF_ENVIRONMENT_QUERY_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    environment: { type: 'string', enum: KSEF_ENVIRONMENTS },
+  },
+} as const;
+
+export const KSEF_ENVIRONMENT_HEADER_SCHEMA = {
+  type: 'object',
+  required: [KSEF_ENVIRONMENT_HEADER],
+  properties: {
+    [KSEF_ENVIRONMENT_HEADER]: { type: 'string', enum: KSEF_ENVIRONMENTS },
+  },
+} as const;
+
+/**
+ * Rollout contract: every financial mutation must send one exact
+ * x-ksef-environment header. Read-only routes may temporarily fall back to
+ * the query parameter, active-environment cookie, and finally Company.ksefEnv
+ * for backwards compatibility; this fallback must not be used by mutations.
+ */
 
 const isKsefEnvironment = (value: string): value is KsefEnvironment => {
   return KSEF_ENVIRONMENTS.includes(value as KsefEnvironment);
@@ -51,12 +74,44 @@ export const readRequestedKsefEnvironment = (request: FastifyRequest): KsefEnvir
   const headerValue = readHeaderValue(request.headers[KSEF_ENVIRONMENT_HEADER]);
 
   if (headerValue === null) {
-    return null;
+    const query = request.query as { environment?: unknown } | undefined;
+    const queryValue = query?.environment;
+
+    if (queryValue === undefined) {
+      return null;
+    }
+
+    if (typeof queryValue !== 'string' || !isKsefEnvironment(queryValue)) {
+      throw request.server.httpErrors.badRequest(
+        'Invalid environment query parameter. Expected TEST or PRODUCTION.'
+      );
+    }
+
+    request.ksefEnvironment = queryValue;
+    return queryValue;
   }
 
   if (!isKsefEnvironment(headerValue)) {
     throw request.server.httpErrors.badRequest(
       `Invalid ${KSEF_ENVIRONMENT_HEADER} header. Expected TEST or PRODUCTION.`
+    );
+  }
+
+  request.ksefEnvironment = headerValue;
+  return headerValue;
+};
+
+/**
+ * Resolves the environment for a mutation that can change or submit financial
+ * data. These operations must never infer the environment from a cookie or a
+ * company default: an absent, repeated, or non-exact header is rejected.
+ */
+export const requireExplicitKsefEnvironment = (request: FastifyRequest): KsefEnvironment => {
+  const headerValue = request.headers[KSEF_ENVIRONMENT_HEADER];
+
+  if (typeof headerValue !== 'string' || !isKsefEnvironment(headerValue)) {
+    throw request.server.httpErrors.badRequest(
+      `Invalid or missing ${KSEF_ENVIRONMENT_HEADER} header. Expected exactly TEST or PRODUCTION.`
     );
   }
 
