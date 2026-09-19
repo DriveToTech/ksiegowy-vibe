@@ -7,6 +7,7 @@ import {
   getCorrectionAmountPrefix,
   mapCorrectionModeToDatabase,
   normalizeCorrectionRequest,
+  requireAcceptedKsefReference,
   resolveInvoiceKsefState,
 } from './outgoing.js';
 
@@ -204,6 +205,20 @@ describe('resolveInvoiceKsefState()', () => {
   });
 });
 
+describe('requireAcceptedKsefReference()', () => {
+  it('rejects ACCEPTED state without a non-empty KSeF reference', () => {
+    expect(() => requireAcceptedKsefReference({ status: 'ACCEPTED', ksefReference: null }))
+      .toThrow('Accepted invoice is missing its KSeF reference');
+    expect(() => requireAcceptedKsefReference({ status: 'ACCEPTED', ksefReference: '  ' }))
+      .toThrow('Accepted invoice is missing its KSeF reference');
+  });
+
+  it('returns the KSeF reference for a valid ACCEPTED state', () => {
+    expect(requireAcceptedKsefReference({ status: 'ACCEPTED', ksefReference: 'KSEF-123' }))
+      .toBe('KSEF-123');
+  });
+});
+
 describe('buildInvoiceKsefStateInclude()', () => {
   it('produces the correct Prisma include shape for TEST environment', () => {
     const result = buildInvoiceKsefStateInclude('TEST' as KsefEnvironment);
@@ -299,6 +314,7 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     const invoiceFindUnique = vi.fn(async () => createDraftInvoice());
     const prisma = {
       invoice: { findUnique: invoiceFindUnique },
+      contractor: { findUnique: vi.fn(async () => ({ companyId: 'company-1' })) },
       $transaction: vi.fn(),
     } as unknown as PrismaClient;
 
@@ -377,6 +393,7 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     const invoiceVatBreakdownDeleteMany = vi.fn(async () => ({ count: 1 }));
     const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => {
       return callback({
+        $queryRaw: vi.fn(async () => [{ status: 'DRAFT' }]),
         invoiceLine: { deleteMany: invoiceLineDeleteMany },
         invoiceVatBreakdown: { deleteMany: invoiceVatBreakdownDeleteMany },
         invoice: { update: invoiceUpdate },
@@ -384,6 +401,7 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     });
     const prisma = {
       invoice: { findUnique: invoiceFindUnique },
+      contractor: { findUnique: vi.fn(async () => ({ companyId: 'company-1' })) },
       $transaction: transaction,
     } as unknown as PrismaClient;
 

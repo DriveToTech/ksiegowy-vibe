@@ -12,6 +12,7 @@ import { FormField } from '../../../components/molecules/FormField';
 interface InvoiceNumberPatternFormProps {
   companyId: string;
   currentPattern: string | null;
+  sampleDate: string;
 }
 
 const DEFAULT_PATTERN = 'FV {SEQ}/{MONTH}/{YEAR}';
@@ -35,32 +36,30 @@ const PRESETS = [
   { label: 'Z NIP', pattern: '{CONTRACTOR_NIP}/{YEAR}/{MONTH_PAD}/{SEQ}' },
 ] as const;
 
-const SAMPLE_DATE = new Date();
 const SAMPLE_NIP = '1234567890';
 
-function resolvePatternPreview(pattern: string): string {
-  const year = SAMPLE_DATE.getFullYear();
-  const month = SAMPLE_DATE.getMonth() + 1;
-  const day = SAMPLE_DATE.getDate();
+function resolvePatternPreview(pattern: string, sampleDate: string): string {
+  const [year, monthWithPadding, dayWithPadding] = sampleDate.split('-');
+  const month = String(Number(monthWithPadding));
+  const day = String(Number(dayWithPadding));
   return pattern
     .replace('{SEQ}', '1')
-    .replace('{YEAR}', String(year))
-    .replace('{YEAR_SHORT}', String(year).slice(-2))
-    .replace('{MONTH_PAD}', String(month).padStart(2, '0'))
-    .replace('{MONTH}', String(month))
-    .replace('{DAY_PAD}', String(day).padStart(2, '0'))
-    .replace('{DAY}', String(day))
+    .replace('{YEAR}', year)
+    .replace('{YEAR_SHORT}', year.slice(-2))
+    .replace('{MONTH_PAD}', monthWithPadding)
+    .replace('{MONTH}', month)
+    .replace('{DAY_PAD}', dayWithPadding)
+    .replace('{DAY}', day)
     .replace('{CONTRACTOR_NIP}', SAMPLE_NIP);
 }
 
-export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceNumberPatternFormProps) {
+export function InvoiceNumberPatternForm({ companyId, currentPattern, sampleDate }: InvoiceNumberPatternFormProps) {
   const router = useRouter();
   const [pattern, setPattern] = useState(currentPattern ?? DEFAULT_PATTERN);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  const preview = pattern.includes('{SEQ}') ? resolvePatternPreview(pattern) : null;
+  const preview = pattern.includes('{SEQ}') ? resolvePatternPreview(pattern, sampleDate) : null;
   const isDefault = currentPattern === null;
 
   const insertToken = (token: string) => {
@@ -118,14 +117,16 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
         <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted">Szablony</p>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => (
-            <button
+            <Button
               key={preset.pattern}
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => setPattern(preset.pattern)}
-              className="rounded-full border border-outline bg-surface px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
+              className="text-xs font-medium"
             >
               {preset.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -145,15 +146,17 @@ export function InvoiceNumberPatternForm({ companyId, currentPattern }: InvoiceN
           <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted">Dostępne tokeny</p>
           <div className="flex flex-wrap gap-2">
             {TOKENS.map(({ token, label, description }) => (
-              <button
+              <Button
                 key={token}
                 type="button"
+                variant="ghost"
+                size="sm"
                 title={description}
                 onClick={() => insertToken(token)}
-                className="rounded-full border border-outline bg-surface px-3 py-1 text-xs font-mono font-medium text-foreground transition hover:border-primary/40 hover:text-primary"
+                className="border border-outline text-xs font-mono font-medium text-foreground hover:border-primary/40 hover:text-primary"
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

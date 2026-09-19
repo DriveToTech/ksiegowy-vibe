@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { AccessTokenPayload } from '../../lib/auth-config.js';
+import { KSEF_ENVIRONMENT_QUERY_SCHEMA, resolveEffectiveKsefEnvironment } from '../../lib/ksef-environment.js';
 import { readFile } from '../../services/storage/local-fs.js';
 
 // ── JSON Schema definitions ─────────────────────────────────────────────────
@@ -16,6 +17,10 @@ const fileParamsSchema = {
 
 interface FileParams {
   fileId: string;
+}
+
+interface KsefEnvironmentQuery {
+  environment?: 'TEST' | 'PRODUCTION';
 }
 
 // ── MIME → Content-Disposition mapping ───────────────────────────────────────
@@ -56,12 +61,13 @@ export const fileServeRoutes: FastifyPluginAsync = async (fastify): Promise<void
    * We resolve the owning company from the FileRecord itself, then verify the
    * authenticated user is a member of that company before serving the bytes.
    */
-  fastify.get<{ Params: FileParams }>(
+  fastify.get<{ Params: FileParams; Querystring: KsefEnvironmentQuery }>(
     '/files/:fileId',
     {
       onRequest: [fastify.authenticate],
       schema: {
-        params: fileParamsSchema
+        params: fileParamsSchema,
+        querystring: KSEF_ENVIRONMENT_QUERY_SCHEMA,
         // No response schema — binary response; Fastify serialisation is bypassed
       }
     },
@@ -71,7 +77,11 @@ export const fileServeRoutes: FastifyPluginAsync = async (fastify): Promise<void
 
       // Look up the record first to identify the owning company
       const record = await fastify.prisma.fileRecord.findUnique({
-        where: { id: fileId }
+        where: { id: fileId },
+        include: {
+          invoice: { select: { companyId: true, environment: true } },
+          incomingInvoice: { select: { companyId: true, environment: true } },
+        },
       });
 
       if (!record) {
@@ -85,10 +95,19 @@ export const fileServeRoutes: FastifyPluginAsync = async (fastify): Promise<void
         throw fastify.httpErrors.notFound('File not found');
       }
 
+      const parent = record.invoice ?? record.incomingInvoice;
+      const selectedEnvironment = parent
+        ? await resolveEffectiveKsefEnvironment(request, fastify.prisma, record.companyId)
+        : undefined;
+
+      if (parent && (parent.companyId !== record.companyId || parent.environment !== selectedEnvironment)) {
+        throw fastify.httpErrors.notFound('File not found');
+      }
+
       // Read the file bytes; readFile() performs its own companyId guard as a second check
       let fileData;
       try {
-        fileData = await readFile(fastify.prisma, fileId, record.companyId);
+        fileData = await readFile(fastify.prisma, fileId, record.companyId, selectedEnvironment);
       } catch (err: unknown) {
         const statusCode = (err as { statusCode?: number }).statusCode;
         if (statusCode === 404) throw fastify.httpErrors.notFound('File missing from storage');

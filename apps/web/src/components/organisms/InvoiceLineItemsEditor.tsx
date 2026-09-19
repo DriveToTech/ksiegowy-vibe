@@ -136,6 +136,7 @@ export function InvoiceLineItemsEditor({
                 <tr key={index} className="align-middle">
                   <td className="py-1 pr-1">
                     <CatalogueItemPicker
+                      id={`invoice-line-${index}-desktop-name`}
                       serviceTemplates={serviceTemplates}
                       contractorRates={contractorRates}
                       contractorId={contractorId}
@@ -147,8 +148,9 @@ export function InvoiceLineItemsEditor({
                     />
                   </td>
                   <td className="px-1 py-1">
-                    <Input
-                      type="text"
+                     <Input
+                       id={`invoice-line-${index}-desktop-quantity`}
+                       type="text"
                       inputMode="decimal"
                       aria-label={t.invoiceLineItemsEditor.quantityAriaLabel}
                       value={line.quantity}
@@ -157,16 +159,18 @@ export function InvoiceLineItemsEditor({
                     />
                   </td>
                   <td className="px-1 py-1">
-                    <Input
-                      type="text"
+                     <Input
+                       id={`invoice-line-${index}-desktop-unit`}
+                       type="text"
                       aria-label={t.invoiceLineItemsEditor.unitAriaLabel}
                       value={line.unit}
                       onChange={(e) => updateLine(index, 'unit', e.target.value)}
                     />
                   </td>
                   <td className="px-1 py-1">
-                    <Input
-                      type="text"
+                     <Input
+                       id={`invoice-line-${index}-desktop-unit-net-price`}
+                       type="text"
                       inputMode="decimal"
                       aria-label={t.invoiceLineItemsEditor.unitNetPriceAriaLabel}
                       value={line.unitNetPrice}
@@ -176,8 +180,9 @@ export function InvoiceLineItemsEditor({
                     />
                   </td>
                   <td className="px-1 py-1">
-                    <Select
-                      aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
+                     <Select
+                       id={`invoice-line-${index}-desktop-vat-rate`}
+                       aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
                       value={line.vatRate}
                       onChange={(e) => updateLine(index, 'vatRate', e.target.value)}
                     >
@@ -195,17 +200,19 @@ export function InvoiceLineItemsEditor({
                   </td>
                   <td className="py-1 pl-1">
                     <div className="flex h-11 items-center justify-center">
-                      {lines.length > 1 ? (
-                        <button
+                       {lines.length > 1 ? (
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           aria-label={t.invoiceLineItemsEditor.removeLineAriaLabel}
                           onClick={() => removeLine(index)}
-                          className="flex min-h-11 min-w-11 items-center justify-center rounded-control p-3 text-muted transition hover:bg-error hover:text-error-ink"
+                          className="min-w-11 p-0 text-muted hover:bg-error hover:text-error-ink"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M18 6L6 18M6 6l12 12" />
                           </svg>
-                        </button>
+                        </Button>
                       ) : null}
                     </div>
                   </td>
@@ -257,16 +264,18 @@ export function InvoiceLineItemsEditor({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label={t.invoiceLineItemsEditor.unitFieldLabel}>
-                    <Input
-                      type="text"
+                     <Input
+                       id={`invoice-line-${index}-mobile-unit`}
+                       type="text"
                       aria-label={t.invoiceLineItemsEditor.unitAriaLabel}
                       value={line.unit}
                       onChange={(e) => updateLine(index, 'unit', e.target.value)}
                     />
                   </FormField>
                   <FormField label={t.invoiceLineItemsEditor.quantityFieldLabel}>
-                    <Input
-                      type="text"
+                     <Input
+                       id={`invoice-line-${index}-mobile-quantity`}
+                       type="text"
                       inputMode="decimal"
                       aria-label={t.invoiceLineItemsEditor.quantityAriaLabel}
                       value={line.quantity}
@@ -275,8 +284,9 @@ export function InvoiceLineItemsEditor({
                     />
                   </FormField>
                   <FormField label={t.invoiceLineItemsEditor.unitNetPriceFieldLabel} required>
-                    <Input
-                      type="text"
+                     <Input
+                       id={`invoice-line-${index}-mobile-unit-net-price`}
+                       type="text"
                       inputMode="decimal"
                       aria-label={t.invoiceLineItemsEditor.unitNetPriceAriaLabel}
                       value={line.unitNetPrice}
@@ -286,8 +296,9 @@ export function InvoiceLineItemsEditor({
                     />
                   </FormField>
                   <FormField label={t.invoiceLineItemsEditor.vatRateFieldLabel}>
-                    <Select
-                      aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
+                     <Select
+                       id={`invoice-line-${index}-mobile-vat-rate`}
+                       aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
                       value={line.vatRate}
                       onChange={(e) => updateLine(index, 'vatRate', e.target.value)}
                     >

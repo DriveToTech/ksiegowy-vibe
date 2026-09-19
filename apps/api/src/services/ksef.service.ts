@@ -28,6 +28,10 @@ export const upsertInvoiceKsefState = async (
     lastSubmissionId?: string | null;
   }
 ): Promise<void> => {
+  if (input.status === 'ACCEPTED' && !input.ksefReference?.trim()) {
+    throw new Error('KSeF ACCEPTED state requires a non-empty ksefReference');
+  }
+
   const createData = {
     invoiceId: input.invoiceId,
     environment: input.environment,
@@ -210,6 +214,32 @@ export interface KsefSubmitResult {
   ksefReference?: string;
 }
 
+export class KsefSubmissionConflictError extends Error {
+  public readonly statusCode = 409;
+
+  public constructor(message: string) {
+    super(message);
+    this.name = 'KsefSubmissionConflictError';
+  }
+}
+
+export class KsefManualReconciliationRequiredError extends Error {
+  public readonly statusCode = 409;
+
+  public constructor(message: string) {
+    super(message);
+    this.name = 'KsefManualReconciliationRequiredError';
+  }
+}
+
+const getErrorStatusCode = (error: unknown): number | null => {
+  if (typeof error !== 'object' || error === null || !('statusCode' in error)) {
+    return null;
+  }
+
+  return typeof error.statusCode === 'number' ? error.statusCode : null;
+};
+
 /**
  * Submits an ISSUED invoice to KSeF (v2 flow):
  * - Gets/refreshes a valid accessToken
@@ -225,26 +255,84 @@ export const submitInvoiceToKsef = async (
   invoiceData: InvoiceData,
   encryptionKey: string,
   selectedEnvironment: KsefEnvironment,
+  options: { retryOfflineQueue?: boolean } = {},
 ): Promise<KsefSubmitResult> => {
   const environment = toKsefClientEnvironment(selectedEnvironment);
   const xmlString = buildFa3Xml(invoiceData);
   const requestHash = crypto.createHash('sha256').update(xmlString).digest('hex');
 
-  const attemptCount = await prisma.ksefSubmission.count({
-    where: { invoiceId, environment: selectedEnvironment }
-  });
-  const attemptNumber = attemptCount + 1;
+  let submissionRecord = await prisma.$transaction(async (transactionClient) => {
+    const lockedInvoice = await transactionClient.$queryRaw<Array<{ id: string; ksef_status: string }>>`
+      SELECT id, "ksefStatus" AS ksef_status
+      FROM "Invoice"
+      WHERE id = ${invoiceId}
+        AND "companyId" = ${companyId}
+        AND environment = ${selectedEnvironment}::"KsefEnvironment"
+      FOR UPDATE
+    `;
 
-  let submissionRecord = await prisma.ksefSubmission.create({
-    data: {
-      companyId,
-      invoiceId,
-      environment: selectedEnvironment,
-      attemptNumber,
-      status: 'PENDING',
-      requestHash,
-      submittedAt: new Date()
+    if (lockedInvoice.length === 0) {
+      throw new Error(`Invoice ${invoiceId} not found for company ${companyId}`);
     }
+
+    const currentState = await transactionClient.invoiceKsefState.findUnique({
+      where: { invoiceId_environment: { invoiceId, environment: selectedEnvironment } },
+      select: { status: true, lastSubmissionId: true },
+    });
+
+    const currentStatus = currentState?.status ?? lockedInvoice[0]!.ksef_status;
+
+    if (currentStatus !== 'NOT_SENT') {
+      const previousSubmission = currentState?.lastSubmissionId
+          ? await transactionClient.ksefSubmission.findUnique({
+              where: { id: currentState.lastSubmissionId },
+            select: { status: true, externalMutationStarted: true },
+          })
+        : null;
+
+      if (
+        !options.retryOfflineQueue ||
+        currentState?.status !== 'OFFLINE_QUEUED' ||
+        previousSubmission?.status !== 'ERROR' ||
+        previousSubmission?.externalMutationStarted !== false
+      ) {
+        throw new KsefSubmissionConflictError(
+          `Invoice ${invoiceId} already has a KSeF submission in progress or completed for ${selectedEnvironment}`
+        );
+      }
+    }
+
+    const attemptCount = await transactionClient.ksefSubmission.count({
+      where: { invoiceId, environment: selectedEnvironment }
+    });
+    const submission = await transactionClient.ksefSubmission.create({
+      data: {
+        companyId,
+        invoiceId,
+        environment: selectedEnvironment,
+        attemptNumber: attemptCount + 1,
+        status: 'PENDING',
+        requestHash,
+        externalMutationStarted: false,
+        submittedAt: new Date()
+      }
+    });
+
+    await transactionClient.invoiceKsefState.upsert({
+      where: { invoiceId_environment: { invoiceId, environment: selectedEnvironment } },
+      create: {
+        invoiceId,
+        environment: selectedEnvironment,
+        status: 'OFFLINE_QUEUED',
+        lastSubmissionId: submission.id,
+      },
+      update: {
+        status: 'OFFLINE_QUEUED',
+        lastSubmissionId: submission.id,
+      },
+    });
+
+    return submission;
   });
 
   const doSubmit = async (accessToken: string) => {
@@ -252,67 +340,107 @@ export const submitInvoiceToKsef = async (
     return client.submitInvoice({ accessToken, xml: xmlString });
   };
 
+  let externalMutationStarted = false;
+
   try {
     let accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
     let sendResult;
 
     try {
+      await prisma.ksefSubmission.update({
+        where: { id: submissionRecord.id },
+        data: { externalMutationStarted: true },
+      });
+      externalMutationStarted = true;
       sendResult = await doSubmit(accessToken);
     } catch (err: unknown) {
       const isUnauth = err instanceof Error &&
         (err.message.includes('401') || err.message.toLowerCase().includes('unauthori'));
 
       if (isUnauth) {
+        await prisma.ksefSubmission.update({
+          where: { id: submissionRecord.id },
+          data: { externalMutationStarted: false },
+        });
+        externalMutationStarted = false;
         accessToken = await initKsefSession(prisma, companyId, encryptionKey, selectedEnvironment);
+        await prisma.ksefSubmission.update({
+          where: { id: submissionRecord.id },
+          data: { externalMutationStarted: true },
+        });
+        externalMutationStarted = true;
         sendResult = await doSubmit(accessToken);
       } else {
         throw err;
       }
     }
 
-    submissionRecord = await prisma.ksefSubmission.update({
-      where: { id: submissionRecord.id },
-      data: {
-        status: 'SUBMITTED',
-        referenceNumber: sendResult.invoiceRef,
-        sessionReferenceNumber: sendResult.sessionRef,
-        httpStatusCode: 202
-      }
-    });
+    submissionRecord = await prisma.$transaction(async (transactionClient) => {
+      const updatedSubmission = await transactionClient.ksefSubmission.update({
+        where: { id: submissionRecord.id },
+        data: {
+          status: 'SUBMITTED',
+          referenceNumber: sendResult.invoiceRef,
+          sessionReferenceNumber: sendResult.sessionRef,
+          httpStatusCode: 202
+        }
+      });
 
-    await upsertInvoiceKsefState(prisma, {
-      invoiceId,
-      environment: selectedEnvironment,
-      status: 'SUBMITTED',
-      submittedAt: new Date(),
-      lastSubmissionId: submissionRecord.id,
+      await transactionClient.invoiceKsefState.upsert({
+        where: { invoiceId_environment: { invoiceId, environment: selectedEnvironment } },
+        create: {
+          invoiceId,
+          environment: selectedEnvironment,
+          status: 'SUBMITTED',
+          submittedAt: updatedSubmission.submittedAt ?? new Date(),
+          lastSubmissionId: updatedSubmission.id,
+        },
+        update: {
+          status: 'SUBMITTED',
+          submittedAt: updatedSubmission.submittedAt ?? new Date(),
+          lastSubmissionId: updatedSubmission.id,
+        },
+      });
+
+      return updatedSubmission;
     });
 
     // The client polls KSeF before closing the session, so ksefReferenceNumber may already be available.
-    const ksefReference = sendResult.ksefReferenceNumber;
+    const ksefReference = sendResult.ksefReferenceNumber?.trim() || undefined;
 
     if (ksefReference) {
-      await Promise.all([
-        prisma.ksefSubmission.update({
+      const acceptedAt = new Date();
+      await prisma.$transaction(async (transactionClient) => {
+        await transactionClient.ksefSubmission.update({
           where: { id: submissionRecord.id },
-          data: { status: 'ACCEPTED', ksefReference, acceptedAt: new Date() }
-        }),
+          data: { status: 'ACCEPTED', ksefReference, acceptedAt }
+        });
         // LEGACY: parallel write for rollout compatibility
-        prisma.invoice.update({
+        await transactionClient.invoice.update({
           where: { id: invoiceId },
-          data: { ksefStatus: 'ACCEPTED', ksefReference, ksefAcceptedAt: new Date() }
-        }),
-        upsertInvoiceKsefState(prisma, {
-          invoiceId,
-          environment: selectedEnvironment,
-          status: 'ACCEPTED',
-          ksefReference,
-          submittedAt: submissionRecord.submittedAt ?? new Date(),
-          acceptedAt: new Date(),
-          lastSubmissionId: submissionRecord.id,
-        })
-      ]);
-      } else {
+          data: { ksefStatus: 'ACCEPTED', ksefReference, ksefAcceptedAt: acceptedAt }
+        });
+        await transactionClient.invoiceKsefState.upsert({
+          where: { invoiceId_environment: { invoiceId, environment: selectedEnvironment } },
+          create: {
+            invoiceId,
+            environment: selectedEnvironment,
+            status: 'ACCEPTED',
+            ksefReference,
+            submittedAt: submissionRecord.submittedAt ?? new Date(),
+            acceptedAt,
+            lastSubmissionId: submissionRecord.id,
+          },
+          update: {
+            status: 'ACCEPTED',
+            ksefReference,
+            submittedAt: submissionRecord.submittedAt ?? new Date(),
+            acceptedAt,
+            lastSubmissionId: submissionRecord.id,
+          },
+        });
+      });
+    } else {
         // LEGACY: parallel write for rollout compatibility
         await prisma.invoice.update({
           where: { id: invoiceId },
@@ -328,34 +456,164 @@ export const submitInvoiceToKsef = async (
     };
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
+    const canRetrySafely = !externalMutationStarted;
+    const storedErrorMessage = canRetrySafely
+      ? errorMessage
+      : `Ambiguous KSeF submission outcome: ${errorMessage}`;
+    const invoiceKsefStatus = canRetrySafely ? 'OFFLINE_QUEUED' : 'SUBMITTED';
+    const submissionStatus = canRetrySafely ? 'ERROR' : 'PENDING';
 
-    await prisma.ksefSubmission.update({
-      where: { id: submissionRecord.id },
-      data: {
-        status: 'ERROR',
-        errorMessage,
-        httpStatusCode: (err as { statusCode?: number }).statusCode ?? null
-      }
-    });
+    await prisma.$transaction(async (transactionClient) => {
+      await transactionClient.ksefSubmission.update({
+        where: { id: submissionRecord.id },
+        data: {
+          status: submissionStatus,
+          errorMessage: storedErrorMessage,
+          httpStatusCode: getErrorStatusCode(err)
+        }
+      });
 
-    // LEGACY: parallel write for rollout compatibility
-    await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: { ksefStatus: 'OFFLINE_QUEUED' }
-    });
+      // LEGACY: parallel write for rollout compatibility
+      await transactionClient.invoice.update({
+        where: { id: invoiceId },
+        data: { ksefStatus: invoiceKsefStatus }
+      });
 
-    await upsertInvoiceKsefState(prisma, {
-      invoiceId,
-      environment: selectedEnvironment,
-      status: 'OFFLINE_QUEUED',
-      lastSubmissionId: submissionRecord.id,
+      await transactionClient.invoiceKsefState.upsert({
+        where: { invoiceId_environment: { invoiceId, environment: selectedEnvironment } },
+        create: {
+          invoiceId,
+          environment: selectedEnvironment,
+          status: invoiceKsefStatus,
+          lastSubmissionId: submissionRecord.id,
+        },
+        update: {
+          status: invoiceKsefStatus,
+          lastSubmissionId: submissionRecord.id,
+        },
+      });
     });
 
     throw err;
   }
 };
 
+export const attachKsefSubmissionReferences = async (
+  prisma: PrismaClient,
+  invoiceId: string,
+  companyId: string,
+  selectedEnvironment: KsefEnvironment,
+  sessionReferenceNumber: string,
+  referenceNumber: string,
+): Promise<string> => {
+  const normalizedSessionReferenceNumber = sessionReferenceNumber.trim();
+  const normalizedReferenceNumber = referenceNumber.trim();
+  if (!normalizedSessionReferenceNumber || !normalizedReferenceNumber) {
+    throw new Error('Both KSeF sessionReferenceNumber and referenceNumber are required');
+  }
+
+  return prisma.$transaction(async (transactionClient) => {
+    const lockedInvoice = await transactionClient.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM "Invoice"
+      WHERE id = ${invoiceId}
+        AND "companyId" = ${companyId}
+        AND environment = ${selectedEnvironment}::"KsefEnvironment"
+      FOR UPDATE
+    `;
+    if (lockedInvoice.length === 0) throw new Error(`Invoice ${invoiceId} not found for company ${companyId}`);
+
+    const submission = await transactionClient.ksefSubmission.findFirst({
+      where: {
+        invoiceId,
+        companyId,
+        environment: selectedEnvironment,
+        status: { in: ['PENDING', 'SUBMITTED', 'ERROR'] },
+        ksefReference: null,
+      },
+      orderBy: { attemptNumber: 'desc' },
+    });
+    if (!submission) throw new KsefManualReconciliationRequiredError(
+      `Invoice ${invoiceId} has no ambiguous KSeF submission to reconcile`
+    );
+
+    const updatedSubmission = await transactionClient.ksefSubmission.update({
+      where: { id: submission.id },
+      data: {
+        status: 'SUBMITTED',
+        referenceNumber: normalizedReferenceNumber,
+        sessionReferenceNumber: normalizedSessionReferenceNumber,
+        errorMessage: null,
+      },
+    });
+
+    await transactionClient.invoice.update({
+      where: { id: invoiceId },
+      data: { ksefStatus: 'SUBMITTED' },
+    });
+    await transactionClient.invoiceKsefState.upsert({
+      where: { invoiceId_environment: { invoiceId, environment: selectedEnvironment } },
+      create: {
+        invoiceId,
+        environment: selectedEnvironment,
+        status: 'SUBMITTED',
+        lastSubmissionId: submission.id,
+      },
+      update: {
+        status: 'SUBMITTED',
+        lastSubmissionId: submission.id,
+      },
+    });
+
+    return updatedSubmission.id;
+  });
+};
+
 // ── Offline queue retry ────────────────────────────────────────────────────────
+
+export const reconcilePendingKsefSubmissions = async (
+  prisma: PrismaClient,
+  encryptionKey: string,
+  logger: { info: (obj: object, msg: string) => void; error: (obj: object, msg: string) => void },
+): Promise<void> => {
+  const pendingSubmissions = await prisma.ksefSubmission.findMany({
+    where: { status: 'PENDING' },
+    select: {
+      id: true,
+      companyId: true,
+      invoiceId: true,
+      environment: true,
+      referenceNumber: true,
+      sessionReferenceNumber: true,
+    },
+  });
+
+  for (const submission of pendingSubmissions) {
+    if (!submission.referenceNumber || !submission.sessionReferenceNumber) {
+      await prisma.ksefSubmission.update({
+        where: { id: submission.id },
+        data: {
+          errorMessage: 'Manual reconciliation required: KSeF references were not persisted before the process stopped',
+        },
+      });
+      logger.error(
+        { submissionId: submission.id, invoiceId: submission.invoiceId },
+        'KSeF pending submission requires manual reconciliation; it was not resubmitted',
+      );
+      continue;
+    }
+
+    await pollKsefSubmissionStatus(prisma, submission.id, submission.companyId, encryptionKey)
+      .then((result) => logger.info(
+        { submissionId: submission.id, invoiceId: submission.invoiceId, status: result.status },
+        'KSeF pending submission reconciled',
+      ))
+      .catch((error: unknown) => logger.error(
+        { submissionId: submission.id, invoiceId: submission.invoiceId, error: error instanceof Error ? error.message : String(error) },
+        'KSeF pending submission reconciliation failed; it was not resubmitted',
+      ));
+  }
+};
 
 /**
  * Finds all OFFLINE_QUEUED invoices across all companies and retries submission.
@@ -366,9 +624,12 @@ export const retryOfflineQueue = async (
   encryptionKey: string,
   logger: { info: (obj: object, msg: string) => void; error: (obj: object, msg: string) => void }
 ): Promise<void> => {
+  await reconcilePendingKsefSubmissions(prisma, encryptionKey, logger);
+
   const queuedStates = await prisma.invoiceKsefState.findMany({
     where: { status: 'OFFLINE_QUEUED' },
     include: {
+      lastSubmission: { select: { status: true, externalMutationStarted: true } },
       invoice: {
         include: {
           lines: { orderBy: { position: 'asc' } },
@@ -386,6 +647,17 @@ export const retryOfflineQueue = async (
 
   for (const queuedState of queuedStates) {
     const invoice = queuedState.invoice;
+
+    if (
+      queuedState.lastSubmission?.status === 'PENDING' ||
+      queuedState.lastSubmission?.externalMutationStarted
+    ) {
+      logger.error(
+        { invoiceId: invoice.id },
+        'KSeF offline retry: submission has an ambiguous outcome and was not retried'
+      );
+      continue;
+    }
 
     if (!invoice.invoiceNumber || !invoice.contractor || !invoice.sellerNip || !invoice.buyerNip) {
       logger.info({ invoiceId: invoice.id }, 'KSeF offline retry: skipping invoice with missing data');
@@ -411,6 +683,7 @@ export const retryOfflineQueue = async (
       invoiceData,
       encryptionKey,
       queuedState.environment,
+      { retryOfflineQueue: true },
     )
       .then(() => logger.info({ invoiceId: invoice.id }, 'KSeF offline retry: submission succeeded'))
       .catch((err: unknown) => logger.error({ invoiceId: invoice.id, err }, 'KSeF offline retry: submission failed'));
@@ -491,6 +764,8 @@ export const pollKsefSubmissionStatus = async (
       invoice: {
         select: {
           id: true,
+          companyId: true,
+          environment: true,
           ksefStatus: true,
           ksefReference: true,
           ksefAcceptedAt: true
@@ -500,6 +775,14 @@ export const pollKsefSubmissionStatus = async (
   });
 
   if (!submission) throw new Error(`Submission ${submissionId} not found`);
+
+  if (
+    submission.companyId !== companyId ||
+    submission.invoice.companyId !== companyId ||
+    submission.invoice.environment !== submission.environment
+  ) {
+    throw new Error(`Submission ${submissionId} not found`);
+  }
 
   const restoredAcceptedState = await restoreAcceptedInvoiceStateFromSubmissionHistory(prisma, {
     companyId,
@@ -514,8 +797,11 @@ export const pollKsefSubmissionStatus = async (
     return restoredAcceptedState;
   }
 
-  if (!submission.referenceNumber) throw new Error('Submission has no referenceNumber to poll');
-  if (!submission.sessionReferenceNumber) throw new Error('Submission has no sessionReferenceNumber to poll');
+  if (!submission.referenceNumber || !submission.sessionReferenceNumber) {
+    throw new KsefManualReconciliationRequiredError(
+      `Submission ${submissionId} has no KSeF session and invoice references; provide them through manual reconciliation before polling`
+    );
+  }
 
   const environment = toKsefClientEnvironment(submission.environment);
   const accessToken = await getOrCreateKsefSession(prisma, companyId, encryptionKey, submission.environment);
@@ -528,40 +814,99 @@ export const pollKsefSubmissionStatus = async (
   });
 
   if (statusResult.statusCode === 200) {
-    const ksefRef = statusResult.ksefReferenceNumber ?? null;
+    const ksefRef = statusResult.ksefReferenceNumber?.trim() ?? null;
+    if (!ksefRef) {
+      await prisma.$transaction(async (transactionClient) => {
+        await transactionClient.ksefSubmission.update({
+          where: { id: submissionId },
+          data: {
+            status: 'SUBMITTED',
+            errorMessage: 'KSeF returned an accepted status without ksefReference; manual reconciliation is required',
+          },
+        });
+        await transactionClient.invoice.update({
+          where: { id: submission.invoiceId },
+          data: { ksefStatus: 'SUBMITTED' },
+        });
+        await transactionClient.invoiceKsefState.upsert({
+          where: { invoiceId_environment: { invoiceId: submission.invoiceId, environment: submission.environment } },
+          create: {
+            invoiceId: submission.invoiceId,
+            environment: submission.environment,
+            status: 'SUBMITTED',
+            submittedAt: submission.submittedAt,
+            lastSubmissionId: submissionId,
+          },
+          update: {
+            status: 'SUBMITTED',
+            submittedAt: submission.submittedAt,
+            lastSubmissionId: submissionId,
+          },
+        });
+      });
+      return { status: 'pending' };
+    }
     const acceptedAt = new Date();
 
-    await Promise.all([
-      prisma.ksefSubmission.update({
+    await prisma.$transaction(async (transactionClient) => {
+      await transactionClient.ksefSubmission.update({
         where: { id: submissionId },
         data: { status: 'ACCEPTED', ksefReference: ksefRef, acceptedAt }
-      }),
-      upsertInvoiceKsefState(prisma, {
-        invoiceId: submission.invoiceId,
-        environment: submission.environment,
-        status: 'ACCEPTED',
-        ksefReference: ksefRef,
-        acceptedAt,
-        lastSubmissionId: submissionId,
-      }),
-    ]);
+      });
+      await transactionClient.invoice.update({
+        where: { id: submission.invoiceId },
+        data: {
+          ksefStatus: 'ACCEPTED',
+          ksefReference: ksefRef,
+          ksefAcceptedAt: acceptedAt,
+        },
+      });
+      await transactionClient.invoiceKsefState.upsert({
+        where: { invoiceId_environment: { invoiceId: submission.invoiceId, environment: submission.environment } },
+        create: {
+          invoiceId: submission.invoiceId,
+          environment: submission.environment,
+          status: 'ACCEPTED',
+          ksefReference: ksefRef,
+          acceptedAt,
+          lastSubmissionId: submissionId,
+        },
+        update: {
+          status: 'ACCEPTED',
+          ksefReference: ksefRef,
+          acceptedAt,
+          lastSubmissionId: submissionId,
+        },
+      });
+    });
 
     return { status: 'accepted', ...(ksefRef ? { ksefReferenceNumber: ksefRef } : {}) };
   }
 
   if (statusResult.statusCode === 400) {
-    await Promise.all([
-      prisma.ksefSubmission.update({
+    await prisma.$transaction(async (transactionClient) => {
+      await transactionClient.ksefSubmission.update({
         where: { id: submissionId },
         data: { status: 'REJECTED', errorMessage: 'Rejected by KSeF (status 400)' }
-      }),
-      upsertInvoiceKsefState(prisma, {
-        invoiceId: submission.invoiceId,
-        environment: submission.environment,
-        status: 'REJECTED',
-        lastSubmissionId: submissionId,
-      }),
-    ]);
+      });
+      await transactionClient.invoice.update({
+        where: { id: submission.invoiceId },
+        data: { ksefStatus: 'REJECTED' },
+      });
+      await transactionClient.invoiceKsefState.upsert({
+        where: { invoiceId_environment: { invoiceId: submission.invoiceId, environment: submission.environment } },
+        create: {
+          invoiceId: submission.invoiceId,
+          environment: submission.environment,
+          status: 'REJECTED',
+          lastSubmissionId: submissionId,
+        },
+        update: {
+          status: 'REJECTED',
+          lastSubmissionId: submissionId,
+        },
+      });
+    });
 
     return { status: 'rejected' };
   }

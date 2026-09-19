@@ -32,13 +32,13 @@ export default async function OnboardingLayout({ children }: Readonly<{ children
     <main className="flex min-h-full w-full items-center justify-center p-4 sm:p-6 lg:p-10">
       <div className="flex w-full max-w-[1280px] flex-col overflow-hidden rounded-frame border border-outline bg-background shadow-frame">
         <header className="flex h-[60px] shrink-0 items-center justify-between gap-4 border-b border-outline bg-chrome px-[22px]">
-          <Link href="/" className="inline-flex shrink-0">
+          <Link href="/" className="inline-flex min-h-11 shrink-0 items-center">
             <BrandImage className="w-[132px]" priority />
           </Link>
           <p className="min-w-0 flex-1 truncate text-center text-sm text-muted">
             {company ? t.onboarding.settingUp(company.name) : t.onboarding.settingUpGeneric}
           </p>
-          <Link href="/dashboard" className="shrink-0 text-sm text-muted transition hover:text-foreground-secondary">
+          <Link href="/dashboard" className="inline-flex min-h-11 shrink-0 items-center text-sm text-muted transition hover:text-foreground-secondary">
             {t.onboarding.saveAndFinishLater}
           </Link>
         </header>

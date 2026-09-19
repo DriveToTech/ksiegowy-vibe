@@ -1,17 +1,11 @@
-import Link from 'next/link';
 import { Button } from '../../../components/atoms/Button';
 import { EmptyState } from '../../../components/molecules/EmptyState';
-import { ErrorState } from '../../../components/molecules/ErrorState';
 import { PageHeader } from '../../../components/molecules/PageHeader';
-import { getActiveCompany } from '../../../lib/api';
+import { requireAuthSession } from '../../../lib/auth';
 import { t } from '../../../lib/translations';
 
 export default async function CompliancePage() {
-  const activeCompany = await getActiveCompany().catch(() => null);
-
-  if (activeCompany === null) {
-    return <ErrorState message={t.invoiceDetail.errors.companyLoadFailed} />;
-  }
+  const session = await requireAuthSession('/dashboard/compliance');
 
   return (
     <div className="space-y-6">
@@ -20,7 +14,7 @@ export default async function CompliancePage() {
         title={t.compliance.pageTitle}
         description={t.compliance.pageDescription}
       />
-      {activeCompany.activeCompanyId ? (
+      {session.activeCompanyId ? (
         <EmptyState
           title={t.compliance.notAvailableTitle}
           description={t.compliance.notAvailableDescription}
@@ -29,11 +23,7 @@ export default async function CompliancePage() {
         <EmptyState
           title={t.compliance.noCompanyTitle}
           description={t.compliance.noCompanyDescription}
-          action={
-            <Link href="/dashboard/settings">
-              <Button>{t.settings.goToSettings}</Button>
-            </Link>
-          }
+          action={<Button href="/dashboard/settings">{t.settings.goToSettings}</Button>}
         />
       )}
     </div>

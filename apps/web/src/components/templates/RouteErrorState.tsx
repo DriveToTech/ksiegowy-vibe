@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Button } from '../atoms/Button';
 import { ErrorState } from '../molecules/ErrorState';
 
@@ -24,9 +23,7 @@ export function RouteErrorState({
       <ErrorState title={title} message={error.message || 'Wystąpił nieoczekiwany błąd.'} />
       <div className="flex flex-wrap gap-3 lg:pl-4">
         <Button onClick={reset}>Spróbuj ponownie</Button>
-        <Link href={backHref}>
-          <Button variant="secondary">{backLabel}</Button>
-        </Link>
+        <Button href={backHref} variant="secondary">{backLabel}</Button>
       </div>
     </div>
   );

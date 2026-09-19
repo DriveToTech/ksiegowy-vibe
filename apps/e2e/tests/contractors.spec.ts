@@ -22,6 +22,16 @@ test('contractors list shows contractor from mock', async ({ authenticatedPage: 
   await expect(page.getByRole('cell', { name: 'Bluebird Example Studio LLC' })).toBeVisible();
 });
 
+test('contractors list distinguishes a filtered empty result from no records', async ({ authenticatedPage: page }) => {
+  await page.goto('/dashboard/contractors');
+
+  await page.getByRole('button', { name: 'Nieaktywni' }).click();
+
+  await expect(page.getByText('Brak wyników dla podanego filtra.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Wszyscy' }).first()).toBeVisible();
+  await expect(page.getByText('Brak kontrahentów. Dodaj pierwszego kontrahenta, aby móc wystawiać faktury.', { exact: true })).toHaveCount(0);
+});
+
 test('new contractor form loads', async ({ authenticatedPage: page }) => {
   await page.goto('/dashboard/contractors/new');
 

@@ -51,7 +51,7 @@ describe('syncIncomingInvoicesFromKsef()', () => {
     vi.clearAllMocks();
   });
 
-  it('scopes Case A dedup findFirst by ksefEnvironment', async () => {
+  it('scopes Case A dedup findFirst by company and environment', async () => {
     refreshAuthSession.mockResolvedValue('access-token');
     const incomingInvoiceFindFirst = vi.fn(async () => ({ id: 'existing-linked' }));
     const incomingInvoiceUpdate = vi.fn(async () => ({}));
@@ -104,14 +104,14 @@ describe('syncIncomingInvoicesFromKsef()', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           companyId: 'company-1',
-          ksefEnvironment: 'PRODUCTION',
+          environment: 'PRODUCTION',
           ksefReference: 'KSEF-REF-001',
         }),
       }),
     );
   });
 
-  it('scopes Case B link findFirst by ksefEnvironment', async () => {
+  it('links a normal upload with a null ksefEnvironment and sets both environment fields', async () => {
     refreshAuthSession.mockResolvedValue('access-token');
     const incomingInvoiceFindFirst = vi.fn();
     const incomingInvoiceUpdate = vi.fn(async () => ({}));
@@ -170,10 +170,21 @@ describe('syncIncomingInvoicesFromKsef()', () => {
     expect(caseBCall.where).toEqual(
       expect.objectContaining({
         companyId: 'company-1',
-        ksefEnvironment: 'TEST',
+        environment: 'TEST',
+        source: 'upload',
         ksefReference: null,
       }),
     );
+    expect(caseBCall.where.ksefEnvironment).toBeUndefined();
+    expect(incomingInvoiceUpdate).toHaveBeenCalledWith({
+      where: { id: 'existing-upload' },
+      data: expect.objectContaining({
+        environment: 'TEST',
+        ksefEnvironment: 'TEST',
+        ksefReference: 'KSEF-REF-002',
+        status: 'KSEF_SYNCED',
+      }),
+    });
   });
 
   it('sets ksefEnvironment on newly created incoming invoices (Case C)', async () => {
@@ -624,6 +635,65 @@ describe('syncIncomingInvoicesFromKsef()', () => {
       fallbackSellerNip: '9876543210',
       fallbackSellerName: 'Seller Header Name',
       fallbackTotalGross: '1230.00',
+    });
+  });
+
+  it('counts a concurrent duplicate as skipped after the unique constraint wins', async () => {
+    refreshAuthSession.mockResolvedValue('access-token');
+    const duplicateError = Object.assign(new Error('duplicate incoming invoice'), { code: 'P2002' });
+    const incomingInvoiceFindFirst = vi.fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'concurrent-invoice' });
+    const incomingInvoiceCreate = vi.fn(async () => { throw duplicateError; });
+    const incomingInvoiceUpdate = vi.fn(async () => ({}));
+    const prisma = {
+      company: { findUnique: vi.fn(async () => ({ nip: '1234567890' })) },
+      ksefIncomingSync: {
+        create: vi.fn(async () => ({ id: 'sync-1' })),
+        update: vi.fn(async () => ({})),
+      },
+      ksefSession: {
+        findUnique: vi.fn(async () => ({
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+          tokenEnc: 'session-enc',
+          tokenIv: 'session-iv',
+        })),
+        update: vi.fn(async () => ({})),
+      },
+      incomingInvoice: {
+        findFirst: incomingInvoiceFindFirst,
+        update: incomingInvoiceUpdate,
+        create: incomingInvoiceCreate,
+      },
+      contractor: { findUnique: vi.fn(async () => ({ id: 'contractor-1' })) },
+    } as unknown as PrismaClient;
+    const logger = { info: vi.fn(), error: vi.fn() } as never;
+
+    queryIncomingInvoices.mockResolvedValue({
+      invoiceHeaderList: [{
+        ksefNumber: 'KSEF-CONCURRENT-001',
+        seller: { nip: '9876543210' },
+        invoiceNumber: 'FV/2026/04/06',
+      }],
+      hasMore: false,
+    });
+    fetchInvoiceXml.mockResolvedValue('<xml>invoice</xml>');
+
+    const result = await syncIncomingInvoicesFromKsef(
+      prisma,
+      'company-1',
+      'encryption-key',
+      'TEST',
+      '2026-04-01',
+      '2026-04-30',
+      logger,
+    );
+
+    expect(result).toMatchObject({ created: 0, linked: 0, skipped: 1 });
+    expect(incomingInvoiceUpdate).toHaveBeenCalledWith({
+      where: { id: 'concurrent-invoice' },
+      data: { ksefFetchedAt: expect.any(Date) },
     });
   });
 });
