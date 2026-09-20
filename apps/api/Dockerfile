@@ -30,6 +30,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 # Enable Corepack so the exact pnpm version declared in package.json is used.
 ARG PACKAGE_REGISTRY=https://registry.npmjs.org
+ARG NODE_USE_ENV_PROXY
+ENV NODE_USE_ENV_PROXY=${NODE_USE_ENV_PROXY}
 ENV COREPACK_DEFAULT_TO_LATEST=0
 ENV COREPACK_NPM_REGISTRY=${PACKAGE_REGISTRY}
 ENV NPM_CONFIG_REGISTRY=${PACKAGE_REGISTRY}
@@ -102,6 +104,8 @@ FROM node:24-alpine AS production-deps
 RUN apk upgrade --no-cache
 
 ARG PACKAGE_REGISTRY=https://registry.npmjs.org
+ARG NODE_USE_ENV_PROXY
+ENV NODE_USE_ENV_PROXY=${NODE_USE_ENV_PROXY}
 ENV COREPACK_DEFAULT_TO_LATEST=0
 ENV COREPACK_NPM_REGISTRY=${PACKAGE_REGISTRY}
 ENV NPM_CONFIG_REGISTRY=${PACKAGE_REGISTRY}
