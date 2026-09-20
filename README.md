@@ -111,7 +111,8 @@ Progress is not stored separately — the wizard resumes by deriving the first i
 
 ### Local development (pnpm)
 - Node.js 24 LTS
-- pnpm
+- pnpm 12.5.1 (pinned in the root `package.json`)
+- Install scripts are explicitly reviewed in `pnpm-workspace.yaml`.
 - Docker (for PostgreSQL)
 - Poppler (`brew install poppler` / `apt-get install poppler-utils`)
 - Tesseract with Polish pack (`brew install tesseract tesseract-lang` / `apt-get install tesseract-ocr tesseract-ocr-pol`)
