@@ -3,9 +3,9 @@
   "private": true,
   "version": "2.0.1",
   "description": "Monorepo scaffold for ksiegowy-vibe.pl",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@12.5.1",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "dev": "sh -c 'set -a && . ./.env && set +a && pnpm -r --parallel --filter @ksiegowy/api --filter @ksiegowy/web dev'",
@@ -27,24 +27,6 @@
     "restore:postgres": "docker compose --profile backup run --rm restore-postgres",
     "publish:container:images": "bash scripts/publish-container-images.sh",
     "test:publish:container:images": "bash scripts/publish-container-images.test.sh"
-  },
-  "pnpm": {
-    "overrides": {
-      "baseline-browser-mapping": "2.11.0",
-      "browserslist": "4.29.0",
-      "brace-expansion@1": "1.1.18",
-      "brace-expansion@2": "2.1.4",
-      "brace-expansion@5": "5.0.12",
-      "deepmerge-ts": "8.0.2",
-      "defu": "6.1.7",
-      "effect": "3.22.2",
-      "fast-uri@3": "3.1.8",
-      "js-yaml": "4.3.2",
-      "nanoid@3": "3.3.18",
-      "piscina": "4.9.3",
-      "postcss": "8.5.28",
-      "vite": "7.3.5"
-    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
