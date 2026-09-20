@@ -878,3 +878,18 @@ When the selected environment has no token configured:
 - The shell displays a persistent environment badge (`TEST` or `PRODUCTION`) visible without opening settings.
 - `PRODUCTION` actions require explicit confirmation with stronger language.
 - The environment switcher persists the user's selection synchronously in the company-scoped `active_ksef_environment_{companyId}` cookie with a 30-day max age, `path=/`, and `SameSite=Lax`; it survives page refreshes without a server persistence endpoint.
+
+## Advisor ownership and retention
+
+Migration `20260919080000_tax_advisor` adds `CompanyAdvisorPolicy`, `AdvisorConnection`, `AdvisorConversation`, `AdvisorTurn` and `AdvisorConnectorGrant`. Policy is company-owned; credentials, history and connector grants are membership-owned and cascade on membership deletion. Provider secrets use the existing encryption mechanism. Turns have a unique `(conversationId, requestId)` and an atomic `startedAt` claim. Conversations pin provider, model and environment. Grants bind issuer/client/environment and expire independently; all grants are read-only. No tax-profile fields are added to Company.
+
+```mermaid
+erDiagram
+  Company ||--o| CompanyAdvisorPolicy : controls
+  CompanyMembership ||--o{ AdvisorConnection : owns
+  CompanyMembership ||--o{ AdvisorConversation : owns
+  CompanyMembership ||--o{ AdvisorConnectorGrant : authorises
+  AdvisorConversation ||--o{ AdvisorTurn : contains
+```
+
+History expires 1–30 days after conversation creation; lowering policy retention clamps existing expiry. Expired history is hidden immediately and removed by hourly cleanup. Connector grants expire within 30 days and can be deleted immediately. See [advisor specification](specs/tax-advisor.md) for scope and token rules.

@@ -11,6 +11,7 @@ import { CompanySwitcher } from '../CompanySwitcher';
 import { KsefEnvironmentBadge } from '../KsefEnvironmentBadge';
 import { SessionActions } from './SessionActions';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { AdvisorTrigger } from '../advisor/AdvisorWorkspace';
 
 interface AppHeaderProps {
   user: AuthenticatedUser | null;
@@ -79,6 +80,7 @@ export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironm
               </div>
             </div>
             <div data-app-header-theme-session className="flex min-w-0 items-center justify-end gap-2 max-[374px]:gap-1 lg:ml-auto lg:gap-3">
+              <span className="hidden lg:contents"><AdvisorTrigger /></span>
               <ThemeSwitcher />
               <details ref={profileMenuReference} className="relative">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-control px-2 transition hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">

@@ -45,9 +45,10 @@ All monetary values are returned as strings with two decimal places. Aggregation
 - KPI counts use issued invoices and the active environment's `InvoiceKsefState`.
 - `notSubmitted` includes issued invoices with no active-environment state or a `NOT_SENT` state.
 - Pending includes `SUBMITTED`, `QUEUED`, and `OFFLINE_QUEUED` states.
-- Sales buckets include only issued invoices accepted by KSeF.
+- Sales buckets include only issued PLN invoices accepted by KSeF, matching the displayed PLN unit. Formal corrections are excluded to avoid counting the same financial amount twice; cancellation delta amounts remain included. Null correction modes remain eligible. This scope is shared with advisor calculations, which additionally group non-PLN currencies separately.
 - Incoming attention includes `UPLOADED`, `OCR_PROCESSING`, `OCR_DONE`, and `OCR_FAILED` documents.
 - Recent documents include the latest six documents in the active environment, including drafts.
+- The VAT chart label describes VAT on accepted invoices. It does not label this amount as tax payable, which would require additional tax facts and deductions.
 - The E2E mock API implements the same contract with synthetic data; it is not a production data source.
 
 ## Data flow

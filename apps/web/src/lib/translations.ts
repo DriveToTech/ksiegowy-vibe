@@ -78,7 +78,7 @@ export const t = {
     chart: {
       title: "Sprzedaż rozliczona przez KSeF",
       monthGross: "Brutto w tym miesiącu",
-      vatPayable: "VAT do zapłaty",
+      acceptedInvoiceVat: "VAT na przyjętych fakturach",
       unpaid: "Niezapłacone",
     },
     needsAttention: {
@@ -233,6 +233,7 @@ export const t = {
     serviceCatalogLink: "Katalog usług",
     sectionsEyebrow: "Sekcje",
     sections: {
+      advisor: "Doradca",
       company: "Firma",
       ksef: "Integracja KSeF",
       numbering: "Numeracja",

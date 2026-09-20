@@ -1,3 +1,4 @@
+import { AdvisorTrigger } from '../../../../components/advisor/AdvisorWorkspace';
 import Link from 'next/link';
 import { getIncomingInvoice, getIncomingInvoices } from '../../../../lib/api';
 import type { IncomingInvoiceSummary } from '../../../../lib/api-types';
@@ -73,6 +74,7 @@ export default async function IncomingReviewPage({ params }: Props) {
   return (
     <div className="space-y-6">
       <PageHeader
+        actions={<AdvisorTrigger explain {...(invoice.issueDate ? { period: invoice.issueDate.slice(0, 7) } : {})} />}
         eyebrow="OCR review"
         title={invoice.invoiceNumber ?? 'Przegląd faktury przychodzącej'}
         description="Zweryfikuj dane odczytane z dokumentu i zatwierdź lub odrzuć wynik OCR."

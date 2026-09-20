@@ -131,6 +131,7 @@ model Company {
   gDriveCredential     GoogleDriveCredential?
   backupPolicies       CompanyBackupPolicy[]
   serviceTemplates     ServiceTemplate[]
+  advisorPolicy        CompanyAdvisorPolicy?
 }
 
 model CompanyKsefCredential {
@@ -156,9 +157,100 @@ model CompanyMembership {
   updatedAt DateTime              @updatedAt
   company   Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  advisorConnections AdvisorConnection[]
+  advisorConversations AdvisorConversation[]
+  advisorConnectorGrants AdvisorConnectorGrant[]
 
   @@unique([companyId, userId])
   @@index([userId])
+}
+
+enum AdvisorProvider {
+  OPENROUTER
+  OPENAI
+  ANTHROPIC
+  OLLAMA
+}
+
+enum AdvisorTurnStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AdvisorConnectorClient {
+  CHATGPT
+  CLAUDE
+}
+
+model CompanyAdvisorPolicy {
+  companyId String @id
+  enabled Boolean @default(false)
+  allowedProviders AdvisorProvider[] @default([])
+  allowedConnectors AdvisorConnectorClient[] @default([])
+  retentionDays Int @default(30)
+  updatedAt DateTime @updatedAt
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model AdvisorConnectorGrant {
+  id String @id @default(cuid())
+  membershipId String
+  environment KsefEnvironment
+  client AdvisorConnectorClient
+  issuer String
+  clientIdentifier String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  membership CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@unique([membershipId, environment, client])
+  @@index([expiresAt])
+}
+
+model AdvisorConnection {
+  id String @id @default(cuid())
+  membershipId String
+  provider AdvisorProvider
+  model String
+  credentialEncrypted String?
+  credentialNonce String?
+  testedAt DateTime?
+  lastRequestedAt DateTime?
+  updatedAt DateTime @updatedAt
+  membership CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@unique([membershipId, provider])
+}
+
+model AdvisorConversation {
+  id String @id @default(cuid())
+  membershipId String
+  environment KsefEnvironment
+  provider AdvisorProvider
+  model String
+  title String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  membership CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  turns AdvisorTurn[]
+  @@index([membershipId, environment, createdAt])
+  @@index([expiresAt])
+}
+
+model AdvisorTurn {
+  id String @id @default(cuid())
+  conversationId String
+  requestId String
+  question String
+  scope Json
+  status AdvisorTurnStatus @default(PENDING)
+  answer Json?
+  createdAt DateTime @default(now())
+  startedAt DateTime?
+  finishedAt DateTime?
+  conversation AdvisorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@unique([conversationId, requestId])
+  @@index([conversationId, createdAt])
 }
 
 model Contractor {
