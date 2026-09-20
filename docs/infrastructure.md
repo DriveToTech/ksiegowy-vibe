@@ -182,7 +182,7 @@ Multi-stage build. Includes system-level OCR and PDF rendering dependencies.
 Stage 1 — deps
   Base: node:24-trixie-slim
   Installs: Poppler, Tesseract OCR (Polish pack), libxml2-utils
-  Installs: pnpm, Node.js workspace dependencies
+  Installs: pnpm, Node.js workspace dependencies through the configured build proxy
 
 Stage 2 — builder
   Runs: prisma generate
@@ -190,8 +190,8 @@ Stage 2 — builder
 
 Stage 3 — production-deps
   Base: node:24-alpine
-  Installs: production workspace dependencies on musl so native optional packages
-  use Alpine-compatible bindings
+  Installs: production workspace dependencies through the configured build proxy
+  on musl so native optional packages use Alpine-compatible bindings
 
 Stage 4 — runner
   Base: node:24-alpine
@@ -217,7 +217,7 @@ Multi-stage build using Next.js standalone output mode.
 ```
 Stage 1 — deps
   Base: node:24-alpine
-  Installs: pnpm, workspace dependencies
+  Installs: pnpm, workspace dependencies through the configured build proxy
 
 Stage 2 — builder
   Build arg: NEXT_PUBLIC_API_URL
@@ -233,6 +233,11 @@ Stage 3 — runner
 The standalone output strips unused Node.js modules — the final image is minimal (~150 MB).
 The runtime stage also removes npm and npx because deployment starts the
 standalone server directly.
+
+The API and web dependency stages expose the optional `NODE_USE_ENV_PROXY`
+build argument to Node.js. Set it to `1` when building behind a proxy so
+Corepack honors the standard proxy environment variables supplied to Docker
+builds.
 
 ### Vulnerability verification
 
