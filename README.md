@@ -138,6 +138,9 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 The final images contain production dependencies only. The API image uses
 Node.js 24 on Alpine, while the web image uses Node.js 24 on Alpine; both
 runtime layers upgrade the base distribution packages during the build.
+Their dependency-install stages expose the optional `NODE_USE_ENV_PROXY`
+build argument to Node.js so Corepack and pnpm can use the proxy provided to
+Docker builds.
 Promotion requires scanning both final images with a current Trivy database and
 recording their immutable image digests. Current scan evidence and any release
 blockers are maintained in [the security remediation specification](docs/specs/security-vulnerability-remediation.md).
