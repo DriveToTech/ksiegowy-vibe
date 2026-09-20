@@ -1,3 +1,4 @@
+import { AdvisorTrigger } from '../../../../components/advisor/AdvisorWorkspace';
 import Link from 'next/link';
 import { getCompanyKsefSettings, getInvoice } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
@@ -83,6 +84,7 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="space-y-6">
+      <AdvisorTrigger explain period={invoice.issueDate.slice(0, 7)} />
       <Link href="/dashboard/invoices" className="inline-flex min-h-11 items-center text-sm font-medium text-muted transition hover:text-foreground">
         {t.invoiceDetail.backToInvoices}
       </Link>
