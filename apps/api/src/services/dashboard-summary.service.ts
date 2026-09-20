@@ -1,5 +1,6 @@
 import type { KsefEnvironment, PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
+import { issuedInvoiceFinancialScope } from './invoice-financial-scope.js';
 
 export interface DashboardInvoiceSummary {
   id: string;
@@ -122,7 +123,8 @@ export const buildDashboardSummary = async (
     }),
     prisma.invoice.findMany({
       where: {
-        ...issuedInvoiceWhere,
+        ...issuedInvoiceFinancialScope(params.companyId, params.environment),
+        currency: 'PLN',
         issueDate: { gte: firstMonth, lt: nextMonth },
         ksefStates: { some: { environment: params.environment, status: 'ACCEPTED' } },
       },

@@ -123,7 +123,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex gap-6 border-t border-outline pt-3">
             <ChartStat label={t.dashboard.chart.monthGross} value={formatMoney(summary.currentMonth.gross)} />
-            <ChartStat label={t.dashboard.chart.vatPayable} value={formatMoney(summary.currentMonth.vat)} />
+            <ChartStat label={t.dashboard.chart.acceptedInvoiceVat} value={formatMoney(summary.currentMonth.vat)} />
             <ChartStat label={t.dashboard.metrics.invoicesThisMonthLabel} value={String(summary.currentMonth.invoiceCount)} />
           </div>
         </div>
