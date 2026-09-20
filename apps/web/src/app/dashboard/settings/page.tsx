@@ -10,6 +10,7 @@ import { InvoiceNumberPatternForm } from './InvoiceNumberPatternForm';
 import { KsefSettingsForm } from './KsefSettingsForm';
 import { MembersTab } from './MembersTab';
 import { SettingsWorkspace } from './SettingsWorkspace';
+import { AdvisorSettings } from '../../../components/advisor/AdvisorSettings';
 import { Surface } from '../../../components/atoms/Surface';
 import { t } from '../../../lib/translations';
 
@@ -86,6 +87,7 @@ export default async function DashboardSettingsPage() {
 
       <SettingsWorkspace
         sections={{
+          advisor: <AdvisorSettings key={activeCompanyId} companyId={activeCompanyId} />,
           company: <CompanyDetailsForm company={company} canEdit={canEditCompany} />,
           ksef: isAdmin ? (
             ksefSettingsResult.ksefSettings ? (

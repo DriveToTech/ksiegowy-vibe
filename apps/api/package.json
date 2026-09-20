@@ -26,10 +26,12 @@
     "@ksiegowy/pdf-templates": "workspace:*",
     "@ksiegowy/shared-utils": "workspace:*",
     "@ksiegowy/types": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@prisma/client": "^6.6.0",
     "fastify": "^5.12.5",
     "fastify-plugin": "^5.0.1",
     "googleapis": "^171.4.0",
+    "jose": "6.2.12",
     "node-cron": "^4.2.1",
     "openai": "^6.33.0",
     "pdf-parse": "^2.4.5",
@@ -42,6 +44,7 @@
     "@types/node": "^22.14.1",
     "@types/node-cron": "^3.0.11",
     "@types/pdf-parse": "^1.1.5",
+    "builder-pattern": "2.2.0",
     "prisma": "^6.6.0",
     "vitest": "^3.2.6"
   }

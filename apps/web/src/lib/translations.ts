@@ -233,6 +233,7 @@ export const t = {
     serviceCatalogLink: "Katalog usług",
     sectionsEyebrow: "Sekcje",
     sections: {
+      advisor: "Doradca",
       company: "Firma",
       ksef: "Integracja KSeF",
       numbering: "Numeracja",

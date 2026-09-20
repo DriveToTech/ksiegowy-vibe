@@ -36,6 +36,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 COPY tsconfig.base.json ./
 COPY apps/web/ apps/web/
+COPY packages/types/src/advisor.ts packages/types/src/advisor.ts
 
 WORKDIR /app/apps/web
 
