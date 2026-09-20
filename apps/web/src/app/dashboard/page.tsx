@@ -8,6 +8,8 @@ import { InvoicesTable } from '../../components/organisms/InvoicesTable';
 import { t } from '../../lib/translations';
 import { formatMoney } from '../../lib/format';
 import { requireAuthSession } from '../../lib/auth';
+import { AdvisorTrigger } from '../../components/advisor/AdvisorWorkspace';
+import { advisorText } from '../../lib/advisor-translations';
 
 const kpiCells = [
   { key: 'accepted' as const, dot: 'bg-success-ink', labelKey: 'accepted', hintKey: 'acceptedHint' },
@@ -68,6 +70,7 @@ export default async function DashboardPage() {
         description={t.dashboard.pageDescription}
         actions={
           <>
+            <AdvisorTrigger question={advisorText.briefingQuestion} />
             <Button href="/dashboard/incoming" variant="secondary">{t.dashboard.goToIncoming}</Button>
             <Button href="/dashboard/invoices/new">{t.dashboard.createInvoice}</Button>
           </>

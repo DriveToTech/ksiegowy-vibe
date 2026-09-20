@@ -24,6 +24,8 @@ import { backupRoutes } from './routes/backup/index.js';
 import { fileServeRoutes } from './routes/files/serve.js';
 import { healthRoutes } from './routes/health.js';
 import { readyRoutes } from './routes/ready.js';
+import { advisorRoutes } from './routes/advisor.js';
+import { advisorMcpRoutes } from './routes/advisor-mcp.js';
 
 export interface BuildAppOptions {
   logger?: boolean;
@@ -61,6 +63,8 @@ export const buildApp = async (options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(fileServeRoutes);
   await app.register(healthRoutes);
   await app.register(readyRoutes);
+  await app.register(advisorRoutes, { prefix: '/companies/:companyId/advisor' });
+  await app.register(advisorMcpRoutes);
 
   return app;
 };

@@ -586,3 +586,11 @@ This slice keeps backup scheduling flows separate intentionally:
 - [ ] Ensure backup remote uses encryption-at-rest and private access controls
 - [ ] Put a reverse proxy (nginx / Caddy) in front of `:3000` and `:3001` with TLS
 - [ ] Do not expose PostgreSQL port `:5432` publicly
+
+## Optional advisor deployment
+
+Apply `20260919080000_tax_advisor` before setting API `ADVISOR_ENABLED=true`. The existing `ENCRYPTION_KEY` encrypts user-entered advisor credentials; OCR's `OPENROUTER_API_KEY` is not reused. `.env.example` lists the advisor variables. API Compose already consumes `.env`; mount any `ADVISOR_TAX_SOURCES_PATH` file read-only and keep `ADVISOR_OLLAMA_URL` on operator-controlled infrastructure.
+
+Reverse proxies must preserve streaming for `/companies/*/advisor/conversations/*/messages` (SSE, no buffering, timeout greater than 60 seconds). For subscription connectors, forward `/advisor/mcp` and `/.well-known/oauth-protected-resource/advisor/mcp` under the same public API prefix. Configure HTTPS, external OAuth issuer/JWKS/client IDs, exact callbacks, S256 PKCE and immutable user mapping following [the connector runbook](specs/tax-advisor.md#chatgpt-and-claude-subscription-connectors). Do not expose an unauthenticated invoice connector.
+
+Rollout gates include a disposable-database migration/retention check, approved live requests for enabled providers, both real host integrations and reviewed tax evidence. The feature is disabled by default. Disabling it stops advisor processing and connector reads without changing accounting routes. Existing encrypted data requires the existing backup/key controls.

@@ -4,9 +4,9 @@ import { useState, type ReactNode } from 'react';
 import { cn } from '../../../lib/cn';
 import { t } from '../../../lib/translations';
 
-type SectionId = 'company' | 'ksef' | 'numbering' | 'products' | 'team' | 'backup';
+type SectionId = 'company' | 'ksef' | 'numbering' | 'products' | 'team' | 'backup' | 'advisor';
 
-const SECTION_ORDER: SectionId[] = ['company', 'ksef', 'numbering', 'products', 'team', 'backup'];
+const SECTION_ORDER: SectionId[] = ['company', 'ksef', 'numbering', 'products', 'team', 'backup', 'advisor'];
 
 interface SettingsWorkspaceProps {
   sections: Partial<Record<SectionId, ReactNode>>;

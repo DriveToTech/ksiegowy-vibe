@@ -29,6 +29,16 @@ export function scheduleDailyBackup(
   });
 
   logger.info('KSeF offline queue retry cron scheduled (hourly)');
+  if (process.env['ADVISOR_ENABLED'] === 'true') {
+    cron.schedule('15 * * * *', () => {
+      Promise.all([
+        prisma.advisorConversation.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
+        prisma.advisorConnectorGrant.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
+      ]).catch((error: unknown) => {
+        logger.error({ operation: 'advisor.retention', message: error instanceof Error ? error.message : String(error) }, 'Advisor retention cleanup failed');
+      });
+    });
+  }
 }
 
 async function runBackup(
