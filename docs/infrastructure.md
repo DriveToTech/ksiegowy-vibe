@@ -196,9 +196,10 @@ Stage 3 — production-deps
 
 Stage 4 — runner
   Base: node:24-alpine
-  Copies: built artefacts, Prisma client, production node_modules
+  Copies: built artefacts, Prisma client, root and API production node_modules
   Installs: Alpine Chromium, Poppler, Tesseract OCR (Polish pack), libxml2-utils
   Runs as: node (UID 1000)
+  Working directory: /app/apps/api
   Cmd: node dist/main.js
 ```
 
