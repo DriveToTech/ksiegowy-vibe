@@ -190,7 +190,8 @@ Stage 2 — builder
 
 Stage 3 — production-deps
   Base: node:24-alpine
-  Installs: production workspace dependencies through the configured build proxy
+  Installs: production workspace dependencies, including the Prisma CLI required
+  by the migration Job, through the configured build proxy
   on musl so native optional packages use Alpine-compatible bindings
 
 Stage 4 — runner
@@ -369,6 +370,9 @@ flowchart LR
 | `build` | Full monorepo build (tsc + swc + Next.js) |
 | `test-integration` | API integration tests against a live PostgreSQL 17 service container |
 | `test-e2e` | Playwright end-to-end tests (chromium) |
+
+The `test-unit` job refreshes Ubuntu package metadata before installing
+`libxml2-utils`, which is required by FA(3) XML validation tests.
 
 The E2E web server disables the Next.js development indicator so framework controls do not affect application focus-order assertions. Responsive dashboard checks only evaluate a mid-scroll position when the synthetic fixture has scrollable content.
 
