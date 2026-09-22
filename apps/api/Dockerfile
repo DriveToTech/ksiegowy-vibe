@@ -160,6 +160,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 # must also exist in the runner. Copy each workspace package (package.json +
 # built dist/) so those symlinks resolve at runtime.
 COPY --from=production-deps /app/node_modules ./node_modules
+COPY --from=production-deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/generated-prisma/client ./node_modules/.prisma/client
 
 COPY --from=builder /app/packages/types/package.json          ./packages/types/package.json
@@ -178,12 +179,14 @@ COPY --from=builder /app/packages/pdf-templates/package.json  ./packages/pdf-tem
 COPY --from=builder /app/packages/pdf-templates/dist          ./packages/pdf-templates/dist
 
 # Compiled API output (CJS .js files, no "type":"module" needed).
-COPY --from=builder /app/apps/api/dist  ./dist
+COPY --from=builder /app/apps/api/dist  ./apps/api/dist
 
 # Prisma schema and migrations for `prisma migrate deploy` at deploy time.
-COPY --from=builder /app/apps/api/prisma ./prisma
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 
 EXPOSE 3001
+
+WORKDIR /app/apps/api
 
 USER node
 
