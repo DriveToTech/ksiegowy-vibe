@@ -27,6 +27,7 @@
     "@ksiegowy/shared-utils": "workspace:*",
     "@ksiegowy/types": "workspace:*",
     "@prisma/client": "^6.6.0",
+    "prisma": "^6.6.0",
     "fastify": "^5.12.5",
     "fastify-plugin": "^5.0.1",
     "googleapis": "^171.4.0",
@@ -42,7 +43,6 @@
     "@types/node": "^22.14.1",
     "@types/node-cron": "^3.0.11",
     "@types/pdf-parse": "^1.1.5",
-    "prisma": "^6.6.0",
     "vitest": "^3.2.6"
   }
 }

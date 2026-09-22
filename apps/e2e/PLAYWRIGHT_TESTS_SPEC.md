@@ -32,7 +32,7 @@ apps/e2e/tests/
 Playwright starts both servers from `apps/e2e/playwright.config.ts`:
 
 - Mock API: `http://localhost:3199`, from `mock-api/server.js`, with mutable synthetic fixture maps.
-- Next.js web: `http://localhost:3200`, with both `API_URL` and `NEXT_PUBLIC_API_URL` set to `http://localhost:3199`.
+- Next.js web: `http://localhost:3200`, started with webpack because the current Next.js Turbopack dev server cannot resolve the app's `next/font/google` imports reliably in CI. Both `API_URL` and `NEXT_PUBLIC_API_URL` are set to `http://localhost:3199`.
 - Server reuse: disabled for both servers, so a stale local process is not reused.
 - Workers: exactly `1` in local and CI runs so mutation tests share one mock process deterministically.
 - Retries: `0` locally and `2` in CI.
