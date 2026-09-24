@@ -185,7 +185,6 @@ Stage 1 — deps
   Installs: pnpm, Node.js workspace dependencies through the configured build proxy
 
 Stage 2 — builder
-  Runs: prisma generate
   Runs: pnpm build (tsc + swc transpilation for all packages and API)
 
 Stage 3 — production-deps
@@ -193,10 +192,13 @@ Stage 3 — production-deps
   Installs: production workspace dependencies, including the Prisma CLI required
   by the migration Job, through the configured build proxy
   on musl so native optional packages use Alpine-compatible bindings
+  Runs: prisma generate so the generated client is placed in the same Alpine
+  dependency tree used by the runner
 
 Stage 4 — runner
   Base: node:24-alpine
-  Copies: built artefacts, Prisma client, root and API production node_modules
+  Copies: built artefacts plus root, API, and PDF-template production
+  node_modules containing the generated Prisma client and Puppeteer
   Installs: Alpine Chromium, Poppler, Tesseract OCR (Polish pack), libxml2-utils
   Runs as: node (UID 1000)
   Working directory: /app/apps/api

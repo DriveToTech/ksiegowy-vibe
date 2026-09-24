@@ -144,6 +144,10 @@ upgrade the base distribution packages during the build.
 Their dependency-install stages expose the optional `NODE_USE_ENV_PROXY`
 build argument to Node.js so Corepack and pnpm can use the proxy provided to
 Docker builds.
+The API production-dependency stage runs `prisma generate` on Alpine so the
+generated client and musl query engine stay in the same dependency tree used
+by the runner. The runner also preserves the PDF-template workspace's
+production dependencies for Puppeteer-based PDF generation.
 Promotion requires scanning both final images with a current Trivy database and
 recording their immutable image digests. Current scan evidence and any release
 blockers are maintained in [the security remediation specification](docs/specs/security-vulnerability-remediation.md).
