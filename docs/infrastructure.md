@@ -209,7 +209,7 @@ Key system dependencies in the final image:
 
 | Dependency | Purpose |
 |-----------|---------|
-| `poppler-utils` | PDF page rendering before OCR |
+| `poppler-utils` | Native PDF text extraction and PDF page rendering before OCR |
 | `tesseract-ocr` + `tesseract-ocr-data-pol` | Local Polish-language OCR |
 | `libxml2-utils` | XSD validation of FA(3) XML |
 | `chromium` | Headless browser for PDF generation |

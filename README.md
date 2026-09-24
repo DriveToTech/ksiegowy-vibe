@@ -46,7 +46,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | Database | PostgreSQL 17 + Prisma 6 |
 | File Storage | Local filesystem (`./storage/`) |
 | Auth | Google OAuth2 + JWT |
-| OCR | Tesseract (local, Polish) + OpenRouter API (vision LLM fallback) |
+| OCR | Poppler native PDF text extraction + Tesseract (local, Polish) + OpenRouter API (vision LLM fallback) |
 | PDF Generation | Puppeteer |
 | XML | xmlbuilder2 + libxmljs2 (XSD validation) |
 | Email | Resend (optional) |

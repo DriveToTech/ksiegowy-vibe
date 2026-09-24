@@ -33,7 +33,6 @@
     "googleapis": "^171.4.0",
     "node-cron": "^4.2.1",
     "openai": "^6.33.0",
-    "pdf-parse": "^2.4.5",
     "resend": "^6.10.0",
     "zod": "^4.3.6"
   },
@@ -42,7 +41,6 @@
     "@swc/core": "^1.11.0",
     "@types/node": "^22.14.1",
     "@types/node-cron": "^3.0.11",
-    "@types/pdf-parse": "^1.1.5",
     "vitest": "^3.2.6"
   }
 }
