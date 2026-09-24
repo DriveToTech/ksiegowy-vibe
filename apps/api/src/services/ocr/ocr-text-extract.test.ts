@@ -23,7 +23,37 @@ vi.mock('node:util', () => ({
     }),
 }));
 
-import { extractTextWithTesseract } from './ocr-text-extract.js';
+import { extractNativePdfText, extractTextWithTesseract } from './ocr-text-extract.js';
+
+describe('extractNativePdfText()', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  it('extracts text through Poppler and removes the temporary PDF', async () => {
+    const writeFileSpy = vi.spyOn(fs, 'writeFile').mockResolvedValue();
+    const unlinkSpy = vi.spyOn(fs, 'unlink').mockResolvedValue();
+    const extractedText = 'A'.repeat(100);
+
+    mockExecuteFile.mockImplementationOnce((...argumentsList: unknown[]) => {
+      const callback = argumentsList.at(-1) as unknown as (error: null, output: string, errorOutput: string) => void;
+      callback(null, extractedText, '');
+    });
+
+    await expect(extractNativePdfText(Buffer.from('pdf'))).resolves.toBe(extractedText);
+
+    const temporaryFilePath = mockExecuteFile.mock.calls[0][1][1];
+    expect(writeFileSpy).toHaveBeenCalledWith(temporaryFilePath, Buffer.from('pdf'));
+    expect(mockExecuteFile).toHaveBeenCalledWith(
+      'pdftotext',
+      ['-layout', temporaryFilePath, '-'],
+      { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 30_000 },
+      expect.any(Function),
+    );
+    expect(unlinkSpy).toHaveBeenCalledWith(temporaryFilePath);
+  });
+});
 
 describe('extractTextWithTesseract()', () => {
   afterEach(() => {

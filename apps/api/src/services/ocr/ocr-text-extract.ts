@@ -4,7 +4,6 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { PDFParse } from 'pdf-parse';
 
 const executeFile = promisify(execFile);
 
@@ -14,11 +13,22 @@ const MIN_TESSERACT_CONFIDENCE = 60;
 const MIN_WORD_COUNT_FALLBACK = 30;
 
 export async function extractNativePdfText(pdfBuffer: Buffer): Promise<string | null> {
-  const parser = new PDFParse({ data: pdfBuffer });
-  const result = await parser.getText();
-  const trimmed = result.text.trim();
-  if (trimmed.length < MIN_NATIVE_TEXT_LENGTH) return null;
-  return trimmed;
+  const temporaryFilePath = path.join(os.tmpdir(), `${randomUUID()}.pdf`);
+
+  try {
+    await fs.writeFile(temporaryFilePath, pdfBuffer);
+    const { stdout } = await executeFile(
+      'pdftotext',
+      ['-layout', temporaryFilePath, '-'],
+      { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 30_000 },
+    );
+
+    const trimmed = stdout.trim();
+    if (trimmed.length < MIN_NATIVE_TEXT_LENGTH) return null;
+    return trimmed;
+  } finally {
+    await fs.unlink(temporaryFilePath).catch(() => undefined);
+  }
 }
 
 export async function extractTextWithTesseract(imageBuffers: Buffer[]): Promise<string | null> {
