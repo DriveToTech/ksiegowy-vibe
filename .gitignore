@@ -5,6 +5,9 @@ node_modules/
 # Git worktrees
 .worktree/
 
+# Private local design references
+docs/redesign/
+
 # Build artifacts
 dist/
 .turbo/

@@ -2,7 +2,7 @@
 
 ## Status
 - Phase: `0` of `spec/aurora-solid-redesign-plan.md` — **spec only, nothing implemented**
-- Dark theme: extracted verbatim from `private design reference` + `private design reference`
+- Dark theme: documented in the token tables below.
 - Light theme: **original design work** — the mock is dark-only. Needs sign-off before Phase 1.
 - Contrast: every text and non-text pairing below was measured (WCAG 2.1 relative luminance); 9 failures are listed in §7 with the corrective values already folded into the tables.
 - Review: frontend-architect Phase 0 feasibility review — conditional GO. Blockers B1 (status fill/text token ambiguity) and B2 (`--error-action-ink` orphaned deletion) fixed; B3 count corrections applied; the light `--foreground-disabled` pushback accepted (§7 F9). Architect addendum §A1–A3 appended below.

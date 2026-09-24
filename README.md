@@ -8,6 +8,8 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 
 ## Documentation
 
+Private design reference files stay on the developer's machine and are excluded from Git.
+
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | C4 diagrams (context, containers, components) and flow diagrams for key workflows |
