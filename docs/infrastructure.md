@@ -251,7 +251,8 @@ flowchart LR
   dependencies --> build[Production build]
   build --> apiImage[API runtime image]
   build --> webImage[Web runtime image]
-  apiImage --> trivy[Trivy HIGH/CRITICAL scan]
+  apiImage --> runtimeSmoke[API runtime smoke test]
+  runtimeSmoke --> trivy[Trivy HIGH/CRITICAL scan]
   webImage --> trivy
   trivy --> release[Release decision]
 ```
@@ -272,7 +273,7 @@ The `container-build` job in `.github/workflows/ci.yml` builds every Dockerfile 
 - `apps/web/Dockerfile`
 - `ops/backup/Dockerfile`
 
-The job uses Docker Buildx and a matrix so one failing image is reported independently. PostgreSQL and Adminer are upstream Compose images and are not rebuilt by this job.
+The job uses Docker Buildx and a matrix so one failing image is reported independently. The API image is loaded into Docker and must pass a runtime smoke test that imports Prisma, starts the production container against PostgreSQL 17, and verifies `/health` and `/ready`. PostgreSQL and Adminer are upstream Compose images and are not rebuilt by this job.
 
 ---
 
@@ -360,9 +361,11 @@ flowchart LR
     push --> lint[lint\nESLint all packages]
     typecheck --> test_unit[test:unit\nVitest — API + packages]
     lint --> test_unit
+    typecheck --> container_build[container-build\nDocker build + API runtime smoke]
+    lint --> container_build
     test_unit --> build[build\npnpm build all]
     build --> test_integration[test:integration\nvs PostgreSQL 17 service]
-    test_integration --> test_e2e[test:e2e\nPlaywright chromium]
+    build --> test_e2e[test:e2e\nPlaywright chromium]
 ```
 
 | Job | Description |
@@ -371,6 +374,7 @@ flowchart LR
 | `lint` | ESLint across all apps and packages |
 | `test-unit` | Vitest unit tests for API and shared packages |
 | `build` | Full monorepo build (tsc + swc + Next.js) |
+| `container-build` | Docker image builds; API image runtime smoke test with Prisma, PostgreSQL, `/health`, and `/ready` |
 | `test-integration` | API integration tests against a live PostgreSQL 17 service container |
 | `test-e2e` | Playwright end-to-end tests (chromium) |
 

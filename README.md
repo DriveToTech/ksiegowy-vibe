@@ -585,7 +585,7 @@ pnpm db:studio     # Open Prisma Studio (DB GUI)
 pnpm db:seed       # Seed initial data
 ```
 
-The GitHub Actions `container-build` job builds every repository-owned Docker image (`api`, `web`, and `backup`) on pushes and pull requests without publishing them. This catches Dockerfile, workspace dependency, and production build failures before deployment.
+The GitHub Actions `container-build` job builds every repository-owned Docker image (`api`, `web`, and `backup`) on pushes and pull requests without publishing them. The API image is also loaded and started against PostgreSQL 17; CI imports Prisma and verifies both `/health` and `/ready` before the image can pass. This catches Dockerfile, workspace dependency, production build, and API runtime packaging failures before deployment.
 
 ## KSeF Correction Flow
 
