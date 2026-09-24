@@ -46,7 +46,7 @@ This software is provided as-is and does not constitute legal, tax, accounting, 
 | Database | PostgreSQL 17 + Prisma 6 |
 | File Storage | Local filesystem (`./storage/`) |
 | Auth | Google OAuth2 + JWT |
-| OCR | Tesseract (local, Polish) + OpenRouter API (vision LLM fallback) |
+| OCR | Poppler native PDF text extraction + Tesseract (local, Polish) + OpenRouter API (vision LLM fallback) |
 | PDF Generation | Puppeteer |
 | XML | xmlbuilder2 + libxmljs2 (XSD validation) |
 | Email | Resend (optional) |
@@ -136,12 +136,18 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
   --scanners vuln --severity HIGH,CRITICAL ksiegowy-vibepl-api:security
 ```
 
-The final images contain production dependencies only. The API image uses
-Node.js 24 on Alpine, while the web image uses Node.js 24 on Alpine; both
-runtime layers upgrade the base distribution packages during the build.
+The final images contain production dependencies only. The API image keeps the
+Prisma CLI in production dependencies because the deployment migration Job
+runs `prisma migrate deploy` from that image. The API image uses Node.js 24 on
+Alpine, while the web image uses Node.js 24 on Alpine; both runtime layers
+upgrade the base distribution packages during the build.
 Their dependency-install stages expose the optional `NODE_USE_ENV_PROXY`
 build argument to Node.js so Corepack and pnpm can use the proxy provided to
 Docker builds.
+The API production-dependency stage runs `prisma generate` on Alpine so the
+generated client and musl query engine stay in the same dependency tree used
+by the runner. The runner also preserves the PDF-template workspace's
+production dependencies for Puppeteer-based PDF generation.
 Promotion requires scanning both final images with a current Trivy database and
 recording their immutable image digests. Current scan evidence and any release
 blockers are maintained in [the security remediation specification](docs/specs/security-vulnerability-remediation.md).
@@ -579,7 +585,7 @@ pnpm db:studio     # Open Prisma Studio (DB GUI)
 pnpm db:seed       # Seed initial data
 ```
 
-The GitHub Actions `container-build` job builds every repository-owned Docker image (`api`, `web`, and `backup`) on pushes and pull requests without publishing them. This catches Dockerfile, workspace dependency, and production build failures before deployment.
+The GitHub Actions `container-build` job builds every repository-owned Docker image (`api`, `web`, and `backup`) on pushes and pull requests without publishing them. The API image is also loaded and started against PostgreSQL 17; CI imports Prisma and verifies both `/health` and `/ready` before the image can pass. This catches Dockerfile, workspace dependency, production build, and API runtime packaging failures before deployment.
 
 ## KSeF Correction Flow
 
@@ -604,7 +610,7 @@ End-to-end tests live in `apps/e2e/` and cover authentication, navigation, contr
 Playwright starts two servers automatically before running tests:
 
 1. **Mock API** (`apps/e2e/mock-api/server.js`) on port `3199` — a lightweight Node.js HTTP server that simulates the real API without a database. It handles the routes needed by the dashboard and returns deterministic synthetic data.
-2. **Next.js web** (`apps/web`) on port `3200` — started with both `API_URL=http://localhost:3199` and `NEXT_PUBLIC_API_URL=http://localhost:3199` so server-side and browser-side calls use the mock.
+2. **Next.js web** (`apps/web`) on port `3200` — started with webpack and both `API_URL=http://localhost:3199` and `NEXT_PUBLIC_API_URL=http://localhost:3199` so server-side and browser-side calls use the mock without the CI-only Turbopack `next/font/google` resolver failure.
 
 Authentication is simulated by injecting an `auth_token` cookie before each test via a shared fixture (`tests/fixtures/auth.ts`). No Google OAuth or real JWT is needed.
 

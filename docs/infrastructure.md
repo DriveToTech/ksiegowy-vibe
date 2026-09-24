@@ -185,19 +185,23 @@ Stage 1 — deps
   Installs: pnpm, Node.js workspace dependencies through the configured build proxy
 
 Stage 2 — builder
-  Runs: prisma generate
   Runs: pnpm build (tsc + swc transpilation for all packages and API)
 
 Stage 3 — production-deps
   Base: node:24-alpine
-  Installs: production workspace dependencies through the configured build proxy
+  Installs: production workspace dependencies, including the Prisma CLI required
+  by the migration Job, through the configured build proxy
   on musl so native optional packages use Alpine-compatible bindings
+  Runs: prisma generate so the generated client is placed in the same Alpine
+  dependency tree used by the runner
 
 Stage 4 — runner
   Base: node:24-alpine
-  Copies: built artefacts, Prisma client, production node_modules
+  Copies: built artefacts plus root, API, and PDF-template production
+  node_modules containing the generated Prisma client and Puppeteer
   Installs: Alpine Chromium, Poppler, Tesseract OCR (Polish pack), libxml2-utils
   Runs as: node (UID 1000)
+  Working directory: /app/apps/api
   Cmd: node dist/main.js
 ```
 
@@ -205,7 +209,7 @@ Key system dependencies in the final image:
 
 | Dependency | Purpose |
 |-----------|---------|
-| `poppler-utils` | PDF page rendering before OCR |
+| `poppler-utils` | Native PDF text extraction and PDF page rendering before OCR |
 | `tesseract-ocr` + `tesseract-ocr-data-pol` | Local Polish-language OCR |
 | `libxml2-utils` | XSD validation of FA(3) XML |
 | `chromium` | Headless browser for PDF generation |
@@ -247,7 +251,8 @@ flowchart LR
   dependencies --> build[Production build]
   build --> apiImage[API runtime image]
   build --> webImage[Web runtime image]
-  apiImage --> trivy[Trivy HIGH/CRITICAL scan]
+  apiImage --> runtimeSmoke[API runtime smoke test]
+  runtimeSmoke --> trivy[Trivy HIGH/CRITICAL scan]
   webImage --> trivy
   trivy --> release[Release decision]
 ```
@@ -268,7 +273,7 @@ The `container-build` job in `.github/workflows/ci.yml` builds every Dockerfile 
 - `apps/web/Dockerfile`
 - `ops/backup/Dockerfile`
 
-The job uses Docker Buildx and a matrix so one failing image is reported independently. PostgreSQL and Adminer are upstream Compose images and are not rebuilt by this job.
+The job uses Docker Buildx and a matrix so one failing image is reported independently. The API image is loaded into Docker and must pass a runtime smoke test that imports Prisma, starts the production container against PostgreSQL 17, and verifies `/health` and `/ready`. PostgreSQL and Adminer are upstream Compose images and are not rebuilt by this job.
 
 ---
 
@@ -356,9 +361,11 @@ flowchart LR
     push --> lint[lint\nESLint all packages]
     typecheck --> test_unit[test:unit\nVitest — API + packages]
     lint --> test_unit
+    typecheck --> container_build[container-build\nDocker build + API runtime smoke]
+    lint --> container_build
     test_unit --> build[build\npnpm build all]
     build --> test_integration[test:integration\nvs PostgreSQL 17 service]
-    test_integration --> test_e2e[test:e2e\nPlaywright chromium]
+    build --> test_e2e[test:e2e\nPlaywright chromium]
 ```
 
 | Job | Description |
@@ -367,8 +374,12 @@ flowchart LR
 | `lint` | ESLint across all apps and packages |
 | `test-unit` | Vitest unit tests for API and shared packages |
 | `build` | Full monorepo build (tsc + swc + Next.js) |
+| `container-build` | Docker image builds; API image runtime smoke test with Prisma, PostgreSQL, `/health`, and `/ready` |
 | `test-integration` | API integration tests against a live PostgreSQL 17 service container |
 | `test-e2e` | Playwright end-to-end tests (chromium) |
+
+The `test-unit` job refreshes Ubuntu package metadata before installing
+`libxml2-utils`, which is required by FA(3) XML validation tests.
 
 The E2E web server disables the Next.js development indicator so framework controls do not affect application focus-order assertions. Responsive dashboard checks only evaluate a mid-scroll position when the synthetic fixture has scrollable content.
 

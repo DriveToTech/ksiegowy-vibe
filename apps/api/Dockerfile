@@ -70,16 +70,6 @@ COPY packages/ksef-client/   packages/ksef-client/
 COPY packages/pdf-templates/ packages/pdf-templates/
 COPY apps/api/               apps/api/
 
-# Generate Prisma client (reads schema only, no database required).
-RUN pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
-
-# Keep the generated Prisma client in a stable path so the runner can use the
-# Alpine-compatible engine without copying the versioned pnpm store path.
-RUN generatedPrismaClient="$(find /app/node_modules/.pnpm -path '*/node_modules/.prisma/client' -type d -print -quit)" \
-    && test -n "$generatedPrismaClient" \
-    && mkdir -p /app/generated-prisma \
-    && cp -R "$generatedPrismaClient" /app/generated-prisma/client
-
 # Build shared packages sequentially before the API so their dist/ and .d.ts
 # files exist when the API tsconfig resolves project references.
 # Each step is a small isolated compilation — avoids the OOM spike that
@@ -120,6 +110,7 @@ COPY packages/fa3-xml/package.json           packages/fa3-xml/package.json
 COPY packages/ksef-client/package.json       packages/ksef-client/package.json
 COPY packages/pdf-templates/package.json     packages/pdf-templates/package.json
 COPY apps/api/package.json                   apps/api/package.json
+COPY apps/api/prisma/schema.prisma           apps/api/prisma/schema.prisma
 
 # Keep compilers, test runners, and other build-only packages out of the image.
 RUN for attempt in 1 2 3 4 5; do \
@@ -127,6 +118,11 @@ RUN for attempt in 1 2 3 4 5; do \
       if [ "$attempt" -eq 5 ]; then exit 1; fi; \
       sleep 5; \
     done
+
+# Generate the client in the Alpine dependency tree that the runner copies.
+# This keeps the generated client beside @prisma/client and includes the musl
+# query engine required by the runtime image.
+RUN cd apps/api && ./node_modules/.bin/prisma generate --schema prisma/schema.prisma
 
 
 # ─── Stage 4: runner ─────────────────────────────────────────────────────────
@@ -160,7 +156,8 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 # must also exist in the runner. Copy each workspace package (package.json +
 # built dist/) so those symlinks resolve at runtime.
 COPY --from=production-deps /app/node_modules ./node_modules
-COPY --from=builder /app/generated-prisma/client ./node_modules/.prisma/client
+COPY --from=production-deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=production-deps /app/packages/pdf-templates/node_modules ./packages/pdf-templates/node_modules
 
 COPY --from=builder /app/packages/types/package.json          ./packages/types/package.json
 COPY --from=builder /app/packages/types/dist                  ./packages/types/dist
@@ -178,12 +175,14 @@ COPY --from=builder /app/packages/pdf-templates/package.json  ./packages/pdf-tem
 COPY --from=builder /app/packages/pdf-templates/dist          ./packages/pdf-templates/dist
 
 # Compiled API output (CJS .js files, no "type":"module" needed).
-COPY --from=builder /app/apps/api/dist  ./dist
+COPY --from=builder /app/apps/api/dist  ./apps/api/dist
 
 # Prisma schema and migrations for `prisma migrate deploy` at deploy time.
-COPY --from=builder /app/apps/api/prisma ./prisma
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 
 EXPOSE 3001
+
+WORKDIR /app/apps/api
 
 USER node
 

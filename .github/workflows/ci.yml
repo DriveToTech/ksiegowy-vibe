@@ -71,7 +71,9 @@ jobs:
           cache: 'pnpm'
 
       - name: Install system dependencies
-        run: sudo apt-get install -y libxml2-utils
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -142,9 +144,95 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: false
+          load: ${{ matrix.name == 'api' }}
           tags: ksiegowy-vibe/${{ matrix.name }}:${{ github.sha }}
           build-args: |
             NEXT_PUBLIC_API_URL=http://localhost:3001
+
+      - name: Verify API runtime image
+        if: matrix.name == 'api'
+        run: |
+          set -euo pipefail
+
+          application_image_name="ksiegowy-vibe/api:${{ github.sha }}"
+          application_network_name="ksiegowy-api-smoke-${{ github.run_id }}"
+          postgres_container_name="${application_network_name}-postgres"
+          application_container_name="${application_network_name}-application"
+
+          cleanup() {
+            docker rm -f "$application_container_name" "$postgres_container_name" >/dev/null 2>&1 || true
+            docker network rm "$application_network_name" >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          docker run --rm "$application_image_name" node -e \
+            "require('@prisma/client'); console.log('Prisma runtime loaded')"
+
+          docker network create "$application_network_name"
+          docker run --detach \
+            --name "$postgres_container_name" \
+            --network "$application_network_name" \
+            --network-alias postgres \
+            --env POSTGRES_DB=ksiegowy_smoke \
+            --env POSTGRES_USER=postgres \
+            --env POSTGRES_PASSWORD=postgres \
+            --health-cmd='pg_isready -U postgres -d ksiegowy_smoke' \
+            --health-interval=2s \
+            --health-timeout=5s \
+            --health-retries=30 \
+            postgres:17
+
+          for attempt in $(seq 1 30); do
+            postgres_health_status="$(docker inspect --format='{{.State.Health.Status}}' "$postgres_container_name")"
+
+            if [ "$postgres_health_status" = "healthy" ]; then
+              break
+            fi
+
+            if [ "$postgres_health_status" = "unhealthy" ]; then
+              docker logs "$postgres_container_name"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          postgres_health_status="$(docker inspect --format='{{.State.Health.Status}}' "$postgres_container_name")"
+          if [ "$postgres_health_status" != "healthy" ]; then
+            docker logs "$postgres_container_name"
+            exit 1
+          fi
+
+          docker run --detach \
+            --name "$application_container_name" \
+            --network "$application_network_name" \
+            --publish 127.0.0.1:3301:3001 \
+            --env NODE_ENV=production \
+            --env API_PORT=3001 \
+            --env DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ksiegowy_smoke \
+            --env JWT_SECRET=ci-smoke-access-secret \
+            --env JWT_REFRESH_SECRET=ci-smoke-refresh-secret \
+            "$application_image_name"
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:3301/health; then
+              curl --fail --silent --show-error http://127.0.0.1:3301/ready
+              echo "API container smoke test passed"
+              exit 0
+            fi
+
+            application_running="$(docker inspect --format='{{.State.Running}}' "$application_container_name")"
+            if [ "$application_running" != "true" ]; then
+              docker logs "$application_container_name"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          docker logs "$application_container_name"
+          exit 1
 
   test-integration:
     name: Integration Tests
