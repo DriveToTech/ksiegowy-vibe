@@ -15,7 +15,7 @@
   - **Routed to ux-ui-architect, not fixed here** (a design-asset/judgment call outside a review gate's authority): secondary/outline buttons ("Pobierz dane po NIP", "+ Dodaj usługę", "Pobierz PDF") read as *disabled* in light theme — they pass AA on text contrast (the probe did not flag them), so this is visual weight, not a violation, but three independent sightings suggests the light secondary fill/border pair is tuned too faint against `--surface-panel`.
 - Document type: implementation spec
 - Branch: `design/improvements`
-- Source design docs: `private design reference` (tokens), `private design reference` (14 reference screens)
+- Source design details are captured in the token specification and phase descriptions below.
 - Supersedes the visual layer of the prior "Aeon Ethereal" redesign (`spec/stitch-ui-implementation-plan.md`, `spec/ui/00-06`), which stays as historical record. Component architecture (atoms/molecules/organisms/templates) from that effort is kept, not rebuilt.
 
 ## Objective
@@ -82,7 +82,7 @@ Out of scope (see Backlog):
 ### Phase 0 — Design tokens & foundation
 - Owner: **ux-ui-architect** (token spec + light-theme derivation), reviewed by **frontend-architect** (feasibility of the variable-name-stable migration above)
 - Tasks:
-  1. Extract the full Aurora Solid token set from `private design reference` (surfaces, accent/state colors, type scale, spacing, radius, shadow, component states) into a mapping onto the existing `globals.css` variable names, plus the new tokens listed under Architecture Decision.
+  1. Map the full Aurora Solid token set (surfaces, accent/state colors, type scale, spacing, radius, shadow, component states) onto the existing `globals.css` variable names, plus the new tokens listed under Architecture Decision.
   2. Design the parallel light theme under the same structural rules (opaque surface steps, 14–16% tinted fills for state colors, single shadow), using the current light theme's surface list as the starting point rather than from scratch.
   3. Confirm font swap: Sora (300/400/500/600/700) for interface text, IBM Plex Mono (400/500/600) for identifiers/labels/mono data — replacing Inter/Manrope in `next/font/google`.
   4. Audit every component under `src/components` for `blur(`/`backdrop-filter`/multiple shadows and list what must change in Phase 1 (`ThemeSwitcher` is the most likely offender — verify).
@@ -161,7 +161,7 @@ This document is a plan only — no implementation has started. On approval, kic
 ## Phase 4 — Onboarding Wizard Design
 
 Owner: **frontend-architect** (this section) → **frontend-engineer** (implements) → **e2e-test-engineer** (flow coverage).
-Reference: mock screen 02 (`private design reference`, `===================== 02`).
+Reference: the onboarding layout described below.
 
 The wizard is the only genuinely new feature in this plan. The design below deliberately adds **no new backend, no state library, no wizard orchestrator component** — the router and the existing forms already do the work.
 

@@ -48,7 +48,7 @@ export default defineConfig({
       // Use `next dev` in e2e so browser-side NEXT_PUBLIC_* env values are compiled with
       // the mock API URL for this test run. `next start` would serve a previously built bundle
       // where NEXT_PUBLIC_API_URL may still point at the default backend, breaking client mutations.
-      command: `pnpm --filter @ksiegowy/web exec next dev -p ${e2eAppPort}`,
+      command: `pnpm --filter @ksiegowy/web exec next dev --webpack -p ${e2eAppPort}`,
       url: `http://localhost:${e2eAppPort}`,
       reuseExistingServer: false,
       timeout: 120_000,
