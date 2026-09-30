@@ -37,7 +37,15 @@ export function AdvisorConnectors({ companyId, allowedClients }: { companyId: st
       {settings.clients.map((client) => {
         const grant = settings.grants.find((entry) => entry.client === client && entry.environment === environment);
         return <div key={client} className="space-y-2 rounded-inset bg-surface-raised p-3"><h4 className="font-medium">{client === 'CHATGPT' ? 'ChatGPT' : 'Claude'}</h4>
-          {grant ? <><p className="text-xs">{text.expires}: {new Date(grant.expiresAt).toLocaleString('pl-PL')}</p><Button variant="danger" disabled={busy} onClick={() => void changeGrant(client, true)}>{text.revoke}</Button></>
+          {grant ? <>
+            <p className="text-xs">{text.expires}: {new Date(grant.expiresAt).toLocaleString('pl-PL')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" href={client === 'CHATGPT' ? 'https://chatgpt.com' : 'https://claude.ai/new'} target="_blank" rel="noopener noreferrer">
+                {text.openSubscription[client]}
+              </Button>
+              <Button variant="danger" disabled={busy} onClick={() => void changeGrant(client, true)}>{text.revoke}</Button>
+            </div>
+          </>
             : <Button disabled={busy || !consent || !allowedClients.includes(client)} onClick={() => void changeGrant(client, false)}>{text.grant}</Button>}
         </div>;
       })}

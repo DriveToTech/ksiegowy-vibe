@@ -36,6 +36,16 @@ export function AdvisorSettings({ companyId, onSaved }: { companyId: string; onS
 
   return <section className="space-y-5 rounded-card border border-outline bg-surface-panel p-4">
     <h2 className="text-lg font-semibold">{text.settings}</h2>
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
+        <h3 className="font-medium">{text.inAppMode}</h3>
+        <p className="mt-1 text-sm text-muted">{text.inAppModeDescription}</p>
+      </div>
+      <div className="rounded-card border border-outline bg-surface-raised p-4">
+        <h3 className="font-medium">{text.subscriptionMode}</h3>
+        <p className="mt-1 text-sm text-muted">{text.subscriptionModeDescription}</p>
+      </div>
+    </div>
     {error && <p role="alert" className="text-sm text-error-ink">{error}</p>}
     {message && <p role="status" className="text-sm text-success-ink">{message}</p>}
     {!settings && !error && <p role="status">{text.loading}</p>}
@@ -55,7 +65,6 @@ export function AdvisorSettings({ companyId, onSaved }: { companyId: string; onS
       <Button variant="secondary" onClick={() => void perform(() => advisorRequest(companyId, '/policy', { method: 'PATCH', body: JSON.stringify({ enabled: settings.enabled, allowedProviders: settings.allowedProviders, allowedConnectors: settings.allowedConnectors, retentionDays: settings.retentionDays }) }))}>{text.savePolicy}</Button>
     </fieldset>}
     {settings && <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void perform(() => advisorRequest(companyId, `/connections/${provider}`, { method: 'PUT', body: JSON.stringify({ model: model ?? connection?.model ?? '', ...(credential ? { credential } : {}) }) })); }}>
-      <p className="text-sm text-muted">{text.apiBilling}</p>
       <label className="block text-sm">{text.provider}<select className="mt-1 min-h-11 w-full rounded-control border border-outline-control bg-surface-raised px-3" value={provider} disabled={busy} onChange={(event) => { setProvider(event.target.value as AdvisorProvider); setModel(null); setCredential(''); setModels([]); }}>
         {Object.entries(text.providers).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select></label>

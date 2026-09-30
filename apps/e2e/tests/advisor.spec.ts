@@ -50,3 +50,36 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     }
   });
 }
+test('advisor settings separate API billing from subscription sign-in', async ({ authenticatedPage: page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.route('**/companies/test-company-id/advisor/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/settings')) return route.fulfill({ json: {
+      enabled: true, canManagePolicy: false, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: ['CHATGPT', 'CLAUDE'],
+      retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0, connections: [],
+    } });
+    if (path.endsWith('/connectors')) return route.fulfill({ json: {
+      endpoint: 'https://api.example.com/advisor/mcp', clients: ['CHATGPT', 'CLAUDE'],
+      grants: [{ client: 'CHATGPT', environment: 'TEST', expiresAt: '2026-10-19T12:00:00.000Z' },
+        { client: 'CLAUDE', environment: 'TEST', expiresAt: '2026-10-19T12:00:00.000Z' }],
+    } });
+    return route.fulfill({ status: 404, json: { code: 'NOT_FOUND' } });
+  });
+  await page.goto('/dashboard/settings');
+  await page.getByRole('button', { name: 'Doradca' }).click();
+  const settings = page.locator('#settings-panel');
+  await expect(settings.getByText('Doradca w Księgowym Vibe')).toBeVisible();
+  await expect(settings.getByText('Użyj abonamentu ChatGPT (OpenAI) lub Claude')).toBeVisible();
+  await expect(settings.getByText(/nie otrzymuje hasła ani tokenu abonamentu/)).toBeVisible();
+  await expect(settings.getByRole('link', { name: 'Otwórz ChatGPT' })).toHaveAttribute('href', 'https://chatgpt.com');
+  await expect(settings.getByRole('link', { name: 'Otwórz Claude' })).toHaveAttribute('href', 'https://claude.ai/new');
+  await expect(settings.getByRole('link', { name: 'Otwórz Claude' })).toHaveAttribute('target', '_blank');
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 1440);
+  await page.screenshot({ path: testInfo.outputPath('advisor-settings-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: 'Doradca' })).toBeInViewport();
+  await expect(settings.getByText('Doradca w Księgowym Vibe')).toBeVisible();
+  await expect(settings.getByText('Użyj abonamentu ChatGPT (OpenAI) lub Claude')).toBeVisible();
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({ path: testInfo.outputPath('advisor-settings-mobile.png'), fullPage: true });
+});

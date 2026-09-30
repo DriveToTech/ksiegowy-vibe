@@ -1,6 +1,6 @@
 # Tax advisor implementation plan
 
-Status: **implementation in progress on `feat/tax-advisor` — embedded advisor and connector resource server implemented; deployment and tax-review gates remain open**. Updated: **2026-09-19**.
+Status: **implementation in progress on `feat/tax-advisor` — embedded advisor and MCP resource server implemented; ChatGPT/Claude host-link UX is available after consent, but live OAuth connector deployment is parked; current UX priority is guided OpenRouter/Ollama setup**. Updated: **2026-09-27**.
 
 Tracking: [TRY-160 — Tax advisor epic](https://linear.app/trysoft/issue/TRY-160/epic-implement-the-contextual-tax-advisor), in the Trysoft / Księgowy Vibe project. Phase issues: TRY-161 through TRY-166, in order. Branch: `feat/tax-advisor` (local). The [Linear plan](https://linear.app/trysoft/document/tax-advisor-implementation-plan-d88af7b59f73) contains the original planning snapshot; this checklist and the [implemented specification](../docs/specs/tax-advisor.md) track delivery.
 
@@ -38,7 +38,114 @@ Preserve opaque Aurora surfaces, Sora/IBM Plex Mono, tabular amounts, existing l
 
 The mock contains illustrative business assertions, not approved tax logic. In particular, do not implement “fixing a rejected sales invoice lowers VAT”, “all unbooked purchase VAT is claimable”, a universal depreciation threshold answer, or mock offline deadlines as rules. KSeF acceptance, accounting inclusion, and tax liability are different facts that need explicit definitions and sources.
 
-The design does **not** specify provider setup, privacy consent, conversation retention, source freshness, or failure states. Design these within the existing Settings workspace and advisor surfaces in phase 1.
+The reference does not cover provider setup. The provider setup below is a proposed settings design; the current provider form is generic and does not provide a guided OpenRouter or Ollama journey.
+
+### Provider setup design: OpenRouter and self-hosted Ollama
+
+**Status: proposed, not implemented.** Keep this flow under **Settings → Doradca**. Do not mix it with MCP subscription connectors. Company policy is ADMIN-owned; provider connections and API keys belong to the current user/company membership.
+
+#### Current gaps found in the implementation
+
+| Current behavior | User impact |
+|---|---|
+| One provider dropdown and one generic model/API-key form for OpenRouter, Ollama, OpenAI API and Claude API | Cloud-key and operator-hosted setup look like the same task |
+| Model ID is required before `PUT /connections/:provider`; the model list is only available from `GET /connections/:provider/models` after a saved connection | A new user must know a model ID before they can discover models |
+| Credentials and selected models belong to a membership and are shared across TEST/PRODUCTION; the UI does not say so | Users may incorrectly expect separate TEST and PRODUCTION provider setups |
+| The Ollama option is always selectable even when `ollamaAvailable` is false; its configured/not-configured state is not rendered | User discovers missing operator setup only after trying to save |
+| A save, synthetic test, and model discovery all use the same `perform()` success message (“Zapisano”) | Success feedback can describe the wrong operation |
+| Company allowed-provider status is shown only inside the ADMIN policy editor | A member can configure a provider that cannot be tested or selected for company use |
+| `GET /models` returns model IDs only; it does not assert structured-output compatibility | A listed model can still fail the synthetic test |
+| Ollama copy explains that the API server—not the browser laptop—must reach Ollama, but there is no explicit endpoint status, model discovery state, or operator remediation | Self-hosted setup remains guesswork |
+| Current permanent E2E tests cover advisor answers and the subscription settings choice, not OpenRouter/Ollama setup states | Provider setup regressions are not caught |
+
+#### Proposed flow
+
+1. Open **Settings → Doradca → Połączenie modelu**. Show the company-policy status separately from the user's connection: whether the advisor is enabled, which providers the ADMIN allows, and whether this membership already has a saved connection.
+   Provider connection and model apply to this user's company membership in both TEST and PRODUCTION; switching KSeF environment does not create a separate provider setup.
+2. Choose a run location using two large provider cards:
+   - **OpenRouter — cloud, API key**. Explain that the member supplies their own key, provider/model charges may apply, and OpenRouter can route to upstream models.
+   - **Ollama — self-hosted, no user API key**. Show whether `ADVISOR_OLLAMA_URL` is configured for the API runtime. Never offer a URL input to company users.
+   Keep direct OpenAI API and Anthropic API under **Other API providers**; do not remove those supported modes or describe subscription connectors as embedded generation.
+3. Configure the selected method:
+   - **OpenRouter:** enter an API key; discover/search available model IDs; choose one; save the encrypted key and model to this user's company membership.
+   - **Ollama:** require the operator endpoint to be configured; explicitly discover models from the API server; choose a model; save only the model (no user credential). Explain that `localhost` means the API container/host, not the user's browser.
+4. Offer **Test connection** as a separate explicit action after save. Warn that it sends a synthetic completion request and may incur provider charges. It includes no company records. On success show the tested model and time; on failure retain the selected model and draft/key state and show an actionable error. A successful test is not a promise that later requests are free or that every model supports the required schema.
+5. Enable chat only when the operator runtime is on, a connection exists, and the company policy allows that provider. When blocked, show the exact reason and who can resolve it (operator vs. company ADMIN), rather than letting the user enter a dead-end configuration flow.
+
+The current model-discovery API requires a saved connection, while saving requires a model ID. Resolve this before implementing the guided discovery step: add an authenticated, rate-limited model-preview route that uses a submitted OpenRouter key transiently and never persists or logs it; for Ollama, query the operator-controlled endpoint without requiring a user connection. Keep the existing saved-connection model refresh route. Do not solve this by storing a fake/placeholder model. Discovery and the paid synthetic test must have different labels and feedback.
+
+#### Screen sketch
+
+Desktop, Settings content area:
+
+```text
+Doradca / Połączenie modelu
+Company access: Enabled · OpenRouter allowed · Ollama allowed
+My connection: Not configured
+
+Choose where the model runs
+┌──────────────────────────────┐  ┌──────────────────────────────┐
+│ OpenRouter · Cloud            │  │ Ollama · Self-hosted         │
+│ My API key · usage may cost   │  │ Runs on the API's network    │
+│ [Configure OpenRouter]        │  │ Endpoint: Not configured     │
+└──────────────────────────────┘  │ [Ask administrator]          │
+                                  └──────────────────────────────┘
+
+OpenRouter setup
+API key       [••••••••••••••••] [Show]
+Models        [Discover models] [Search model IDs                 v]
+              [Enter model ID manually]
+[Save connection]
+After save: Saved · Not tested
+[Test connection — may incur cost] [Refresh models] [Disconnect]
+```
+
+Ollama replaces the key field with a server status and a model catalog discovered through the API:
+
+```text
+Ollama endpoint: Configured for the API server · reachability not checked
+[Discover server models]
+Model           [Search available server models         v]
+No user API key is needed. The API server must reach this endpoint; self-hosting can still incur infrastructure costs.
+[Save model]
+After save: Saved · Not tested
+  [Test connection — uses configured server resources]
+```
+
+Mobile: stack the two provider cards and the selected setup form vertically; keep status and the primary action visible without horizontal scrolling. Inputs/buttons are full width with existing 44px minimum targets. Keep the company-policy settings in a separate section and do not place the API key in a subscription connector card.
+
+#### Setup states and acceptance
+
+| State | UI response |
+|---|---|
+| Company provider denied | Explain that an ADMIN must allow the provider; disable testing/use, but never imply that saving a key changes policy |
+| Ollama not configured | Show `ADVISOR_OLLAMA_URL` is missing and that an operator must configure API-to-Ollama network access; do not expose a dead Save action |
+| Operator runtime disabled | Allow setup, but block discovery/test/chat as required by current API rules; show that the operator must enable `ADVISOR_ENABLED` and restart the API |
+| Ollama configured but unreachable | Distinguish network reachability failure from a missing endpoint or empty model catalog; only an operator can repair network configuration |
+| Model catalog loading/failed/empty | Announce progress; preserve entered values; distinguish network/auth failure from no installed Ollama models |
+| Ollama has no installed models | Explain that an operator must install a model on the Ollama server, then allow model discovery to be retried |
+| Credential/model saved, not tested | Show “Saved — not tested”; test remains an explicit opt-in action |
+| Test running | Disable duplicate requests; announce status; allow leaving without auto-retrying |
+| Test passed | Show provider, model, timestamp, and clear “ready for advisor questions” status |
+| Test failed | Preserve the draft and show actionable key, reachability, quota, or unsupported structured-output guidance |
+| Mobile settings | Provider options, current status, disclosure, and next action are all visible; no horizontal scrolling is required to find Ollama |
+
+```mermaid
+flowchart TD
+  Settings[Open advisor settings] --> Policy{Provider allowed by company?}
+  Policy -- No --> Admin[Show ADMIN action; block test and use]
+  Policy -- Yes --> Choice{Run location}
+  Choice -- OpenRouter --> Key[Enter API key]
+  Key --> Models[Preview model catalog]
+  Models --> Select[Choose model ID]
+  Choice -- Ollama --> Endpoint{API endpoint configured?}
+  Endpoint -- No --> Operator[Show operator setup instructions]
+  Endpoint -- Yes --> OllamaModels[Discover server models]
+  OllamaModels --> Select
+  Select --> Save[Save connection]
+  Save --> Test[Explicit synthetic test with cost disclosure]
+  Test --> Ready[Show tested/failed state]
+```
 
 ## 3. Repository findings that affect implementation
 
@@ -73,16 +180,14 @@ Provider information is a research snapshot. Recheck supported authentication, a
 | Option | Authentication and billing | Planned support |
 |---|---|---|
 | OpenRouter | User API key and OpenRouter credits; multiple upstream providers | First embedded provider; reuse installed OpenAI SDK and its compatible endpoint ([documentation](https://openrouter.ai/docs/quickstart)) |
-| OpenAI API | User API key, billed through the API account | Embedded provider. Official authentication docs distinguish API usage from included ChatGPT plan credits ([documentation](https://learn.chatgpt.com/docs/auth)) |
+| OpenAI API | User API key, billed through the API account | Embedded provider. ChatGPT and API billing are separate ([documentation](https://help.openai.com/en/articles/9039756-managing-billing-for-chatgpt-and-the-api-platform)) |
 | Anthropic API | Claude Console API credentials | Embedded provider via Messages API; native `fetch` is sufficient for the bounded request contract ([documentation](https://platform.claude.com/docs/en/api/overview)) |
 | Ollama | Operator-approved endpoint and installed model; local execution has infrastructure cost | Embedded provider through OpenAI compatibility; validate actual model capabilities ([documentation](https://docs.ollama.com/api/openai-compatibility)) |
-| ChatGPT subscription | User connects our authenticated tools in ChatGPT | Subscription path through the documented app/plugin MCP integration. Our service authorises access to our records; it does not obtain a ChatGPT inference token ([authentication](https://developers.openai.com/plugins/build/auth)) |
-| Claude subscription | User adds our remote MCP connector in Claude | Subscription path in Claude, subject to account/admin availability ([connector documentation](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp)) |
+| ChatGPT subscription | User signs in to ChatGPT; the ChatGPT app authenticates to our MCP resource | External conversation mode. This app authorizes reads of its records; it does not use ChatGPT subscription credentials for embedded inference ([MCP apps](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps)) |
+| Claude subscription | User signs in to Claude; Claude authenticates to our remote MCP connector | External conversation mode, subject to account/admin availability ([connector documentation](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp)) |
 | Other providers | Initially choose their available models through OpenRouter | Dedicated Gemini, Azure, Bedrock, or arbitrary compatible endpoints only when deployment/customer requirements justify them |
 
-**Subscription qualification:** no general-purpose ChatGPT subscription inference endpoint for embedding this advisor was established by this research. Codex login is a product-specific workflow, not evidence that its tokens can power this application. Do not advertise “Sign in with ChatGPT” as included inference inside Księgowy Vibe.
-
-Anthropic's guidance for products built for other users directs developers to API authentication. Its separate Agent SDK article currently says a planned billing change was paused and some SDK/third-party usage still draws from subscription limits. Those statements do not establish a stable shared web-product entitlement. Keep an embedded subscription experiment outside the committed architecture unless Anthropic confirms this deployment is supported; do not label all subscription integration impossible. Sources: [developer login guidance](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account), [Agent SDK update](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan).
+**Subscription qualification:** ChatGPT subscription authentication is product-specific (for example, Codex); it is not a general-purpose API credential for embedding this advisor. Claude's plan usage is intended for its native applications and supported third-party tools; Anthropic directs products built for other users to API-key authentication and prohibits misrepresenting client identity. Do not use either subscription OAuth token for embedded model calls. Offer subscriptions through the host's official ChatGPT/Claude MCP connector flow only. Sources: [ChatGPT/API billing separation](https://help.openai.com/en/articles/9039756-managing-billing-for-chatgpt-and-the-api-platform), [Claude subscription login and third-party tool policy](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account).
 
 Connection settings must show the actual execution location and billing mode. Never silently move a conversation to a different provider. OpenRouter can route through upstream providers, so disclose that and enforce the user's permitted data-handling policy; routing availability must fail closed if the selected policy cannot be met. See [OpenRouter privacy](https://openrouter.ai/docs/guides/privacy/data-collection).
 
@@ -93,8 +198,8 @@ Connection settings must show the actual execution location and billing mode. Ne
 ### Setup and daily use
 
 1. Open Advisor from the header, mobile centre button, or an “Explain” link.
-2. With no connection, show “Use here” and “Use in ChatGPT / Claude”, with billing/location explanations. Provider credentials are entered only for API mode.
-3. Select a provider and model, test with a synthetic prompt, and show the result. A test may incur a small API charge and sends no company documents.
+2. Settings shows the two connection locations separately: **Use in Księgowy Vibe** (API key and separate API billing) or **Use subscription in ChatGPT/Claude** (the user signs in in the provider's own app; only read-only company data is authorized here).
+3. Select an API provider and model, test with a synthetic prompt, and show the result. A test may incur a small API charge and sends no company documents. Subscription users grant a company/environment scope, add the displayed MCP URL in the host app, then sign in there; account eligibility and operator OAuth setup apply.
 4. Before first company-data transmission, show company, environment, provider, selected period/document scope, and the categories being shared. Allow excluding documents or using general guidance with no company records.
 5. Ask a question. Show bounded progress, cancel, then a validated answer card. Show clarification questions when needed rather than guessing missing tax facts.
 6. “Show working” opens input facts, deterministic calculations, and cited records. “Sources” separately lists legal sources, publication/effective dates, and verification date.
@@ -235,6 +340,9 @@ All checkboxes below represent future implementation. Update this plan and the c
 - [x] Add the shell client boundary, panel/sheet, composer, answer cards, source display, and settings section. Files should follow existing components and `translations.ts` conventions.
 - [x] Add conversation history, cancellation, idempotent request handling, limits, and actionable failure states.
 - [x] Add OpenAI API, Anthropic API, and Ollama using the same application contract. Test provider/model structured-response capability and provide an unsupported-model state.
+- [ ] Implement the provider-specific OpenRouter/Ollama setup from the design above: company-policy status, server-side Ollama availability, model selection, explicit save/test states, and error messages tied to the completed operation.
+- [ ] Allow model discovery before a model has been saved. OpenRouter discovery must use the supplied API key transiently, with no persistence/logging and membership-level rate limiting; Ollama discovery must use only the operator-configured endpoint.
+- [ ] Add desktop/mobile E2E coverage for policy denied, OpenRouter first setup and saved/tested states, and Ollama not configured/configured states.
 
 **Gate:** a user connects each provider type, asks a supported Polish VAT/invoice question, sees correct company facts and citations, follows up, cancels, reconnects, and deletes history. Opening the advisor or changing pages causes no automatic paid model call. Secret values never appear in returned settings or browser storage.
 

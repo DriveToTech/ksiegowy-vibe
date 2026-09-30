@@ -21,7 +21,7 @@ Private design reference files stay on the developer's machine and are excluded 
 | [Mobile-first UX Remediation](docs/specs/mobile-first-remediation.md) | Mobile interaction tokens, shell/navigation contracts, secure KSeF switching, component states, and regression matrix |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [Tax Advisor](docs/specs/tax-advisor.md) | Embedded provider setup, reviewed-source contract, subscription connector/OAuth deployment, and current release limits |
-| [Tax Advisor Implementation Plan](spec/tax-advisor-implementation-plan.md) | Delivery checklist and remaining release gates based on redesign screens 15–19 |
+| [Tax Advisor Implementation Plan](spec/tax-advisor-implementation-plan.md) | Provider setup design for OpenRouter/Ollama, advisor screens 15–19 mapping, implementation checklist, and release gates |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
@@ -30,7 +30,7 @@ Private design reference files stay on the developer's machine and are excluded 
 
 ## Features
 
-- **Advisor (opt-in)** — Read-only company-record explanations, desktop/mobile chat, monthly briefing, private history and encrypted connections for OpenRouter, OpenAI API, Anthropic API or operator-hosted Ollama. ChatGPT/Claude connectors use a separately configured OAuth server and scoped consent. Tax answers require an operator-supplied reviewed source corpus; real provider/connector acceptance remains a release gate. See [setup and limitations](docs/specs/tax-advisor.md).
+- **Advisor (opt-in)** — Read-only company-record explanations, desktop/mobile chat, monthly briefing, private history and encrypted API-key connections for OpenRouter, OpenAI API, Anthropic API or operator-hosted Ollama. ChatGPT/Claude subscriptions are used in their own apps through a separately configured OAuth/MCP connector; users sign in there, while Księgowy Vibe only grants scoped read access. Embedded chat always uses separate API billing. Tax answers require an operator-supplied reviewed source corpus; real provider/connector acceptance remains a release gate. See [setup and limitations](docs/specs/tax-advisor.md).
 
 - **KSeF Integration** — Submit VAT invoices and sync incoming invoices from the National e-Invoice System (FA(3) XML generation, XSD validation, session management, offline queue with retry)
 - **KSeF Environment Context** — Per-user `TEST` / `PRODUCTION` environment context with separate credentials, sessions, invoice visibility, invoice KSeF state, and direct PDF/file access per environment. The shell shows a passive environment indicator; context changes stay in the dedicated settings flow. Token presence is exposed without token values so KSeF actions can fail closed. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
