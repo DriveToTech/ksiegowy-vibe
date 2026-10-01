@@ -38,11 +38,22 @@ Preserve opaque Aurora surfaces, Sora/IBM Plex Mono, tabular amounts, existing l
 
 The mock contains illustrative business assertions, not approved tax logic. In particular, do not implement “fixing a rejected sales invoice lowers VAT”, “all unbooked purchase VAT is claimable”, a universal depreciation threshold answer, or mock offline deadlines as rules. KSeF acceptance, accounting inclusion, and tax liability are different facts that need explicit definitions and sources.
 
-The reference does not cover provider setup. The provider setup below is a proposed settings design; the current provider form is generic and does not provide a guided OpenRouter or Ollama journey.
+The single design source is the Claude Design artifact [5s6ojohFet7haaSAbWV9hp](https://claude.ai/artifact/5s6ojohFet7haaSAbWV9hp). The earlier Stitch screens are no longer used. [The connection UX specification §0](../docs/specs/tax-advisor-connection-ux.md#0-design-source-claude-design-artifact-5s6ojohfet7haasabwv9hp) lists its frames and tokens, the visual QA findings and the design gaps. The artifact does not cover provider or connector setup. The provider setup below is a proposed settings design; the current provider form is generic and does not provide a guided OpenRouter or Ollama journey.
 
 ### Provider setup design: OpenRouter and self-hosted Ollama
 
-**Status: proposed, not implemented.** Keep this flow under **Settings → Doradca**. Do not mix it with MCP subscription connectors. Company policy is ADMIN-owned; provider connections and API keys belong to the current user/company membership.
+**Status: designed (TRY-172, 2026-10-01), not implemented.** The full design is in [the connection UX specification](../docs/specs/tax-advisor-connection-ux.md). It covers mode A (embedded API providers) and mode B (ChatGPT/Claude read-only connector), and includes flows, desktop 1440px and mobile 390px layouts, a per-state table, a component inventory, Polish microcopy with English keys, accessibility, and light/dark notes. The Claude Design artifact has no frames for this area. §0 of the specification lists what still has to be drawn. Mode B connector copy is **provisional** until the connector eligibility check (TRY-173) is done. Next: frontend-architect component boundaries. The sketch below is the original proposal; where they differ, the specification wins.
+
+Open questions for TRY-173 (full list in §12 of the specification):
+
+- Which ChatGPT and Claude plans can add a custom MCP connector, whether developer mode is required, and what workspace/organisation admins must enable.
+- Current menu paths in both products, and whether a connector can be added from mobile apps.
+- OAuth client registration: dynamic or pre-registered client IDs, and the exact callback URLs.
+- What each host shows for an unreachable connector or a revoked/expired grant.
+- Whether host answers render tool-result links to `/dashboard/invoices/:id`, and whether tools must return absolute URLs.
+- Whether a per-grant `lastUsedAt` is needed for the "waiting for first host call" state, and whether expired grants should be returned rather than hidden.
+
+The original proposal follows. Keep this flow under **Settings → Doradca**. Do not mix it with MCP subscription connectors. Company policy is ADMIN-owned; provider connections and API keys belong to the current user/company membership.
 
 #### Current gaps found in the implementation
 
@@ -279,6 +290,10 @@ All paths below are under `/companies/:companyId/advisor`. Schema validation, au
 | `POST /connections/:provider/test` | Bounded synthetic connectivity and capability test |
 | `DELETE /connections/:provider` | Revoke/delete user's saved credentials |
 | `GET /connections/:provider/models` | Server-side permitted model discovery; explicit model identifier fallback where discovery is unavailable |
+| `POST /connections/:provider/model-preview` | **Implemented (TRY-167).** Discovery before save; transient key, per-user ten-second throttle plus DB-backed daily caps (30 per user, 100 per company per UTC day; `429 DAILY_LIMIT_REACHED` with `Retry-After`; table `AdvisorModelPreviewUsage`, migration `20261001090000_advisor_model_preview_usage`), Ollama uses only `ADVISOR_OLLAMA_URL`. Ollama codes `OLLAMA_NOT_CONFIGURED`, `OLLAMA_UNREACHABLE`, `OLLAMA_NO_MODELS` (TRY-181) |
+| MCP `/advisor/mcp` | **Hardened (security review).** 60 calls/min/grant (429 + `Retry-After`), 20 s tool timeout, 100 KB result cap, throttled `lastUsedAt` written only after the final recheck; grant/regrant/revoke logged as `advisor.connector.*`. Open: M3 preview caps, I1 `ACTIVE` meaning |
+| `PUT /connections/:provider`, `PUT /connectors/:client` | **Hardened.** Require operator enablement (and provider policy for connections); DELETE routes stay ungated. Upstream parse failures map to 502 |
+| `GET /connectors` | **Updated (TRY-181).** Grants include `status` (`WAITING`/`ACTIVE`/`EXPIRED`/`REVOKED`), `lastUsedAt`, `revokedAt`; revoked/expired grants retained 30 days; `DELETE /connectors/:client` revokes |
 | `GET /conversations` | User's history in the explicitly selected environment |
 | `POST /conversations` | Create conversation with fixed user/company/environment/provider scope |
 | `GET /conversations/:conversationId` | Load authorised messages and provenance |
@@ -328,7 +343,7 @@ All checkboxes below represent future implementation. Update this plan and the c
 - [x] Add scoped accounting reads in `apps/api/src/services/advisor/`, reusing public services where their semantics match.
 - [x] Reconcile correction and currency handling in affected shared read models; make any changed totals visible in their existing docs/tests. Keep accepted-sales and all-issued totals separately named.
 - [x] Add bounded source metadata loading, effective-period/current-review selection, corpus provenance, and fail-closed missing/stale-source behavior.
-- [ ] Populate an accountant-reviewed source corpus, designate review ownership, and add topic retrieval beyond the first eight applicable excerpts.
+- [ ] Populate an accountant-reviewed source corpus and designate review ownership. Topic retrieval beyond the first eight is implemented (deterministic keyword topics plus period ranking, see docs/specs/tax-advisor.md); the corpus and reviewer remain open.
 - [x] Define bounded context snapshots, exclusion rules, source links, and provenance.
 
 **Gate:** deterministic totals reconcile to synthetic invoice fixtures, formal/cancellation corrections behave correctly, mixed currencies remain separate, and no cross-company/environment record can enter a context. Tax answers have period-appropriate reviewed evidence.
