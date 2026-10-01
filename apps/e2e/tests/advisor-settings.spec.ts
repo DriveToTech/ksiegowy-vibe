@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 import type { AdvisorConnectionSummary, AdvisorProvider } from '../../../packages/types/src/advisor';
 import { test, expect } from './fixtures/auth';
 
@@ -15,6 +15,20 @@ interface AdvisorMock {
   savedBodies: unknown[];
   testRequests: number;
   deletedProviders: AdvisorProvider[];
+}
+
+// Captures the whole settings section in light, then in dark. The section scrolls inside the app shell, so the viewport is
+// grown to the section height first; otherwise the shell clips it. The theme comes from `data-theme` (localStorage
+// bootstrap), not from prefers-color-scheme, so the attribute is set directly.
+async function screenshotAdvisorSection(page: Page, testInfo: TestInfo, name: string, target: Locator = page.locator('#settings-panel')) {
+  const originalViewport = page.viewportSize();
+  const sectionHeight = await target.evaluate((element) => element.scrollHeight);
+  if (originalViewport) await page.setViewportSize({ width: originalViewport.width, height: sectionHeight + 400 });
+  await target.screenshot({ path: testInfo.outputPath(`${name}.png`) });
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  await target.screenshot({ path: testInfo.outputPath(`${name}-dark.png`) });
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+  if (originalViewport) await page.setViewportSize(originalViewport);
 }
 
 function createAdvisorMock(overrides: Partial<AdvisorMock>): AdvisorMock {
@@ -89,7 +103,7 @@ test.describe('provider connection', () => {
         await expect(verification.getByText('Przetestowane', { exact: true })).toBeVisible();
         expect(mock.testRequests).toBe(1);
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-        await page.screenshot({ path: testInfo.outputPath(`advisor-openrouter-${viewport.width}.png`), fullPage: true });
+        await screenshotAdvisorSection(page, testInfo, `advisor-openrouter-${viewport.width}`);
       });
 
       test('the daily discovery limit disables discovery while manual model entry still saves', async ({ authenticatedPage: page }) => {
@@ -131,7 +145,7 @@ test.describe('provider connection', () => {
         await expect(settings.getByText('Zapisano połączenie. Nie zostało jeszcze sprawdzone.')).toBeVisible();
         expect(mock.savedBodies).toEqual([{ model: 'manual/model-identifier', credential: 'sk-or-wrong' }]);
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-        await page.screenshot({ path: testInfo.outputPath(`advisor-rejected-key-${viewport.width}.png`), fullPage: true });
+        await screenshotAdvisorSection(page, testInfo, `advisor-rejected-key-${viewport.width}`);
         await expect(settings.getByRole('button', { name: 'Odśwież listę modeli' })).toBeEnabled({ timeout: 15_000 });
       });
 
@@ -148,7 +162,7 @@ test.describe('provider connection', () => {
         await expect(settings.locator('input[type="url"], input[type="password"]')).toHaveCount(0);
         await expect(settings.getByRole('textbox', { name: /adres|url/i })).toHaveCount(0);
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-        await page.screenshot({ path: testInfo.outputPath(`advisor-ollama-not-configured-${viewport.width}.png`), fullPage: true });
+        await screenshotAdvisorSection(page, testInfo, `advisor-ollama-not-configured-${viewport.width}`);
       });
 
       test('Ollama reports unreachable and empty servers before saving a model without a key', async ({ authenticatedPage: page }, testInfo) => {
@@ -178,7 +192,7 @@ test.describe('provider connection', () => {
         await expect(verification.getByText('Przetestowane', { exact: true })).toBeVisible();
         expect(mock.testRequests).toBe(1);
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-        await page.screenshot({ path: testInfo.outputPath(`advisor-ollama-${viewport.width}.png`), fullPage: true });
+        await screenshotAdvisorSection(page, testInfo, `advisor-ollama-${viewport.width}`);
       });
 
       test('policy gates explain each blocker separately, keep the test blocked and still save the connection', async ({ authenticatedPage: page }, testInfo) => {
@@ -204,7 +218,7 @@ test.describe('provider connection', () => {
         expect(mock.testRequests).toBe(0);
         await expect(settings.getByText('Gotowe do pytań.')).toHaveCount(0);
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-        await page.screenshot({ path: testInfo.outputPath(`advisor-policy-gates-${viewport.width}.png`), fullPage: true });
+        await screenshotAdvisorSection(page, testInfo, `advisor-policy-gates-${viewport.width}`);
       });
 
       test('disconnect asks for confirmation, deletes the saved connection and returns focus to readiness', async ({ authenticatedPage: page }, testInfo) => {
@@ -217,7 +231,7 @@ test.describe('provider connection', () => {
         const dialog = page.getByRole('dialog', { name: 'Odłączyć OpenRouter?' });
         await expect(dialog.getByRole('button', { name: 'Anuluj' })).toBeFocused();
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-        await page.screenshot({ path: testInfo.outputPath(`advisor-disconnect-${viewport.width}.png`), fullPage: true });
+        await screenshotAdvisorSection(page, testInfo, `advisor-disconnect-${viewport.width}`, dialog);
 
         await dialog.getByRole('button', { name: 'Anuluj' }).click();
         await expect(dialog).toBeHidden();
@@ -327,7 +341,7 @@ test.describe('connectors', () => {
       await expect(settings.getByRole('heading', { name: 'Dodaj konektor w Claude' })).toBeVisible();
       await expect(settings.getByText(/Dostosuj → Łączniki → Dodaj własny łącznik/)).toBeVisible();
       await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-      await page.screenshot({ path: testInfo.outputPath(`connectors-grant-${viewport.width}.png`), fullPage: true });
+      await screenshotAdvisorSection(page, testInfo, `connectors-grant-${viewport.width}`);
     });
 
     test(`grant rows show server status, revoke with confirmation and re-grant without a request at ${viewport.width}px`, async ({ authenticatedPage: page }, testInfo) => {
@@ -358,7 +372,7 @@ test.describe('connectors', () => {
       await expect(row('ChatGPT', 'PRODUKCJA').getByText('Wygasła', { exact: true })).toBeVisible();
       await expect(row('Claude', 'PRODUKCJA').getByText('Cofnięta', { exact: true })).toBeVisible();
       await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-      await page.screenshot({ path: testInfo.outputPath(`connectors-grants-${viewport.width}.png`), fullPage: true });
+      await screenshotAdvisorSection(page, testInfo, `connectors-grants-${viewport.width}`);
 
       await row('ChatGPT', 'TEST').getByRole('button', { name: 'Cofnij zgodę' }).click();
       const dialog = page.getByRole('dialog', { name: 'Cofnąć zgodę dla ChatGPT?' });
@@ -395,7 +409,7 @@ test.describe('connectors', () => {
       await expect(restricted.getByRole('button', { name: 'Zezwól na odczyt' })).toBeDisabled();
       await expect(restricted.getByText('Administrator firmy musi zezwolić na ChatGPT.')).toBeVisible();
       await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-      await page.screenshot({ path: testInfo.outputPath(`connectors-blockers-${viewport.width}.png`), fullPage: true });
+      await screenshotAdvisorSection(page, testInfo, `connectors-blockers-${viewport.width}`);
     });
   }
 });
