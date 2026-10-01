@@ -42,8 +42,14 @@ export interface AdvisorTaxSource {
   excerpt: string;
 }
 
+/**
+ * `declined`: the question is outside the supported VAT/invoice scope. `shortAnswer` states why, `explanation` states what the advisor can help with;
+ * assumptions, questions, evidence, sources and calculations are empty.
+ */
+export type AdvisorAnswerStatus = 'answered' | 'needs_clarification' | 'insufficient_evidence' | 'declined';
+
 export interface AdvisorAnswer {
-  status: 'answered' | 'needs_clarification' | 'insufficient_evidence';
+  status: AdvisorAnswerStatus;
   shortAnswer: string;
   explanation: string;
   assumptions: string[];

@@ -33,4 +33,23 @@ describe('answerAdvisorQuestion()', () => {
     await expect(answerAdvisorQuestion(request, { ...options, scope: { ...options.scope, questionKind: 'tax' } })).rejects.toThrow('No reviewed tax sources cover this period');
     expect(generateAdvisorResponse).not.toHaveBeenCalled();
   });
+
+  it('declines an out-of-scope question without loading context or calling the provider, and stores the answer', async () => {
+    vi.stubEnv('ADVISOR_ENABLED', 'true');
+    const connection = { id: 'connection', provider: 'OPENAI', model: 'configured-model', credentialEncrypted: null, credentialNonce: null };
+    const database = Builder<PrismaClient>()
+      .companyMembership({ findUnique: vi.fn().mockResolvedValue({ id: 'membership', company: { advisorPolicy: { enabled: true, allowedProviders: ['OPENAI'] } } }) } as never)
+      .advisorConversation({ findFirst: vi.fn().mockResolvedValue({ id: 'conversation', provider: 'OPENAI', model: 'configured-model', environment: 'TEST' }) } as never)
+      .advisorConnection({ findUnique: vi.fn().mockResolvedValue(connection), updateMany: vi.fn() } as never)
+      .advisorTurn({ findMany: vi.fn(), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never).build();
+    const request = Builder<FastifyRequest>().server(Builder<FastifyInstance>().prisma(database).build()).user({ sub: 'user' } as never).accessJwtVerify(vi.fn().mockResolvedValue({ sub: 'user' }) as never).build();
+    const answer = await answerAdvisorQuestion(request, { companyId: 'company', conversationId: 'conversation', turnId: 'turn', question: 'Czy estoński CIT mi się opłaca?',
+      scope: { questionKind: 'tax', period: '2026-09', includeRecords: true }, signal: new AbortController().signal });
+    expect(answer).toMatchObject({ status: 'declined', assumptions: [], questions: [], evidence: [], calculations: [], sources: [],
+      provenance: { provider: 'OPENAI', model: 'configured-model', recordsIncluded: false, sourceVersion: 'not-applicable' } });
+    expect(generateAdvisorResponse).not.toHaveBeenCalled();
+    expect(database.advisorConnection.updateMany).not.toHaveBeenCalled();
+    expect(database.advisorTurn.findMany).not.toHaveBeenCalled();
+    expect(database.advisorTurn.updateMany).toHaveBeenCalledWith({ where: { id: 'turn', status: 'PENDING' }, data: { status: 'COMPLETED', finishedAt: expect.any(Date), answer } });
+  });
 });

@@ -33,7 +33,23 @@ const questionKeywordsByTopic: Record<AdvisorSourceTopic, string[]> = {
   'transitional': ['przejsciow', 'transitional', 'limit', 'okres', '2027', 'do 31 grudnia', 'od 1 kwietnia', 'od 1 stycznia', 'przekrocz'],
 };
 
+function normalizeAdvisorQuestion(question: string) {
+  return question.toLowerCase().replaceAll('ł', 'l').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ');
+}
+
 export function classifyAdvisorQuestionTopics(question: string): AdvisorSourceTopic[] {
-  const normalized = question.toLowerCase().replaceAll('ł', 'l').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ');
+  const normalized = normalizeAdvisorQuestion(question);
   return advisorSourceTopics.filter((topic) => questionKeywordsByTopic[topic].some((keyword) => normalized.includes(keyword)));
+}
+
+// Clearly unsupported subjects (income tax, ZUS, depreciation, tax optimisation, legal opinions, filing or issuing on the user's behalf).
+// ponytail: keyword list, not a classifier; a missed phrase still reaches the model, which declines through the prompt. Add phrases when the evaluation shows misses.
+const outOfScopePatterns = [
+  /\b(pit|cit|zus)\b/, /estonsk/, /amortyzacj/, /optymalizacj/, /podatek liniow/, /skala podatkow/, /ryczalt\w* .*(skal|liniow)/,
+  /opini\w* prawn/, /(zloz|wysl|przesl)\w* (\S+ ){0,3}(jpk|deklaracj)/, /\bwystaw i wyslij\b/, /\bwyslij do ksef/,
+];
+
+export function isAdvisorQuestionOutOfScope(question: string): boolean {
+  const normalized = normalizeAdvisorQuestion(question);
+  return outOfScopePatterns.some((pattern) => pattern.test(normalized));
 }
