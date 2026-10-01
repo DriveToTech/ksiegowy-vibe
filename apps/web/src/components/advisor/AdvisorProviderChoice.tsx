@@ -2,6 +2,7 @@ import type { AdvisorProvider, AdvisorSettings } from '../../lib/advisor-api';
 import { embeddedConnectionReadiness } from '../../lib/advisor-connection-status';
 import { advisorText as text } from '../../lib/advisor-translations';
 import { cn } from '../../lib/cn';
+import { AdvisorStepEyebrow } from './AdvisorStepEyebrow';
 import { Badge } from '../atoms/Badge';
 import { Banner } from '../molecules/Banner';
 
@@ -19,9 +20,9 @@ function ProviderCard({ settings, provider, selected, onChange }: { settings: Ad
       <span className="block text-sm text-muted">{details.location}</span>
       <span className="block text-sm text-muted">{details.billing}</span>
       <span className="flex flex-wrap gap-2 pt-1">
-        {provider === 'OLLAMA' && <Badge tone={settings.ollamaAvailable ? 'success' : 'draft'}>{settings.ollamaAvailable ? text.embedded.ollamaConfigured : text.embedded.ollamaNotConfigured}</Badge>}
-        {readiness.policy !== 'disabled' && <Badge tone={readiness.policy === 'allowed' ? 'success' : 'danger'}>{readiness.policy === 'allowed' ? text.embedded.providerAllowed : text.embedded.providerDenied}</Badge>}
-        {readiness.connection !== 'notConfigured' && <Badge tone={readiness.connection === 'tested' ? 'success' : 'warning'}>{readiness.connection === 'tested' ? text.embedded.providerTested : text.embedded.providerSaved}</Badge>}
+        {provider === 'OLLAMA' && <Badge variant="tag" tone={settings.ollamaAvailable ? 'success' : 'draft'}>{settings.ollamaAvailable ? text.embedded.ollamaConfigured : text.embedded.ollamaNotConfigured}</Badge>}
+        {readiness.policy !== 'disabled' && <Badge variant="tag" tone={readiness.policy === 'allowed' ? 'success' : 'danger'}>{readiness.policy === 'allowed' ? text.embedded.providerAllowed : text.embedded.providerDenied}</Badge>}
+        {readiness.connection !== 'notConfigured' && <Badge variant="tag" tone={readiness.connection === 'tested' ? 'success' : 'warning'}>{readiness.connection === 'tested' ? text.embedded.providerTested : text.embedded.providerSaved}</Badge>}
       </span>
     </span>
   </label>;
@@ -31,17 +32,17 @@ function ProviderCard({ settings, provider, selected, onChange }: { settings: Ad
 export function AdvisorProviderChoice({ settings, companyName, provider, onChange }: { settings: AdvisorSettings; companyName: string; provider: AdvisorProvider; onChange: (provider: AdvisorProvider) => void }) {
   const otherProviderInUse = otherProviders.some((entry) => entry === provider || settings.connections.some((connection) => connection.provider === entry));
   return <fieldset className="space-y-3">
-    <legend className="card-title text-sm font-semibold">{text.embedded.stepProvider}</legend>
+    <legend className="card-title text-sm font-semibold"><AdvisorStepEyebrow step={1} />{text.embedded.stepProvider}</legend>
     <p className="text-sm text-muted">{text.embedded.scope(companyName)}</p>
     <div className="grid gap-4 md:grid-cols-2">
       {primaryProviders.map((entry) => <ProviderCard key={entry} settings={settings} provider={entry} selected={provider === entry} onChange={onChange} />)}
     </div>
-    <details open={otherProviderInUse} className="space-y-3">
-      <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{text.embedded.otherProviders}</summary>
+    <details open={otherProviderInUse} className="group space-y-3">
+      <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium before:inline-block before:size-2 before:-rotate-45 before:border-b-2 before:border-r-2 before:transition-transform group-open:before:rotate-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{text.embedded.otherProviders}</summary>
       <div className="grid gap-4 md:grid-cols-2">
         {otherProviders.map((entry) => <ProviderCard key={entry} settings={settings} provider={entry} selected={provider === entry} onChange={onChange} />)}
       </div>
     </details>
-    <Banner tone="info">{text.embedded.billingDisclosure}</Banner>
+    <Banner variant="accent" tone="info">{text.embedded.billingDisclosure}</Banner>
   </fieldset>;
 }

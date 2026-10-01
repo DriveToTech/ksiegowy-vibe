@@ -64,7 +64,17 @@ export function AdvisorPanel() {
   useEffect(() => { const query = window.matchMedia('(min-width: 1280px)'); const update = () => setWide(query.matches); update(); query.addEventListener('change', update); return () => query.removeEventListener('change', update); }, []);
   useEffect(() => { if (advisor?.open && wide) closeButton.current?.querySelector('button')?.focus(); }, [advisor?.open, wide]);
   if (!advisor) return null;
-  const contents = <><div ref={closeButton} className="flex flex-wrap justify-end"><Button variant="ghost" href="/dashboard/advisor">{text.fullPage}</Button><Button variant="ghost" onClick={advisor.close}>{text.close}</Button></div><AdvisorConversation companyId={advisor.companyId} environment={advisor.environment} active={advisor.open} seed={advisor.seed} /></>;
-  if (wide) return <aside data-advisor-docked={advisor.open ? '' : undefined} hidden={!advisor.open} aria-label={text.title} className="min-h-0 overflow-y-auto border-l border-primary/30 bg-chrome p-4"><h2 className="text-lg font-semibold">{text.title}</h2>{contents}</aside>;
-  return <NativeDialog open={advisor.open} title={text.title} bottomSheet onClose={advisor.close} className="mt-auto mb-0 max-h-[90dvh] w-full max-w-xl rounded-b-none">{contents}</NativeDialog>;
+  const actions = <div ref={closeButton} className="flex flex-wrap items-center justify-end gap-1"><Button variant="ghost" href="/dashboard/advisor">{text.fullPage}</Button><span aria-hidden="true" className="rounded-chip border border-outline px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted">Esc</span><Button variant="ghost" onClick={advisor.close}>{text.close}</Button></div>;
+  const conversation = <AdvisorConversation companyId={advisor.companyId} environment={advisor.environment} active={advisor.open} seed={advisor.seed} />;
+  if (wide) return <aside data-advisor-docked={advisor.open ? '' : undefined} hidden={!advisor.open} aria-label={text.title} className="min-h-0 space-y-4 overflow-y-auto border-l border-primary/30 bg-surface-panel p-4">
+    <header className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-3">
+        <span aria-hidden="true" className="size-[26px] shrink-0 rounded-[8px] bg-[image:var(--primary-gradient)]" />
+        <div><h2 className="text-lg font-semibold leading-tight">{text.title}</h2><p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">{text.subtitle}</p></div>
+      </div>
+      {actions}
+    </header>
+    {conversation}
+  </aside>;
+  return <NativeDialog open={advisor.open} title={text.title} sheet="always" onClose={advisor.close} className="max-h-[90dvh] max-w-xl">{actions}{conversation}</NativeDialog>;
 }

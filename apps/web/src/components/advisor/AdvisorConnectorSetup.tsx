@@ -8,6 +8,7 @@ import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { Surface } from '../atoms/Surface';
 import { FormField } from '../molecules/FormField';
+import { AdvisorStepEyebrow } from './AdvisorStepEyebrow';
 
 type Verification = keyof typeof text.external.verification;
 const verificationTone = { verified: 'success', partial: 'warning', unverified: 'draft' } as const;
@@ -15,7 +16,7 @@ const addressFieldId = 'advisor-connector-address';
 const hostAddresses: Record<AdvisorConnectorClient, string> = { CHATGPT: 'https://chatgpt.com', CLAUDE: 'https://claude.ai/new' };
 
 function VerificationBadge({ verification }: { verification: Verification }) {
-  return <Badge tone={verificationTone[verification]}>{text.external.verification[verification]}</Badge>;
+  return <Badge variant="tag" tone={verificationTone[verification]}>{text.external.verification[verification]}</Badge>;
 }
 
 // Step 3: the public connector address and the per-host steps. No client ID or callback URL is shown; those are operator configuration.
@@ -42,7 +43,7 @@ export function AdvisorConnectorSetup({ host, endpoint, headingReference }: {
   }
 
   return <section aria-labelledby="advisor-connector-setup-title" className="space-y-4">
-    <h3 id="advisor-connector-setup-title" ref={headingReference} tabIndex={-1} className="font-medium">{text.external.stepAddConnector(hostName)}</h3>
+    <h3 id="advisor-connector-setup-title" ref={headingReference} tabIndex={-1} className="font-medium"><AdvisorStepEyebrow step={3} />{text.external.stepAddConnector(hostName)}</h3>
     <div className="flex flex-col gap-2 md:flex-row md:items-end">
       <FormField label={text.external.connectorAddress} className="md:flex-1">
         <Input id={addressFieldId} readOnly value={endpoint} className="break-all font-mono" onFocus={(event) => event.target.select()} />

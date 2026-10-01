@@ -11,6 +11,7 @@ import { NativeDialog } from '../atoms/NativeDialog';
 import { Banner } from '../molecules/Banner';
 import { FormField } from '../molecules/FormField';
 import { advisorReadinessTitleIdentifier } from './AdvisorReadinessSummary';
+import { AdvisorStepEyebrow } from './AdvisorStepEyebrow';
 
 // One operation at a time: the message always comes from the operation that produced it.
 type ConnectionOperation = { name: 'discover' | 'save' | 'test' | 'disconnect'; phase: 'running' | 'succeeded' | 'failed'; message: string; code?: string } | null;
@@ -108,15 +109,15 @@ export function AdvisorProviderConnection({ companyId, settings, provider, onCha
         return text.embedded.connectionSaved;
       });
     }}>
-      <h3 className="text-sm font-semibold">{text.embedded.stepKeyAndModel}</h3>
-      {blockers.length > 0 && <div id={blockerIdentifier} className="space-y-2">{blockers.map((blocker) => <Banner key={blocker} tone="warning" role="status">{blocker}</Banner>)}</div>}
+      <h3 className="text-sm font-semibold"><AdvisorStepEyebrow step={2} />{text.embedded.stepKeyAndModel}</h3>
+      {blockers.length > 0 && <div id={blockerIdentifier} className="space-y-2">{blockers.map((blocker) => <Banner variant="accent" key={blocker} tone="warning" role="status">{blocker}</Banner>)}</div>}
       {isOllama
         ? <div className="space-y-2 rounded-card border border-outline bg-surface-raised p-4">
           <p className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-medium">{text.embedded.ollamaEndpoint}</span>
-            <Badge tone={ollamaNotConfigured ? 'draft' : 'success'}>{ollamaNotConfigured ? text.embedded.ollamaNotConfigured : text.embedded.ollamaConfigured}</Badge>
-            {discoverCode === 'OLLAMA_UNREACHABLE' && <Badge tone="danger">{text.embedded.ollamaUnreachable}</Badge>}
-            {ollamaNoModels && <Badge tone="warning">{text.embedded.ollamaNoModels}</Badge>}
+            <Badge variant="tag" tone={ollamaNotConfigured ? 'draft' : 'success'}>{ollamaNotConfigured ? text.embedded.ollamaNotConfigured : text.embedded.ollamaConfigured}</Badge>
+            {discoverCode === 'OLLAMA_UNREACHABLE' && <Badge variant="tag" tone="danger">{text.embedded.ollamaUnreachable}</Badge>}
+            {ollamaNoModels && <Badge variant="tag" tone="warning">{text.embedded.ollamaNoModels}</Badge>}
           </p>
           <p className="text-sm text-muted">{ollamaNotConfigured ? text.embedded.ollamaNotConfiguredDescription : models?.length ? text.embedded.ollamaReachable : text.embedded.ollamaReachabilityUnknown}</p>
           {!ollamaNotConfigured && <p className="text-sm text-muted">{text.embedded.ollamaHint}</p>}
@@ -143,8 +144,8 @@ export function AdvisorProviderConnection({ companyId, settings, provider, onCha
     </form>
 
     {connection && <section aria-labelledby="advisor-verify-title" className="max-w-[560px] space-y-3">
-      <h3 id="advisor-verify-title" ref={verifyHeading} tabIndex={-1} className="text-sm font-semibold focus:outline-none">{text.embedded.stepVerify}</h3>
-      <p className="flex flex-wrap items-center gap-2 text-sm"><Badge tone={verifyTone}>{verifyChip}</Badge><span className="break-all font-mono">{connection.model}</span></p>
+      <h3 id="advisor-verify-title" ref={verifyHeading} tabIndex={-1} className="text-sm font-semibold focus:outline-none"><AdvisorStepEyebrow step={3} />{text.embedded.stepVerify}</h3>
+      <p className="flex flex-wrap items-center gap-2 text-sm"><Badge variant="tag" tone={verifyTone}>{verifyChip}</Badge><span className="break-all font-mono">{connection.model}</span></p>
       {connection.testedAt && <p className="text-sm text-muted">
         {text.embedded.testedLine(providerLabel, connection.model, new Date(connection.testedAt).toLocaleString('pl-PL'))} {readiness.readyForQuestions ? text.embedded.readyForQuestions : text.embedded.testPassedNotReady(blockers.join(' '))}
       </p>}
@@ -165,7 +166,7 @@ export function AdvisorProviderConnection({ companyId, settings, provider, onCha
       {operation?.name === 'test' && message}
     </section>}
 
-    <NativeDialog open={disconnectOpen} title={text.embedded.disconnectTitle(providerLabel)} description={text.embedded.disconnectBody} onClose={() => setDisconnectOpen(false)}>
+    <NativeDialog sheet="mobile" open={disconnectOpen} title={text.embedded.disconnectTitle(providerLabel)} description={text.embedded.disconnectBody} onClose={() => setDisconnectOpen(false)}>
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button variant="secondary" data-dialog-cancel onClick={() => setDisconnectOpen(false)}>{text.embedded.cancel}</Button>
         <Button variant="danger" onClick={() => {

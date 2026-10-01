@@ -54,8 +54,8 @@ export function AdvisorConnectorGrants({ companyId, grants, onRegrant, onChanged
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{hostName}</span>
               <InvoiceEnvironmentChip environment={grant.environment} />
-              <Badge tone={statusTone[grant.status]}>{text.external.grantStatus[grant.status]}</Badge>
-              {expiresSoon && <Badge tone="warning">{text.external.expiresSoon}</Badge>}
+              <Badge variant="tag" tone={statusTone[grant.status]}>{text.external.grantStatus[grant.status]}</Badge>
+              {expiresSoon && <Badge variant="tag" tone="warning">{text.external.expiresSoon}</Badge>}
             </div>
             <p className="text-sm text-muted">
               {isGranted && text.external.validUntil(new Date(grant.expiresAt).toLocaleDateString('pl-PL'))}
@@ -74,7 +74,7 @@ export function AdvisorConnectorGrants({ companyId, grants, onRegrant, onChanged
         </li>;
       })}
     </ul>
-    <NativeDialog open={revokeTarget !== null} title={revokeTarget ? text.external.revokeTitle(text.external.hosts[revokeTarget.client]) : ''}
+    <NativeDialog sheet="mobile" open={revokeTarget !== null} title={revokeTarget ? text.external.revokeTitle(text.external.hosts[revokeTarget.client]) : ''}
       description={revokeTarget ? text.external.revokeBody(text.external.hosts[revokeTarget.client]) : ''} onClose={() => { if (!revoking) setRevokeTarget(null); }}>
       {error && <p role="alert" className="text-sm text-error-ink">{error}</p>}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

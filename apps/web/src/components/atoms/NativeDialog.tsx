@@ -10,6 +10,8 @@ interface NativeDialogProps {
   id?: string;
   className?: string;
   bottomSheet?: boolean;
+  // Bottom-sheet look: 26px top radius and a grabber, on phones only (`mobile`) or at every width (`always`).
+  sheet?: 'mobile' | 'always';
   children: ReactNode;
   onClose: () => void;
 }
@@ -21,6 +23,7 @@ export function NativeDialog({
   id,
   className,
   bottomSheet = false,
+  sheet,
   children,
   onClose,
 }: NativeDialogProps) {
@@ -100,6 +103,8 @@ export function NativeDialog({
       className={cn(
         'm-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card border border-outline-strong bg-surface-panel p-0 text-foreground',
         '[&::backdrop]:bg-[rgba(8,10,20,0.72)]',
+        sheet === 'mobile' && 'max-sm:mb-0 max-sm:mt-auto max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:rounded-t-[26px]',
+        sheet === 'always' && 'mb-0 mt-auto w-full rounded-b-none rounded-t-[26px]',
         className,
       )}
       onCancel={(event) => {
@@ -112,8 +117,9 @@ export function NativeDialog({
     >
         <div className={cn(
           'space-y-5 p-5 sm:p-6',
-          bottomSheet && 'pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
+          (bottomSheet || sheet) && 'pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
         )}>
+        {sheet && <div aria-hidden="true" className={cn('mx-auto -mt-2 h-1 w-10 rounded-full bg-outline-control', sheet === 'mobile' && 'sm:hidden')} />}
         <div className="space-y-1">
           <h2 id={titleId} className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
           {description ? <p id={descriptionId} className="text-sm text-muted">{description}</p> : null}
