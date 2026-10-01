@@ -10,11 +10,12 @@ const SECTION_ORDER: SectionId[] = ['company', 'advisor', 'ksef', 'numbering', '
 
 interface SettingsWorkspaceProps {
   sections: Partial<Record<SectionId, ReactNode>>;
+  initialSection?: string | undefined;
 }
 
-export function SettingsWorkspace({ sections }: SettingsWorkspaceProps) {
+export function SettingsWorkspace({ sections, initialSection }: SettingsWorkspaceProps) {
   const available = SECTION_ORDER.filter((id) => sections[id] !== undefined);
-  const [active, setActive] = useState<SectionId | null>(null);
+  const [active, setActive] = useState<SectionId | null>(() => SECTION_ORDER.find((id) => id === initialSection) ?? null);
   const effectiveActive = active !== null && available.includes(active) ? active : available[0];
 
   if (!effectiveActive) return null;

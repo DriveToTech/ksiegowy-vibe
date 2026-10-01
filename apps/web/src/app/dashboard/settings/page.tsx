@@ -14,7 +14,8 @@ import { AdvisorSettings } from '../../../components/advisor/AdvisorSettings';
 import { Surface } from '../../../components/atoms/Surface';
 import { t } from '../../../lib/translations';
 
-export default async function DashboardSettingsPage() {
+export default async function DashboardSettingsPage({ searchParams }: { searchParams: Promise<{ section?: string | string[] }> }) {
+  const { section } = await searchParams;
   const session = await requireAuthSession('/dashboard/settings');
   const activeCompanyId = session.activeCompanyId;
 
@@ -86,8 +87,9 @@ export default async function DashboardSettingsPage() {
       </div>
 
       <SettingsWorkspace
+        initialSection={typeof section === 'string' ? section : undefined}
         sections={{
-          advisor: <AdvisorSettings key={activeCompanyId} companyId={activeCompanyId} />,
+          advisor: <AdvisorSettings key={activeCompanyId} companyId={activeCompanyId} companyName={company?.name ?? ''} />,
           company: <CompanyDetailsForm company={company} canEdit={canEditCompany} />,
           ksef: isAdmin ? (
             ksefSettingsResult.ksefSettings ? (

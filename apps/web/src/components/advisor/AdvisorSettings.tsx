@@ -1,87 +1,108 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
-import { advisorErrorMessage, advisorRequest, type AdvisorProvider, type AdvisorSettings as Settings } from '../../lib/advisor-api';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { advisorErrorMessage, readAdvisorConnectors, readAdvisorSettings, type AdvisorConnectorSettings, type AdvisorProvider, type AdvisorSettings as Settings } from '../../lib/advisor-api';
+import { embeddedConnectionReadiness } from '../../lib/advisor-connection-status';
 import { advisorText as text } from '../../lib/advisor-translations';
+import { cn } from '../../lib/cn';
 import { Button } from '../atoms/Button';
-import { Input } from '../atoms/Input';
 import { AdvisorConnectors } from './AdvisorConnectors';
+import { AdvisorPolicyForm } from './AdvisorPolicyForm';
+import { AdvisorProviderChoice } from './AdvisorProviderChoice';
+import { AdvisorProviderConnection } from './AdvisorProviderConnection';
+import { AdvisorReadinessSummary, type AdvisorReadinessRow } from './AdvisorReadinessSummary';
 
-export function AdvisorSettings({ companyId, onSaved }: { companyId: string; onSaved?: () => void }) {
+type ConnectionMode = 'embedded' | 'external';
+const modeStorageKey = 'advisor-connection-mode';
+
+// The last chosen mode is the only thing kept in localStorage; storage can be blocked, so a module variable backs it.
+const modeListeners = new Set<() => void>();
+let selectedMode: ConnectionMode | null = null;
+
+function readMode(): ConnectionMode {
+  if (selectedMode) return selectedMode;
+  try {
+    const stored = window.localStorage.getItem(modeStorageKey);
+    if (stored === 'embedded' || stored === 'external') selectedMode = stored;
+  } catch { /* the default mode stays */ }
+  return selectedMode ?? 'embedded';
+}
+
+function selectMode(next: ConnectionMode) {
+  selectedMode = next;
+  try { window.localStorage.setItem(modeStorageKey, next); } catch { /* not persisted */ }
+  modeListeners.forEach((listener) => listener());
+}
+
+function subscribeToMode(listener: () => void) {
+  modeListeners.add(listener);
+  return () => { modeListeners.delete(listener); };
+}
+
+export function AdvisorSettings({ companyId, companyName }: { companyId: string; companyName: string }) {
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [provider, setProvider] = useState<AdvisorProvider>('OPENROUTER');
-  const [model, setModel] = useState<string | null>(null);
-  const modelListIdentifier = useId();
-  const [credential, setCredential] = useState('');
-  const [models, setModels] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const connection = settings?.connections.find((entry) => entry.provider === provider);
+  const [connectors, setConnectors] = useState<AdvisorConnectorSettings | null>(null);
+  const [settingsError, setSettingsError] = useState('');
+  const [connectorsError, setConnectorsError] = useState('');
+  const mode = useSyncExternalStore(subscribeToMode, readMode, () => 'embedded' as const);
+  const [chosenProvider, setChosenProvider] = useState<AdvisorProvider | null>(null);
+
+  // Both snapshots are fetched in parallel; a failing connectors request must not hide the provider settings.
+  const load = useCallback(async (signal?: AbortSignal) => {
+    await Promise.all([
+      readAdvisorSettings(companyId, signal).then((snapshot) => { setSettings(snapshot); setSettingsError(''); }).catch((failure: unknown) => { if (!signal?.aborted) setSettingsError(advisorErrorMessage(failure)); }),
+      readAdvisorConnectors(companyId, signal).then((snapshot) => { setConnectors(snapshot); setConnectorsError(''); }).catch((failure: unknown) => { if (!signal?.aborted) setConnectorsError(advisorErrorMessage(failure)); }),
+    ]);
+  }, [companyId]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void advisorRequest<Settings>(companyId, '/settings', { signal: controller.signal }).then(setSettings)
-      .catch((failure) => { if (!controller.signal.aborted) setError(advisorErrorMessage(failure)); });
+    void load(controller.signal);
     return () => controller.abort();
-  }, [companyId]);
+  }, [load]);
 
-  async function perform(operation: () => Promise<unknown>) {
-    setBusy(true); setError(''); setMessage('');
-    await operation().then(async () => {
-      setSettings(await advisorRequest<Settings>(companyId, '/settings'));
-      setCredential(''); setMessage(text.saved); onSaved?.();
-    }).catch((failure: unknown) => setError(advisorErrorMessage(failure))).finally(() => setBusy(false));
-  }
+  // Until a card is chosen, the provider that already has a saved connection is shown.
+  const provider = chosenProvider ?? settings?.connections[0]?.provider ?? 'OPENROUTER';
+  const readiness = settings ? embeddedConnectionReadiness(settings, provider) : null;
+  const savedConnection = settings?.connections.find((entry) => entry.provider === provider);
+  const embeddedRows: AdvisorReadinessRow[] | null = !settings || !readiness ? null : [
+    { label: text.readiness.policy, ...(readiness.policy === 'allowed' ? { chip: text.readiness.policyAllowed, tone: 'success' as const }
+      : { chip: readiness.policy === 'denied' ? text.readiness.providerDenied : text.readiness.policyOff, tone: 'warning' as const,
+        reason: readiness.policy === 'denied' ? text.readiness.providerDeniedDescription(text.providers[provider]) : text.readiness.policyDisabled }) },
+    { label: text.readiness.server, ...(readiness.runtime === 'enabled' ? { chip: text.readiness.serverEnabled, tone: 'success' as const }
+      : { chip: text.readiness.serverDisabled, tone: 'warning' as const, reason: text.operatorDisabled }) },
+    { label: text.readiness.connection, ...(readiness.connection === 'tested' ? { chip: text.readiness.tested, tone: 'success' as const }
+      : readiness.connection === 'savedNotTested' ? { chip: text.readiness.savedNotTested, tone: 'primary' as const }
+        : { chip: text.readiness.notConfigured, tone: 'draft' as const }),
+      ...(savedConnection ? { reason: `${text.providers[provider]} · ${savedConnection.model}` } : {}) },
+  ];
+  const externalRows: AdvisorReadinessRow[] | null = !connectors ? null : [
+    { label: text.readiness.connectorServer, ...(connectors.endpoint ? { chip: text.readiness.connectorAvailable, tone: 'success' as const }
+      : { chip: text.readiness.connectorUnavailable, tone: 'warning' as const, reason: text.external.unavailable }) },
+    { label: text.readiness.grants, chip: text.readiness.grantsActive(connectors.grants.filter((grant) => grant.status === 'ACTIVE' || grant.status === 'WAITING').length), tone: 'draft' },
+  ];
 
   return <section className="space-y-5 rounded-card border border-outline bg-surface-panel p-4">
     <h2 className="text-lg font-semibold">{text.settings}</h2>
-    <div className="grid gap-3 md:grid-cols-2">
-      <div className="rounded-card border border-outline bg-surface-raised p-4">
-        <h3 className="font-medium">{text.inAppMode}</h3>
-        <p className="mt-1 text-sm text-muted">{text.inAppModeDescription}</p>
-      </div>
-      <div className="rounded-card border border-outline bg-surface-raised p-4">
-        <h3 className="font-medium">{text.subscriptionMode}</h3>
-        <p className="mt-1 text-sm text-muted">{text.subscriptionModeDescription}</p>
-      </div>
+    <div role="group" aria-label={text.settings} className="grid gap-3 md:grid-cols-2">
+      {(['embedded', 'external'] as const).map((entry) => <button key={entry} type="button" aria-pressed={mode === entry} onClick={() => selectMode(entry)}
+        className={cn('min-h-11 rounded-card border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+          mode === entry ? 'border-primary bg-surface-raised' : 'border-outline bg-surface-panel hover:bg-surface-raised')}>
+        <span className="block font-medium">{text.modes[entry]}</span>
+        <span className="mt-1 block text-sm text-muted">{text.modes[`${entry}Description`]}</span>
+      </button>)}
     </div>
-    {error && <p role="alert" className="text-sm text-error-ink">{error}</p>}
-    {message && <p role="status" className="text-sm text-success-ink">{message}</p>}
-    {!settings && !error && <p role="status">{text.loading}</p>}
-    {settings?.canManagePolicy && <fieldset disabled={busy} className="space-y-3 border-b border-outline pb-4">
-      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={settings.enabled} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />{text.enable}</label>
-      <legend className="pt-3 text-sm font-medium">{text.allowed}</legend>
-      {Object.entries(text.providers).map(([value, label]) => <label key={value} className="flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" checked={settings.allowedProviders.includes(value as AdvisorProvider)} onChange={(event) => setSettings({ ...settings,
-          allowedProviders: event.target.checked ? [...settings.allowedProviders, value as AdvisorProvider] : settings.allowedProviders.filter((entry) => entry !== value) })} />{label}
-      </label>)}
-      <p className="text-sm font-medium">{text.connectorsAllowed}</p>
-      {(['CHATGPT', 'CLAUDE'] as const).map((client) => <label key={client} className="flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" checked={settings.allowedConnectors.includes(client)} onChange={(event) => setSettings({ ...settings,
-          allowedConnectors: event.target.checked ? [...settings.allowedConnectors, client] : settings.allowedConnectors.filter((entry) => entry !== client) })} />{client === 'CHATGPT' ? 'ChatGPT' : 'Claude'}
-      </label>)}
-      <label className="block text-sm">{text.retention}<Input type="number" min={1} max={30} value={settings.retentionDays} onChange={(event) => setSettings({ ...settings, retentionDays: Number(event.target.value) })} /></label>
-      <Button variant="secondary" onClick={() => void perform(() => advisorRequest(companyId, '/policy', { method: 'PATCH', body: JSON.stringify({ enabled: settings.enabled, allowedProviders: settings.allowedProviders, allowedConnectors: settings.allowedConnectors, retentionDays: settings.retentionDays }) }))}>{text.savePolicy}</Button>
-    </fieldset>}
-    {settings && <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void perform(() => advisorRequest(companyId, `/connections/${provider}`, { method: 'PUT', body: JSON.stringify({ model: model ?? connection?.model ?? '', ...(credential ? { credential } : {}) }) })); }}>
-      <label className="block text-sm">{text.provider}<select className="mt-1 min-h-11 w-full rounded-control border border-outline-control bg-surface-raised px-3" value={provider} disabled={busy} onChange={(event) => { setProvider(event.target.value as AdvisorProvider); setModel(null); setCredential(''); setModels([]); }}>
-        {Object.entries(text.providers).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
-      <label className="block text-sm">{text.model}<Input required value={model ?? connection?.model ?? ''} onChange={(event) => setModel(event.target.value)} list={modelListIdentifier} maxLength={200} disabled={busy} /></label>
-      <datalist id={modelListIdentifier}>{models.map((identifier) => <option key={identifier} value={identifier} />)}</datalist>
-      <p className="text-xs text-muted">{text.modelHint}</p>
-      {provider !== 'OLLAMA' && <label className="block text-sm">{text.credential}<Input type="password" autoComplete="off" value={credential} onChange={(event) => setCredential(event.target.value)} placeholder={connection?.hasCredential ? text.credentialSaved : ''} disabled={busy} maxLength={4096} /></label>}
-      {provider === 'OLLAMA' && <p className="text-sm text-muted">{text.ollama}</p>}
-      <Button type="submit" disabled={busy}>{text.save}</Button>
-      {connection && <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" disabled={busy || !settings.operatorEnabled} onClick={() => void perform(() => advisorRequest(companyId, `/connections/${provider}/test`, { method: 'POST' }))}>{text.test}</Button>
-        <Button variant="ghost" disabled={busy || !settings.operatorEnabled} onClick={() => void perform(async () => { const result = await advisorRequest<{ models: string[] }>(companyId, `/connections/${provider}/models`); setModels(result.models); })}>{text.models}</Button>
-        <Button variant="danger" disabled={busy} onClick={() => void perform(() => advisorRequest(companyId, `/connections/${provider}`, { method: 'DELETE' }))}>{text.disconnect}</Button>
-      </div>}
-      {connection?.testedAt && <p className="text-sm text-success-ink">{text.tested}: {new Date(connection.testedAt).toLocaleString('pl-PL')}</p>}
-      <p className="text-xs text-muted">{text.testBilling}</p>
-    </form>}
-    {settings && <AdvisorConnectors companyId={companyId} allowedClients={settings.enabled ? settings.allowedConnectors : []} />}
+    {settingsError && <div className="space-y-2"><p role="alert" className="text-sm text-error-ink">{settingsError}</p><Button variant="secondary" onClick={() => void load()}>{text.readiness.retry}</Button></div>}
+    {!settings && !settingsError && <p role="status">{text.readiness.loadingSettings}</p>}
+    {settings?.canManagePolicy && <AdvisorPolicyForm companyId={companyId} settings={settings} onChanged={() => load()} />}
+    {mode === 'embedded' && settings && <>
+      <AdvisorReadinessSummary rows={embeddedRows} />
+      <AdvisorProviderChoice settings={settings} companyName={companyName} provider={provider} onChange={setChosenProvider} />
+      <AdvisorProviderConnection key={provider} companyId={companyId} settings={settings} provider={provider} onChanged={() => load()} />
+    </>}
+    {mode === 'external' && settings && <>
+      <AdvisorReadinessSummary rows={externalRows} />
+      <AdvisorConnectors companyId={companyId} companyName={companyName} connectors={connectors} loadError={connectorsError} allowedClients={settings.enabled ? settings.allowedConnectors : []} onChanged={() => load()} />
+    </>}
   </section>;
 }

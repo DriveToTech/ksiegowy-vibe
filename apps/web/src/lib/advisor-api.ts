@@ -1,16 +1,64 @@
 import { API_BASE } from './api-base';
 import { clientFetch } from './api-client';
 import { advisorText } from './advisor-translations';
-import type { AdvisorAnswer, AdvisorEnvironment, AdvisorScope } from '../../../../packages/types/src/advisor';
-export type { AdvisorAnswer, AdvisorEnvironment, AdvisorScope, AdvisorSettings, AdvisorProvider, AdvisorConversationSummary, AdvisorConversationDetail, AdvisorTurn, AdvisorConnectorClient, AdvisorConnectorSettings } from '../../../../packages/types/src/advisor';
+import type { AdvisorAnswer, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorEnvironment, AdvisorModelPreview, AdvisorProvider, AdvisorScope, AdvisorSettings } from '../../../../packages/types/src/advisor';
+export type { AdvisorAnswer, AdvisorEnvironment, AdvisorScope, AdvisorSettings, AdvisorProvider, AdvisorConversationSummary, AdvisorConversationDetail, AdvisorTurn, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorModelPreview, AdvisorConnectionSummary, AdvisorConnectorGrant, AdvisorConnectorGrantStatus } from '../../../../packages/types/src/advisor';
 
 export function advisorRequest<Result>(companyId: string, path: string, options?: RequestInit): Promise<Result> {
   return clientFetch<Result>(`/companies/${encodeURIComponent(companyId)}/advisor${path}`, options);
 }
 
+export interface AdvisorPolicyInput {
+  enabled: boolean;
+  allowedProviders: AdvisorProvider[];
+  allowedConnectors: AdvisorConnectorClient[];
+  retentionDays: number;
+}
+
+export function readAdvisorSettings(companyId: string, signal?: AbortSignal): Promise<AdvisorSettings> {
+  return advisorRequest<AdvisorSettings>(companyId, '/settings', signal ? { signal } : undefined);
+}
+
+export function saveAdvisorPolicy(companyId: string, policy: AdvisorPolicyInput): Promise<unknown> {
+  return advisorRequest(companyId, '/policy', { method: 'PATCH', body: JSON.stringify(policy) });
+}
+
+export function saveAdvisorConnection(companyId: string, provider: AdvisorProvider, connection: { model: string; credential?: string }): Promise<unknown> {
+  return advisorRequest(companyId, `/connections/${provider}`, { method: 'PUT', body: JSON.stringify(connection) });
+}
+
+export function deleteAdvisorConnection(companyId: string, provider: AdvisorProvider): Promise<unknown> {
+  return advisorRequest(companyId, `/connections/${provider}`, { method: 'DELETE' });
+}
+
+export function testAdvisorConnection(companyId: string, provider: AdvisorProvider): Promise<{ testedAt: string }> {
+  return advisorRequest(companyId, `/connections/${provider}/test`, { method: 'POST' });
+}
+
+// A typed key (or Ollama, which has no key) is previewed before saving; otherwise the saved connection is queried.
+export function discoverAdvisorModels(companyId: string, provider: AdvisorProvider, credential?: string): Promise<AdvisorModelPreview> {
+  if (!credential && provider !== 'OLLAMA') return advisorRequest(companyId, `/connections/${provider}/models`);
+  return advisorRequest(companyId, `/connections/${provider}/model-preview`, { method: 'POST', body: JSON.stringify(credential ? { credential } : {}) });
+}
+
+export function readAdvisorConnectors(companyId: string, signal?: AbortSignal): Promise<AdvisorConnectorSettings> {
+  return advisorRequest<AdvisorConnectorSettings>(companyId, '/connectors', signal ? { signal } : undefined);
+}
+
+export function grantAdvisorConnector(companyId: string, client: AdvisorConnectorClient, environment: AdvisorEnvironment, days: number): Promise<{ expiresAt: string }> {
+  return advisorRequest(companyId, `/connectors/${client}`, { method: 'PUT', headers: { 'x-ksef-environment': environment }, body: JSON.stringify({ days }) });
+}
+
+export function revokeAdvisorConnector(companyId: string, client: AdvisorConnectorClient, environment: AdvisorEnvironment): Promise<unknown> {
+  return advisorRequest(companyId, `/connectors/${client}`, { method: 'DELETE', headers: { 'x-ksef-environment': environment } });
+}
+
+export function advisorErrorCode(error: unknown): string {
+  return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'ADVISOR_ERROR';
+}
+
 export function advisorErrorMessage(error: unknown): string {
-  const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'ADVISOR_ERROR';
-  return advisorText.errors[code] ?? advisorText.errors.ADVISOR_ERROR;
+  return advisorText.errors[advisorErrorCode(error)] ?? advisorText.errors.ADVISOR_ERROR;
 }
 
 export async function streamAdvisorAnswer(companyId: string, environment: AdvisorEnvironment, conversationId: string,

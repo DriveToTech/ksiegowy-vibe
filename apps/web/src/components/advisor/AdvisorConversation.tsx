@@ -6,14 +6,14 @@ import { advisorText as text } from '../../lib/advisor-translations';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { AdvisorAnswerCard } from './AdvisorAnswerCard';
-import { AdvisorSettings } from './AdvisorSettings';
+
+const settingsLink = '/dashboard/settings?section=advisor';
 
 export function AdvisorConversation({ companyId, environment, active, seed }: {
   companyId: string; environment: AdvisorEnvironment; active: boolean; seed: { question: string; documentId?: string; documentKind?: 'outgoing' | 'incoming'; period?: string; revision: number };
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [provider, setProvider] = useState<AdvisorProvider>('OPENROUTER');
-  const [showSettings, setShowSettings] = useState(false);
   const [history, setHistory] = useState<AdvisorConversationSummary[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [turns, setTurns] = useState<AdvisorTurn[]>([]);
@@ -87,11 +87,10 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
   }
 
   return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-mono text-xs text-muted">{environment} · {period}</p><Button variant="ghost" onClick={() => setShowSettings(!showSettings)}>{text.settings}</Button></div>
-    {showSettings && <AdvisorSettings companyId={companyId} onSaved={() => { refreshSettings(); setConversationId(null); setTurns([]); }} />}
+    <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-mono text-xs text-muted">{environment} · {period}</p><Button variant="ghost" href={settingsLink}>{text.settings}</Button></div>
     {error && <p role="alert" className="rounded-inset border border-error-ink bg-error p-3 text-sm text-error-ink">{error}</p>}
     {!settings && !error && <p role="status">{text.loading}</p>}
-    {settings && (!settings.enabled || !settings.connections.length) && <div className="space-y-3 rounded-card bg-surface-raised p-4"><p className="text-sm">{settings.enabled ? text.errors.CONNECTION_REQUIRED : text.disabled}</p><Button onClick={() => setShowSettings(true)}>{text.settings}</Button></div>}
+    {settings && (!settings.enabled || !settings.connections.length) && <div className="space-y-3 rounded-card bg-surface-raised p-4"><p className="text-sm">{settings.enabled ? text.errors.CONNECTION_REQUIRED : text.disabled}</p><Button href={settingsLink}>{text.settings}</Button></div>}
     {settings && <>
       <label className="block text-sm">{text.history}<select className="mt-1 min-h-11 w-full rounded-control border border-outline-control bg-surface-raised px-3" value={conversationId ?? ''} disabled={busy} onChange={(event) => void loadConversation(event.target.value)}>
         <option value="">{text.newConversation}</option>{history.map((entry) => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
