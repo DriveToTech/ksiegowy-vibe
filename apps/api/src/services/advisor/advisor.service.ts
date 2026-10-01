@@ -23,7 +23,7 @@ export async function answerAdvisorQuestion(request: FastifyRequest, options: {
     loadAdvisorSources(),
     request.server.prisma.advisorTurn.findMany({ where: { conversationId, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 4, select: { question: true } }),
   ]);
-  const sources = selectAdvisorSources(corpus.sources, scope.period);
+  const sources = selectAdvisorSources(corpus.sources, scope.period, new Date(), options.question);
   if (scope.questionKind === 'tax' && !sources.length) {
     throw new AdvisorError(422, 'TAX_SOURCES_UNAVAILABLE', 'No reviewed tax sources cover this period. Ask about accounting records or consult your accountant.');
   }
