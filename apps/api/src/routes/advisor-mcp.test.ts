@@ -4,6 +4,7 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../app.js';
 import { loadAuthConfig } from '../lib/auth-config.js';
+import { advisorConnectorCallsPerMinute, reserveAdvisorConnectorCall } from '../services/advisor/advisor-connector.js';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
@@ -19,7 +20,7 @@ describe('advisorMcpRoutes()', () => {
     const key = await exportJWK(publicKey);
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify({ keys: [key] }), { headers: { 'content-type': 'application/json' } })));
     const database = Builder<PrismaClient>()
-      .advisorConnectorGrant({ findFirst: vi.fn().mockResolvedValue({ id: 'grant' }) } as never)
+      .advisorConnectorGrant({ findFirst: vi.fn().mockResolvedValue({ id: 'grant' }), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never)
       .invoice({ groupBy: vi.fn().mockResolvedValue([]), findMany: vi.fn().mockResolvedValue([]) } as never)
       .incomingInvoice({ findMany: vi.fn().mockResolvedValue([]) } as never).build();
     const application = await buildApp({ logger: false, prismaClient: database,
@@ -38,13 +39,23 @@ describe('advisorMcpRoutes()', () => {
       expect(response.statusCode).toBe(200);
       expect(response.json().result.isError).toBe(false);
       expect(JSON.parse(response.json().result.content[0].text)).toEqual({ companyId: 'company', environment: 'TEST', period: '2026-09', generatedAt: expect.any(String), facts: { calculations: [] } });
+      expect(database.advisorConnectorGrant.updateMany).toHaveBeenCalledWith({ where: { id: 'grant', revokedAt: null, expiresAt: { gt: expect.any(Date) },
+        OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: expect.any(Date) } }] }, data: { lastUsedAt: expect.any(Date) } });
       expect(database.invoice.groupBy).toHaveBeenCalledTimes(2);
       expect(database.invoice.findMany).not.toHaveBeenCalled();
       expect(database.incomingInvoice.findMany).not.toHaveBeenCalled();
       vi.mocked(database.advisorConnectorGrant.findFirst).mockResolvedValue(null);
+      vi.mocked(database.advisorConnectorGrant.updateMany).mockClear();
       const revoked = await application.inject(call);
       expect(revoked.json().result).toEqual({ content: [{ type: 'text', text: '{"error":"CONNECTOR_CONSENT_REQUIRED"}' }], isError: true });
+      expect(database.advisorConnectorGrant.updateMany).not.toHaveBeenCalled();
       expect(database.invoice.groupBy).toHaveBeenCalledTimes(2);
+      vi.mocked(database.advisorConnectorGrant.findFirst).mockResolvedValue({ id: 'busy-grant' } as never);
+      for (let attempt = 0; attempt < advisorConnectorCallsPerMinute; attempt += 1) reserveAdvisorConnectorCall('busy-grant');
+      const limited = await application.inject(call);
+      expect(limited.statusCode).toBe(429);
+      expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
+      expect(limited.json()).toEqual({ code: 'RATE_LIMITED' });
     } finally { await application.close(); }
   });
 });

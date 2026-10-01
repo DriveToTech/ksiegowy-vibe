@@ -39,17 +39,13 @@ export async function generateAdvisorResponse(connection: AdvisorProviderConnect
         output_config: { format: { type: 'json_schema', schema } } }),
     });
     if (!response.ok) throw new AdvisorError(response.status === 429 ? 429 : 502, 'PROVIDER_ERROR', `Provider returned HTTP ${response.status}`);
-    const payload = z.object({ stop_reason: z.literal('end_turn'), content: z.array(z.object({ type: z.string(), text: z.string().optional() })) }).parse(await response.json());
-    return advisorModelAnswerSchema.parse(JSON.parse(payload.content.filter((item) => item.type === 'text').map((item) => item.text ?? '').join('')));
+    const payload = z.object({ stop_reason: z.literal('end_turn'), content: z.array(z.object({ type: z.string(), text: z.string().optional() })) }).safeParse(await response.json());
+    if (!payload.success) throw new AdvisorError(502, 'PROVIDER_ERROR', 'Provider returned an unexpected response');
+    return parseAdvisorProviderAnswer(payload.data.content.filter((item) => item.type === 'text').map((item) => item.text ?? '').join(''));
   }
 
   const endpoint = connection.provider === 'OPENROUTER' ? 'https://openrouter.ai/api/v1'
-    : connection.provider === 'OPENAI' ? 'https://api.openai.com/v1' : process.env['ADVISOR_OLLAMA_URL'];
-  if (!endpoint) throw new AdvisorError(503, 'OLLAMA_UNAVAILABLE', 'Ollama is not configured by the operator');
-  const address = new URL(endpoint);
-  if (!['http:', 'https:'].includes(address.protocol) || address.username || address.password || address.search || address.hash) {
-    throw new AdvisorError(503, 'OLLAMA_UNAVAILABLE', 'Invalid operator endpoint configuration');
-  }
+    : connection.provider === 'OPENAI' ? 'https://api.openai.com/v1' : requireOllamaEndpoint();
   const client = new OpenAI({ apiKey: connection.credential || 'ollama', baseURL: endpoint, maxRetries: 0,
     timeout: 60_000, fetch: (resource, options) => fetch(resource, { ...options, redirect: 'error' }) });
   const response = await client.chat.completions.create({
@@ -64,21 +60,47 @@ export async function generateAdvisorResponse(connection: AdvisorProviderConnect
   if (!choice || choice.finish_reason !== 'stop' || !choice.message.content) {
     throw new AdvisorError(502, 'INVALID_ANSWER', 'Provider returned an incomplete answer');
   }
-  return advisorModelAnswerSchema.parse(JSON.parse(choice.message.content));
+  return parseAdvisorProviderAnswer(choice.message.content);
+}
+
+// Provider output is upstream data: a malformed answer is a provider failure, not an invalid client request.
+function parseAdvisorProviderAnswer(content: string) {
+  try {
+    return advisorModelAnswerSchema.parse(JSON.parse(content));
+  } catch {
+    throw new AdvisorError(502, 'INVALID_ANSWER', 'Provider returned an invalid answer');
+  }
+}
+
+export function requireOllamaEndpoint() {
+  const endpoint = process.env['ADVISOR_OLLAMA_URL'];
+  if (!endpoint) throw new AdvisorError(503, 'OLLAMA_NOT_CONFIGURED', 'Ollama is not configured by the operator');
+  const address = new URL(endpoint);
+  if (!['http:', 'https:'].includes(address.protocol) || address.username || address.password || address.search || address.hash) {
+    throw new AdvisorError(503, 'OLLAMA_NOT_CONFIGURED', 'Invalid operator endpoint configuration');
+  }
+  return endpoint;
 }
 
 export async function discoverAdvisorModels(connection: AdvisorProviderConnection): Promise<string[]> {
   const endpoint = connection.provider === 'ANTHROPIC' ? 'https://api.anthropic.com/v1'
     : connection.provider === 'OPENROUTER' ? 'https://openrouter.ai/api/v1'
-      : connection.provider === 'OPENAI' ? 'https://api.openai.com/v1' : process.env['ADVISOR_OLLAMA_URL'];
-  if (!endpoint) return [];
+      : connection.provider === 'OPENAI' ? 'https://api.openai.com/v1' : requireOllamaEndpoint();
   const response = await fetch(`${endpoint.replace(/\/$/, '')}/models`, {
     redirect: 'error', signal: AbortSignal.timeout(10_000),
     headers: connection.provider === 'ANTHROPIC'
       ? { 'x-api-key': connection.credential, 'anthropic-version': '2023-06-01' }
       : { authorization: `Bearer ${connection.credential || 'ollama'}` },
+  }).catch((error: unknown) => {
+    if (connection.provider !== 'OLLAMA') throw error;
+    throw new AdvisorError(502, 'OLLAMA_UNREACHABLE', 'The API server cannot reach Ollama');
   });
-  if (!response.ok) throw new AdvisorError(502, 'PROVIDER_ERROR', `Provider returned HTTP ${response.status}`);
-  const payload = z.object({ data: z.array(z.object({ id: z.string().max(200) })).max(5000) }).parse(await response.json());
-  return payload.data.map((model) => model.id).sort();
+  if (!response.ok) {
+    if (connection.provider === 'OLLAMA') throw new AdvisorError(502, 'OLLAMA_UNREACHABLE', `Ollama returned HTTP ${response.status}`);
+    throw new AdvisorError(502, 'PROVIDER_ERROR', `Provider returned HTTP ${response.status}`);
+  }
+  const payload = z.object({ data: z.array(z.object({ id: z.string().max(200) })).max(5000) }).safeParse(await response.json());
+  if (!payload.success) throw new AdvisorError(502, 'PROVIDER_ERROR', 'Provider returned an unexpected model list');
+  if (connection.provider === 'OLLAMA' && !payload.data.data.length) throw new AdvisorError(409, 'OLLAMA_NO_MODELS', 'Ollama has no installed models');
+  return payload.data.data.map((model) => model.id).sort();
 }

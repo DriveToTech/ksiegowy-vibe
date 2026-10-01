@@ -3,6 +3,7 @@ import fastifyPlugin from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 
 export const corsPlugin = fastifyPlugin(async (fastify: FastifyInstance) => {
+  if (process.env['NODE_ENV'] === 'production' && !process.env['CORS_ORIGIN']) throw new Error('CORS_ORIGIN must be set in production');
   const origin = process.env['CORS_ORIGIN'] ?? 'http://localhost:3000';
 
   await fastify.register(cors, {

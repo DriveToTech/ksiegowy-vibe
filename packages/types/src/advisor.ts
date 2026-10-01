@@ -83,10 +83,29 @@ export interface AdvisorSettings {
   reviewedSourceCount: number;
 }
 
+export type AdvisorConnectorGrantStatus = 'WAITING' | 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+
+export interface AdvisorConnectorGrant {
+  client: AdvisorConnectorClient;
+  environment: AdvisorEnvironment;
+  status: AdvisorConnectorGrantStatus;
+  expiresAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface AdvisorModelPreview {
+  models: string[];
+}
+
+/** Returned by `model-preview` (HTTP 429 with `Retry-After`) when the per-user or per-company UTC-day cap is reached. */
+export type AdvisorModelPreviewLimitErrorCode = 'DAILY_LIMIT_REACHED';
+export type AdvisorOllamaErrorCode = 'OLLAMA_NOT_CONFIGURED' | 'OLLAMA_UNREACHABLE' | 'OLLAMA_NO_MODELS';
+
 export interface AdvisorConnectorSettings {
   endpoint: string | null;
   clients: AdvisorConnectorClient[];
-  grants: Array<{ client: AdvisorConnectorClient; environment: AdvisorEnvironment; expiresAt: string }>;
+  grants: AdvisorConnectorGrant[];
 }
 
 export interface AdvisorConversationSummary {

@@ -203,9 +203,24 @@ model AdvisorConnectorGrant {
   clientIdentifier String
   createdAt DateTime @default(now())
   expiresAt DateTime
+  lastUsedAt DateTime?
+  revokedAt DateTime?
   membership CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   @@unique([membershipId, environment, client])
   @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+// Daily counter of model-discovery attempts per user and company (UTC day, YYYY-MM-DD). Holds no credentials.
+model AdvisorModelPreviewUsage {
+  id String @id @default(cuid())
+  userId String
+  companyId String
+  day String
+  count Int @default(0)
+  @@unique([userId, companyId, day])
+  @@index([companyId, day])
+  @@index([day])
 }
 
 model AdvisorConnection {

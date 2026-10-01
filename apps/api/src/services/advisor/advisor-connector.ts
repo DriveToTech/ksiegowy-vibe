@@ -40,8 +40,24 @@ export async function verifyAdvisorConnectorToken(token: string, configuration: 
 export async function requireAdvisorConnectorGrant(database: PrismaClient, identity: Awaited<ReturnType<typeof verifyAdvisorConnectorToken>>, companyId: string, environment: KsefEnvironment) {
   if (process.env['ADVISOR_ENABLED'] !== 'true') throw new AdvisorError(503, 'ADVISOR_DISABLED', 'Advisor is disabled');
   const grant = await database.advisorConnectorGrant.findFirst({ where: { environment, client: identity.client,
-    issuer: identity.issuer, clientIdentifier: identity.clientIdentifier, expiresAt: { gt: new Date() },
+    issuer: identity.issuer, clientIdentifier: identity.clientIdentifier, revokedAt: null, expiresAt: { gt: new Date() },
     membership: { companyId, userId: identity.userId, company: { advisorPolicy: { enabled: true, allowedConnectors: { has: identity.client } } } } },
     select: { id: true } });
   if (!grant) throw new AdvisorError(403, 'CONNECTOR_CONSENT_REQUIRED', 'An active company and environment grant is required');
+  return grant.id;
+}
+
+export const advisorConnectorCallsPerMinute = 60;
+
+// ponytail: per-process fixed window, multi-instance deployments need a shared store (for example Redis).
+const connectorCallWindows = new Map<string, { startedAt: number; count: number }>();
+
+/** Returns 0 when the call is allowed, otherwise the number of seconds until the grant window resets. */
+export function reserveAdvisorConnectorCall(grantId: string, now = Date.now()) {
+  for (const [key, window] of connectorCallWindows) if (now - window.startedAt >= 60_000) connectorCallWindows.delete(key);
+  const window = connectorCallWindows.get(grantId) ?? { startedAt: now, count: 0 };
+  connectorCallWindows.set(grantId, window);
+  if (window.count >= advisorConnectorCallsPerMinute) return Math.ceil((window.startedAt + 60_000 - now) / 1000);
+  window.count += 1;
+  return 0;
 }

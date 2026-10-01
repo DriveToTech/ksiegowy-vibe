@@ -74,4 +74,131 @@ describe('advisorRoutes()', () => {
     expect(changed.statusCode).toBe(409);
     expect(changed.json()).toEqual({ code: 'REQUEST_CONFLICT', message: 'Request identifier was already used for different input' });
   });
+
+  describe('POST /connections/:provider/model-preview', () => {
+    const signToken = (subject: string) => (application.jwt as unknown as { access: { sign: (payload: object) => string } }).access.sign({ sub: subject, email: 'user@example.com', companies: [] });
+    const previewRequest = (provider: string, subject: string, payload: object) => ({ method: 'POST' as const, url: `/companies/company/advisor/connections/${provider}/model-preview`,
+      cookies: { auth_token: signToken(subject) }, headers: { origin: 'http://localhost:3000' }, payload });
+    const stubUsage = (userCount: number, companyCount = userCount) => {
+      const usage = { upsert: vi.fn().mockResolvedValue({ count: userCount }), aggregate: vi.fn().mockResolvedValue({ _sum: { count: companyCount } }), update: vi.fn() };
+      Object.assign(database, { advisorModelPreviewUsage: usage });
+      return usage;
+    };
+    const stubModels = () => vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: [{ id: 'model' }] }))));
+    afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+    it('discovers models with a transient key, never touching stored connections, and throttles repeated requests', async () => {
+      const request = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: [{ id: 'b-model' }, { id: 'a-model' }] })));
+      vi.stubGlobal('fetch', request);
+      const usage = stubUsage(1);
+      const first = await application.inject(previewRequest('OPENAI', 'preview-user', { credential: 'transient-key' }));
+      expect(first.statusCode).toBe(200);
+      expect(first.json()).toEqual({ models: ['a-model', 'b-model'] });
+      expect(request.mock.calls[0]?.[0]).toBe('https://api.openai.com/v1/models');
+      expect((request.mock.calls[0]?.[1] as RequestInit).headers).toEqual({ authorization: 'Bearer transient-key' });
+      expect(database.advisorConnection.findMany).not.toHaveBeenCalled();
+      const second = await application.inject(previewRequest('OPENAI', 'preview-user', { credential: 'transient-key' }));
+      expect(second.statusCode).toBe(429);
+      expect(second.json()).toEqual({ code: 'RATE_LIMITED', message: 'Please wait before starting another provider request' });
+      expect(usage.upsert).toHaveBeenCalledTimes(1);
+      expect(request).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts an accepted attempt in the daily usage of the user and company', async () => {
+      stubModels();
+      const usage = stubUsage(1);
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-01T10:00:00.000Z'));
+      const response = await application.inject(previewRequest('OPENAI', 'under-cap-user', { credential: 'key' }));
+      expect(response.statusCode).toBe(200);
+      expect(usage.upsert).toHaveBeenCalledWith({ where: { userId_companyId_day: { userId: 'under-cap-user', companyId: 'company', day: '2026-10-01' } },
+        create: { userId: 'under-cap-user', companyId: 'company', day: '2026-10-01', count: 1 }, update: { count: { increment: 1 } }, select: { count: true } });
+      expect(usage.aggregate).toHaveBeenCalledWith({ where: { companyId: 'company', day: '2026-10-01' }, _sum: { count: true } });
+    });
+
+    it('rejects over the per-user daily cap with Retry-After until UTC midnight and rolls the counter back', async () => {
+      const request = vi.fn();
+      vi.stubGlobal('fetch', request);
+      const usage = stubUsage(31, 31);
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-01T23:00:00.000Z'));
+      const response = await application.inject(previewRequest('OPENAI', 'user-cap-user', { credential: 'key' }));
+      expect(response.statusCode).toBe(429);
+      expect(response.headers['retry-after']).toBe('3600');
+      expect(response.json()).toEqual({ code: 'DAILY_LIMIT_REACHED', message: 'Daily model discovery limit reached. Try again tomorrow' });
+      expect(usage.update).toHaveBeenCalledWith({ where: { userId_companyId_day: { userId: 'user-cap-user', companyId: 'company', day: '2026-10-01' } }, data: { count: { decrement: 1 } } });
+      expect(request).not.toHaveBeenCalled();
+    });
+
+    it('rejects over the per-company daily cap even when the user is under theirs', async () => {
+      const request = vi.fn();
+      vi.stubGlobal('fetch', request);
+      const usage = stubUsage(1, 101);
+      const response = await application.inject(previewRequest('OPENAI', 'company-cap-user', { credential: 'key' }));
+      expect(response.statusCode).toBe(429);
+      expect(response.json().code).toBe('DAILY_LIMIT_REACHED');
+      expect(usage.update).toHaveBeenCalledTimes(1);
+      expect(request).not.toHaveBeenCalled();
+    });
+
+    it('starts a new counter on the next UTC day', async () => {
+      stubModels();
+      const usage = stubUsage(1);
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-01T23:59:59.000Z'));
+      await application.inject(previewRequest('OPENAI', 'rollover-a', { credential: 'key' }));
+      vi.setSystemTime(new Date('2026-10-02T00:00:01.000Z'));
+      await application.inject(previewRequest('OPENAI', 'rollover-b', { credential: 'key' }));
+      expect(usage.upsert.mock.calls.map((call) => call[0].where.userId_companyId_day.day)).toEqual(['2026-10-01', '2026-10-02']);
+    });
+
+    it('logs one audit entry per attempt without the credential', async () => {
+      stubModels();
+      stubUsage(1);
+      const lines: string[] = [];
+      const stream = { write: (line: string) => { lines.push(line); } };
+      const auditedApplication = await buildApp({ logger: { level: 'info', stream } as never, prismaClient: database,
+        authConfig: loadAuthConfig({ NODE_ENV: 'test', JWT_SECRET: 'access-test-secret', JWT_REFRESH_SECRET: 'refresh-test-secret' }) });
+      await auditedApplication.ready();
+      const auditedToken = (auditedApplication.jwt as unknown as { access: { sign: (payload: object) => string } }).access.sign({ sub: 'audit-user', email: 'user@example.com', companies: [] });
+      await auditedApplication.inject({ ...previewRequest('OPENAI', 'audit-user', { credential: 'super-secret-key' }), cookies: { auth_token: auditedToken } });
+      await auditedApplication.close();
+      const audit = lines.map((line) => JSON.parse(line) as Record<string, unknown>).filter((entry) => entry['operation'] === 'advisor.modelPreview');
+      expect(audit).toHaveLength(1);
+      expect(audit[0]).toMatchObject({ operation: 'advisor.modelPreview', userId: 'audit-user', companyId: 'company', provider: 'OPENAI', outcome: 'allowed' });
+      expect(lines.join('')).not.toContain('super-secret-key');
+    });
+
+    it('requires a credential for hosted providers and rejects submitted addresses', async () => {
+      const missing = await application.inject(previewRequest('OPENAI', 'missing-key-user', {}));
+      expect(missing.json()).toEqual({ code: 'CREDENTIAL_REQUIRED', message: 'API credential is required' });
+      const address = await application.inject(previewRequest('OPENAI', 'address-user', { credential: 'key', url: 'http://internal.example' }));
+      expect(address.statusCode).toBe(400);
+    });
+
+    it('reports an unconfigured Ollama endpoint without requiring a saved connection', async () => {
+      vi.mocked(database.companyMembership.findUnique).mockResolvedValue({ id: 'membership', companyId: 'company', role: 'ADMIN',
+        company: { advisorPolicy: { enabled: true, allowedProviders: ['OLLAMA'], retentionDays: 30 } } } as never);
+      const usage = stubUsage(1);
+      const response = await application.inject(previewRequest('OLLAMA', 'ollama-user', {}));
+      expect(usage.upsert).toHaveBeenCalledTimes(1);
+      expect(response.statusCode).toBe(503);
+      expect(response.json()).toEqual({ code: 'OLLAMA_NOT_CONFIGURED', message: 'Ollama is not configured by the operator' });
+    });
+  });
+
+  describe('PUT and DELETE /connections/:provider', () => {
+    const connectionRequest = (method: 'PUT' | 'DELETE', provider: string) => ({ method, url: `/companies/company/advisor/connections/${provider}`,
+      cookies: { auth_token: token }, headers: { origin: 'http://localhost:3000' }, ...(method === 'PUT' ? { payload: { model: 'configured-model' } } : {}) });
+
+    it('refuses to save a connection for a provider the company policy denies, but still allows removing it', async () => {
+      Object.assign(database.advisorConnection, { upsert: vi.fn(), deleteMany: vi.fn().mockResolvedValue({ count: 1 }) });
+      const saved = await application.inject(connectionRequest('PUT', 'OPENROUTER'));
+      expect(saved.statusCode).toBe(403);
+      expect(saved.json()).toEqual({ code: 'POLICY_DENIED', message: 'This provider is not enabled for the company' });
+      expect(database.advisorConnection.upsert).not.toHaveBeenCalled();
+      const removed = await application.inject(connectionRequest('DELETE', 'OPENROUTER'));
+      expect(removed.json()).toEqual({ deleted: true });
+    });
+  });
 });

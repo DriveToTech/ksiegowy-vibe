@@ -2,8 +2,8 @@ import type { FastifyPluginAsync } from 'fastify';
 import { encrypt } from '@ksiegowy/shared-utils';
 import { z } from 'zod';
 import { AdvisorError, advisorProviderSchema } from '../services/advisor/advisor-contract.js';
-import { readAdvisorConnection, requireAdvisorMembership, requireAdvisorPolicy, reserveAdvisorProviderRequest } from '../services/advisor/advisor-access.js';
-import { discoverAdvisorModels, generateAdvisorResponse } from '../services/advisor/advisor-provider.js';
+import { readAdvisorConnection, requireAdvisorMembership, requireAdvisorPolicy, reserveAdvisorModelPreview, reserveAdvisorProviderRequest } from '../services/advisor/advisor-access.js';
+import { discoverAdvisorModels, generateAdvisorResponse, requireOllamaEndpoint } from '../services/advisor/advisor-provider.js';
 import { loadAdvisorSources } from '../services/advisor/advisor-sources.js';
 
 const connectionBodySchema = z.object({ model: z.string().trim().min(1).max(200), credential: z.string().trim().min(1).max(4096).optional() }).strict();
@@ -44,9 +44,10 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     const provider = advisorProviderSchema.parse(request.params.provider);
     const body = connectionBodySchema.parse(request.body);
+    requireAdvisorPolicy(membership, provider);
     const existing = await server.prisma.advisorConnection.findUnique({ where: { membershipId_provider: { membershipId: membership.id, provider } } });
     if (provider !== 'OLLAMA' && !body.credential && !existing?.credentialEncrypted) throw new AdvisorError(400, 'CREDENTIAL_REQUIRED', 'API credential is required');
-    if (provider === 'OLLAMA' && !process.env['ADVISOR_OLLAMA_URL']) throw new AdvisorError(503, 'OLLAMA_UNAVAILABLE', 'Ollama is not configured by the operator');
+    if (provider === 'OLLAMA') requireOllamaEndpoint();
     const encrypted = body.credential ? encrypt(body.credential, process.env['ENCRYPTION_KEY'] ?? '') : null;
     const data = { model: body.model, testedAt: null,
       ...(encrypted ? { credentialEncrypted: encrypted.enc, credentialNonce: encrypted.iv } : {}) };
@@ -82,5 +83,16 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
     const connection = await readAdvisorConnection(request, membership.id, provider);
     await reserveAdvisorProviderRequest(request, connection.id);
     return { models: await discoverAdvisorModels(connection) };
+  });
+
+  // Transient discovery before a connection exists: the submitted key is never stored or logged.
+  server.post<{ Params: { companyId: string; provider: string } }>('/connections/:provider/model-preview', async (request) => {
+    const membership = await requireAdvisorMembership(request, request.params.companyId);
+    const provider = advisorProviderSchema.parse(request.params.provider);
+    const { credential } = z.object({ credential: z.string().trim().min(1).max(4096).optional() }).strict().parse(request.body ?? {});
+    requireAdvisorPolicy(membership, provider);
+    if (provider !== 'OLLAMA' && !credential) throw new AdvisorError(400, 'CREDENTIAL_REQUIRED', 'API credential is required');
+    await reserveAdvisorModelPreview(request, membership.companyId, provider);
+    return { models: await discoverAdvisorModels({ provider, model: '', credential: provider === 'OLLAMA' ? '' : credential ?? '' }) };
   });
 };

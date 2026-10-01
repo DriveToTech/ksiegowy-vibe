@@ -24,7 +24,10 @@ export const advisorRoutes: FastifyPluginAsync = async (server) => {
   });
   server.setErrorHandler((error, request, reply) => {
     if (error instanceof z.ZodError) return reply.code(400).send({ code: 'INVALID_REQUEST', message: 'Invalid advisor request' });
-    if (error instanceof AdvisorError) return reply.code(error.statusCode).send({ code: error.code, message: error.message });
+    if (error instanceof AdvisorError) {
+      if (error.retryAfterSeconds) reply.header('Retry-After', String(error.retryAfterSeconds));
+      return reply.code(error.statusCode).send({ code: error.code, message: error.message });
+    }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
       return reply.code(503).send({ code: 'ADVISOR_MIGRATION_REQUIRED', message: 'Apply the tax advisor database migration first' });
     }

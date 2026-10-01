@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { generateAdvisorResponse } from './advisor-provider.js';
+import { discoverAdvisorModels, generateAdvisorResponse } from './advisor-provider.js';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
@@ -37,5 +37,34 @@ describe('generateAdvisorResponse()', () => {
     expect(options.headers).toEqual({ 'x-api-key': 'private-key', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' });
     expect(JSON.parse(String(options.body)).output_config.format.type).toBe('json_schema');
     expect(JSON.stringify(JSON.parse(String(options.body)).output_config.format.schema)).not.toMatch(/"(?:minLength|maxLength|maxItems)":/);
+  });
+});
+
+describe('discoverAdvisorModels()', () => {
+  const ollama = { provider: 'OLLAMA' as const, model: '', credential: '' };
+
+  it('returns sorted models from the operator Ollama endpoint', async () => {
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://ollama.internal:11434/v1');
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'z-model' }, { id: 'a-model' }] })));
+    vi.stubGlobal('fetch', request);
+    expect(await discoverAdvisorModels(ollama)).toEqual(['a-model', 'z-model']);
+    expect(request.mock.calls[0]?.[0]).toBe('http://ollama.internal:11434/v1/models');
+  });
+
+  it('uses distinct codes for not configured, unreachable and no models', async () => {
+    vi.stubEnv('ADVISOR_OLLAMA_URL', '');
+    await expect(discoverAdvisorModels(ollama)).rejects.toMatchObject({ code: 'OLLAMA_NOT_CONFIGURED', statusCode: 503 });
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://ollama.internal:11434/v1');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
+    await expect(discoverAdvisorModels(ollama)).rejects.toMatchObject({ code: 'OLLAMA_UNREACHABLE', statusCode: 502 });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 500 })));
+    await expect(discoverAdvisorModels(ollama)).rejects.toMatchObject({ code: 'OLLAMA_UNREACHABLE' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [] }))));
+    await expect(discoverAdvisorModels(ollama)).rejects.toMatchObject({ code: 'OLLAMA_NO_MODELS', statusCode: 409 });
+  });
+
+  it('maps an unexpected upstream model list shape to a provider error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ models: [] }))));
+    await expect(discoverAdvisorModels({ provider: 'OPENAI', model: '', credential: 'private-key' })).rejects.toMatchObject({ code: 'PROVIDER_ERROR', statusCode: 502 });
   });
 });

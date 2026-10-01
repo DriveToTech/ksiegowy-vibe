@@ -2,7 +2,7 @@ import { Builder } from 'builder-pattern';
 import type { PrismaClient } from '@prisma/client';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { requireAdvisorConnectorGrant, verifyAdvisorConnectorToken } from './advisor-connector.js';
+import { advisorConnectorCallsPerMinute, requireAdvisorConnectorGrant, reserveAdvisorConnectorCall, verifyAdvisorConnectorToken } from './advisor-connector.js';
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -29,10 +29,20 @@ describe('requireAdvisorConnectorGrant()', () => {
     vi.stubEnv('ADVISOR_ENABLED', 'true');
     const database = Builder<PrismaClient>().advisorConnectorGrant({ findFirst: vi.fn().mockResolvedValue({ id: 'grant' }) } as never).build();
     const identity = { userId: 'user', client: 'CHATGPT' as const, clientIdentifier: 'client', issuer: 'https://identity.example' };
-    await requireAdvisorConnectorGrant(database, identity, 'company', 'TEST');
+    expect(await requireAdvisorConnectorGrant(database, identity, 'company', 'TEST')).toBe('grant');
     expect(database.advisorConnectorGrant.findFirst).toHaveBeenCalledWith({ where: { environment: 'TEST', client: 'CHATGPT', issuer: identity.issuer,
-      clientIdentifier: 'client', expiresAt: { gt: expect.any(Date) }, membership: { companyId: 'company', userId: 'user', company: { advisorPolicy: { enabled: true, allowedConnectors: { has: 'CHATGPT' } } } } }, select: { id: true } });
+      clientIdentifier: 'client', revokedAt: null, expiresAt: { gt: expect.any(Date) }, membership: { companyId: 'company', userId: 'user', company: { advisorPolicy: { enabled: true, allowedConnectors: { has: 'CHATGPT' } } } } }, select: { id: true } });
     vi.mocked(database.advisorConnectorGrant.findFirst).mockResolvedValue(null);
     await expect(requireAdvisorConnectorGrant(database, identity, 'company', 'PRODUCTION')).rejects.toThrow('An active company and environment grant is required');
+  });
+});
+
+describe('reserveAdvisorConnectorCall()', () => {
+  it('allows the per-minute budget, then returns the seconds until the window resets, per grant', () => {
+    const start = 1_000_000;
+    for (let call = 0; call < advisorConnectorCallsPerMinute; call += 1) expect(reserveAdvisorConnectorCall('limited-grant', start)).toBe(0);
+    expect(reserveAdvisorConnectorCall('limited-grant', start + 10_000)).toBe(50);
+    expect(reserveAdvisorConnectorCall('other-grant', start + 10_000)).toBe(0);
+    expect(reserveAdvisorConnectorCall('limited-grant', start + 60_000)).toBe(0);
   });
 });

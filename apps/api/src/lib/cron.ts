@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import { ICloudBackupProvider } from '../services/backup/icloud.js';
+import { advisorGrantRetentionDays, advisorModelPreviewUsageRetentionDays } from '../services/advisor/advisor-contract.js';
 import { retryOfflineQueue } from '../services/ksef.service.js';
 
 /**
@@ -29,16 +30,19 @@ export function scheduleDailyBackup(
   });
 
   logger.info('KSeF offline queue retry cron scheduled (hourly)');
-  if (process.env['ADVISOR_ENABLED'] === 'true') {
-    cron.schedule('15 * * * *', () => {
-      Promise.all([
-        prisma.advisorConversation.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
-        prisma.advisorConnectorGrant.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
-      ]).catch((error: unknown) => {
-        logger.error({ operation: 'advisor.retention', message: error instanceof Error ? error.message : String(error) }, 'Advisor retention cleanup failed');
-      });
+  // Retention runs even when the advisor is disabled so stored history and grants are still purged.
+  cron.schedule('15 * * * *', () => {
+    // Revoked and expired grants are kept for a bounded period so the interface can explain their state.
+    const retentionStart = new Date(Date.now() - advisorGrantRetentionDays * 86_400_000);
+    const usageRetentionDay = new Date(Date.now() - advisorModelPreviewUsageRetentionDays * 86_400_000).toISOString().slice(0, 10);
+    Promise.all([
+      prisma.advisorConversation.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
+      prisma.advisorConnectorGrant.deleteMany({ where: { OR: [{ revokedAt: { lte: retentionStart } }, { revokedAt: null, expiresAt: { lte: retentionStart } }] } }),
+      prisma.advisorModelPreviewUsage.deleteMany({ where: { day: { lt: usageRetentionDay } } }),
+    ]).catch((error: unknown) => {
+      logger.error({ operation: 'advisor.retention', message: error instanceof Error ? error.message : String(error) }, 'Advisor retention cleanup failed');
     });
-  }
+  });
 }
 
 async function runBackup(

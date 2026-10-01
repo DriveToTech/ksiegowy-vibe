@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 export const advisorProviders = ['OPENROUTER', 'OPENAI', 'ANTHROPIC', 'OLLAMA'] as const;
 export const advisorProviderSchema = z.enum(advisorProviders);
+export const advisorGrantRetentionDays = 30;
+export const advisorModelPreviewDailyLimitPerUser = 30;
+export const advisorModelPreviewDailyLimitPerCompany = 100;
+export const advisorModelPreviewUsageRetentionDays = 7;
 export const advisorScopeSchema = z.object({
   questionKind: z.enum(['records', 'tax']),
   period: z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/),
@@ -24,7 +28,7 @@ export const advisorModelAnswerSchema = z.object({
 }).strict();
 
 export class AdvisorError extends Error {
-  constructor(public readonly statusCode: number, public readonly code: string, message: string) {
+  constructor(public readonly statusCode: number, public readonly code: string, message: string, public readonly retryAfterSeconds?: number) {
     super(message);
     this.name = 'AdvisorError';
   }

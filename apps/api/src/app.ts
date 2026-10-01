@@ -28,7 +28,7 @@ import { advisorRoutes } from './routes/advisor.js';
 import { advisorMcpRoutes } from './routes/advisor-mcp.js';
 
 export interface BuildAppOptions {
-  logger?: boolean;
+  logger?: boolean | { level: string; stream: NodeJS.WritableStream };
   prismaClient?: PrismaPluginOptions['client'];
   authConfig?: AuthConfig;
 }
