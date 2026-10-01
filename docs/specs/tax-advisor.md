@@ -48,6 +48,29 @@ Calculations use Prisma Decimal and remain separate by currency. They are not VA
 
 Dashboard accepted-sales buckets now share the formal-correction exclusion and explicitly use PLN, matching their currency label. KPI document counts still include formal corrections. Contractor/report read models have their own existing semantics; the advisor does not reuse or claim reconciliation with those totals in this release.
 
+### Answer statuses
+
+| Status | Meaning | Citations | Required fields |
+| --- | --- | --- | --- |
+| `answered` | In scope, supported by supplied facts and sources | Required for tax guidance | `shortAnswer`, `explanation` |
+| `needs_clarification` | In scope, facts missing | None required | `questions` |
+| `insufficient_evidence` | In scope, reviewed sources or facts are insufficient | None | `shortAnswer`, assumptions |
+| `declined` | Out of scope: PIT/CIT/ZUS, tax form choice, depreciation, tax optimisation or evasion, legal opinions, filing or issuing documents, instruction override | Not allowed | `shortAnswer` (at most 400 characters, why it is out of scope), `explanation` (1-600 characters, what the advisor can help with); empty assumptions, questions, evidence, sources and calculations, `containsTaxGuidance` false |
+
+`declined` is stored in the existing `AdvisorTurn.answer` JSON with turn status `COMPLETED` (turn status is a request lifecycle, unrelated to answer status), so there is no migration. Provenance of a deterministic decline has `sourceVersion: not-applicable` and `recordsIncluded: false`.
+
+```mermaid
+flowchart TD
+  Question[Question] --> Preflight{Out-of-scope keyword pre-check}
+  Preflight -- match --> Declined[declined, no model call, no records read]
+  Preflight -- no match --> Model[Provider call with supplied sources]
+  Model --> Validate{Schema and citation validation}
+  Validate -- declined with lists or claims --> Rejected[INVALID_ANSWER 502]
+  Validate -- valid --> Answer[answered / needs_clarification / insufficient_evidence / declined]
+```
+
+The pre-check (`isAdvisorQuestionOutOfScope` in `advisor-source-topics.ts`) only uses unambiguous phrases (PIT, CIT, ZUS as whole words, estonian CIT, depreciation, optimisation, linear vs scale, legal opinion, filing JPK or declarations, issue-and-send commands). It never runs the model, so it must not match in-scope VAT/invoice wording; tests assert this against all non-decline evaluation cases. The model prompt instructs the same decline rule for what the keywords miss.
+
 The model returns bounded structured text, status, assumptions, questions and evidence/source IDs. Unknown IDs are rejected. Reported tax guidance requires a cited supplied source. Server-owned calculations, source links and provenance are attached after validation. The UI renders plain text and application-constructed links. Schema/citation checks cannot prove that every sentence is legally correct: reviewed evaluation remains a release gate.
 
 Transport schemas omit unsupported string/array length constraints and describe those bounds to the model; the complete Zod schema still validates every returned answer. This supports Anthropic both directly and through OpenRouter without weakening application-side limits. See [Anthropic structured-output constraints](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).
@@ -130,7 +153,7 @@ Decisions:
 - A question with no matched topic falls back to all eligible sources ranked by recency (file order on ties, which equals the previous first-eight behaviour for equal periods).
 - The `topics` field is used for ranking only and is not sent to the model or returned in answers.
 - Keyword matching is a coarse classifier. A wrong or missed topic can only narrow the supplied sources; the model must still cite supplied sources or report insufficient evidence.
-- The answer contract is unchanged: out-of-scope (decline) cases map to `insufficient_evidence`. Whether to add a `declined` status is an open product decision.
+- The keyword out-of-scope pre-check is deliberately narrow; a missed phrase reaches the model, which must decline through the prompt, and a declined model answer is validated like the deterministic one.
 
 Before enabling tax guidance, appoint a source owner and qualified reviewer, populate only supported VAT/invoice topics, and evaluate the Polish question set in the plan. No invented review dates or unreviewed tax rates are seeded.
 

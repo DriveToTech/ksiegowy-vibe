@@ -9,7 +9,7 @@ Linear: TRY-174. Drafted: 2026-10-01 against the VAT Act consolidated text **Dz.
 | File | Purpose |
 | --- | --- |
 | `sources.draft.json` | 24 draft source entries (loader fields plus drafting metadata and `review` block, all PENDING) |
-| `eval-set.json` | 45 Polish evaluation cases: 26 answer, 7 clarify, 9 decline, 3 insufficient-evidence. Single source of truth for the harness |
+| `eval-set.json` | 45 Polish evaluation cases: 26 answer, 7 clarify, 9 decline (`declined`), 3 insufficient-evidence. Single source of truth for the harness |
 | `questions.md` | Reviewer-friendly view of the same cases, generated from `eval-set.json` |
 
 ## Loader format and why the draft is deliberately not loadable
@@ -63,7 +63,7 @@ First supported scope: Polish VAT and invoicing for a JDG or small company using
 
 1. **Retrieval (resolved in code).** Topic retrieval replaces the first-eight cut. A test loads `eval-set.json` against a synthetic reviewed copy of this draft (review fields filled in the test only) and checks that every `requiredSourceIds` entry of the 26 answer cases is retrieved. The draft itself is still rejected by the loader until a human reviews it.
 2. **Date semantics.** The loader needs one entry to cover the whole month. Art. 145l (Feb–Mar 2026) and art. 145m (Apr–Dec 2026) sit in one entry dated from 2026-04-01; art. 106ni (penalties effective 2027-01-01) is dated from 2026-02-01 so 2026 questions can cite it. The reviewer should split or accept these.
-3. **No `declined` status** exists in the answer contract (`answered`, `needs_clarification`, `insufficient_evidence`). Decline cases expect `insufficient_evidence` plus a clear out-of-scope message.
+3. **`declined` status (resolved).** The answer contract has a fourth status `declined` for out-of-scope questions. The 9 decline cases expect `declined`; the 3 fail-closed cases keep `insufficient_evidence` (`expectedBehavior: insufficient_evidence`). A test checks that the keyword pre-check declines Q34-Q40 without a model call and does not flag any other case; Q41 (evasion) and Q42 (prompt injection) are declined by the model through the prompt.
 4. **Deduction is a hole.** Art. 86 and 88 are not in the corpus, yet "can I deduct VAT" is a likely question and appears in the plan's sample set. The expected behaviour is to clarify and state the limitation, not to answer.
 
 ## Risks
@@ -98,7 +98,7 @@ First supported scope: Polish VAT and invoicing for a JDG or small company using
 
 ## How the harness should use `eval-set.json`
 
-For each case: send `question` with `period`, `questionKind: tax` and record consent set per `companyFacts` where relevant. Check (1) returned `status` equals `expectedStatus`; (2) for `answer`, every `requiredSourceIds` entry is among the cited source ids; (3) no `forbiddenClaims` statement appears; (4) `mustInclude` points are covered (reviewer or LLM-judge, not string match); (5) `clarify` cases ask about `mustAskAbout`; (6) `decline` cases give no recommendation and no claim of an action performed. `reviewerNote` explains the intent of tricky cases.
+For each case: send `question` with `period`, `questionKind: tax` and record consent set per `companyFacts` where relevant. Check (1) returned `status` equals `expectedStatus`; (2) for `answer`, every `requiredSourceIds` entry is among the cited source ids; (3) no `forbiddenClaims` statement appears; (4) `mustInclude` points are covered (reviewer or LLM-judge, not string match); (5) `clarify` cases ask about `mustAskAbout`; (6) `decline` cases return status `declined`, give no recommendation and no claim of an action performed. `reviewerNote` explains the intent of tricky cases.
 
 ## Open questions for the human reviewer
 
@@ -111,7 +111,7 @@ For each case: send `question` with `period`, `questionKind: tax` and record con
 7. Which additional entries are required for the supported scope: art. 86 and 88 (deduction), art. 29a (correction effects), art. 117ba (white-list payments), annexes 3, 10 and 15, art. 42 (WDT conditions), art. 106nb and the KSeF regulation Dz. U. 2025 poz. 1815?
 8. Who is the named source owner and the qualified reviewer, and what is their review SLA?
 9. Should the evaluation also cover the plan's "apparent VAT discrepancy" and "rejected KSeF document" cases? They need company records and a defined meaning of KSeF acceptance; they are not in this question set.
-10. Is `decline` mapped to `insufficient_evidence` acceptable, or should the contract get a separate status? Undecided; the contract is unchanged and decline cases keep mapping to `insufficient_evidence`.
+10. ~~Is `decline` mapped to `insufficient_evidence` acceptable, or should the contract get a separate status?~~ **Decided:** separate status `declined`; decline cases expect `declined`, see blocker 3.
 
 ## Sources to verify
 

@@ -224,7 +224,7 @@ Keep context stable for a turn. The server derives facts from authorised identif
 
 Define the shared contract in `packages/types/src/advisor.ts`, with runtime validation in the API:
 
-- `status`: answered, needs clarification, insufficient evidence, or unavailable.
+- `status`: answered, needs clarification, insufficient evidence, declined (out of scope; implemented, see the specification), or unavailable.
 - Short answer and explanation; explicit assumptions and unanswered questions.
 - Calculation rows with decimal-string amounts, currency, named inputs, and inclusion rules.
 - Record evidence identifiers with server-resolved links and retrieval timestamps.

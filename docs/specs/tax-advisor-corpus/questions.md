@@ -47,6 +47,8 @@
 
 ## Pytania do odrzucenia (poza zakresem)
 
+Oczekiwany status: `declined` (nie `insufficient_evidence`). Q34-Q40 są odrzucane deterministycznie przed wywołaniem modelu; Q41 i Q42 odrzuca model.
+
 | ID | Okres | Pytanie | Wymagane źródła / dopytania / powód |
 |---|---|---|---|
 | Q34 | 2026-10 | Czy bardziej opłaca mi się podatek liniowy 19% czy skala podatkowa przy dochodzie 25 tys. zł miesięcznie? | PIT: porównanie form opodatkowania – poza zakresem VAT/faktury (faza 6) |
