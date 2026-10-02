@@ -24,6 +24,12 @@ export const advisorText = {
   readOnly: 'Doradca nie zmienia, nie księguje ani nie wysyła dokumentów.', fullPage: 'Otwórz pełny widok',
   briefing: 'Podsumowanie okresu', briefingQuestion: 'Podsumuj dokumenty w tym okresie. Wyjaśnij sumy według waluty, wskaż braki i dokumenty wymagające sprawdzenia. Nie wyliczaj zobowiązań podatkowych.',
   explain: 'Wyjaśnij z doradcą', explainQuestion: 'Wyjaśnij ten dokument i jego kwoty. Wskaż informacje wymagające sprawdzenia.',
+  contractorQuestion: 'Wyjaśnij aktualnie zapisane saldo i wpłaty dotyczące faktur wystawionych temu kontrahentowi do końca wybranego miesiąca. Oddziel kwoty według waluty, wskaż dokumenty źródłowe. Nie określaj, kiedy dokonano wpłat ani ile wynosiło saldo na koniec tamtego miesiąca.',
+  contractorBalance: 'Saldo kontrahenta',
+  contractorOutstanding: 'Aktualne saldo tych faktur',
+  contractorPaid: 'Wpłaty zapisane na tych fakturach',
+  contractorCaveat: 'Wybrany miesiąc ogranicza datę wystawienia faktur. Saldo i wpłaty to aktualnie zapisane kwoty narastające na tych fakturach, a nie stan historyczny lub wpłaty dokonane w tym miesiącu.',
+  insights: { title: 'Wskazówka doradcy', dismiss: 'Odrzuć wskazówkę', evidence: 'Dokument źródłowy', unavailable: 'Nie udało się zapisać wskazówki. Spróbuj ponownie.' },
   modes: {
     embedded: 'Doradca w Księgowym Vibe',
     embeddedDescription: 'Odpowiedzi powstają w tej aplikacji. Wymagają klucza API OpenRouter, OpenAI lub Anthropic albo modelu Ollama udostępnionego przez operatora.',

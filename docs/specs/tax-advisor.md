@@ -5,17 +5,17 @@ Implementation branch: `feat/tax-advisor`. Tracking: [TRY-160](https://linear.ap
 ## What is implemented
 
 - A 400px desktop dock, mobile modal sheet, header/mobile entry points, Command/Ctrl+J, Escape, and a full `/dashboard/advisor` page.
-- Explicit-send conversations, monthly briefing prompts, private history, deletion, cancellation, and invoice/incoming-document Explain buttons. Explain carries the document identifier and issue month; the user still chooses whether to include records.
+- Explicit-send conversations, monthly briefing prompts, private history, deletion, cancellation, invoice/incoming-document Explain buttons and contractor-balance Explain with selected contractor/month context. Record inclusion still requires explicit consent.
 - Company processing policy, encrypted per-membership API credentials, model discovery, and a synthetic connection test. Tests can incur provider charges; opening a panel never generates an answer automatically.
 - OpenRouter, OpenAI API, Anthropic API and operator-hosted Ollama transports. A selected model must support JSON Schema output. Provider/model IDs are entered or discovered, rather than baked into the application.
 - Read-only MCP tools, external OAuth token verification, signed-in company/environment consent, grant expiry and revocation for ChatGPT and Claude.
 - Reviewed-source loading and period selection. **No reviewed tax corpus ships with this change.** Without one, tax-mode requests stop before a paid model call. Record explanations remain available.
 
-Not yet released: validated live subscription integrations, accountant-reviewed tax evaluation, contractor-specific explanations, dismissible inline insights, scheduled briefings, tax-regime comparison, and advisor-initiated accounting mutations. There is no bank ledger or cash forecast in this slice.
+Not yet released: validated live subscription integrations, accountant-reviewed tax evaluation, scheduled briefings, tax-regime comparison, and advisor-initiated accounting mutations. There is no bank ledger or cash forecast in this slice.
 
 ## First use
 
-1. Review and apply migration `20260919080000_tax_advisor` to the intended database and generate Prisma Client. Compose startup does not apply it automatically. Use the repository migration/backup runbooks for production; the setup UI calls out a missing advisor migration.
+1. Review and apply advisor migrations `20260919080000_tax_advisor`, `20260930090000_advisor_connector_grant_lifecycle`, `20261001090000_advisor_model_preview_usage`, and `20261002100000_advisor_insight_dismissal` to the intended database in order, then generate Prisma Client. Compose startup does not apply them automatically. Use the repository migration/backup runbooks for production; the setup UI calls out a missing advisor migration.
 2. Set the existing `ENCRYPTION_KEY` to the installation's 32-byte hex encryption key; do not rotate it independently of existing encrypted records. Keep `CORS_ORIGIN` equal to the browser application's origin. `ADVISOR_ENABLED` may remain false during provider setup.
 3. For answers inside Księgowy Vibe, save a provider/model and API credential in **Settings → Doradca** or **Dostawcy i konfiguracja**. This uses separate API billing; ChatGPT and Claude subscriptions are not API credentials. An ADMIN selects the company's allowed providers and enables its policy. Credentials belong to the current membership, not every colleague. The API allows settings and credential routes while `ADVISOR_ENABLED` is false so setup is not hidden behind the runtime switch.
 
@@ -47,6 +47,10 @@ All totals cover the selected month, even when a single document is selected:
 Calculations use Prisma Decimal and remain separate by currency. They are not VAT payable, deductible input VAT, payment-ledger balances or tax-return totals. Incoming documents are evidence with review status, not assumed deductible purchases. At most 20 outgoing and 20 incoming documents are sent; a truncation flag explains that amounts still cover the full month.
 
 Dashboard accepted-sales buckets now share the formal-correction exclusion and explicitly use PLN, matching their currency label. KPI document counts still include formal corrections. Contractor/report read models have their own existing semantics; the advisor does not reuse or claim reconciliation with those totals in this release.
+
+Contractor Explain uses ISSUED non-FORMAL invoices for the selected company, environment and contractor issued before the end of the selected month. It groups currencies independently and displays `currentOutstanding` (nonnegative invoice gross less the **currently recorded cumulative** `paymentReceived`) and `recordedPayments` on those invoices. These are current stored figures for invoices issued through the chosen month, **not** a historical month-end balance or payments made during that month/year; there is no payment transaction ledger. At most 20 linked invoice records accompany the aggregate and truncation is explicit. A contractor from another company fails closed.
+
+Dashboard, invoices, incoming and selected-contractor views can each display at most one deterministic insight strip with linked document evidence. The API selects attention facts in priority order; no model call or accounting mutation occurs. `GET /insights?view=...` returns one supported insight or null; `POST /insights/:key/dismiss` records dismissal for the current membership, TEST/PRODUCTION environment, insight key and version. A revised version may surface again. Switching company changes membership-scoped evidence and dismissal; VIEWER users have read-only evidence links and may dismiss their own strip.
 
 ### Answer statuses
 
@@ -89,6 +93,7 @@ Browser routes use the existing authenticated session and require the exact conf
 | `GET /conversations/:conversationId`, `DELETE /conversations/:conversationId` | Own history detail/deletion |
 | `POST /conversations/:conversationId/messages` | UUID request ID, question, scope; validated answer via SSE |
 | `GET /connectors`, `PUT /connectors/:client`, `DELETE /connectors/:client` | Own subscription grants with `status`, `lastUsedAt`, `revokedAt`; PUT body `{ "days": 30 }` (re-granting resets usage and clears revocation); DELETE revokes (soft) |
+| `GET /insights?view=...`, `POST /insights/:key/dismiss` | Deterministic evidence-backed view insight and personal versioned dismissal; explicit KSeF environment required |
 
 ### Model preview and Ollama errors
 

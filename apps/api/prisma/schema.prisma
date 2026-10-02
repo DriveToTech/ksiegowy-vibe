@@ -160,6 +160,7 @@ model CompanyMembership {
   advisorConnections AdvisorConnection[]
   advisorConversations AdvisorConversation[]
   advisorConnectorGrants AdvisorConnectorGrant[]
+  advisorInsightDismissals AdvisorInsightDismissal[]
 
   @@unique([companyId, userId])
   @@index([userId])
@@ -250,6 +251,18 @@ model AdvisorConversation {
   turns AdvisorTurn[]
   @@index([membershipId, environment, createdAt])
   @@index([expiresAt])
+}
+
+model AdvisorInsightDismissal {
+  id String @id @default(cuid())
+  membershipId String
+  environment KsefEnvironment
+  insightKey String
+  version Int
+  dismissedAt DateTime @default(now())
+  membership CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, environment, insightKey, version])
 }
 
 model AdvisorTurn {

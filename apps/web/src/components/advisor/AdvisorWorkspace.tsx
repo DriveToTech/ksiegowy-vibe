@@ -10,8 +10,8 @@ import { AdvisorConversation } from './AdvisorConversation';
 
 interface AdvisorState {
   companyId: string; environment: AdvisorEnvironment; open: boolean;
-  seed: { question: string; documentId?: string; documentKind?: 'outgoing' | 'incoming'; period?: string; revision: number };
-  show: (question?: string, period?: string) => void; close: () => void;
+  seed: { question: string; documentId?: string; documentKind?: 'outgoing' | 'incoming'; contractorId?: string; contractorName?: string; period?: string; revision: number };
+  show: (question?: string, period?: string, contractorId?: string, contractorName?: string) => void; close: () => void;
 }
 const AdvisorContext = createContext<AdvisorState | null>(null);
 
@@ -26,10 +26,11 @@ function ActiveAdvisorWorkspace({ companyId, environment, children }: { companyI
   const [previousPath, setPreviousPath] = useState(pathname);
   const [seed, setSeed] = useState<AdvisorState['seed']>({ question: '', revision: 0 });
   const focusedBeforeOpen = useRef<HTMLElement | null>(null);
-  const show = (question = '', period?: string) => {
+  const show = (question = '', period?: string, contractorId?: string, contractorName?: string) => {
     focusedBeforeOpen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const documentMatch = pathname.match(/^\/dashboard\/(invoices|incoming)\/([^/]+)$/);
     setSeed((previous) => ({ question, revision: previous.revision + 1, ...(period ? { period } : {}),
+      ...(contractorId ? { contractorId, contractorName } : {}),
       ...(documentMatch && documentMatch[2] !== 'new' ? { documentId: decodeURIComponent(documentMatch[2]), documentKind: documentMatch[1] === 'invoices' ? 'outgoing' as const : 'incoming' as const } : {}) }));
     setOpen(true);
   };
@@ -48,10 +49,12 @@ function ActiveAdvisorWorkspace({ companyId, environment, children }: { companyI
   return <AdvisorContext.Provider value={{ companyId, environment, open, seed, show, close }}>{children}</AdvisorContext.Provider>;
 }
 
-export function AdvisorTrigger({ mobile = false, explain = false, period, question }: { mobile?: boolean; explain?: boolean; period?: string; question?: string }) {
+export function AdvisorTrigger({ mobile = false, explain = false, period, question, contractorId, contractorName }: {
+  mobile?: boolean; explain?: boolean; period?: string; question?: string; contractorId?: string; contractorName?: string;
+}) {
   const advisor = useContext(AdvisorContext);
   if (!advisor) return null;
-  return <button type="button" aria-label={explain ? text.explain : text.open} aria-expanded={advisor.open} onClick={() => advisor.show(question ?? (explain ? text.explainQuestion : ''), period)}
+  return <button type="button" aria-label={explain ? text.explain : text.open} aria-expanded={advisor.open} onClick={() => advisor.show(question ?? (explain ? text.explainQuestion : ''), period, contractorId, contractorName)}
     className={mobile ? 'flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] bg-[image:var(--primary-gradient)] text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' : 'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control border border-primary/30 bg-surface-raised px-3 text-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'}>
     <span aria-hidden="true">✦</span>{!mobile && <span>{explain ? text.explain : text.title}</span>}
   </button>;

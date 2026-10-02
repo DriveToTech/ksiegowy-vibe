@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { requireExplicitKsefEnvironment } from '../lib/ksef-environment.js';
 import { advisorSettingsRoutes } from './advisor-settings.js';
 import { advisorConnectorRoutes } from './advisor-connectors.js';
+import { advisorInsightRoutes } from './advisor-insights.js';
 import { AdvisorError, advisorProviderSchema, advisorScopeSchema } from '../services/advisor/advisor-contract.js';
 import { requireAdvisorEnabled, requireAdvisorMembership, requireAdvisorOrigin, requireAdvisorPolicy, readAdvisorConnection } from '../services/advisor/advisor-access.js';
 import { answerAdvisorQuestion } from '../services/advisor/advisor.service.js';
@@ -41,6 +42,7 @@ export const advisorRoutes: FastifyPluginAsync = async (server) => {
   server.addHook('onClose', async () => { for (const controller of activeRequests) controller.abort(); });
   await server.register(advisorSettingsRoutes);
   await server.register(advisorConnectorRoutes);
+  await server.register(advisorInsightRoutes);
 
   server.get<{ Params: { companyId: string } }>('/conversations', async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);

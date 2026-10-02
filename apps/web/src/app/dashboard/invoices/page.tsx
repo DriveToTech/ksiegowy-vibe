@@ -7,6 +7,7 @@ import { InvoicesTable } from '../../../components/organisms/InvoicesTable';
 import { formatMoney } from '../../../lib/format';
 import { requireAuthSession } from '../../../lib/auth';
 import { t } from '../../../lib/translations';
+import { AdvisorInsightStrip } from '../../../components/advisor/AdvisorInsightStrip';
 
 const statusTabs = [
   { value: undefined, label: t.outgoingInvoices.filters.all },
@@ -81,6 +82,7 @@ export default async function InvoicesPage({
           )
         }
       />
+      <AdvisorInsightStrip companyId={companyId} environment={activeEnvironment} view="invoices" />
 
       <div className="flex gap-1 rounded-control border border-outline bg-surface-raised p-1">
         {statusTabs.map((tab) => (

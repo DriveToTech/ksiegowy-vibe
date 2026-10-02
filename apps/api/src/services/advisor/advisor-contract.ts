@@ -12,8 +12,9 @@ export const advisorScopeSchema = z.object({
   includeRecords: z.boolean(),
   documentId: z.string().min(1).max(100).optional(),
   documentKind: z.enum(['outgoing', 'incoming']).optional(),
-}).strict().refine((scope) => Boolean(scope.documentId) === Boolean(scope.documentKind), {
-  message: 'Document identifier and kind must be provided together',
+  contractorId: z.string().min(1).max(100).optional(),
+}).strict().refine((scope) => Boolean(scope.documentId) === Boolean(scope.documentKind) && !(scope.contractorId && scope.documentId), {
+  message: 'Select either a document or contractor; a document requires its kind',
 });
 
 export const advisorModelAnswerSchema = z.object({

@@ -8,6 +8,7 @@ export interface AdvisorScope {
   includeRecords: boolean;
   documentId?: string | undefined;
   documentKind?: 'outgoing' | 'incoming' | undefined;
+  contractorId?: string | undefined;
 }
 
 export interface AdvisorEvidence {
@@ -27,6 +28,22 @@ export interface AdvisorCalculation {
   issuedVat: string;
   acceptedGross: string;
   invoiceCount: number;
+}
+
+export interface AdvisorContractorBalance {
+  contractorId: string;
+  name: string;
+  period: string;
+  balances: { currency: string; currentOutstanding: string; recordedPayments: string }[];
+}
+
+export type AdvisorInsightView = 'dashboard' | 'invoices' | 'incoming' | 'contractors';
+export interface AdvisorInsight {
+  key: string;
+  version: number;
+  title: string;
+  description: string;
+  evidence: { kind: 'outgoing' | 'incoming'; id: string; title: string }[];
 }
 
 export interface AdvisorTaxSource {
@@ -56,6 +73,7 @@ export interface AdvisorAnswer {
   questions: string[];
   evidence: AdvisorEvidence[];
   calculations: AdvisorCalculation[];
+  contractorBalance?: AdvisorContractorBalance;
   sources: AdvisorTaxSource[];
   provenance: {
     companyId: string;

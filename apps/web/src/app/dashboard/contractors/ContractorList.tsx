@@ -12,6 +12,9 @@ import { Banner } from '../../../components/molecules/Banner';
 import { cn } from '../../../lib/cn';
 import { formatMoney } from '../../../lib/format';
 import { t } from '../../../lib/translations';
+import { AdvisorTrigger } from '../../../components/advisor/AdvisorWorkspace';
+import { AdvisorInsightStrip } from '../../../components/advisor/AdvisorInsightStrip';
+import { advisorText } from '../../../lib/advisor-translations';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 type MobileView = 'list' | 'detail';
@@ -33,6 +36,7 @@ export function ContractorList({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [selectedId, setSelectedId] = useState<string | null>(contractors[0]?.id ?? null);
   const [mobileView, setMobileView] = useState<MobileView>('list');
+  const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
 
   const filtered = useMemo(() => contractors.filter((contractor) => {
     const matchesSearch =
@@ -78,6 +82,8 @@ export function ContractorList({
   }, [activeEnvironment, companyId, effectiveSelectedId]);
 
   return (
+    <div className="space-y-4">
+    {selected && <AdvisorInsightStrip companyId={companyId} environment={activeEnvironment} view="contractors" contractorId={selected.id} />}
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_372px] lg:items-start">
       <div className={cn('space-y-4', mobileView === 'detail' && 'hidden lg:block')}>
         {missingNipCount > 0 ? (
@@ -244,7 +250,9 @@ export function ContractorList({
           <ContractorDetail
             contractor={selected}
             canEdit={canEdit}
-            summary={summary}
+            summary={summary?.contractorId === selected.id ? summary : null}
+            period={period}
+            onPeriodChange={setPeriod}
             onClose={() => setSelectedId(null)}
           />
         ) : (
@@ -257,11 +265,14 @@ export function ContractorList({
           <ContractorDetail
             contractor={selected}
             canEdit={canEdit}
-            summary={summary}
+            summary={summary?.contractorId === selected.id ? summary : null}
+            period={period}
+            onPeriodChange={setPeriod}
             onClose={() => setMobileView('list')}
           />
         </div>
       ) : null}
+    </div>
     </div>
   );
 }
@@ -270,11 +281,15 @@ function ContractorDetail({
   contractor,
   canEdit,
   summary,
+  period,
+  onPeriodChange,
   onClose,
 }: {
   contractor: Contractor;
   canEdit: boolean;
   summary: ContractorSummary | null;
+  period: string;
+  onPeriodChange: (period: string) => void;
   onClose: () => void;
 }) {
   const outstandingIsPositive = summary != null && summary.outstanding !== '0' && summary.outstanding !== '0.00';
@@ -324,6 +339,10 @@ function ContractorDetail({
           label={t.contractors.detail.balancePaidThisYear}
           value={summary ? formatMoney(summary.paidThisYear) : '—'}
         />
+        <label className="text-xs text-muted">Faktury wystawione do końca miesiąca
+          <Input type="month" value={period} onChange={(event) => onPeriodChange(event.target.value)} />
+        </label>
+        <AdvisorTrigger explain period={period} contractorId={contractor.id} contractorName={contractor.name} question={advisorText.contractorQuestion} />
       </div>
 
       <div className={cn(PANEL_SHELL, 'gap-[10px]')}>

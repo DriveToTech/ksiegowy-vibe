@@ -22,6 +22,31 @@ describe('generateAdvisorResponse()', () => {
     if (provider === 'OPENAI') expect(body.store).toBe(false);
   });
 
+  it.each([
+    ['OPENAI', 'https://api.openai.com/v1/chat/completions'],
+    ['OPENROUTER', 'https://openrouter.ai/api/v1/chat/completions'],
+    ['ANTHROPIC', 'https://api.anthropic.com/v1/messages'],
+    ['OLLAMA', 'http://localhost:11434/v1/chat/completions'],
+  ] as const)('reports upstream authentication, quota and unsupported-model failures on %s without retrying', async (provider, endpoint) => {
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://localhost:11434/v1');
+    for (const [scenario, status, expectedStatus] of [
+      ['invalid credentials', 401, 502],
+      ['quota exceeded', 429, 429],
+      ['unsupported model', provider === 'OLLAMA' ? 404 : 400, 502],
+    ] as const) {
+      const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: scenario, type: 'invalid_request_error' } }), {
+        status, headers: { 'content-type': 'application/json' },
+      }));
+      vi.stubGlobal('fetch', request);
+      await expect(generateAdvisorResponse({ provider, model: 'unavailable-model', credential: 'private-key' }, 'Question', new AbortController().signal))
+        .rejects.toMatchObject(provider === 'ANTHROPIC'
+          ? { code: 'PROVIDER_ERROR', statusCode: expectedStatus }
+          : { status });
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(String(request.mock.calls[0]?.[0])).toBe(endpoint);
+    }
+  });
+
   it('uses an Anthropic-compatible schema and rejects truncated or oversized answers', async () => {
     const answer = { status: 'needs_clarification', shortAnswer: 'Question required', explanation: '', assumptions: [], questions: [], evidenceIds: [], sourceIds: [], containsTaxGuidance: false };
     const request = vi.fn()

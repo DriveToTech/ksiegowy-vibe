@@ -10,7 +10,7 @@ import { AdvisorAnswerCard } from './AdvisorAnswerCard';
 const settingsLink = '/dashboard/settings?section=advisor';
 
 export function AdvisorConversation({ companyId, environment, active, seed }: {
-  companyId: string; environment: AdvisorEnvironment; active: boolean; seed: { question: string; documentId?: string; documentKind?: 'outgoing' | 'incoming'; period?: string; revision: number };
+  companyId: string; environment: AdvisorEnvironment; active: boolean; seed: { question: string; documentId?: string; documentKind?: 'outgoing' | 'incoming'; contractorId?: string; contractorName?: string; period?: string; revision: number };
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [provider, setProvider] = useState<AdvisorProvider>('OPENROUTER');
@@ -40,11 +40,16 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
   }, [companyId]);
 
   useEffect(() => { if (active) return refreshSettings(); }, [active, refreshSettings]);
-  if (seedRevision !== seed.revision) {
+  useEffect(() => {
+    if (seedRevision === seed.revision) return;
     setSeedRevision(seed.revision);
     if (seed.question) setQuestion(seed.question);
     if (seed.period) setPeriod(seed.period);
-  }
+    if (seed.contractorId || seed.documentId) {
+      requestController.current?.abort();
+      setConversationId(null); setTurns([]); setIncludeRecords(false); setQuestionKind('records');
+    }
+  }, [seed, seedRevision]);
   useEffect(() => {
     if (!active) { requestController.current?.abort(); historyController.current?.abort(); }
     return () => { requestController.current?.abort(); historyController.current?.abort(); };
@@ -74,7 +79,8 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
     const submittedQuestion = question.trim();
     const requestId = crypto.randomUUID();
     const scope: AdvisorScope = { questionKind, period, includeRecords,
-      ...(seed.documentId && seed.documentKind && includeRecords ? { documentId: seed.documentId, documentKind: seed.documentKind } : {}) };
+      ...(seed.documentId && seed.documentKind && includeRecords ? { documentId: seed.documentId, documentKind: seed.documentKind } : {}),
+      ...(seed.contractorId && includeRecords ? { contractorId: seed.contractorId } : {}) };
     await Promise.resolve().then(async () => {
       const conversation = conversationId ? { id: conversationId } : await advisorRequest<AdvisorConversationSummary>(companyId, '/conversations', {
         method: 'POST', headers: environmentHeaders, signal: controller.signal, body: JSON.stringify({ provider, title: submittedQuestion.slice(0, 120) }),
@@ -93,6 +99,7 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
       <p className="min-w-0 break-words font-mono text-[11px] uppercase tracking-[0.08em] text-muted">{text.context}: {text.providers[provider]} · {environment} · {period}</p>
       <Button variant="ghost" aria-expanded={changingContext} aria-controls="advisor-context-fields" onClick={() => setChangingContext((current) => !current)}>{text.change}</Button>
     </div>
+    {seed.contractorId && <p className="text-sm text-foreground-secondary">{text.contractorBalance}: {seed.contractorName ?? seed.contractorId} · faktury wystawione do końca {period}</p>}
     {settings && <div id="advisor-context-fields" hidden={!changingContext} className="space-y-3 rounded-card border border-outline bg-surface-raised p-4">
       <div className="grid grid-cols-2 gap-3">
         <label className="text-sm">{text.provider}<select className="mt-1 min-h-11 w-full rounded-control border border-outline-control bg-surface-panel px-2" value={provider} disabled={busy || Boolean(conversationId)} onChange={(event) => setProvider(event.target.value as AdvisorProvider)}>
@@ -103,6 +110,7 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
       <label className="block text-sm">{text.questionKind}<select className="mt-1 min-h-11 w-full rounded-control border border-outline-control bg-surface-panel px-3" value={questionKind} disabled={busy} onChange={(event) => setQuestionKind(event.target.value as 'records' | 'tax')}><option value="records">{text.records}</option><option value="tax">{text.tax}</option></select></label>
       <label className="flex min-h-11 items-start gap-2 text-sm"><input className="mt-1 size-4 accent-[var(--primary)]" type="checkbox" checked={includeRecords} disabled={busy} onChange={(event) => setIncludeRecords(event.target.checked)} />{text.consent}</label>
       {seed.documentId && <p className="break-all text-xs text-muted">{text.selectedDocument}: {seed.documentId}</p>}
+      {seed.contractorId && <p className="break-words text-xs text-muted">{text.contractorBalance}: {seed.contractorName ?? seed.contractorId}</p>}
       <Button variant="ghost" href={settingsLink}>{text.settings}</Button>
     </div>}
     {error && <p role="alert" className="rounded-inset border border-error-ink bg-error p-3 text-sm text-error-ink">{error}</p>}

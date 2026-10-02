@@ -1,8 +1,8 @@
 # Tax advisor implementation plan
 
-Status: **implementation in progress on `feat/tax-advisor` — embedded advisor and MCP resource server implemented; ChatGPT/Claude host-link UX is available after consent, but live OAuth connector deployment is parked; current UX priority is guided OpenRouter/Ollama setup**. Updated: **2026-09-27**.
+Status: **implementation in progress on `feat/tax-advisor` — embedded advisor, model preview, connection settings and read-only MCP resource server implemented; live issuer/host validation, reviewed tax corpus and deployment checks remain release gates**. Updated: **2026-10-02**.
 
-Tracking: [TRY-160 — Tax advisor epic](https://linear.app/trysoft/issue/TRY-160/epic-implement-the-contextual-tax-advisor), in the Trysoft / Księgowy Vibe project. Phase issues: TRY-161 through TRY-166, in order. Branch: `feat/tax-advisor` (local). The [Linear plan](https://linear.app/trysoft/document/tax-advisor-implementation-plan-d88af7b59f73) contains the original planning snapshot; this checklist and the [implemented specification](../docs/specs/tax-advisor.md) track delivery.
+Tracking: [TRY-160 — Tax advisor epic](https://linear.app/trysoft/issue/TRY-160/epic-implement-the-contextual-tax-advisor), in the Trysoft / Księgowy Vibe project. Phase issues: TRY-161 through TRY-166. Additional tracking: TRY-167 (model preview), TRY-172/TRY-183 (connection design), TRY-173/TRY-177 (connector eligibility and live OAuth), TRY-174 (tax corpus review), TRY-175 (deployment checks), TRY-176 (contractor context and insights), TRY-178 (test gaps), TRY-179 (plan drift), TRY-181/TRY-182/TRY-184 (connector and connection delivery). Branch: `feat/tax-advisor` (local). The [Linear plan](https://linear.app/trysoft/document/tax-advisor-implementation-plan-d88af7b59f73) contains the original planning snapshot; this checklist and the [implemented specification](../docs/specs/tax-advisor.md) track delivery.
 
 ## 1. Outcome and delivery decisions
 
@@ -42,7 +42,7 @@ The single design source is the Claude Design artifact [5s6ojohFet7haaSAbWV9hp](
 
 ### Provider setup design: OpenRouter and self-hosted Ollama
 
-**Status: designed (TRY-172, 2026-10-01), not implemented.** The full design is in [the connection UX specification](../docs/specs/tax-advisor-connection-ux.md). It covers mode A (embedded API providers) and mode B (ChatGPT/Claude read-only connector), and includes flows, desktop 1440px and mobile 390px layouts, a per-state table, a component inventory, Polish microcopy with English keys, accessibility, and light/dark notes. The Claude Design artifact has no frames for this area. §0 of the specification lists what still has to be drawn. Mode B connector copy is **provisional** until the connector eligibility check (TRY-173) is done. Next: frontend-architect component boundaries. The sketch below is the original proposal; where they differ, the specification wins.
+**Status: connection UX designed (TRY-172) and implemented in Settings; visual alignment (TRY-182) and declined-answer presentation (TRY-184) have also shipped. Connection screens still need the Claude Design artifact (TRY-183).** The full design is in [the connection UX specification](../docs/specs/tax-advisor-connection-ux.md). It covers mode A (embedded API providers) and mode B (ChatGPT/Claude read-only connector), including flows, desktop/mobile layouts, states, copy and accessibility. Mode B eligibility and live host behavior remain unverified (TRY-173/TRY-177). The historical proposal and original gap audit below explain the implementation decisions; they are not current outstanding work.
 
 Open questions for TRY-173 (full list in §12 of the specification):
 
@@ -55,19 +55,21 @@ Open questions for TRY-173 (full list in §12 of the specification):
 
 The original proposal follows. Keep this flow under **Settings → Doradca**. Do not mix it with MCP subscription connectors. Company policy is ADMIN-owned; provider connections and API keys belong to the current user/company membership.
 
-#### Current gaps found in the implementation
+#### Historical implementation gap audit (before model preview and guided connection settings)
 
-| Current behavior | User impact |
+The following table records gaps observed before the model-preview and connection-settings changes. Consult [the implemented specification](../docs/specs/tax-advisor.md) and current routes for present behavior; do not treat these entries as an open checklist.
+
+| Earlier behavior | User impact at the time |
 |---|---|
-| One provider dropdown and one generic model/API-key form for OpenRouter, Ollama, OpenAI API and Claude API | Cloud-key and operator-hosted setup look like the same task |
-| Model ID is required before `PUT /connections/:provider`; the model list is only available from `GET /connections/:provider/models` after a saved connection | A new user must know a model ID before they can discover models |
-| Credentials and selected models belong to a membership and are shared across TEST/PRODUCTION; the UI does not say so | Users may incorrectly expect separate TEST and PRODUCTION provider setups |
-| The Ollama option is always selectable even when `ollamaAvailable` is false; its configured/not-configured state is not rendered | User discovers missing operator setup only after trying to save |
-| A save, synthetic test, and model discovery all use the same `perform()` success message (“Zapisano”) | Success feedback can describe the wrong operation |
-| Company allowed-provider status is shown only inside the ADMIN policy editor | A member can configure a provider that cannot be tested or selected for company use |
-| `GET /models` returns model IDs only; it does not assert structured-output compatibility | A listed model can still fail the synthetic test |
-| Ollama copy explains that the API server—not the browser laptop—must reach Ollama, but there is no explicit endpoint status, model discovery state, or operator remediation | Self-hosted setup remains guesswork |
-| Current permanent E2E tests cover advisor answers and the subscription settings choice, not OpenRouter/Ollama setup states | Provider setup regressions are not caught |
+| One provider dropdown and generic model/API-key form | Cloud-key and operator-hosted setup looked like the same task |
+| Model ID was required before saving, while discovery required a saved connection | New users needed to know a model ID before discovery |
+| Credentials/models were membership-scoped across TEST/PRODUCTION without explanation | Users could expect separate environment credentials |
+| Ollama was selectable without an operator endpoint | Configuration failed after selection |
+| Save, synthetic test and discovery used the same feedback | Success messages described the wrong operation |
+| Company provider eligibility was visible only in ADMIN policy editing | Members could configure an unusable provider |
+| Model listing did not establish structured-output compatibility | Listed models could fail the synthetic test |
+| Ollama operator/network status was not explicit | Self-hosted setup was ambiguous |
+| Advisor E2E coverage omitted provider-specific setup states | Setup regressions were not caught |
 
 #### Proposed flow
 
@@ -162,7 +164,7 @@ flowchart TD
 
 | Existing implementation | Reuse or constraint |
 |---|---|
-| `apps/web/src/components/organisms/DashboardShell.tsx` | Server-rendered shell already has a disabled central mobile AI button; wrap only advisor interaction in a client boundary |
+| `apps/web/src/components/organisms/DashboardShell.tsx` | Server-rendered shell hosts the advisor trigger and mobile sheet; keep advisor interaction in a client boundary |
 | `AppHeader.tsx`, `DashboardNavigation.tsx` | Add the desktop trigger and eventual briefing navigation |
 | `apps/web/src/components/atoms/NativeDialog.tsx` | Reuse for the mobile sheet; it already handles modal focus and Escape. Desktop docked panel remains non-modal |
 | `apps/web/src/app/dashboard/settings/SettingsWorkspace.tsx` | Add an advisor settings section alongside existing company/KSeF settings |
@@ -263,16 +265,16 @@ flowchart LR
 
 Keep accounting access, evidence selection, and provider transport separate because they have distinct security and correctness responsibilities. A small set of provider functions and a discriminated provider type is enough. No general agent runtime or provider class hierarchy is required.
 
-Initial persistence proposals, to be finalised in phase 1 after checking existing models:
+Implemented persistence (see `docs/data-model.md`):
 
-| Record | Minimum responsibility |
+| Record | Responsibility |
 |---|---|
-| `AdvisorConnection` | User + company + provider, encrypted credential and nonce, optional approved endpoint identifier, model, connection-test result and timestamps; unique user/company/provider |
-| `AdvisorConversation` | User, company, environment, connection reference, title, creation/expiry timestamps; provider changes do not silently reuse history |
-| `AdvisorMessage` | Conversation, role, content/validated answer, request identifier, lifecycle status, bounded evidence snapshot, provider/model, usage, timestamps |
-| `CompanyAdvisorPolicy` | Company opt-in, allowed external providers/data categories and retention; one record per company; absent means disabled |
+| `AdvisorConnection` | Membership/provider credential and model selection, with encrypted secrets where needed |
+| `AdvisorConversation` | User, company, environment, connection reference and retention scope |
+| `AdvisorTurn` | Conversation turn, request identifier, lifecycle status, validated answer, bounded evidence, provider/model and usage |
+| `CompanyAdvisorPolicy` | Company opt-in, provider/data-category permissions and retention |
 
-Use message metadata for request outcome, usage, and evidence rather than separate run, memory, billing, and trace tables. Enforce one active generation per conversation and unique client request identifiers in the database to prevent duplicate paid requests across processes. Conversations survive a disconnected connection as history; deletion of credentials must not delete evidence unexpectedly.
+Turn metadata carries request outcome, usage and evidence rather than a separate run table. Unique client request identifiers prevent duplicate paid requests across processes. Conversations survive disconnected credentials as private history.
 
 Start tax sources as a small versioned, reviewed repository corpus with metadata and excerpts, loaded by the API. Topic/period filtering suffices initially. Add PostgreSQL full-text search only when corpus size requires it; embeddings need a demonstrated retrieval problem.
 
@@ -291,7 +293,7 @@ All paths below are under `/companies/:companyId/advisor`. Schema validation, au
 | `DELETE /connections/:provider` | Revoke/delete user's saved credentials |
 | `GET /connections/:provider/models` | Server-side permitted model discovery; explicit model identifier fallback where discovery is unavailable |
 | `POST /connections/:provider/model-preview` | **Implemented (TRY-167).** Discovery before save; transient key, per-user ten-second throttle plus DB-backed daily caps (30 per user, 100 per company per UTC day; `429 DAILY_LIMIT_REACHED` with `Retry-After`; table `AdvisorModelPreviewUsage`, migration `20261001090000_advisor_model_preview_usage`), Ollama uses only `ADVISOR_OLLAMA_URL`. Ollama codes `OLLAMA_NOT_CONFIGURED`, `OLLAMA_UNREACHABLE`, `OLLAMA_NO_MODELS` (TRY-181) |
-| MCP `/advisor/mcp` | **Hardened (security review).** 60 calls/min/grant (429 + `Retry-After`), 20 s tool timeout, 100 KB result cap, throttled `lastUsedAt` written only after the final recheck; grant/regrant/revoke logged as `advisor.connector.*`. Open: M3 preview caps, I1 `ACTIVE` meaning |
+| MCP `/advisor/mcp` | **Hardened (security review).** 60 calls/min/grant (429 + `Retry-After`), 20 s tool timeout, 100 KB result cap, throttled `lastUsedAt` written only after the final recheck; grant/regrant/revoke logged as `advisor.connector.*` |
 | `PUT /connections/:provider`, `PUT /connectors/:client` | **Hardened.** Require operator enablement (and provider policy for connections); DELETE routes stay ungated. Upstream parse failures map to 502 |
 | `GET /connectors` | **Updated (TRY-181).** Grants include `status` (`WAITING`/`ACTIVE`/`EXPIRED`/`REVOKED`), `lastUsedAt`, `revokedAt`; revoked/expired grants retained 30 days; `DELETE /connectors/:client` revokes |
 | `GET /conversations` | User's history in the explicitly selected environment |
@@ -327,7 +329,7 @@ Security boundaries required for this feature:
 
 ## 8. Implementation backlog and acceptance gates
 
-All checkboxes below represent future implementation. Update this plan and the corresponding README/docs in each delivered change.
+The checklist records implementation separately from release gates. Checked items do not imply real-account, live-provider or tax-review sign-off.
 
 ### Phase 1 — Contracts and missing design states
 
@@ -355,17 +357,17 @@ All checkboxes below represent future implementation. Update this plan and the c
 - [x] Add the shell client boundary, panel/sheet, composer, answer cards, source display, and settings section. Files should follow existing components and `translations.ts` conventions.
 - [x] Add conversation history, cancellation, idempotent request handling, limits, and actionable failure states.
 - [x] Add OpenAI API, Anthropic API, and Ollama using the same application contract. Test provider/model structured-response capability and provide an unsupported-model state.
-- [ ] Implement the provider-specific OpenRouter/Ollama setup from the design above: company-policy status, server-side Ollama availability, model selection, explicit save/test states, and error messages tied to the completed operation.
-- [ ] Allow model discovery before a model has been saved. OpenRouter discovery must use the supplied API key transiently, with no persistence/logging and membership-level rate limiting; Ollama discovery must use only the operator-configured endpoint.
-- [ ] Add desktop/mobile E2E coverage for policy denied, OpenRouter first setup and saved/tested states, and Ollama not configured/configured states.
+- [x] Implement provider-specific OpenRouter/Ollama setup: company-policy status, server-side Ollama availability, model selection, explicit save/test states, and actionable errors.
+- [x] Allow bounded model preview before saving a connection, using a transient OpenRouter key or operator-configured Ollama endpoint.
+- [x] Add desktop/mobile E2E coverage for advisor connection settings; live provider checks remain on TRY-175.
 
 **Gate:** a user connects each provider type, asks a supported Polish VAT/invoice question, sees correct company facts and citations, follows up, cancels, reconnects, and deletes history. Opening the advisor or changing pages causes no automatic paid model call. Secret values never appear in returned settings or browser storage.
 
 ### Phase 4 — Contextual entry points and briefing
 
 - [x] Add dashboard briefing and document Explain entry points, including the document issue month.
-- [ ] Add contractor-balance explanations after reconciling that read model and its evidence contract.
-- [ ] Add one dismissible insight strip per supported view using deterministic attention facts; persist dismissal scoped to user/company/environment/insight version.
+- [x] Add contractor-scoped invoice balance explanations with evidence and explicit cumulative-payment limitations; this does not reconcile the separate contractor/report read models.
+- [x] Add one dismissible insight strip per supported view using deterministic attention facts; persist dismissal by membership, environment, insight key and version.
 - [x] Add `/dashboard/advisor` with an on-demand dated briefing and history, reusing the answer-generation path. Exclude unavailable bank, forecast, and filing figures.
 - [x] Link proposed actions to existing review/edit flows, respecting the user's current role. “Open invoice” and “Review incoming” are safe first actions; no autonomous writes.
 
@@ -405,15 +407,14 @@ Minimum automated coverage:
 - UI: connection setup, panel/sheet keyboard use, answer/source expansion, context switching during generation, useful errors, light/dark, mobile keyboard and safe areas.
 - Connector: consent, insufficient scope, audience mismatch, expiry, revocation and company removal, followed by a real-client check for both products.
 
-Implemented verification commands:
+Run focused checks from each package directory via `pnpm --dir`; `pnpm --filter ... test -- <path>` can pass `--` through to Vitest and select the full suite instead of the named file.
 
 ```bash
-pnpm --filter @ksiegowy/api test -- src/routes/advisor.test.ts
-pnpm --filter @ksiegowy/api test -- src/services/advisor/advisor.service.test.ts
-pnpm --filter @ksiegowy/api test -- src/services/dashboard-summary.service.test.ts
+pnpm --dir apps/api exec vitest run src/routes/advisor.test.ts
+pnpm --dir apps/api exec vitest run src/services/advisor/advisor.service.test.ts
 pnpm --filter @ksiegowy/api typecheck
 pnpm --filter @ksiegowy/web typecheck
-pnpm --filter @ksiegowy/e2e test -- tests/advisor.spec.ts
+pnpm --dir apps/e2e exec playwright test tests/advisor.spec.ts tests/advisor-settings.spec.ts
 pnpm audit --audit-level=high
 ```
 
@@ -442,6 +443,6 @@ Implementation evidence is recorded in [the advisor specification](../docs/specs
 
 - Phase 3 implementation is present; its real-provider and reviewed-tax-question release gate is still open.
 - Phase 2 shares correction semantics with the dashboard and keeps currencies separate; the dashboard's PLN-labelled sales buckets now explicitly exclude other currencies. Contractor/report reconciliation remains outside this slice.
-- Phase 4 includes a full conversation/briefing page and safe evidence links. Inline insights and contractor-specific context remain on TRY-164.
+- Phase 4 includes the conversation/briefing page, safe evidence links, contractor-scoped Explain and persisted inline insights. Recorded payments are cumulative invoice fields, not a historical payment ledger.
 - Phase 5 includes four read-only tools, an OAuth resource server, grant consent/expiry/revoke UX and signed-token checks. It is **not yet verified in real ChatGPT/Claude accounts**; external issuer deployment and account eligibility remain on TRY-165.
 - Phase 6 remains open: taxpayer regimes, reviewed tax rules and mutation proposals require the planned product/tax inputs. No unsupported figures are generated as placeholders.

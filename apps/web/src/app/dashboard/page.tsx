@@ -9,6 +9,7 @@ import { t } from '../../lib/translations';
 import { formatMoney } from '../../lib/format';
 import { requireAuthSession } from '../../lib/auth';
 import { AdvisorTrigger } from '../../components/advisor/AdvisorWorkspace';
+import { AdvisorInsightStrip } from '../../components/advisor/AdvisorInsightStrip';
 import { advisorText } from '../../lib/advisor-translations';
 
 const kpiCells = [
@@ -76,6 +77,7 @@ export default async function DashboardPage() {
           </>
         }
       />
+      <AdvisorInsightStrip companyId={companyId} environment={activeEnvironment} view="dashboard" />
 
       <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
         <div className="flex items-center justify-between border-b border-outline px-5 py-3.5">

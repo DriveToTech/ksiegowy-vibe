@@ -2,7 +2,7 @@ import { API_BASE } from './api-base';
 import { clientFetch } from './api-client';
 import { advisorText } from './advisor-translations';
 import type { AdvisorAnswer, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorEnvironment, AdvisorModelPreview, AdvisorProvider, AdvisorScope, AdvisorSettings } from '../../../../packages/types/src/advisor';
-export type { AdvisorAnswer, AdvisorEnvironment, AdvisorScope, AdvisorSettings, AdvisorProvider, AdvisorConversationSummary, AdvisorConversationDetail, AdvisorTurn, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorModelPreview, AdvisorConnectionSummary, AdvisorConnectorGrant, AdvisorConnectorGrantStatus } from '../../../../packages/types/src/advisor';
+export type { AdvisorAnswer, AdvisorEnvironment, AdvisorScope, AdvisorSettings, AdvisorProvider, AdvisorConversationSummary, AdvisorConversationDetail, AdvisorTurn, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorModelPreview, AdvisorConnectionSummary, AdvisorConnectorGrant, AdvisorConnectorGrantStatus, AdvisorInsight, AdvisorInsightView } from '../../../../packages/types/src/advisor';
 
 export function advisorRequest<Result>(companyId: string, path: string, options?: RequestInit): Promise<Result> {
   return clientFetch<Result>(`/companies/${encodeURIComponent(companyId)}/advisor${path}`, options);

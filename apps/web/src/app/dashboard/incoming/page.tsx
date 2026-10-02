@@ -7,6 +7,7 @@ import { MetricCard } from '../../../components/molecules/MetricCard';
 import { PageHeader } from '../../../components/molecules/PageHeader';
 import { IncomingInvoicesTable } from '../../../components/organisms/IncomingInvoicesTable';
 import { t } from '../../../lib/translations';
+import { AdvisorInsightStrip } from '../../../components/advisor/AdvisorInsightStrip';
 import { UploadButton } from './UploadButton';
 import { KsefSyncButton } from './KsefSyncButton';
 
@@ -62,6 +63,7 @@ export default async function IncomingPage({
           </>
         }
       />
+      <AdvisorInsightStrip companyId={companyId} environment={activeEnvironment} view="incoming" />
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard label={t.incoming.metrics.allLabel} value={String(result.total)} hint={t.incoming.metrics.allHint} />

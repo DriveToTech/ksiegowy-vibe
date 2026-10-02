@@ -357,7 +357,7 @@ export const t = {
       newInvoiceButton: "Nowa faktura",
       balanceEyebrow: "Saldo",
       balanceOutstanding: "Do zapłaty",
-      balancePaidThisYear: "Zapłacono w tym roku",
+      balancePaidThisYear: "Zapisane wpłaty na fakturach wystawionych w roku",
       recentDocuments: "Ostatnie dokumenty",
     },
     addByNip: {

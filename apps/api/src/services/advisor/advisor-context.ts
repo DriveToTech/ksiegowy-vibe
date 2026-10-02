@@ -5,6 +5,35 @@ import { issuedInvoiceFinancialScope } from '../invoice-financial-scope.js';
 
 export async function buildAdvisorContext(database: PrismaClient, companyId: string, environment: KsefEnvironment, scope: AdvisorScope, includeEvidence = true) {
   if (!scope.includeRecords) return { calculations: [], evidence: [], evidenceTruncated: false };
+  if (scope.contractorId) {
+    const contractor = await database.contractor.findFirst({
+      where: { id: scope.contractorId, companyId }, select: { id: true, name: true },
+    });
+    if (!contractor) throw new AdvisorError(404, 'CONTRACTOR_NOT_FOUND', 'Contractor is unavailable in this company');
+    const start = new Date(`${scope.period}-01T00:00:00.000Z`);
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    const invoiceWhere = {
+      ...issuedInvoiceFinancialScope(companyId, environment), contractorId: contractor.id,
+      issueDate: { lt: end },
+    };
+    const [totals, invoices] = await Promise.all([
+      database.invoice.groupBy({ by: ['currency'], where: invoiceWhere,
+        _sum: { totalGross: true, paymentReceived: true } }),
+      includeEvidence ? database.invoice.findMany({ where: invoiceWhere, orderBy: [{ issueDate: 'desc' }, { id: 'asc' }], take: 21,
+        select: { id: true, invoiceNumber: true, status: true, currency: true, totalGross: true, totalVat: true, updatedAt: true } }) : Promise.resolve([]),
+    ]);
+    const zero = new Prisma.Decimal(0);
+    return {
+      calculations: [],
+      contractorBalance: { contractorId: contractor.id, name: contractor.name, period: scope.period,
+        balances: totals.map((group) => ({ currency: group.currency,
+          currentOutstanding: Prisma.Decimal.max(zero, (group._sum.totalGross ?? zero).minus(group._sum.paymentReceived ?? zero)).toFixed(2),
+          recordedPayments: (group._sum.paymentReceived ?? zero).toFixed(2) })) },
+      evidence: invoices.slice(0, 20).map((invoice) => ({ id: invoice.id, kind: 'outgoing' as const, title: invoice.invoiceNumber ?? invoice.id,
+        status: invoice.status, currency: invoice.currency, gross: invoice.totalGross.toFixed(2), vat: invoice.totalVat.toFixed(2), updatedAt: invoice.updatedAt.toISOString() })),
+      evidenceTruncated: invoices.length > 20,
+    };
+  }
   const start = new Date(`${scope.period}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
   const period = { gte: start, lt: end };

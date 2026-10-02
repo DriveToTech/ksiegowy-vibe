@@ -26,6 +26,14 @@ export function AdvisorAnswerCard({ answer }: { answer: AdvisorAnswer }) {
         </div>)}
       </dl>)}
     </details>}
+    {answer.contractorBalance && <section aria-label={text.contractorBalance} className="space-y-2">
+      <h4 className="text-sm font-semibold">{text.contractorBalance}: {answer.contractorBalance.name} · faktury wystawione do końca {answer.contractorBalance.period}</h4>
+      {answer.contractorBalance.balances.map((balance) => <dl key={balance.currency} className="grid grid-cols-2 gap-2 rounded-inset bg-surface-raised p-3 text-sm">
+        <div><dt>{text.contractorOutstanding}</dt><dd className="font-mono tabular-nums">{balance.currentOutstanding} {balance.currency}</dd></div>
+        <div><dt>{text.contractorPaid}</dt><dd className="font-mono tabular-nums">{balance.recordedPayments} {balance.currency}</dd></div>
+      </dl>)}
+      <p className="text-xs text-muted">{text.contractorCaveat}</p>
+    </section>}
     {answer.evidence.length > 0 && <details className="group"><summary className={summaryClassName}>{text.evidence} ({answer.evidence.length})</summary>
       <ul className="space-y-2">{answer.evidence.map((record) => <li key={`${record.kind}:${record.id}`}><Link className="flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-control bg-surface-raised p-3 text-sm text-primary" href={`/dashboard/${record.kind === 'outgoing' ? 'invoices' : 'incoming'}/${encodeURIComponent(record.id)}`}>
         <span>{record.title}</span><span className="font-mono tabular-nums">{record.gross ?? '—'} {record.currency}</span>
