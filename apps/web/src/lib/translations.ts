@@ -112,10 +112,10 @@ export const t = {
     metrics: {
       allLabel: "Łącznie",
       allHint: "Wszystkie przesłane dokumenty w aktywnej firmie.",
-      processingLabel: "OCR w toku",
-      processingHint: "Dokumenty aktualnie analizowane przez proces OCR.",
-      confirmedLabel: "Potwierdzone",
-      confirmedHint: "Dokumenty zakończone i potwierdzone przez użytkownika.",
+      processingLabel: "OCR w toku · ta strona",
+      processingHint: "Dokumenty analizowane przez OCR na bieżącej stronie wyników.",
+      confirmedLabel: "Potwierdzone · ta strona",
+      confirmedHint: "Dokumenty potwierdzone na bieżącej stronie wyników.",
     },
     uploadCard: {
       eyebrow: "Dodaj dokument",
@@ -301,7 +301,7 @@ export const t = {
       "Brak kontrahentów. Dodaj pierwszego kontrahenta, aby móc wystawiać faktury.",
     noCompany: "Brak aktywnej firmy. Skonfiguruj firmę w ustawieniach.",
     readonlyWarning:
-      "Masz rolę podglądową — edytowanie kontrahentów jest niedostępne.",
+      "Masz rolę podglądową — dodawanie i edytowanie kontrahentów jest niedostępne.",
     newPageTitle: "Nowy kontrahent",
     newPageDescription:
       "Uzupełnij dane kontrahenta, aby móc wystawiać mu faktury.",
@@ -374,7 +374,7 @@ export const t = {
   compliance: {
     pageEyebrow: "Compliance",
     pageTitle: "Raporty & JPK",
-    pageDescription: "Dolor sit ament consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    pageDescription: "Raporty podatkowe i wysyłka JPK_V7M nie są jeszcze dostępne w aplikacji.",
     noCompanyTitle: "Brak aktywnej firmy",
     noCompanyDescription:
         "Najpierw skonfiguruj firmę w ustawieniach, aby rozpocząć pracę na raportach i JPK.",
@@ -639,15 +639,15 @@ export const t = {
     brandName: "Księgowy Vibe",
     headline: "Faktury, OCR i KSeF bez chaosu starych systemów.",
     description:
-      "Jedna przestrzeń robocza na dokumenty wychodzące i przychodzące, zbudowana wokół statusu rozliczenia w KSeF — zawsze wiesz, które faktury istnieją prawnie.",
-    featureBulletFa3: "Faktury strukturalne FA(3), rozliczane w kilka sekund",
-    featureBulletOffline24: "Kolejka offline24 z terminem na kolejny dzień roboczy",
-    featureBulletOcr: "OCR dla papieru i PDF, dopasowany do wpisów bankowych",
-    openSourceTag: "OPEN SOURCE · SAMODZIELNY HOSTING · AGPL",
+      "Jedna przestrzeń robocza na dokumenty wychodzące i przychodzące. Sprawdzaj status wysyłki i potwierdzenia faktur w KSeF.",
+    featureBulletFa3: "Wystawianie faktur FA(3) i śledzenie statusu KSeF",
+    featureBulletOffline24: "Automatyczne ponawianie wysyłki przy błędach KSeF",
+    featureBulletOcr: "Odczyt danych z faktur PDF i obrazów z kontrolą przed zapisem",
+    openSourceTag: "SAMODZIELNY HOSTING · OPROGRAMOWANIE PRYWATNE",
     formTitle: "Logowanie",
     formSubtitle: "Zaloguj się przez Google OAuth2, aby przejść do pulpitu firmy.",
     googleButton: "Kontynuuj z Google",
-    ksefNote: "Uwierzytelnianie w KSeF odbywa się osobno dla każdej firmy, tokenem lub certyfikatem — nigdy hasłem do tego konta.",
+    ksefNote: "Uwierzytelnianie w KSeF odbywa się osobno dla każdej firmy, tokenem API — nigdy hasłem do tego konta.",
   },
 
   onboarding: {

@@ -18,12 +18,6 @@ export default async function OnboardingLayout({ children }: Readonly<{ children
         .catch(() => false)
     : false;
 
-  // Reverse guard: a user who already has a company and a working KSeF credential
-  // is done — step 4 (invite) is optional, so this is the completion signal.
-  if (company && hasKsefToken) {
-    redirect('/dashboard');
-  }
-
   const completed = new Set<'company' | 'ksef'>();
   if (company) completed.add('company');
   if (hasKsefToken) completed.add('ksef');

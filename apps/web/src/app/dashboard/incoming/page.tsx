@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getCompanyKsefSettings, getIncomingInvoices } from '../../../lib/api';
 import { requireAuthSession } from '../../../lib/auth';
 import { Button } from '../../../components/atoms/Button';
@@ -31,6 +32,10 @@ export default async function IncomingPage({
 
   const result = await getIncomingInvoices(companyId, activeEnvironment, { page: String(page) });
   const totalPages = Math.max(1, Math.ceil(result.total / result.limit));
+  if (page > totalPages) {
+    redirect(`/dashboard/incoming?page=${totalPages}`);
+  }
+
   const processingCount = result.data.filter((invoice) => invoice.status === 'OCR_PROCESSING').length;
   const confirmedCount = result.data.filter((invoice) => invoice.status === 'CONFIRMED').length;
 

@@ -21,6 +21,7 @@ Private design reference files stay on the developer's machine and are excluded 
 | [Mobile-first UX Remediation](docs/specs/mobile-first-remediation.md) | Mobile interaction tokens, shell/navigation contracts, secure KSeF switching, component states, and regression matrix |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [Tax Advisor](docs/specs/tax-advisor.md) | Embedded provider setup, reviewed-source contract, subscription connector/OAuth deployment, and current release limits |
+| [Tax Advisor Connection UX](docs/specs/tax-advisor-connection-ux.md) | Settings → Doradca design: API-provider setup and ChatGPT/Claude read-only connector, states, microcopy, accessibility, Stitch screen map |
 | [Tax Advisor Implementation Plan](spec/tax-advisor-implementation-plan.md) | Provider setup design for OpenRouter/Ollama, advisor screens 15–19 mapping, implementation checklist, and release gates |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
@@ -30,7 +31,7 @@ Private design reference files stay on the developer's machine and are excluded 
 
 ## Features
 
-- **Advisor (opt-in)** — Read-only company-record explanations, desktop/mobile chat, monthly briefing, private history and encrypted API-key connections for OpenRouter, OpenAI API, Anthropic API or operator-hosted Ollama. ChatGPT/Claude subscriptions are used in their own apps through a separately configured OAuth/MCP connector; users sign in there, while Księgowy Vibe only grants scoped read access. Embedded chat always uses separate API billing. Tax answers require an operator-supplied reviewed source corpus; real provider/connector acceptance remains a release gate. See [setup and limitations](docs/specs/tax-advisor.md).
+- **Advisor (opt-in)** — Read-only company-record explanations, desktop/mobile chat, monthly briefing, private history and encrypted API-key connections for OpenRouter, OpenAI API, Anthropic API or operator-hosted Ollama. ChatGPT/Claude subscriptions are used in their own apps through a separately configured OAuth/MCP connector; users sign in there, while Księgowy Vibe only grants scoped read access. Embedded chat always uses separate API billing. Out-of-scope questions (PIT/CIT/ZUS, legal opinions, filing) get a `declined` answer, deterministically and without a paid model call when the wording is unambiguous. Tax answers require an operator-supplied reviewed source corpus; real provider/connector acceptance remains a release gate. See [setup and limitations](docs/specs/tax-advisor.md).
 
 - **KSeF Integration** — Submit VAT invoices and sync incoming invoices from the National e-Invoice System (FA(3) XML generation, XSD validation, session management, offline queue with retry)
 - **KSeF Environment Context** — Per-user `TEST` / `PRODUCTION` environment context with separate credentials, sessions, invoice visibility, invoice KSeF state, and direct PDF/file access per environment. The shell shows a passive environment indicator; context changes stay in the dedicated settings flow. Token presence is exposed without token values so KSeF actions can fail closed. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
@@ -94,13 +95,13 @@ ksiegowy-vibe/
 
 The visual system is **Aurora Solid** — opaque layered surfaces, no `blur()`/`backdrop-filter`, one shadow per page frame, Sora + IBM Plex Mono typography. Tokens live as CSS custom properties in `apps/web/src/app/globals.css` and are exposed to Tailwind v4 via `@theme inline`.
 
-Source of truth: **`spec/aurora-solid-redesign-plan.md`** (plan and phase history) and **`docs/specs/aurora-solid-tokens.md`** (the token spec: both themes, contrast findings, component states). `spec/stitch-ui-implementation-plan.md` and `spec/ui/00-06` describe the previous "Aeon Ethereal" system and are superseded historical record.
+Source of truth: **`spec/aurora-solid-redesign-plan.md`** (completed redesign plus 2026 live-Stitch production-alignment audit) and **`docs/specs/aurora-solid-tokens.md`** (implemented theme tokens and historical design decisions). The live Stitch project has a separate generic theme; verify its individual screenshots before changing Aurora tokens. `spec/stitch-ui-implementation-plan.md` and `spec/ui/00-06` describe the previous "Aeon Ethereal" system and are superseded historical record.
 
 - The web app uses the themed SVG wordmarks from `apps/web/src/components/brand/assets/` in the app and onboarding headers, the stacked lockup on the login panel, and the SVG mark as the favicon.
 - The 60px chrome bar is the sole global brand anchor and contains company, KSeF, theme, and session context.
 - The 226px desktop rail contains navigation plus contextual status widgets (JPK_V7M filing deadline, rejected-invoice count); page actions live beside the content they affect.
 - Light mode is the default, with an explicit dark preference stored locally in the browser. Both themes are held to WCAG AA on text and interactive boundaries.
-- Mobile uses the redesign's 90px persistent bottom navigation: Start, Zakupy, centered AI assistant placeholder, Sprzedaż, and Więcej. The shell reserves the bar and safe-area inset so content and focused controls are not covered while scrolling.
+- Mobile uses the redesign's 90px persistent bottom navigation: Start, Zakupy, the tax-advisor trigger, Sprzedaż, and Więcej. The shell reserves the bar and safe-area inset so content and focused controls are not covered while scrolling. Advisor access depends on company/operator configuration and reviewed-source availability.
 
 ## First-Run Flow
 
@@ -111,7 +112,7 @@ A signed-in user with no company is redirected from `/dashboard` into the onboar
 3. **KSeF connection** — token per environment (`PATCH /companies/:id/ksef-settings`).
 4. **Invite your accountant** — optional (`POST /companies/:companyId/invites`); no email is sent, so the UI surfaces a copyable invite link.
 
-Progress is not stored separately — the wizard resumes by deriving the first incomplete step from the session and the company record, so "Save and finish later" is simply a link back to `/dashboard`. Invited users join an existing company through `POST /invites/:token/accept` and never enter this flow.
+Progress is not stored separately — the wizard resumes by deriving the first incomplete step from the session and the company record, so "Save and finish later" is simply a link back to `/dashboard`. **Production blocker:** the optional accountant invitation currently generates `/invite/{token}` without a browser route to accept it; do not offer invitations to real recipients until an acceptance journey is shipped and verified.
 
 ## Prerequisites
 

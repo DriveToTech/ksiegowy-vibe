@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Button } from '../../../../components/atoms/Button';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
 import { PageHeader } from '../../../../components/molecules/PageHeader';
-import { requireAuthSession } from '../../../../lib/auth';
+import { getActiveCompanyRole, requireAuthSession } from '../../../../lib/auth';
 import { t } from '../../../../lib/translations';
 import { NewContractorForm } from './NewContractorForm';
 
@@ -26,6 +26,8 @@ export default async function NewContractorPage() {
       </div>
     );
   }
+  const role = getActiveCompanyRole(session);
+  const canEdit = role === 'ADMIN' || role === 'ACCOUNTANT';
 
   return (
     <div className="space-y-6">
@@ -41,7 +43,11 @@ export default async function NewContractorPage() {
         title={t.contractors.newPageTitle}
         description={t.contractors.newPageDescription}
       />
-      <NewContractorForm companyId={companyId} />
+      {canEdit ? (
+        <NewContractorForm companyId={companyId} />
+      ) : (
+        <p className="text-sm text-muted">{t.contractors.readonlyWarning}</p>
+      )}
     </div>
   );
 }

@@ -19,5 +19,9 @@ export default async function OnboardingKsefPage() {
     return <Banner tone="error">{t.onboarding.ksef.loadError}</Banner>;
   }
 
+  if (settings.credentials.some((credential) => credential.hasToken)) {
+    redirect('/dashboard');
+  }
+
   return <KsefSettingsForm companyId={companyId} settings={settings} redirectTo="/onboarding/team" />;
 }

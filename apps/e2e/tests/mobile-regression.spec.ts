@@ -56,7 +56,7 @@ for (const mobileTheme of mobileThemes) {
       });
 
       expect(navigationSlots.count).toBe(5);
-      expect(navigationSlots.labels).toEqual(['Start', 'Zakupy', 'Asystent podatkowy AI — wkrótce', 'Sprzedaż', 'Więcej']);
+      expect(navigationSlots.labels).toEqual(['Start', 'Zakupy', 'Otwórz doradcę', 'Sprzedaż', 'Więcej']);
       expect(navigationSlots.left).toBe(0);
       expect(navigationSlots.right).toBe(navigationSlots.viewportWidth);
       expect(new Set([navigationSlots.rowTops[0], navigationSlots.rowTops[1], navigationSlots.rowTops[3], navigationSlots.rowTops[4]]).size).toBe(1);

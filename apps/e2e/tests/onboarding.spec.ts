@@ -55,6 +55,8 @@ test('new user with no company is guided through company, ksef, and team steps t
   // Step 3 — team: optional invite. No email is actually sent — the UI must surface a
   // copyable invite link instead.
   await expect(page.getByRole('heading', { name: 'Zaproś księgowego' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Zaproś księgowego' })).toBeVisible();
   await page.getByLabel('Adres e-mail *').fill('bookkeeper@example.test');
   await page.getByRole('button', { name: 'Wyślij zaproszenie' }).click();
   await expect(page.getByText('Zaproszenie utworzone')).toBeVisible();
