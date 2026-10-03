@@ -4,29 +4,40 @@ Research date: 2026-10-01. Read-only desk research against official documentatio
 
 Labels: **verified** = read on an official page on the access date; **partial** = official source seen only through a search snippet or a summarised fetch; **unverified** = not found or needs a real account.
 
-Method caveat: pages were fetched through a tool that summarises content. Quotes below are from those summaries. Several `help.openai.com` pages returned HTTP 403 to the fetcher, so ChatGPT plan and admin facts rest on `developers.openai.com` (verified) plus search snippets of the help article (partial).
+Method caveat for the 2026-10-01 research below: pages were fetched through a summarising tool and some `help.openai.com` pages returned 403. The 2026-10-03 recheck above reads the current official Help Center and developer documentation directly; target-account behaviour remains unverified.
+
+## Official documentation recheck — 2026-10-03
+
+This desk recheck **supersedes conflicting plan/menu claims below** but does not verify the target accounts. [OpenAI's developer-mode guide](https://developers.openai.com/api/docs/guides/developer-mode) says Plus, Pro, Business, Enterprise and Edu can create remote MCP apps on web via **Settings → Security and login → Developer mode → ChatGPT Plugins**. Its [Help Center article](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt) instead describes **Business and Enterprise/Edu** workspace-admin flows (Workspace settings → Apps → Create), says **Pro supports read/fetch MCP in developer mode**, and does not confirm Plus eligibility there. These official pages differ in scope and interface; do **not** promise Plus or self-service Business access until the intended account's actual UI is checked. The Help Center explicitly says MCP apps are **web only**, not mobile; Enterprise/Edu can delegate developer access through RBAC. Publishing is admin/owner-only.
+
+[Claude's current custom-connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp) confirms Free (one connector), Pro and Max individual setup at **Customize → Connectors → Add custom connector**; Team/Enterprise owners add under **Organization settings → Connectors**, then members connect individually. Enterprise custom roles with Manage access to Libraries may add connectors. Claude's cloud connects to remote servers even for Desktop/mobile use; the guide documents web setup paths, not adding a connector inside mobile. Both the MCP server and OAuth issuer must be reachable from the host infrastructure.
+
+OAuth operator checklist from the current [OpenAI authentication guide](https://developers.openai.com/plugins/build/auth) and [Claude authentication guide](https://claude.com/docs/connectors/building/authentication): HTTPS protected-resource metadata and a `401` Bearer challenge, OAuth/OIDC issuer discovery, authorization-code PKCE S256, exact resource/audience and scopes, and working refresh-token handling. ChatGPT supports CIMD, DCR or predefined clients and may use `https://chatgpt.com/connector/oauth/{callback_id}` or the stable `https://chatgpt.com/connector_platform_oauth_redirect` **only** when issuer identification is advertised and returned; copy the callback displayed in its management UI. Claude uses `https://claude.ai/api/mcp/auth_callback` for hosted apps. Claude CIMD requires both `client_id_metadata_document_supported: true` and `none` in token endpoint methods, otherwise falls back to DCR; its public-client refresh tokens must rotate or be sender-constrained. Pre-registered clients require the intended host account to expose that option.
+
+**Target-account acceptance still open:** record plan/workspace role, visible developer/custom-connector toggle and admin approvals, the actual MCP URL/setup labels, exact ChatGPT callback and client-registration choice, OAuth success/failure, tool-result link behaviour, and what each host displays after revoke/expiry or unreachable server. Never collect a consumer subscription token. TRY-177 separately requires the deployed issuer and real authenticated tool calls.
 
 ## 1. Plan eligibility
 
 | Product | Plan | Can add custom remote MCP connector | Label |
 | --- | --- | --- | --- |
-| ChatGPT | Free | No (catalogue apps only, per third-party blogs) | unverified (no official statement found) |
-| ChatGPT | Plus, Pro | Yes, via developer mode, web only | verified ([developer mode guide](https://developers.openai.com/api/docs/guides/developer-mode), accessed 2026-10-01: "Available to Pro, Plus, Business, Enterprise, and Education accounts on the web") |
-| ChatGPT | Business | Yes; only admins/owners can enable developer mode and create apps, each admin for themselves | partial (help article snippet, [help.openai.com 12584461](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt), accessed 2026-10-01) |
-| ChatGPT | Enterprise, Edu | Yes; admins/owners, or members granted access through RBAC | partial (same snippet) |
+| ChatGPT | Free | Custom remote MCP eligibility not confirmed in official material | unverified; do not promise |
+| ChatGPT | Plus | Developer guide says yes; Help Center limits its custom-app overview to workspace plans and mentions Pro read/fetch only | conflicting official descriptions; verify on target account |
+| ChatGPT | Pro | Read/fetch MCP in developer mode explicitly confirmed by Help Center; broader developer guide says full MCP | documented read access; verify target account |
+| ChatGPT | Business | Admin/owner enables developer mode and creates/publishes workspace apps | official Help Center, target role unverified |
+| ChatGPT | Enterprise, Edu | Admin/owner or RBAC-authorised developer creates apps; admin/owner publishes | official Help Center, target role unverified |
 | Claude | Free | Yes, limited to one custom connector | verified ([add a connector](https://claude.com/docs/connectors/custom/remote-mcp), [support article](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp), both accessed 2026-10-01) |
 | Claude | Pro, Max | Yes, user adds to own account | verified (same) |
 | Claude | Team | Owner adds for the organisation; members then press Connect and sign in with their own account | verified (same) |
 | Claude | Enterprise | Owner, or a member whose custom role includes managing the organisation's libraries; members connect individually | verified ([add a connector](https://claude.com/docs/connectors/custom/remote-mcp)) |
 
 Developer mode:
-- ChatGPT: required. Settings, Security and login, Developer mode toggle. "Developer mode availability can depend on account and workspace policy" (verified, [connect and test](https://developers.openai.com/plugins/deploy/connect-chatgpt)). The partial help snippet places the Business toggle at Workspace Settings, Permissions and Roles, "Developer mode / Create custom MCP connectors", and the Enterprise/Edu toggle at Settings, Apps, Advanced Settings.
-- ChatGPT write tools need user review by default; users may remember approve/deny per tool for one conversation (verified, developer mode guide). Our four tools are read-only, but whether ChatGPT still prompts for read-only tools is **unverified**. A search snippet claims "Pro users can connect MCPs with read/fetch permissions", which is from a community post, not official.
+- ChatGPT: developer mode is required. The developer guide says **Settings → Security and login**, then **ChatGPT Plugins**; the Help Center gives workspace paths under **Workspace settings → Apps → Create** and Enterprise/Edu member paths under **Settings → Apps → Advanced Settings**. Use the target account's visible labels rather than presenting these as one stable menu.
+- ChatGPT write tools need user review by default; users may remember approve/deny per tool for one conversation (verified, developer mode guide). Our four tools are read-only, but whether ChatGPT prompts for them on the target account is **unverified**. The official Help Center confirms Pro read/fetch MCP in developer mode; it does not resolve the conflicting Plus claim above.
 - Claude: no developer mode concept. Team/Enterprise admin action is the Owner adding the connector (verified).
 
 Surfaces:
-- ChatGPT: web only for adding (verified: "on the web"). One community snippet says MCP apps are not available on mobile: unverified. Whether an already-added connector is usable from the ChatGPT mobile app: **unverified**.
-- Claude: support article says connectors work on Claude.ai, Cowork, Desktop and mobile apps (partial, summarised). OAuth callback is shared by "claude.ai on the web, Desktop, mobile, and Cowork" (verified, [authentication](https://claude.com/docs/connectors/building/authentication)). Whether a custom connector can be **added** from the mobile app, as opposed to used there after adding on web, is **unverified**; documented add steps only describe web/desktop paths.
+- ChatGPT: MCP apps are web only, including their use (official Help Center); mobile support must not be promised.
+- Claude: current support and developer guides say connectors work in claude.ai, Cowork, Desktop and mobile. The hosted OAuth callback is shared by these surfaces. Whether a custom connector can be **added** from mobile, rather than used there after web setup, remains unverified.
 
 ## 2. Menu paths to add a connector by URL
 
@@ -119,12 +130,12 @@ UX spec changes: replace provisional [P] copy with the above; remove the "works 
 
 ## 8. The 12 open questions
 
-1. Plans and developer mode: Plus, Pro, Business, Enterprise, Edu support custom MCP via developer mode on web (verified; Business/Enterprise detail partial). Free: no official statement. Read-only tools needing no extra approval: cannot verify without a real account.
+1. Plans and developer mode: Business and Enterprise/Edu custom MCP apps are documented with admin controls; Pro read/fetch is documented. Plus appears in the developer guide but not the Help Center's scope statement; verify it on the target account. Free ChatGPT remains unconfirmed. Read-only tool prompts require a real-account check.
 2. Business/Enterprise admin: Business, only admin/owner enable developer mode for themselves; Enterprise/Edu, RBAC grants members access; admin-published apps for the workspace (partial). Member "request access" button: cannot verify without a real account.
 3. Claude plans: Free (one), Pro, Max, Team, Enterprise; Owner adds on Team/Enterprise, Enterprise custom role with library management may too; members connect individually (verified).
 4. Menu paths: see §2 (verified, English). Polish UI labels and mobile paths: cannot verify without a real account.
 5. OAuth registration: both support DCR and CIMD; both also support pre-registered clients. Callbacks: Claude `https://claude.ai/api/mcp/auth_callback`; ChatGPT `https://chatgpt.com/connector/oauth/{callback_id}` or `https://chatgpt.com/connector_platform_oauth_redirect` (verified).
-6. Mobile: ChatGPT web only to add (verified for web; mobile use unverified). Claude mobile uses connectors, but adding from mobile is unverified.
+6. Mobile: ChatGPT MCP apps are web only per Help Center. Claude can use remote connectors from mobile, but adding one from mobile is not documented.
 7. Failure display: Claude's three messages verified (§4); ChatGPT text cannot be verified without a real account. Do not rely on either; our copy explains recovery.
 8. Links: ChatGPT docs recommend absolute URLs; clickability in answers cannot be verified without a real account; Claude likewise. Use absolute URLs; return-banner hints are our own query parameters.
 9. `lastUsedAt` privacy: not a vendor question; vendors give no constraint. Product/legal decision; shown only to the granting user. No research answer.

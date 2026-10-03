@@ -118,7 +118,7 @@ export const advisorText = {
     hostSteps: {
       CHATGPT: [
         { text: 'Otwórz ChatGPT w przeglądarce.', verification: 'verified' },
-        { text: 'W ustawieniach, w sekcji bezpieczeństwa, włącz tryb dewelopera.', verification: 'verified' },
+        { text: 'W ustawieniach włącz tryb dewelopera, jeśli jest dostępny na Twoim koncie. Nazwy sekcji zależą od planu.', verification: 'partial' },
         { text: 'W sekcji aplikacji lub wtyczek wybierz „+”, podaj nazwę i wklej adres konektora.', verification: 'verified' },
         { text: 'Utwórz połączenie i zaloguj się.', verification: 'verified' },
       ],
@@ -131,9 +131,9 @@ export const advisorText = {
     accountRestrictions: 'Ograniczenia konta i administratora',
     hostRestrictions: {
       CHATGPT: [
-        { text: 'Plany Plus i Pro: własny konektor dodasz przez tryb dewelopera, tylko w przeglądarce.', verification: 'verified' },
-        { text: 'Plan Business: tryb dewelopera włącza administrator lub właściciel.', verification: 'partial' },
-        { text: 'Plany Enterprise i Edu: wymagane uprawnienie nadane przez administratora.', verification: 'partial' },
+        { text: 'Plan Pro: dostęp do konektorów tylko do odczytu jest opisany przez OpenAI. Dostępność w planie Plus wymaga potwierdzenia na Twoim koncie.', verification: 'partial' },
+        { text: 'Plan Business: tryb dewelopera włącza administrator lub właściciel.', verification: 'verified' },
+        { text: 'Plany Enterprise i Edu: administrator nadaje dostęp, a uprawniony deweloper może utworzyć aplikację.', verification: 'verified' },
         { text: 'Plan Free: brak potwierdzenia, że własne konektory są dostępne.', verification: 'unverified' },
       ],
       CLAUDE: [
