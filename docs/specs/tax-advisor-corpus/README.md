@@ -18,13 +18,14 @@ Linear: TRY-174. Drafted: 2026-10-01 against the VAT Act consolidated text **Dz.
 
 `sources.draft.json` carries extra fields (`authority`, `legalInstrument`, `excerptKind`, `verifiedAt`, `verificationMethod`, `confidence`, `drafterNotes`, `review`) that the strict schema rejects (`topics` is accepted by the loader), and `reviewedAt` is `null`. It therefore fails closed if someone points the loader at it. I checked this against the loader's zod schema: the draft is rejected, and the promoted shape below passes for all 24 entries.
 
-Promotion (done by or after the reviewer, never by the drafter), with the reviewer's identity and dates filled in. Entries the reviewer rejects are removed first.
+Promotion is a review gate, not a format conversion. The qualified reviewer must first verify the official text, mark each accepted entry `review.status = "APPROVED"`, supply their own name and review dates, and remove rejected entries. Keep the signed review record and the approved evaluation set separately; do not put an unreviewed or generated file on the API's source path. From this directory, export only after **every remaining entry** is approved:
 
 ```bash
-jq --arg who "Imię Nazwisko, doradca podatkowy nr wpisu XXXX" --arg at "YYYY-MM-DD" --arg until "YYYY-MM-DD" \
-  '[.sources[] | {id,title,url,section,effectiveFrom,effectiveUntil,excerpt,topics,reviewedBy:$who,reviewedAt:$at,reviewExpiresAt:$until}]' \
-  sources.draft.json > advisor-tax-sources.json
+jq -e '(.sources | length > 0) and all(.sources[]; .review.status == "APPROVED" and .review.reviewedBy != "PENDING" and (.review.reviewedBy | length > 0) and (.review.reviewedAt | type == "string") and (.review.reviewExpiresAt | type == "string"))' sources.draft.json &&
+  jq '[.sources[] | {id,title,url,section,effectiveFrom,effectiveUntil,excerpt,topics,reviewedBy:.review.reviewedBy,reviewedAt:.review.reviewedAt,reviewExpiresAt:.review.reviewExpiresAt}]' sources.draft.json > /secure/path/advisor-tax-sources.json
 ```
+
+If the first command returns false, stop. The strict API loader still validates the exported file; a passing export is **not** legal approval. Store the approved JSON outside the repository, record its SHA-256 and review sign-off, then use the opt-in Compose override described in [the advisor specification](../tax-advisor.md#reviewed-tax-source-corpus).
 
 ## Topic vocabulary
 

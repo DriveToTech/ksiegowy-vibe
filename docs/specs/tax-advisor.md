@@ -117,6 +117,15 @@ Membership, policy, session validity and connection identity are rechecked befor
 
 Set `ADVISOR_TAX_SOURCES_PATH` to an operator-controlled JSON array. A missing path means no sources; malformed configured data fails closed. Limit: 128 KB, 40 unique entries; at most eight applicable entries are supplied. In Docker, mount the file read-only and use its container path.
 
+The repository's `sources.draft.json` contains **pending, unreviewed** entries and must never be mounted. After a qualified reviewer signs off the entries and the Polish evaluation set, export an approved JSON file outside the repository using the guarded procedure in [the corpus README](tax-advisor-corpus/README.md#loader-format-and-why-the-draft-is-deliberately-not-loadable). For Compose, opt in explicitly with the override; the host path must already be a file and is mounted read-only:
+
+```bash
+ADVISOR_TAX_SOURCES_HOST_PATH=/absolute/path/to/approved-advisor-tax-sources.json \
+  docker compose -f docker-compose.yml -f docker-compose.advisor-sources.yml up -d api
+```
+
+The override sets `ADVISOR_TAX_SOURCES_PATH=/app/advisor/tax-sources.json` only for the API service. Without it, keep the path unset and tax questions fail closed. On deployment, validate the reviewed file through the API loader, record its SHA-256 with reviewer sign-off, and run the approved 45-case Polish evaluation against **each enabled provider/model** using capped credentials and synthetic records. Existing automated tests cover draft source retrieval and deterministic decline rules only; they do not certify the legal assertions or substitute for live provider evaluation.
+
 Each entry requires:
 
 | Field | Contract |

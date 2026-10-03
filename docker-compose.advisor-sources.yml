@@ -1,0 +1,12 @@
+# Opt in only after a qualified reviewer approves the corpus. Do not mount sources.draft.json.
+services:
+  api:
+    environment:
+      ADVISOR_TAX_SOURCES_PATH: /app/advisor/tax-sources.json
+    volumes:
+      - type: bind
+        source: ${ADVISOR_TAX_SOURCES_HOST_PATH:?Set ADVISOR_TAX_SOURCES_HOST_PATH to an approved JSON file}
+        target: /app/advisor/tax-sources.json
+        read_only: true
+        bind:
+          create_host_path: false
