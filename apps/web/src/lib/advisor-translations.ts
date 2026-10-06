@@ -7,6 +7,31 @@ export const advisorText = {
   newConversation: 'Nowa rozmowa', history: 'Historia rozmów', emptyHistory: 'Nie masz jeszcze rozmów w tym środowisku.',
   deleteConversation: 'Usuń rozmowę', deleteConfirm: 'Usunąć tę rozmowę i jej lokalną historię?',
   records: 'Dokumenty firmy', tax: 'Pytanie podatkowe', period: 'Okres', provider: 'Dostawca', disabled: 'Administrator firmy musi włączyć doradcę i wybrać dozwolonych dostawców.',
+  blocked: {
+    settings: 'Otwórz ustawienia Doradcy',
+    question: 'Pytanie do Doradcy',
+    placeholder: 'Zadaj pytanie asystentowi podatkowemu...',
+    operator: {
+      reason: 'Doradca jest wyłączony na serwerze.',
+      owner: 'Może go włączyć operator usługi.',
+      hint: 'Nie możesz wysłać pytania, dopóki operator nie włączy doradcy.',
+    },
+    company: {
+      reason: 'Doradca jest wyłączony dla tej firmy.',
+      owner: 'Może go włączyć administrator firmy.',
+      hint: 'Nie możesz wysłać pytania, dopóki administrator firmy nie włączy doradcy.',
+    },
+    provider: (name: string) => ({
+      reason: `Dostawca ${name} nie jest dozwolony w tej firmie.`,
+      owner: 'Może go dopuścić administrator firmy.',
+      hint: `Nie możesz wysłać pytania przez ${name}, dopóki administrator firmy nie zezwoli na tego dostawcę.`,
+    }),
+    connection: (name: string) => ({
+      reason: `Nie masz jeszcze zapisanego połączenia z ${name}.`,
+      owner: 'Możesz je zapisać dla swojego konta w tej firmie.',
+      hint: `Nie możesz wysłać pytania przez ${name}, dopóki nie zapiszesz połączenia.`,
+    }),
+  },
   operatorDisabled: 'Konfiguracja dostawcy jest dostępna. Aby wysyłać pytania, operator musi ustawić ADVISOR_ENABLED=true w środowisku API i uruchomić serwer ponownie.',
   consent: 'Dołącz zestawienie kwot i wybrane dokumenty firmy do tego pytania',
   disclosure: 'Do wybranego dostawcy trafi pytanie, kwoty i numery dokumentów z wybranego okresu. Klucze dostępu, adresy i rachunki bankowe nie są dołączane.',

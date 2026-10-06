@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { advisorErrorMessage, readAdvisorConnectors, readAdvisorSettings, type AdvisorConnectorSettings, type AdvisorProvider, type AdvisorSettings as Settings } from '../../lib/advisor-api';
 import { embeddedConnectionReadiness } from '../../lib/advisor-connection-status';
 import { advisorText as text } from '../../lib/advisor-translations';
@@ -13,38 +13,14 @@ import { AdvisorProviderConnection } from './AdvisorProviderConnection';
 import { AdvisorReadinessSummary, type AdvisorReadinessRow } from './AdvisorReadinessSummary';
 
 type ConnectionMode = 'embedded' | 'external';
-const modeStorageKey = 'advisor-connection-mode';
-
-// The last chosen mode is the only thing kept in localStorage; storage can be blocked, so a module variable backs it.
-const modeListeners = new Set<() => void>();
-let selectedMode: ConnectionMode | null = null;
-
-function readMode(): ConnectionMode {
-  if (selectedMode) return selectedMode;
-  try {
-    const stored = window.localStorage.getItem(modeStorageKey);
-    if (stored === 'embedded' || stored === 'external') selectedMode = stored;
-  } catch { /* the default mode stays */ }
-  return selectedMode ?? 'embedded';
-}
-
-function selectMode(next: ConnectionMode) {
-  selectedMode = next;
-  try { window.localStorage.setItem(modeStorageKey, next); } catch { /* not persisted */ }
-  modeListeners.forEach((listener) => listener());
-}
-
-function subscribeToMode(listener: () => void) {
-  modeListeners.add(listener);
-  return () => { modeListeners.delete(listener); };
-}
+// Every Settings visit starts in the embedded mode; switching modes is local to this view.
 
 export function AdvisorSettings({ companyId, companyName }: { companyId: string; companyName: string }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [connectors, setConnectors] = useState<AdvisorConnectorSettings | null>(null);
   const [settingsError, setSettingsError] = useState('');
   const [connectorsError, setConnectorsError] = useState('');
-  const mode = useSyncExternalStore(subscribeToMode, readMode, () => 'embedded' as const);
+  const [mode, setMode] = useState<ConnectionMode>('embedded');
   const [chosenProvider, setChosenProvider] = useState<AdvisorProvider | null>(null);
 
   // Both snapshots are fetched in parallel; a failing connectors request must not hide the provider settings.
@@ -85,7 +61,7 @@ export function AdvisorSettings({ companyId, companyName }: { companyId: string;
   return <section className="space-y-5 rounded-card border border-outline bg-surface-panel p-4">
     <h2 className="text-lg font-semibold">{text.settings}</h2>
     <div role="group" aria-label={text.settings} className="grid gap-3 md:grid-cols-2">
-      {(['embedded', 'external'] as const).map((entry) => <button key={entry} type="button" aria-pressed={mode === entry} onClick={() => selectMode(entry)}
+      {(['embedded', 'external'] as const).map((entry) => <button key={entry} type="button" aria-pressed={mode === entry} onClick={() => setMode(entry)}
         className={cn('min-h-11 rounded-card border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
           mode === entry ? 'border-primary bg-surface-raised' : 'border-outline bg-surface-panel hover:bg-surface-raised')}>
         <span className="block font-medium">{text.modes[entry]}</span>

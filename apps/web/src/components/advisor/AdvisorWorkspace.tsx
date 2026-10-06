@@ -67,17 +67,24 @@ export function AdvisorPanel() {
   useEffect(() => { const query = window.matchMedia('(min-width: 1280px)'); const update = () => setWide(query.matches); update(); query.addEventListener('change', update); return () => query.removeEventListener('change', update); }, []);
   useEffect(() => { if (advisor?.open && wide) closeButton.current?.querySelector('button')?.focus(); }, [advisor?.open, wide]);
   if (!advisor) return null;
-  const actions = <div ref={closeButton} className="flex flex-wrap items-center justify-end gap-1"><Button variant="ghost" href="/dashboard/advisor">{text.fullPage}</Button><span aria-hidden="true" className="rounded-chip border border-outline px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted">Esc</span><Button variant="ghost" onClick={advisor.close}>{text.close}</Button></div>;
+  const actions = <div ref={closeButton} className="flex shrink-0 items-center justify-end gap-1">
+    <Button variant="ghost" href="/dashboard/advisor" aria-label={text.fullPage} title={text.fullPage} className="!size-11 !p-0 text-xl"><span aria-hidden="true">↗</span></Button>
+    <Button variant="ghost" onClick={advisor.close} data-dialog-cancel aria-label={text.close} title={text.close} className="!size-11 !p-0 text-2xl"><span aria-hidden="true">×</span></Button>
+  </div>;
   const conversation = <AdvisorConversation companyId={advisor.companyId} environment={advisor.environment} active={advisor.open} seed={advisor.seed} />;
-  if (wide) return <aside data-advisor-docked={advisor.open ? '' : undefined} hidden={!advisor.open} aria-label={text.title} className="min-h-0 space-y-4 overflow-y-auto border-l border-primary/30 bg-surface-panel p-4">
-    <header className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-3">
+  if (wide) return <aside data-advisor-docked={advisor.open ? '' : undefined} hidden={!advisor.open} aria-label={text.title} className={`min-h-0 flex-col border-l border-outline-strong bg-surface-panel ${advisor.open ? 'flex' : '!hidden'}`}>
+    <header className="flex min-h-[60px] shrink-0 items-center justify-between border-b border-outline px-4">
+      <div className="flex min-w-0 items-center gap-3">
         <span aria-hidden="true" className="size-[26px] shrink-0 rounded-[8px] bg-[image:var(--primary-gradient)]" />
-        <div><h2 className="text-lg font-semibold leading-tight">{text.title}</h2><p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">{text.subtitle}</p></div>
+        <h2 className="text-lg font-semibold leading-tight">{text.title}</h2>
       </div>
       {actions}
     </header>
-    {conversation}
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{conversation}</div>
   </aside>;
-  return <NativeDialog open={advisor.open} title={text.title} sheet="always" onClose={advisor.close} className="max-h-[90dvh] max-w-xl">{actions}{conversation}</NativeDialog>;
+  return <NativeDialog open={advisor.open} title={text.title} sheet="always" onClose={advisor.close}
+    className="h-[90dvh] max-h-[760px] max-w-xl overflow-hidden [&>div]:!flex [&>div]:!h-full [&>div]:!min-h-0 [&>div]:!flex-col [&>div]:!gap-0 [&>div]:!p-0 [&>div>*]:!mb-0 [&>div>div:nth-child(1)]:!mt-2.5 [&>div>div:nth-child(1)]:shrink-0 [&>div>div:nth-child(2)]:!flex [&>div>div:nth-child(2)]:min-h-14 [&>div>div:nth-child(2)]:shrink-0 [&>div>div:nth-child(2)]:items-center [&>div>div:nth-child(2)]:border-b [&>div>div:nth-child(2)]:border-outline [&>div>div:nth-child(2)]:pl-4 [&>div>div:nth-child(2)]:pr-28 [&>div>div:nth-child(2)>h2]:!text-base">
+    <div className="absolute right-3 top-4">{actions}</div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{conversation}</div>
+  </NativeDialog>;
 }

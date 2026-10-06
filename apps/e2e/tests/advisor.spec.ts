@@ -133,3 +133,147 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
   });
 }
+
+const blockedCases = [
+  {
+    name: 'operator overrides disabled company, denied provider and missing connection',
+    provider: 'OPENROUTER',
+    enabled: false, operatorEnabled: false, allowedProviders: [],
+    connections: [],
+    reason: 'Doradca jest wyłączony na serwerze.',
+    owner: 'Może go włączyć operator usługi.',
+    hint: 'Nie możesz wysłać pytania, dopóki operator nie włączy doradcy.',
+  },
+  {
+    name: 'company overrides denied provider and missing connection',
+    provider: 'ANTHROPIC',
+    enabled: false, operatorEnabled: true, allowedProviders: [],
+    connections: [],
+    reason: 'Doradca jest wyłączony dla tej firmy.',
+    owner: 'Może go włączyć administrator firmy.',
+    hint: 'Nie możesz wysłać pytania, dopóki administrator firmy nie włączy doradcy.',
+  },
+  {
+    name: 'denied Anthropic overrides its missing connection',
+    provider: 'ANTHROPIC',
+    enabled: true, operatorEnabled: true, allowedProviders: ['OPENAI'],
+    connections: [{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }],
+    reason: 'Dostawca Anthropic API nie jest dozwolony w tej firmie.',
+    owner: 'Może go dopuścić administrator firmy.',
+    hint: 'Nie możesz wysłać pytania przez Anthropic API, dopóki administrator firmy nie zezwoli na tego dostawcę.',
+  },
+  {
+    name: 'allowed Anthropic without its own connection despite another saved provider',
+    provider: 'ANTHROPIC',
+    enabled: true, operatorEnabled: true, allowedProviders: ['OPENAI', 'ANTHROPIC'],
+    connections: [{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }],
+    reason: 'Nie masz jeszcze zapisanego połączenia z Anthropic API.',
+    owner: 'Możesz je zapisać dla swojego konta w tej firmie.',
+    hint: 'Nie możesz wysłać pytania przez Anthropic API, dopóki nie zapiszesz połączenia.',
+  },
+] as const;
+
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  for (const blocked of blockedCases) {
+    test(`advisor blocked: ${blocked.name} at ${viewport.width}px`, async ({ authenticatedPage: page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      const modelPosts: string[] = [];
+      page.on('request', (request) => {
+        if (request.method() === 'POST' && new URL(request.url()).pathname.includes('/advisor/')) modelPosts.push(request.url());
+      });
+      await page.route('**/companies/test-company-id/advisor/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path.endsWith('/settings')) return route.fulfill({ json: {
+          enabled: blocked.enabled, operatorEnabled: blocked.operatorEnabled, canManagePolicy: false,
+          allowedProviders: blocked.allowedProviders, allowedConnectors: [], retentionDays: 30,
+          ollamaAvailable: false, reviewedSourceCount: 0, connections: blocked.connections,
+        } });
+        if (path.endsWith('/conversations')) return route.fulfill({ json: [] });
+        return route.fulfill({ status: 405, json: { code: 'UNEXPECTED_ADVISOR_REQUEST' } });
+      });
+      await page.goto('/dashboard');
+      const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
+      await trigger.click();
+      const panel = viewport.width >= 1280 ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
+      if (blocked.provider === 'ANTHROPIC') {
+        await panel.getByRole('button', { name: 'Zmień' }).click();
+        await panel.getByRole('combobox', { name: 'Dostawca' }).selectOption('ANTHROPIC');
+      }
+      const card = panel.locator('section[aria-labelledby="advisor-blocker-reason"]');
+      await expect(card).toHaveCount(1);
+      await expect(card.locator('#advisor-blocker-reason')).toHaveText(blocked.reason);
+      await expect(card.getByText(blocked.owner, { exact: true })).toBeVisible();
+      await expect(panel.locator('#advisor-blocker-hint')).toHaveText(blocked.hint);
+      await expect(panel.getByText(`Czytam: ${blocked.provider === 'ANTHROPIC' ? 'Anthropic API' : 'OpenRouter'} · TEST`, { exact: false })).toBeVisible();
+      await expect(panel.getByRole('textbox', { name: 'Pytanie do Doradcy' })).toBeDisabled();
+      await expect(panel.getByRole('button', { name: 'Zapytaj', exact: true })).toBeDisabled();
+      const settingsLink = card.getByRole('link', { name: 'Otwórz ustawienia Doradcy' });
+      await expect(settingsLink).toHaveAttribute('href', '/dashboard/settings?section=advisor');
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
+        await expect(panel).toBeVisible();
+        await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
+        await panel.screenshot({ path: testInfo.outputPath(`blocked-${blocked.provider.toLowerCase()}-${theme}.png`) });
+      }
+      if (viewport.width >= 1280) {
+        await expect(panel).toHaveCSS('width', '400px');
+        const bounds = await panel.boundingBox();
+        expect(bounds).not.toBeNull();
+        const dashboardRight = await panel.evaluate((element) => element.parentElement?.getBoundingClientRect().right);
+        expect(bounds!.x + bounds!.width).toBeCloseTo(dashboardRight!, 0);
+      } else {
+        await expect(panel).toHaveCSS('border-top-left-radius', '26px');
+        const bounds = await panel.boundingBox();
+        expect(bounds).not.toBeNull();
+        expect(bounds!.y + bounds!.height).toBeCloseTo(viewport.height, 0);
+      }
+      const hintBounds = await panel.locator('#advisor-blocker-hint').boundingBox();
+      const panelBounds = await panel.boundingBox();
+      expect(hintBounds).not.toBeNull();
+      expect(panelBounds).not.toBeNull();
+      expect(panelBounds!.y + panelBounds!.height - hintBounds!.y - hintBounds!.height).toBeLessThan(80);
+      expect(modelPosts).toEqual([]);
+      await settingsLink.click();
+      await expect(page).toHaveURL(/\/dashboard\/settings\?section=advisor$/);
+      await expect(page.getByRole('button', { name: 'Doradca', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('#settings-panel').getByRole('button', { name: /Doradca w Księgowym Vibe/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(modelPosts).toEqual([]);
+    });
+  }
+}
+
+test('advisor retains the denied conversation provider on history load and settings refresh', async ({ authenticatedPage: page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const modelPosts: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.includes('/advisor/')) modelPosts.push(request.url());
+  });
+  const conversation = { id: 'anthropic-history', title: 'Anthropic history', provider: 'ANTHROPIC', model: 'claude-model', createdAt: '2026-09-19T12:00:00.000Z' };
+  await page.route('**/companies/test-company-id/advisor/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/settings')) return route.fulfill({ json: {
+      enabled: true, operatorEnabled: true, canManagePolicy: false, allowedProviders: ['OPENAI'],
+      allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
+      connections: [{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }],
+    } });
+    if (path.endsWith('/conversations')) return route.fulfill({ json: [conversation] });
+    if (path.endsWith(`/conversations/${conversation.id}`)) return route.fulfill({ json: { ...conversation, turns: [] } });
+    return route.fulfill({ status: 405, json: { code: 'UNEXPECTED_ADVISOR_REQUEST' } });
+  });
+  await page.goto('/dashboard');
+  const trigger = page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' });
+  await trigger.click();
+  const panel = page.getByRole('complementary', { name: 'Doradca' });
+  await panel.getByRole('button', { name: 'Historia rozmów' }).click();
+  await panel.getByLabel('Historia rozmów').selectOption(conversation.id);
+  await expect(panel.locator('#advisor-blocker-reason')).toHaveText('Dostawca Anthropic API nie jest dozwolony w tej firmie.');
+  await expect(panel.getByText('Czytam: Anthropic API · TEST', { exact: false })).toBeVisible();
+  await panel.getByRole('button', { name: 'Zmień' }).click();
+  await expect(panel.getByRole('combobox', { name: 'Dostawca' })).toHaveValue('ANTHROPIC');
+  await expect(panel.getByRole('textbox', { name: 'Pytanie do Doradcy' })).toBeDisabled();
+  await panel.getByRole('button', { name: 'Zamknij doradcę' }).click();
+  await trigger.click();
+  await expect(panel.locator('#advisor-blocker-reason')).toHaveText('Dostawca Anthropic API nie jest dozwolony w tej firmie.');
+  await expect(panel.getByRole('combobox', { name: 'Dostawca' })).toHaveValue('ANTHROPIC');
+  expect(modelPosts).toEqual([]);
+});

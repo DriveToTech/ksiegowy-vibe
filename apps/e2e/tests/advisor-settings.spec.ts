@@ -249,17 +249,22 @@ test.describe('provider connection', () => {
       test('the advisor dock links to the advisor settings section', async ({ authenticatedPage: page }) => {
         const mock = createAdvisorMock({});
         await routeAdvisorApi(page, mock);
+        await page.goto('/dashboard/settings?section=advisor');
+        const settings = page.locator('#settings-panel');
+        await settings.getByRole('button', { name: /Rozmowa w ChatGPT lub Claude/ }).click();
+        await expect(settings.getByRole('button', { name: /Rozmowa w ChatGPT lub Claude/ })).toHaveAttribute('aria-pressed', 'true');
         await page.goto('/dashboard');
         const isDesktop = viewport.width >= 1280;
         const trigger = isDesktop ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
         await trigger.click();
         const panel = isDesktop ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
-        const link = panel.getByRole('link', { name: 'Dostawcy i konfiguracja' }).first();
+        const link = panel.getByRole('link', { name: 'Otwórz ustawienia Doradcy' });
         await expect(link).toHaveAttribute('href', '/dashboard/settings?section=advisor');
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
 
         await link.click();
         await expect(page).toHaveURL(/\/dashboard\/settings\?section=advisor$/);
+        await expect(settings.getByRole('button', { name: /Doradca w Księgowym Vibe/ })).toHaveAttribute('aria-pressed', 'true');
         await expect(page.locator('#settings-panel').getByRole('heading', { name: 'Gotowość' })).toBeVisible();
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
       });

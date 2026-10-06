@@ -1,16 +1,18 @@
 # Tax advisor connection UX — Settings → Doradca
 
-Status: **design ready for component breakdown (TRY-172); not implemented.** Updated: **2026-10-01**. Next owner: frontend-architect (component boundaries), then frontend-engineer.
+Status: **connection settings implemented; visual/customer-journey approval pending.** The prior TRY-172 design and implementation notes below remain historical evidence, not pixel-perfect sign-off. See [the current journey and visual plan](../../spec/tax-advisor-implementation-plan.md#11-customer-journey-and-pixel-perfect-design-gate).
 
 Tracking: [TRY-172](https://linear.app/trysoft/issue/TRY-172). Related: [tax advisor specification](tax-advisor.md), [implementation plan — provider setup design](../../spec/tax-advisor-implementation-plan.md#provider-setup-design-openrouter-and-self-hosted-ollama), [Aurora Solid tokens](aurora-solid-tokens.md).
 
-> **Provisional:** everything in mode B that depends on host products — per-product steps, plan/admin eligibility, host menu names and the "first host call" signal — is provisional until the connector eligibility check (TRY-173) is completed on real ChatGPT and Claude accounts. Provisional copy is marked **[P]** in the microcopy tables.
+> **Provisional:** host-specific menu steps, plan/admin eligibility, OAuth compatibility and behavior on real ChatGPT/Claude accounts remain unverified until the TRY-173/TRY-177 target-account checks. The server already records the first authorized call and returns WAITING/ACTIVE grant status; this is not proof a particular host account can connect. Older [P] microcopy below is historical proposal copy; use the graded current eligibility notes in §14.6 until real-account validation.
 
-This document replaces the generic provider form in `AdvisorSettings.tsx` and the grant block in `AdvisorConnectors.tsx` with two clearly separated connection modes. It adds no tokens and no new primitives; it reuses Aurora Solid tokens and existing atoms/molecules.
+This document defined the replacement of the generic provider form in `AdvisorSettings.tsx` and the grant block in `AdvisorConnectors.tsx` with two separate connection modes. The implemented settings reuse Aurora Solid tokens and existing atoms/molecules.
 
-## 0. Design source: Claude Design artifact 5s6ojohFet7haaSAbWV9hp
+## 0. Design evidence and approval boundary
 
-The single design source is the Claude Design artifact [5s6ojohFet7haaSAbWV9hp](https://claude.ai/artifact/5s6ojohFet7haaSAbWV9hp), titled "Aurora Solid · full platform". The Stitch project and its screen IDs are no longer used: the Stitch screens turned out to be generated content that does not match the product. The local `docs/redesign/` files are not the source either. The artifact is a static canvas. It has 37 numbered frames, all in the dark theme, and every desktop frame is 1280px wide with a 60px chrome bar and a 226px rail. Mobile frames are 390×844.
+The Aurora Solid [Claude Design artifact 5s6ojohFet7haaSAbWV9hp](https://claude.ai/artifact/5s6ojohFet7haaSAbWV9hp) and the local `docs/redesign/kv-redesign-platform-personal-1.html` show the same advisor **concept** in frames 15–19. The local [design-system export](../redesign/kv-redesign-system-design.html) supplies measurable Aurora tokens; neither export contains provider/connector settings. Google Stitch project `12153636040275536997` now also contains nine TRY-172 settings candidates (D1–D5, M1–M4), in addition to generated KV-REDESIGN 15–19 variants. The older assertion that Stitch contains no connection screens is obsolete. These assets are **candidates, not approved replacements**: the customer journey, unsafe example claims, missing states and frame-by-frame visual source must be agreed before any new screen is generated or pixel parity asserted. See [the current coverage and polish audit](../../spec/tax-advisor-implementation-plan.md#11-customer-journey-and-pixel-perfect-design-gate).
+
+The historical artifact frame inventory below describes the embedded advisor; the connection-settings detail in sections 3–5 describes intended behavior, not a separately approved visual reference.
 
 | # | Frame | Variant |
 |---|---|---|
@@ -25,7 +27,7 @@ The single design source is the Claude Design artifact [5s6ojohFet7haaSAbWV9hp](
 | 20–32 | Personal mode: home, money in & out, commitments, savings & goals, investing, reports, mobile, add/single payment, add/single commitment, new/single goal | desktop + 390 |
 | 33–37 | Sign in for both modes, mode chooser, household onboarding steps 2 and 4, mobile entry | desktop + 390 |
 
-**Not in the design:** Settings → Doradca, provider or API-key setup (OpenRouter, Ollama, OpenAI API, Anthropic API), model discovery, the paid connection test, the company advisor policy editor, the ChatGPT/Claude connector (host choice, grant scope, MCP address, host steps, grants list, revoke), readiness chips for the advisor, confirmation dialogs, empty, loading and error states for any advisor surface, and a light theme. Sections 3–5 of this document are therefore our own design, built from the artifact's primitives (see the visual QA findings below). They need a Claude Design frame before the UI can be called "matching design".
+**Not in the historical frames 15–19:** Settings → Doradca, provider/API-key setup, model discovery, paid test, company policy, ChatGPT/Claude grant/setup/revoke, readiness, connection dialogs, and light theme. The nine TRY-172 Stitch candidates cover **some** of these connection states in dark mode, but do not close every journey, content, accessibility or visual gap. The original gap list below is retained as the pre-Stitch brief, not a claim that no screens exist.
 
 Design tokens in the artifact (all inline, dark only). They match the dark values in [Aurora Solid tokens](aurora-solid-tokens.md) and `apps/web/src/app/globals.css`:
 
@@ -41,7 +43,7 @@ Design tokens in the artifact (all inline, dark only). They match the dark value
 | Spacing | gaps 8/10/12/14/16/18px; card padding 15–20px; control padding 9px 12–14px; chrome padding 0 22px; main padding 26px |
 | Patterns | status = 3px coloured left border on a card; insight confidence in mono at the top right; scrim `rgba(6,7,16,.72)`; no blur anywhere |
 
-### Visual QA findings (2026-10-01)
+### Historical visual QA findings (2026-10-01, before the TRY-172 Stitch candidates)
 
 Evidence: artifact frames 12, 15, 16 and 19 compared with the `advisor-settings.spec.ts` screenshots (20 tests passed at 1440 and 390, light theme, which is the Playwright default) and with the component source.
 
@@ -68,9 +70,9 @@ Polish:
 | P10 | Mobile app header (shell) | About 155px tall, with the tagline and company select stacked; frame 14/19 uses one ~56px row (logo, short company name, TEST chip) | Shell work, tracked in `mobile-first-remediation.md` |
 | P11 | Buttons | `text-sm` (14px) against 12.5–13.5px in the design | Keep 14px for legibility; this is an intentional deviation |
 
-Intentional deviations (keep): the artifact's KSeF token row shows a masked tail ("•••• 4F2A · Replace"). Invariant I7 forbids that for API keys, so after save the key field stays empty with the helper text. Light theme, 44px targets and contrast-corrected muted text are our additions, not design drift. Proactive insights, inline strips (frame 17) and the briefing page (frame 18) are out of the current release scope (see the [tax advisor specification](tax-advisor.md)).
+Intentional deviations (keep): the artifact's KSeF token row shows a masked tail ("•••• 4F2A · Replace"). Invariant I7 forbids that for API keys, so after save the key field stays empty with the helper text. Light theme, 44px targets and contrast-corrected muted text are additions, not design drift. The previous exclusion of proactive insights and briefing is superseded by the shipped deterministic strips and on-demand briefing in the [tax advisor specification](tax-advisor.md); scheduled delivery and unsupported forecast/tax claims remain outside the current release.
 
-### Design gaps to draw in Claude Design before implementation can match
+### Original design gaps (pre-Stitch brief; current status in implementation plan §11)
 
 1. **Settings → Doradca entry**: its place in the frame 12 SECTIONS list, and the page header (eyebrow and title).
 2. **Mode switch A/B**: the design has only the compact TEST/PROD segmented pill. Decide between a pill and two cards with a status line.
@@ -121,8 +123,31 @@ flowchart TD
 ```
 
 - **Company policy** stays a separate card, visible only when `canManagePolicy` is true. Members see its *result* in each mode's readiness summary, not the editor.
-- **Mode switch** is a two-option control using the same `aria-pressed` button pattern as `SettingsWorkspace` (not a tablist; the two views are independent forms). Both modes can be configured at the same time; the switch only changes which view is visible. Each option shows a one-line status so users see the other mode's state without switching.
-- Default mode on first visit: A. After that, remember the last mode per viewer in `localStorage` (convenience only, wrapped in try/catch; absence must not break rendering).
+- **Mode switch:** two visible, separate connection options using the existing `aria-pressed` button pattern. Both can be configured at the same time; switching changes only the settings view, not the current conversation or TEST/PRODUCTION accounting context. **Approved 2026-10-04:** each button shows its own concise status before switching; derive A from the embedded settings snapshot **for the provider selected in Settings**, and B from the connector snapshot, including loading/error instead of invented readiness. Choosing a different provider inside A updates A's line; the line keeps describing that selection while B is open. Another usable provider does not mask a selected provider's blocker or silently change the separate conversation's provider. For A, after a passing synthetic test with runtime and provider policy enabled, say **“Connection tested”** (Polish candidate: “Połączenie przetestowane”); this says nothing about reviewed tax guidance or every future answer. If access is disabled, the line leads with the **current operator/company/provider blocker**, even for a previously tested connection; show the test history inside Mode A. Other A labels and B labels remain open in the [journey ledger](../../spec/tax-advisor-implementation-plan.md#115-customer-approval-ledger). Neither saved credentials nor WAITING grants alone mean “ready.”
+- **Mode B status scope approved 2026-10-04:** aggregate the grants returned for **this member of the selected company** across ChatGPT/Claude and TEST/PRODUCTION, regardless of the currently displayed host/environment choice. `GET /connectors` is membership-scoped, not company-wide. Distinguish WAITING (no successful authorized read yet) from ACTIVE (`lastUsedAt` recorded after an authorized tool response), and do not treat the public endpoint as proof that either real host account can connect. If the endpoint or company-wide policy blocks use, the headline must not suggest current access. If ChatGPT has an allowed ACTIVE grant and Claude is denied, the same line shows **both** the authorized-read history and the Claude policy restriction; an old ACTIVE grant for a denied host does not count as currently eligible but remains visible in the detail row. Describe WAITING as **“Grant issued · no authorized read yet”** and ACTIVE as **“Authorized read recorded”**, using concise separate counts for multiple grants. Polish candidates are “Udzielono zgody · bez autoryzowanego odczytu” and “Odnotowano autoryzowany odczyt”; exact localized words remain for review. The existing `grantsActive` count and “Aktywna” detail chip have not yet been aligned with this choice.
+- **Mode B inactive-only choice approved 2026-10-04:** when all retained grants are EXPIRED or REVOKED, show **“No current access”** plus separate counts/reasons for expiry and intentional revocation, not the never-granted message. Keep the historical rows and fresh-consent route inside B. Candidate “Brak bieżącego dostępu · 1 wygasła, 1 cofnięta”; final Polish words/layout need visual review.
+- **Mode B pre-validation exposure approved 2026-10-04:** both mode choices remain visible. Until deployed issuer and actual ChatGPT **and** Claude target-account flows are verified, show “under validation” to non-pilot members, with their existing grant/status history and Revoke available; restrict new/reissued Grant on the API by authenticated membership to operator-approved pilot accounts. Disable non-pilot Open-host onboarding in the UI; it is external navigation, not a server authorization endpoint. **Pilot removal:** deny subsequent MCP reads immediately in `requireAdvisorConnectorGrant()`, retain the unexpired grant and historical WAITING/ACTIVE event, show pilot restriction as the current blocker rather than current access; Revoke remains available. Reinstatement before expiry resumes the unrevoked grant. An endpoint and a WAITING grant are not host-connection proof. `GET /connectors` and the Mode B button need a truthful pilot-eligibility state, including loading/error; existing `PUT /connectors/:client` and MCP read checks lack pilot enforcement.
+- **Approved default (2026-10-04):** every entry to Settings → Doradca starts in **Mode A**, whether direct or from the blocked panel. A user can switch to B for that visit; no mode is saved between entries. Remove the current device-wide `localStorage` and module-global mode/listener logic. No `mode=embedded` URL parameter is needed.
+
+**First-use entry implemented 2026-10-06:** pressing Doradca without a usable embedded provider stays on the current page and opens the desktop dock or mobile sheet with the current blocker and an explicit **Settings → Doradca** action. It does not redirect automatically, embed credential setup, enable the answer composer, or send a model request. `AdvisorConversation` checks operator runtime, company policy, conversation-selected provider allowance, then that member's saved connection. The same card and noneditable composer render for all four blockers; only a user click follows the Settings link.
+
+**Blocked-entry shell approved 2026-10-04 (visual only):** use the shipped `DashboardShell`/`AdvisorPanel` 400px desktop dock and `NativeDialog` 26px-radius mobile sheet, consistent with historical Aurora frames 15/19. Keep existing focus, close, scroll and light/dark token behavior. This is **not** approval of any Stitch answer content or of the still-missing pixel reference. Customer copy for all four blocked states is approved below. No Stitch creation or editing is authorized by this shell choice.
+
+**Blocked-entry composition approved 2026-10-04 (visual direction):** place one compact reason/owner/remedy card **immediately below** the header and company/environment context, with its Settings → Doradca action above the fold in desktop dock and mobile sheet. Keep the existing composer visibly anchored at the bottom but noneditable, with Send unavailable and its reason; do not put a provider form or sample answer in this state. Operator off, company off, selected provider denied and no saved connection use the same placement with truthful, distinct copy. All four sets of Polish copy are approved below; final dark/light 1440/390 screenshots still need approval. This is not Stitch editing permission.
+
+**Blocked-entry copy density approved 2026-10-04:** show **one current reason and its owner** in the top card, not a list of every operator/company/provider/connection gate. Prioritize runtime-off, then company-off, then selected-provider denial, then missing saved connection; the selected provider is the conversation's provider, not whatever Settings last displayed. The one Settings action remains visible; detailed status/history lives in Settings. Approved Polish copy for all four states follows. Do not print raw `ADVISOR_ENABLED` or other environment variable names in customer-facing blocked copy.
+
+**Operator-off blocked-panel copy approved 2026-10-04:** reason “Doradca jest wyłączony na serwerze.”; owner “Może go włączyć operator usługi.”; action “Otwórz ustawienia Doradcy”; disabled-composer hint “Nie możesz wysłać pytania, dopóki operator nie włączy doradcy.” Show these in the approved one-reason card and noneditable composer; Settings → Doradca opens in Mode A. These are customer-visible strings only: operator setup instructions belong outside the blocked panel. Exact 1440/390 dark/light pixels remain unapproved; no Stitch or application edits are authorized by this copy approval.
+
+**Company-policy-off blocked-panel copy approved 2026-10-04:** reason “Doradca jest wyłączony dla tej firmy.”; owner “Może go włączyć administrator firmy.”; action “Otwórz ustawienia Doradcy”; disabled-composer hint “Nie możesz wysłać pytania, dopóki administrator firmy nie włączy doradcy.” Apply only when the operator runtime is enabled and company policy is off, ahead of provider or connection blockers. Show the same Settings action to every member, but only the company ADMIN can edit the policy there. Keep the composer noneditable and Send unavailable; no Stitch or application edit is authorized by this copy approval.
+
+**Selected-provider-denied blocked-panel copy approved 2026-10-04:** reason “Dostawca {provider} nie jest dozwolony w tej firmie.”; owner “Może go dopuścić administrator firmy.”; action “Otwórz ustawienia Doradcy”; disabled-composer hint “Nie możesz wysłać pytania przez {provider}, dopóki administrator firmy nie zezwoli na tego dostawcę.” Substitute the display name of the **conversation-selected provider** (OpenRouter, OpenAI API, Anthropic API or Ollama), not the provider last displayed in Settings. Apply when operator runtime and company advisor policy are enabled but this provider is outside `allowedProviders`; another eligible provider does not suppress this blocker. All members may open Settings, only the company ADMIN changes its allowlist. Keep the composer noneditable and Send unavailable. Copy approval does not authorize Stitch or application edits.
+
+**Missing saved-connection blocked-panel copy approved 2026-10-04:** reason “Nie masz jeszcze zapisanego połączenia z {provider}.”; owner “Możesz je zapisać dla swojego konta w tej firmie.”; action “Otwórz ustawienia Doradcy”; disabled-composer hint “Nie możesz wysłać pytania przez {provider}, dopóki nie zapiszesz połączenia.” Substitute the conversation-selected provider's display name, not the provider last displayed in Settings. Apply after the operator, company policy and selected-provider gates pass, when this member has no saved connection to that provider. Settings may disclose additional operator-dependent Ollama setup requirements; this copy does not promise reachability or tax-answer readiness. Keep the composer noneditable and Send unavailable. Copy approval does not authorize Stitch or application edits.
+
+**Blocked-entry design chosen for implementation 2026-10-06:** the authorized Stitch phase produced 16 individually generated screens, but visual audit found **inconsistent styling within the same theme/size**; none is an implementation reference. The [single-source blocked-entry reference](tax-advisor-blocked-entry-reference.html) renders four fixtures × desktop/mobile × light/dark from one DOM and stylesheet; the [16 direct review links and geometry](../../spec/tax-advisor-implementation-plan.md#111-evidence-inventory-and-comparison) remain the design baseline. The running advisor now uses the existing Aurora dock and `NativeDialog` sheet with a single state-driven blocker card and pinned disabled composer. Browser tests cover blockers and navigation; final real-app visual comparison, accessibility review and deployment verification are separate gates.
+
+**Settings landing implemented 2026-10-06:** the blocked-panel action and direct Settings → Doradca route open **Mode A — Doradca w Księgowym Vibe**. Mode B remains a visible alternative for that visit. `AdvisorSettings` uses local component state initialized to A; no shared device `localStorage`, module-global fallback, or `mode=embedded` URL parameter remains. The link is `/dashboard/settings?section=advisor`.
 
 ## 3. Mode A — Doradca w Księgowym Vibe (API billing)
 
@@ -134,10 +159,11 @@ flowchart TD
   Load -- Loading --> Skeleton[Readiness skeleton, announce loading]
   Load -- Failed --> LoadError[Error banner with Retry]
   Load -- Yes --> Choose[Choose provider card]
-  Choose --> Allowed{Provider allowed by company?}
-  Allowed -- No --> Denied[Card shows Not allowed; ADMIN action; setup stays possible, test and use blocked]
+  Choose --> Runtime{Operator runtime enabled?}
+  Runtime -- No --> OperatorBlocked[Show operator remedy; no discovery, save, test or chat]
+  Runtime -- Yes --> Allowed{Company enabled and provider allowed?}
+  Allowed -- No --> Denied[Show ADMIN remedy; no discovery, save, test or chat]
   Allowed -- Yes --> Kind{Provider kind}
-  Denied --> Kind
   Kind -- OpenRouter / OpenAI API / Anthropic API --> Key[Enter API key]
   Key --> Discover[Fetch models with transient key]
   Kind -- Ollama --> Endpoint{Operator endpoint configured?}
@@ -150,19 +176,17 @@ flowchart TD
   Catalog -- Empty --> CatalogEmpty[No models; Ollama: operator installs a model]
   Catalog -- Models --> Pick[Choose model ID]
   CatalogError --> Pick
-  Pick --> Save[Save connection]
+  Pick --> Save[Save connection when runtime and policy allow]
   Save --> Saved[Saved — not tested]
-  Saved --> Runtime{Operator runtime enabled?}
-  Runtime -- No --> RuntimeBlocked[Test blocked: operator must enable ADVISOR_ENABLED]
-  Runtime -- Yes --> TestChoice[User explicitly chooses paid test]
+  Saved --> TestChoice[User explicitly chooses paid test]
   TestChoice --> Testing[Test running]
-  Testing -- Pass --> Tested[Tested: model and time; ready if policy allows]
+  Testing -- Pass --> Tested[Connection tested: model and time; tax-source coverage separate]
   Testing -- Fail --> TestFailed[Keep draft; actionable reason]
   Tested --> Disconnect[Disconnect with confirmation]
   Saved --> Disconnect
 ```
 
-Model discovery before save depends on the preview route described in the plan (transient key, rate-limited, never persisted or logged). Until that route exists the design falls back to manual model ID entry with the same layout; discovery appears only after save, labelled "Odśwież listę modeli".
+Model discovery before save uses the implemented transient `POST /connections/:provider/model-preview` route (typed key not persisted or logged, rate-limited). Manual model ID entry remains available when preview fails or returns no models; neither discovery nor saving runs a paid synthetic test.
 
 ### 3.2 Connection state model
 
@@ -180,7 +204,9 @@ stateDiagram-v2
   Tested --> NotConfigured: disconnect
 ```
 
-`Tested` is "ready" only when `operatorEnabled`, `enabled` and `allowedProviders` include the provider. Readiness is computed, not stored. Saving resets `testedAt` on the server, which matches `Tested → SavedNotTested`.
+`Tested` means a **synthetic connection test passed**, not “ready for tax advice.” For the provider currently selected in Settings, with `operatorEnabled`, `enabled` and `allowedProviders` including that provider, the Mode A choice can say **“Connection tested”** (Polish candidate “Połączenie przetestowane”). When a gate closes, show the current blocker on the choice and retain the previous test state in the detailed connection summary. Switching Settings providers updates the choice status; it does not change the advisor conversation's provider. Readiness is computed, not stored. Saving resets `testedAt` on the server, which matches `Tested → SavedNotTested`.
+
+**First question decision (2026-10-04):** this synthetic test is **optional**. A saved but untested connection can answer an explicit question when operator and company/provider policy allow it; the conversation's selected provider must show an untested/cost warning beside Send, not claim that Mode A was tested or tax guidance is ready. Cloud API calls may cost money; Ollama consumes operator resources. The API does not gate answers on `testedAt`; the current conversation UI still lacks the warning.
 
 ### 3.3 Provider cards
 
@@ -199,44 +225,47 @@ The label for `ANTHROPIC` changes from "Claude API" to "Anthropic API" so it can
 
 Frame: 226px rail, main pane padding 26px, settings nav 200px + 16px gap → settings content column ≈ 946px. With the 400px advisor dock open the column drops to ≈ 546px and uses the mobile stacking rules below.
 
+**Visual structure approved 2026-10-04 (not a pixel state):** use Stitch D1 `fe92620179ae45f2904f2806a19b19f0` for desktop and M1 `71e22d2f85f540259d3e2d6b05f24093` for mobile ordering: two modes, compact readiness, provider choice, then connection controls. D1's server-off/populated-model combination is invalid, while M1 is a saved state rather than first setup. Retain Aurora tokens and shipped accessible controls; a truthful first-use screenshot in both themes is still needed. Neither reference authorizes Stitch edits.
+
 ```text
 ┌ Doradca ─────────────────────────────────────────────────────────────── 946px ┐
-│ [ A · W Księgowym Vibe   Gotowe ✓ ]  [ B · W ChatGPT lub Claude   Brak zgody ] │  mode switch, 44px
+│ [ A · W Księgowym Vibe  Brak połączenia ]  [ B · ChatGPT/Claude  Weryfikacja ] │  two mode choices, independent statuses
 │                                                                              │
 │ ┌ Gotowość (Surface inset, 3 rows) ───────────────────────────────────────┐  │
-│ │ Zgoda firmy        [DOZWOLONY]   OpenRouter, Ollama                      │  │
-│ │ Serwer doradcy     [WYŁĄCZONY]   Operator musi ustawić ADVISOR_ENABLED   │  │
-│ │ Moje połączenie    [ZAPISANE]    OpenRouter · model · nie przetestowano  │  │
+│ │ Zgoda firmy        [DOZWOLONY]   wybrany dostawca                       │  │
+│ │ Serwer doradcy     [WŁĄCZONY]   połączenie można skonfigurować          │  │
+│ │ Moje połączenie    [NIESKONFIGUROWANE]                                  │  │
 │ └──────────────────────────────────────────────────────────────────────────┘  │
-│ Dotyczy Twojego konta w firmie „Acme sp. z o.o.” · TEST i PRODUKCJA           │  caption, muted
+│ Dotyczy Twojego konta w firmie „{companyName}” · TEST i PRODUKCJA            │  caption, muted
 │                                                                              │
-│ 1 Gdzie działa model                                                         │  card-title
-│ ┌ ( ) OpenRouter ─────────────────┐  ┌ ( ) Ollama ─────────────────────────┐ │  2 cols, 16px gap
+│ 1 Gdzie działa model                                                         │
+│ ┌ ( ) OpenRouter ─────────────────┐  ┌ ( ) Ollama ─────────────────────────┐ │
 │ │ Chmura · klucz API               │  │ Serwer operatora · bez klucza       │ │
-│ │ Rozliczenie w koncie OpenRouter  │  │ Endpoint: skonfigurowany            │ │
-│ │ [DOZWOLONY] [ZAPISANE]           │  │ [NIEDOZWOLONY]                      │ │
+│ │ Rozliczenie w OpenRouter          │  │ Status serwera: gdy znany           │ │
+│ │ [DOZWOLONY]                       │  │ [NIEDOZWOLONY]                      │ │
 │ └──────────────────────────────────┘  └─────────────────────────────────────┘ │
-│ ▸ Inni dostawcy API (OpenAI API, Anthropic API)                              │  <details>
-│ ┃ Odpowiedzi w Księgowym Vibe są rozliczane przez dostawcę API. Abonament    │  info banner
+│ ▸ Inni dostawcy API (OpenAI API, Anthropic API)                              │
+│ ┃ Odpowiedzi w Księgowym Vibe są rozliczane przez dostawcę API. Abonament    │
 │ ┃ ChatGPT lub Claude ich nie obejmuje.                                       │
 │                                                                              │
 │ 2 Klucz i model                                                              │
 │ Klucz API OpenRouter                                                         │
-│ [••••••••••••••••••••••••••••••••••]                     max 560px field     │
-│ Klucz zapisany — wpisz nowy tylko, aby go zastąpić.                          │
+│ [Wpisz klucz API                              ]          max 560px field    │
 │ Model                                                                        │
-│ [openai/gpt-…  (search / type)          ▾]   [Pobierz listę modeli]          │
-│ 124 modele · Pobranie listy nie wysyła pytania do modelu.                    │
-│ [Zapisz połączenie]                                                          │  primary, md
+│ [Wpisz identyfikator modelu / wybierz po pobraniu] [Pobierz listę modeli]   │
+│ Pobranie listy nie wysyła pytania do modelu.                                 │
+│ [Zapisz połączenie]                                     after valid key/model│
 │                                                                              │
 │ 3 Sprawdzenie                                                                │
-│ [ZAPISANE — NIE PRZETESTOWANE]  openai/gpt-…                                 │
-│ Test wysyła przykładowe pytanie bez danych firmy i może naliczyć koszt API.  │
-│ [Sprawdź połączenie (płatne żądanie)]                       [Odłącz]         │  secondary · danger, separated
+│ [NIESKONFIGUROWANE]  Test po zapisaniu, wyłącznie na wyraźne żądanie.       │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Rules: provider cards in a 2-column grid when the content column is ≥ 640px (use `md:` only when the settings nav is stacked; at `lg` with the nav beside, the column is wide enough). Field and action row max width 560px for readable line length. The destructive action is right-aligned and separated from the test action by at least 24px.
+Rules: provider cards in a 2-column grid when the content column is ≥ 640px (use `md:` only when the settings nav is stacked; at `lg` with the nav beside, the column is wide enough). Field and action row max width 560px for readable line length. **Only after save**, show the paid test and a separately placed destructive disconnect action at least 24px away; neither belongs to an unsaved first-use state.
+
+**Saved-state hierarchy approved 2026-10-04 — “Status first; test secondary”:** show the saved model and its precise connection status before actions. The synthetic test is optional, visibly secondary, and accompanied by its provider-cost notice; saving never starts a test. Disconnect is separate, requires a confirmation naming the selected provider, and never implies deletion of provider-owned logs. A passing test establishes only connection reachability, not tax-advice readiness. D2 `b404d78f4d1c42718fcef221dbc79c19` illustrates a saved connection and confirmation, but its generic “Gotowe” must not override gate/source truth; M2 `e4199d2e2f5e4eec87a2ef75ea419705` is a **blocked** mobile reference, not the saved mobile state. Exact wording and desktop/mobile dark/light pixels remain unapproved.
+
+**Blocked Settings hierarchy approved 2026-10-04 — “Three rows plus one action blocker”:** keep company policy, advisor server and selected connection in the three-row readiness summary, each with its own precise reason. Near a disabled Save/Test control, show only the highest-priority current blocker for the selected provider (operator runtime → company policy → provider denial → provider setup), naming the owner and remedy; do not repeat every gate as another banner. Preserve existing connection status and Disconnect even if saving is blocked. D3 `0423846f2cb9414399c5f6472611d847` stacks mutually different states for comparison, and M2 `e4199d2e2f5e4eec87a2ef75ea419705` is a multiply blocked mobile candidate; neither is a literal approved account state. The current form still renders multiple blocker banners and needs alignment after visual sign-off. Exact customer copy and state-specific dark/light pixels remain open.
 
 ### 3.5 Mobile layout — 390px
 
@@ -245,15 +274,15 @@ Rules: provider cards in a 2-column grid when the content column is ≥ 640px (u
 ```text
 ┌ 390 ──────────────────────────────┐
 │ Doradca                           │
-│ ┌───────────────┬───────────────┐ │  mode switch, 2 equal buttons, 44px min
+│ ┌───────────────┬───────────────┐ │  mode switch, 2 buttons, 44px min
 │ │ W Księgowym   │ W ChatGPT     │ │
-│ │ Vibe · Gotowe │ lub Claude    │ │
+│ │ Vibe · brak   │ lub Claude    │ │
+│ │ połączenia    │ Weryfikacja   │ │
 │ └───────────────┴───────────────┘ │
 │ ┌ Gotowość ─────────────────────┐ │  rows stack: label / chip / reason
 │ │ Zgoda firmy      [DOZWOLONY]  │ │
-│ │ Serwer doradcy   [WYŁĄCZONY]  │ │
-│ │  Operator musi włączyć…       │ │
-│ │ Moje połączenie  [ZAPISANE]   │ │
+│ │ Serwer doradcy   [WŁĄCZONY]   │ │
+│ │ Moje połączenie  [BRAK]       │ │
 │ └───────────────────────────────┘ │
 │ TEST i PRODUKCJA · Twoje konto    │
 │ 1 Gdzie działa model              │
@@ -264,15 +293,13 @@ Rules: provider cards in a 2-column grid when the content column is ≥ 640px (u
 │ ▸ Inni dostawcy API               │
 │ ┃ Rozliczenie API osobno …        │
 │ 2 Klucz i model                   │
-│ [ klucz ••••••••••••••••••• ]     │  full width, 44px
-│ [ model                    ▾ ]    │
-│ [   Pobierz listę modeli     ]    │  full width secondary
-│ [     Zapisz połączenie      ]    │  full width primary, last in step
+│ [ Wpisz klucz API           ]     │  full width, 44px
+│ [ Wpisz model / wybierz     ]     │
+│ [   Pobierz listę modeli    ]     │  full width secondary
+│ [     Zapisz połączenie     ]     │  enabled only with valid key/model and gates
 │ 3 Sprawdzenie                     │
-│ [ZAPISANE — NIE PRZETESTOWANE]    │
-│ [ Sprawdź połączenie (płatne) ]   │  full width secondary
-│                                   │  24px gap
-│ [          Odłącz             ]   │  full width danger, last
+│ [NIESKONFIGUROWANE]               │
+│ Test po zapisaniu, jawnie płatny. │
 ├───────────────────────────────────┤
 │  bottom navigation (shell)        │
 └───────────────────────────────────┘
@@ -282,7 +309,7 @@ No sticky action bar: the shell's bottom navigation already owns the thumb zone,
 
 ### 3.6 Ollama variant
 
-The key field is replaced by a read-only status row; no URL is ever displayed or editable for members (the operator variable name is shown, not its value).
+The key field is replaced by a read-only status row; no URL is ever displayed or editable for members. Customer-facing blocked copy names the operator as owner and explains the remedy without exposing an environment-variable name or its value.
 
 ```text
 Serwer Ollama        [SKONFIGUROWANY]  Osiągalność: nie sprawdzono
@@ -304,7 +331,9 @@ flowchart TD
   Open[Open mode B] --> Endpoint{Operator connector configured?}
   Endpoint -- No --> Unavailable[Connector unavailable; operator instructions]
   Endpoint -- Yes --> Host[Choose ChatGPT or Claude]
-  Host --> Policy{Host allowed by company?}
+  Host --> Pilot{Account approved for pilot?}
+  Pilot -- No --> Restricted[Under validation; prior grants visible and revocable; MCP reads suspended]
+  Pilot -- Yes --> Policy{Host allowed by company?}
   Policy -- No --> AdminAsk[ADMIN must allow this host; grant disabled]
   Policy -- Yes --> Scope[Confirm company, choose environment and expiry]
   Scope --> Consent[Read-only consent checkbox]
@@ -312,43 +341,54 @@ flowchart TD
   GrantAction --> Granted[Granted: expiry shown]
   Granted --> Copy[Copy MCP URL]
   Copy --> HostSteps[Follow host steps; sign in inside host]
-  HostSteps --> Waiting[Waiting for first host call]
-  Waiting --> Active[Active: last host call shown]
-  Waiting --> Troubleshoot[No call yet: eligibility, admin approval, HTTPS reachability]
+  HostSteps --> Waiting[No authorized read yet]
+  Waiting --> Active[Authorized read recorded; last call shown]
+  Waiting --> Troubleshoot[Checklist: host eligibility and admin approval; OAuth sign-in in host; HTTPS and issuer; retry in host]
   Active --> Cite[Host answer cites invoice link]
   Cite --> Return[Open invoice in Księgowy Vibe; environment check]
   Granted --> Revoke[Revoke with confirmation]
   Active --> Revoke
+  Restricted --> Revoke
   Revoke --> Revoked[Revoked: next host call fails]
-  Granted --> Expired[Expired: grant again]
+  Granted --> Expired[Expired: grant again if pilot approved]
 ```
+
+**No authorized read yet — approved 2026-10-04:** the grant exists, but `lastUsedAt` is empty. Do not infer that host OAuth failed, that the host account is connected, or that retrying requires another grant. Show a concise optional checklist for supported host plan/account and workspace-admin approval, completing OAuth sign-in **inside the host**, public HTTPS MCP/issuer reachability, and retrying the connection/action **in the host**. Keep company, TEST/PRODUCTION, selected host and expiry visible; if a grant is expired/revoked, require new explicit consent before retry. If pilot approval was removed, show that blocker first and keep the historical grant/revoke affordance; no host retry can bypass the server gate. Host-specific menu/error wording remains provisional until live target-account validation. The app has no callback or failure signal for external-host OAuth; only successful authorized MCP reads advance the observed state.
 
 ### 4.2 Grant state model
 
 ```mermaid
 stateDiagram-v2
   [*] --> NotGranted
-  NotGranted --> Granted: grant
-  Granted --> Active: first authorised host call
+  NotGranted --> Granted: grant by pilot
+  Granted --> Active: first authorised read
+  Granted --> Suspended: pilot approval removed
+  Active --> Suspended: pilot approval removed
+  Suspended --> Granted: pilot restored, valid grant with no prior read
+  Suspended --> Active: pilot restored, valid grant with prior read
   Granted --> Revoked: revoke
   Active --> Revoked: revoke
+  Suspended --> Revoked: revoke
   Granted --> Expired: expiry passes
   Active --> Expired: expiry passes
-  Revoked --> Granted: grant again
-  Expired --> Granted: grant again
+  Suspended --> Expired: expiry passes
+  Revoked --> Granted: new consent by pilot
+  Expired --> Granted: new consent by pilot
 ```
 
 One grant exists per membership × environment × host. The grants list therefore has at most four rows (2 hosts × TEST/PRODUCTION).
+
+**Read-only visual hierarchy approved 2026-10-04 — “Status, then explainer”:** D4 `a8952846385142f7987e468f0b4595c8` (desktop) and M3 `ec44e06b1dd449658706bf2f6bc84cc0` (mobile) illustrate host cards, scoped consent, MCP address and an ordered host checklist, not working target-host integrations. On both sizes, place concise endpoint/pilot/observed-grant status immediately beneath the mode switch, followed by the ownership/privacy/billing explainer, host choice, pilot-only consent/setup and grants/history. Nonpilots keep prior-grant visibility and Revoke but cannot Grant/re-grant/Open-host. D4 already shows status first; M3 needs the same order. A grant awaiting first authorized read is not a confirmed host connection; citation-return copy stays prospective until the opaque entry and real target-host proof exist. Exact Polish copy and dark/light pixels remain open; no Stitch edits authorized.
 
 ### 4.3 Desktop layout — 1440px
 
 ```text
 ┌ Doradca ─────────────────────────────────────────────────────────────── 946px ┐
-│ [ A · W Księgowym Vibe   Gotowe ]  [ B · W ChatGPT lub Claude   1 aktywna ✓ ] │
+│ [ A · Brak połączenia ]  [ B · Zgoda wydana · bez odczytu ]                    │
 │ ┌ Gotowość ────────────────────────────────────────────────────────────────┐ │
 │ │ Zgoda firmy          [DOZWOLONY]  ChatGPT · [NIEDOZWOLONY] Claude        │ │
-│ │ Serwer konektora     [GOTOWY]     Publiczny adres HTTPS skonfigurowany   │ │
-│ │ Moje zgody           [AKTYWNA]    ChatGPT · TEST · do 31.10.2026         │ │
+│ │ Serwer konektora     [ADRES USTAWIONY] Publiczny HTTPS, host niezweryfik. │ │
+│ │ Moje zgody           [BEZ ODCZYTU] ChatGPT · TEST · do 11.10.2026          │ │
 │ └──────────────────────────────────────────────────────────────────────────┘ │
 │ ┃ Rozmowa odbywa się w ChatGPT lub Claude. To ta aplikacja przechowuje        │  info banner (I4)
 │ ┃ historię i formułuje odpowiedzi. Księgowy Vibe udostępnia tylko odczyt      │
@@ -358,7 +398,7 @@ One grant exists per membership × environment × host. The grants list therefor
 │ 1 Aplikacja       ( ) ChatGPT   ( ) Claude                                   │  radio cards, 2 cols
 │                                                                              │
 │ 2 Zakres dostępu                                                             │
-│ Firma           Acme sp. z o.o. (bieżąca firma)                              │  read-only
+│ Firma           {companyName} (bieżąca firma)                                │  read-only
 │ Środowisko      ( ) TEST   ( ) PRODUKCJA                                     │  radio; PRODUKCJA uses danger chip
 │ Ważność         ( ) 7 dni  ( ) 30 dni                                        │
 │ [ ] Zezwalam ChatGPT na odczyt kwot i numerów dokumentów tej firmy w         │
@@ -378,31 +418,31 @@ One grant exists per membership × environment × host. The grants list therefor
 │                                                                              │
 │ 4 Moje zgody                                                                 │
 │ Aplikacja   Środowisko   Stan                  Ważna do        Akcja         │  table, 44px rows
-│ ChatGPT     TEST         [OCZEKUJE NA 1. UŻYCIE]  31.10.2026   [Cofnij]      │
-│ Claude      PRODUKCJA    [WYGASŁA]             01.09.2026      [Zezwól ponownie] │
+│ ChatGPT     TEST         [OCZEKUJE NA 1. UŻYCIE]  11.10.2026   [Cofnij]      │
 │                                                                              │
-│ Powrót do dokumentu: odpowiedzi w ChatGPT zawierają link do faktury. Link    │  caption
-│ otwiera ją tutaj po zalogowaniu, w środowisku, którego dotyczy zgoda.         │
+│ Powrót do dokumentu: planowana ścieżka, ukryta do czasu wdrożenia            │  not live: no app links in MCP results
+│ bezpiecznego linku i weryfikacji w kontach ChatGPT/Claude.                    │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 4.4 Mobile layout — 390px
 
-Same order, one column. The MCP URL field and **Kopiuj adres** stack (field full width, button full width below). The grants table becomes a list of inset cards: host + environment chip on line 1, state chip + expiry on line 2, full-width action on line 3. **Otwórz ChatGPT / Claude** is full width at the end of step 3. Revoke is the last control of each grant card. On mobile, ChatGPT and Claude apps may intercept the link; the copy explains that the connector is added in settings, which on some plans is only available on the web **[P]**.
+Same order, one column, with Mode B status immediately after the mode switch and the ownership explainer beneath it. The MCP URL field and **Kopiuj adres** stack (field full width, button full width below). The original table-to-cards proposal is **not implemented or approved**; the shipped grant list already stacks responsive rows. If a card treatment is chosen, put host + environment first, then observed status + expiry, then its full-width action; Revoke must remain reachable even for nonpilots. **Otwórz ChatGPT / Claude** is pilot-only and stays at the end of step 3; on phones a host app may intercept the link, and plan/account availability remains unverified **[P]**.
 
-### 4.5 Return to a cited invoice
+**Mobile grant-history density approved 2026-10-04 — “All grant cards visible”:** show every grant returned for this member, at most four host × environment records, without collapsing EXPIRED/REVOKED behind History. Each shows host/environment, observed status, expiry or last-used evidence and its available action; the API returns expired/revoked grants only during its retention window. The shipped `AdvisorConnectorGrants` already renders all returned rows in one responsive list and confirms Revoke. Re-grant must remain pilot-only, while Revoke stays available to nonpilots. D5 `c719a920d9e147c9850441fa0bddd426` stacks state examples and contains an unsafe pre-switch document preview, which is excluded; M4 `bc091033e88a409580744627c3b30830` shows mobile cards and confirmation but does not prove host integration. Exact card geometry/copy and dark/light pixels remain open.
 
-When the host shows a cited record, the link points to the existing invoice or incoming-document page. On arrival:
+### 4.5 Return to a cited document — required before Mode B is complete
 
-| Condition | UI |
+**Approved 2026-10-04:** a host citation may link back into Księgowy Vibe only through an **opaque application entry**, not a URL that discloses invoice number, company name, amount or environment metadata. This return is a Mode B completion gate alongside real-host eligibility and the deployed issuer. MCP results currently return facts but **no application URLs**; the route, link generation and return UI are planned, not implemented. The D5 prototype's pre-switch invoice metadata must not ship.
+
+| Condition | UI and access rule |
 |---|---|
-| Signed in, same company and environment | Normal document page; no extra banner |
-| Signed in, different environment selected | Warning banner: "Ten dokument pochodzi ze środowiska {environment}. [Przełącz na {environment}]" — explicit switch, never automatic (secure switching contract in `mobile-first-remediation.md`) |
-| Signed in, different company selected | Warning banner with explicit **Przełącz firmę** action; no document data rendered until switched |
-| Not signed in | Existing sign-in, then return to the link |
-| No access / document removed | Existing not-found state; no confirmation that the document exists |
+| Not signed in | Send through the existing sign-in flow, then resume the opaque link; do not disclose whether the document exists. |
+| Signed in, no access, removed document or invalid link | One generic unavailable/not-found state, no company/environment/document metadata or existence confirmation. |
+| Signed in, authorized for the record and already in its company/environment | Resolve and open the document normally after access checks. |
+| Signed in, authorized but in a different company and/or TEST/PRODUCTION environment | Show only an access/context prompt after membership verification. Offer an **explicit** switch to the required company/environment, without invoice title, amount or record fields; never auto-switch. After the user chooses to switch, recheck access and then open the record. Cancel leaves current context unchanged. |
 
-Whether tool results carry absolute application URLs is an open question for TRY-173 and the API (§10).
+The app authorization check is separate from a connector grant: revoking a grant stops subsequent MCP reads, not a signed-in member's existing right to view their own document. A copied host link still requires current application access. Host-specific citation rendering and whether ChatGPT/Claude preserve clickable URLs remain provisional until real-account verification; do not advertise this return as working before live proof.
 
 ## 5. Per-state UI table
 
@@ -414,11 +454,11 @@ Chip text uses `Badge` (IBM Plex Mono 10px, uppercase). "Announce" lists the liv
 |---|---|---|---|---|---|
 | Settings loading | `settings === null`, no error | — | Skeleton rows in readiness card (opaque `surface-raised` bars, no shimmer under reduced motion) | None | polite "Wczytuję ustawienia doradcy" |
 | Settings failed | request error | `danger` | `ErrorState` with error text | Spróbuj ponownie | assertive |
-| Policy disabled (company) | `enabled === false` | NIEAKTYWNY · `draft` | "Administrator firmy musi włączyć doradcę." ADMIN sees link to policy card | Setup allowed; test and use disabled | — |
-| Provider denied | provider ∉ `allowedProviders` | NIEDOZWOLONY · `danger` | "Administrator musi zezwolić na {provider}. Zapisanie klucza nie zmienia zgody firmy." | Save allowed; test disabled with reason | — |
-| Operator runtime disabled | `operatorEnabled === false` | WYŁĄCZONY · `warning` | Operator text with `ADVISOR_ENABLED` and restart | Save allowed; discovery after save, test and chat disabled | — |
+| Policy disabled (company) | `enabled === false` | NIEAKTYWNY · `draft` | "Administrator firmy musi włączyć doradcę przed zapisaniem połączenia." ADMIN sees link to policy card | Provider choice and existing connection status visible; no discovery, save, test or use; disconnect remains available | — |
+| Provider denied | provider ∉ `allowedProviders` | NIEDOZWOLONY · `danger` | "Administrator musi zezwolić na {provider}, zanim zapiszesz połączenie." | Provider choice and existing connection status visible; no discovery, save, test or use; disconnect remains available | — |
+| Operator runtime disabled | `operatorEnabled === false` | WYŁĄCZONY · `warning` | "Operator musi włączyć doradcę na serwerze przed zapisaniem połączenia." No raw configuration keys or restart instructions in customer copy | Provider choice and existing connection status visible; no discovery, save, test or chat; disconnect remains available | — |
 | No provider chosen | first visit | — | Step 2/3 collapsed with hint "Wybierz dostawcę" | Provider radios | — |
-| Ollama not configured | `ollamaAvailable === false` | BRAK SERWERA · `draft` | Operator must set `ADVISOR_OLLAMA_URL` and network access | No Save rendered; radio still selectable to read instructions | — |
+| Ollama not configured | `ollamaAvailable === false` | BRAK SERWERA · `draft` | "Operator musi skonfigurować serwer Ollama i dostęp sieciowy z serwera API." | No Save rendered; radio still selectable to read instructions | — |
 | Ollama unreachable | discovery error `OLLAMA_UNREACHABLE` (new) | NIEOSIĄGALNY · `danger` | "Serwer API nie łączy się z Ollama. Naprawić może tylko operator (sieć, adres, zapora)." | Ponów | assertive |
 | Ollama no models | discovery returns `[]` | BRAK MODELI · `warning` | "Na serwerze Ollama nie ma zainstalowanych modeli. Operator musi pobrać model." | Ponów; Save disabled | polite |
 | Catalog loading | discovery pending | — | Button shows spinner + "Pobieram listę…"; entered key/model preserved | Other inputs remain editable; button disabled | polite |
@@ -444,12 +484,12 @@ Chip text uses `Badge` (IBM Plex Mono 10px, uppercase). "Announce" lists the liv
 | Host not allowed | client ∉ `allowedConnectors` or policy disabled | NIEDOZWOLONY · `danger` | "Administrator firmy musi zezwolić na {host}." | Grant disabled with reason (`aria-describedby`) | — |
 | Not granted | no grant for host × environment | BRAK ZGODY · `draft` | Steps 3 hidden until grant exists; URL still visible read-only for admins planning setup | Grant (after consent) | — |
 | Granting | PUT pending | — | Button busy | Disabled | — |
-| Granted, waiting for first host call | grant exists, no recorded use **[P — needs API field]** | OCZEKUJE NA 1. UŻYCIE · `warning` | Steps 3 visible, troubleshooting `<details>` opened | Copy, Open host, Revoke | polite "Udzielono zgody do {date}" |
-| Active | grant with recorded use **[P]** | AKTYWNA · `success` | "Ostatnie użycie: {date time}" | Revoke, extend | — |
+| Granted, waiting for first host call | `status === 'WAITING'`, `lastUsedAt === null` | OCZEKUJE NA 1. UŻYCIE · `warning` | Grant issued; no authorized read recorded. Host/account/issuer troubleshooting is provisional. | Revoke; Copy/Open host only for eligible pilots | polite "Udzielono zgody do {date}" |
+| Authorized read recorded | `status === 'ACTIVE'`, `lastUsedAt` set | ODCZYT ODNOTOWANY · `success` | "Ostatni autoryzowany odczyt: {date time}"; not proof that the host account is currently connected | Revoke; re-grant only for eligible pilots | — |
 | Revoke confirm | Revoke pressed | — | `NativeDialog`: next host request will fail; host keeps its own conversation history | Cofnij zgodę · Anuluj | dialog title |
-| Revoked | DELETE done | COFNIĘTA · `draft` (session only) | "Zgoda cofnięta. {host} nie odczyta już danych. Historię rozmowy usuń w {host}." | Grant again | polite |
-| Expired | grant past `expiresAt` **[P — API hides expired grants]** | WYGASŁA · `draft` | "Zgoda wygasła {date}." | Zezwól ponownie | — |
-| Expiring soon | `expiresAt` within 3 days | WYGASA WKRÓTCE · `warning` | "Wygasa {date}." | Przedłuż (re-grant) | — |
+| Revoked | GET returns `status === 'REVOKED'` within retention | COFNIĘTA · `draft` | "Zgoda cofnięta. {host} nie odczyta już danych. Historię rozmów usuń w {host}." | Re-grant only for eligible pilots | polite |
+| Expired | GET returns `status === 'EXPIRED'` within retention | WYGASŁA · `draft` | "Zgoda wygasła {date}." | Re-grant only for eligible pilots | — |
+| Expiring soon | unexpired grant with `expiresAt` within 3 days | WYGASA WKRÓTCE · `warning` | "Wygasa {date}." | Extend by fresh consent/re-grant for eligible pilots only; Revoke remains | — |
 | Copy succeeded | clipboard write resolved | — | Button text becomes "Skopiowano" for 2s | — | polite "Skopiowano adres konektora" |
 | Copy failed / unsupported | clipboard rejected | — | Field auto-selects text; hint "Skopiuj ręcznie" | — | polite |
 
@@ -471,7 +511,7 @@ All mapped to existing components; no new tokens. "New composition" means a comp
 | Model picker | `FormField` + `Input` with native `datalist` | Keeps manual entry; count in hint text |
 | MCP URL | `FormField` + read-only `Input` (mono) + `Button` secondary "Kopiuj adres" | `navigator.clipboard.writeText`, select-on-focus fallback |
 | Host instructions | Ordered list inside `Surface` inset | Content from translations, marked [P] |
-| Grants list | Table on desktop (`IncomingInvoicesTable` row style, 44px rows); inset cards on mobile | At most 4 rows |
+| Grants list | Shipped responsive `AdvisorConnectorGrants` list; desktop table/mobile inset-card split remains a design candidate | Show every returned grant (at most four), including expired/revoked within retention; final geometry still requires sign-off |
 | Buttons | `Button` variants: `primary` (save, grant), `secondary` (fetch models, test, copy, open host), `danger` (disconnect, revoke), `ghost` (retry) | `loading` prop for busy state |
 | Confirmations | `NativeDialog` | Focus starts on cancel (`data-dialog-cancel`) |
 | Load / empty / error | Skeleton built from `Surface` inset bars; `EmptyState`; `ErrorState` | Loading and empty are required for the catalog and grants list |
@@ -519,7 +559,7 @@ Keys are English and extend `advisorText` in `apps/web/src/lib/advisor-translati
 | `providerOllamaBilling` | Bez klucza API. Koszt infrastruktury ponosi operator. | |
 | `providerAllowed` | Dozwolony | chip |
 | `providerDenied` | Niedozwolony | chip |
-| `providerDeniedDescription` | Administrator musi zezwolić na {provider}. Zapisanie klucza nie zmienia zgody firmy. | |
+| `providerDeniedDescription` | Administrator musi zezwolić na {provider}, zanim zapiszesz połączenie. | Approved blocked-save copy; no promise of preconfiguration |
 | `credential` | Klucz API {provider} | Changed: includes provider |
 | `credentialSaved` | Klucz zapisany. Wpisz nowy tylko, aby go zastąpić. | Changed; helper text, not placeholder |
 | `fetchModels` | Pobierz listę modeli | replaces `models` |
@@ -532,7 +572,7 @@ Keys are English and extend `advisorText` in `apps/web/src/lib/advisor-translati
 | `credentialRejected` | Dostawca odrzucił klucz. Sprawdź, czy jest aktywny i ma środki. | |
 | `ollamaEndpoint` | Serwer Ollama | |
 | `ollamaConfigured` | Skonfigurowany | chip |
-| `ollamaNotConfigured` | Operator nie skonfigurował serwera Ollama (`ADVISOR_OLLAMA_URL`) ani dostępu sieciowego z serwera API. | |
+| `ollamaNotConfigured` | Operator musi skonfigurować serwer Ollama i dostęp sieciowy z serwera API. | |
 | `ollamaUnreachable` | Serwer API nie łączy się z Ollama. Naprawić to może tylko operator: adres, sieć lub zapora. | |
 | `ollamaNoModels` | Na serwerze Ollama nie ma zainstalowanych modeli. Operator musi pobrać model, potem odśwież listę. | |
 | `ollama` | Klucz nie jest potrzebny. „localhost” oznacza serwer API, nie Twój komputer. | Changed |
@@ -628,7 +668,7 @@ Remove `companyIdentifier` ("Identyfikator firmy do rozmowy") from the visible U
 - Selected radio card: `border-primary` (≥ 3:1 against card in both themes) plus the checked native radio — never colour alone.
 - PRODUKCJA environment uses the existing `danger` chip; TEST uses `warning` (same as `InvoiceEnvironmentChip`).
 - Banners: `info` tone for disclosures, `warning` for operator/admin blockers, `error` only for failed actions. No large filled blocks (Aurora rule §1).
-- Mono font (IBM Plex Mono) for model IDs, the MCP URL and environment variable names; these wrap with `break-all` on mobile.
+- Mono font (IBM Plex Mono) for model IDs and the MCP URL; these wrap with `break-all` on mobile. Configuration keys belong in operator documentation, not customer-visible blocked copy.
 - Skeletons use opaque `surface-raised` bars; no shimmer gradient, no blur, no shadow.
 - Dark: muted copy uses `--muted` (0.60) minimum; light uses 0.64. Disabled text `foreground-disabled` only on inactive controls.
 - Follow system theme via the existing `ThemeSwitcher`; nothing in this design is theme-specific beyond tokens.
@@ -653,9 +693,9 @@ Remove `companyIdentifier` ("Identyfikator firmy do rozmowy") from the visible U
 | Model discovery before save | `GET /connections/:provider/models` requires saved connection | Planned preview route (transient key, rate-limited) — plan phase 3 |
 | Ollama unreachable vs. not configured vs. no models | `ollamaAvailable` (configured only) | Distinct error code for reachability from discovery (e.g. `OLLAMA_UNREACHABLE`) |
 | Test failure reason after reload | Only `testedAt` on success | Acceptable: failure shown for the session only; no persistence needed |
-| Grant "waiting for first host call" / "active" | Grant has `createdAt`, `expiresAt` | Needs `lastUsedAt` on `AdvisorConnectorGrant`, updated on authorised tool call |
-| Expired grant visibility | `GET /connectors` filters out expired grants; hourly cron deletes them | Return recently expired grants (or accept "Not granted" instead of "Expired") |
-| Revoked state | DELETE removes row | Session-only confirmation is enough; no persisted revoked state |
+| Grant "waiting for first host call" / "authorized read recorded" | `AdvisorConnectorGrant.lastUsedAt` is returned by `GET /connectors` and updated on authorized MCP reads | Copy/UI must distinguish a grant from an observed read, never infer host-account connection |
+| Expired grant visibility | `GET /connectors` returns unrevoked grants until retention after expiry | Show only returned records; no synthetic expired row after cleanup |
+| Revoked state | DELETE sets `revokedAt`; GET returns recent revoked grants until retention cleanup | Nonpilots can inspect and Revoke, but re-grant requires a server-enforced pilot gate |
 | Current company name in mode B scope | Not in connector settings | Available from existing company context in the shell |
 
 ## 12. Open questions for the connector eligibility check (TRY-173)
@@ -691,7 +731,7 @@ Owner: frontend-architect. Added: **2026-10-01**. Status: **foundation implement
 
 | Decision | Choice | Why |
 |---|---|---|
-| Rendering | Settings page stays a Server Component; the advisor area is one client island. The container `AdvisorSettings.tsx` keeps `'use client'`, and its children run as client components because the container imports them | The area is all forms, dialogs, clipboard and `localStorage`. The server passes `companyId` and `companyName`, nothing else |
+| Rendering | Settings page stays a Server Component; the advisor area is one client island. The container `AdvisorSettings.tsx` keeps `'use client'`, and its children run as client components because the container imports them | The area contains forms, dialogs and clipboard actions. The server passes `companyId` and `companyName`; mode is local component state, never persisted |
 | Data fetching | Keep the existing `useEffect` + `AbortController` + refetch-after-mutation pattern. **No React Query, Zustand or Context** | Two GET endpoints, one consumer tree, no cache shared across routes. A library would be a new dependency for about four fetch calls |
 | Transport | `advisor-api.ts` stays the only transport. Components call named endpoint functions (§14.4), never `advisorRequest` with inline paths | Endpoint paths, the `x-ksef-environment` header and request bodies are defined in one place, so the backend contract is reviewable in one file |
 | Draft reset | `AdvisorProviderConnection` is rendered with `key={provider}` | Changing provider remounts the component, which clears the key draft, catalog and operation status. No reset effects are needed, and the secret leaves memory (§10) |
@@ -707,7 +747,7 @@ All files are in `apps/web/src/components/advisor/` unless noted. Sizes are esti
 
 | File | Kind | Owns (state) | Renders | Est. lines |
 |---|---|---|---|---|
-| `AdvisorSettings.tsx` | rewrite, container | `settings`, `connectors` (fetched in parallel), load error, `mode` (`localStorage`, try/catch) | Policy card (ADMIN), mode switch (two `aria-pressed` buttons, inline), the active mode | ~140 |
+| `AdvisorSettings.tsx` | container | `settings`, `connectors` (fetched in parallel), load error, local `mode` initialized to `'embedded'` on every entry | Policy card (ADMIN), mode switch (two `aria-pressed` buttons with independent concise status lines), the active mode | existing file |
 | `AdvisorPolicyForm.tsx` | new, extracted as-is from `AdvisorSettings` | Policy draft, its own save status | Enable, allowed providers, allowed hosts, retention | ~80 |
 | `AdvisorReadinessSummary.tsx` | new, shared by both modes | none | `dl` of `{ label, chip, tone, reason }` rows, skeleton while `rows === null` | ~50 |
 | `AdvisorProviderChoice.tsx` | new | none (controlled) | `fieldset` radio cards, `<details>` for OpenAI/Anthropic API (open when either has a saved connection), billing disclosure (I3) | ~90 |
@@ -954,21 +994,22 @@ No new atoms or molecules. Reuse `Surface`, `Badge`, `Banner`, `FormField`, `Inp
 
 ### 14.8 UX sign-off
 
-**Signed off** for implementation. The design is feasible with existing components, needs no new tokens, and every state in §5 maps to a data source (§14.3). The user approved decisions on 2026-10-01 that close issues 1, 3, 4, 5, 6 and 9; the rest keep the frontend default.
+**Historical implementation sign-off (2026-10-01), not current journey or pixel sign-off.** The customer changed the blocked-save decision on **2026-10-04**: neither operator-disabled nor company-denied providers may be saved until enabled. §3 and §5 above and the revised test scenario 3 below contain the approved target behavior; the dated implementation notes at the end remain evidence of the current UI gap.
 
 | # | Issue | Where | Resolution |
 |---|---|---|---|
-| 1 | Discovery gating: §5.1 vs §3.1 contradicted each other | §3.1, §5.1 | **Decided.** Discovery is `aria-disabled` with the reason when the runtime is off or the provider is denied (matches the API, §14.5 #1). Manual model ID entry stays open, so save is always possible (TRY-169 AC) |
+| 1 | Discovery and save gating while blocked | §3.1, §5.1 | **Superseded 2026-10-04.** Discovery and Save are both blocked when the operator runtime is off, company policy is off or the selected provider is denied; the API PUT already rejects those cases. Manual model entry is only a discovery fallback for an eligible provider. Existing connection status and disconnect remain available. |
 | 2 | Test-failure reasons have no API codes | §5.1 "Test failed" | **Open, not blocking.** Generic `PROVIDER_ERROR` copy (§14.5 #9); distinct codes are a backend follow-up |
 | 3 | Revoked was "session only" in §5.2, but the backend retains grants | §4.2, §5.2, §11 | **Decided.** Persisted chips from server `status`; revoked and expired rows visible for 30 days; `lastUsedAt` kept and shown. §5.2 and §11 owners update their sections accordingly |
 | 4 | One-click "Zezwól ponownie" / "Przedłuż" would bypass consent (I9) | §4.3, §5.2 | **Decided.** The row action pre-fills step 2 (host, environment), leaves consent unticked and moves focus to the consent checkbox. It never grants in one click |
-| 5 | Advisor dock (400px) and mobile sheet embed `AdvisorSettings` inline | `AdvisorConversation.tsx` | **Decided.** Replace with a link to `/dashboard/settings?section=advisor` plus the existing blocked-state text; `SettingsWorkspace` gets an optional `initialSection` prop (§14.7) |
+| 5 | First-use advisor entry and Mode A landing | `AdvisorConversation.tsx`, `AdvisorWorkspace.tsx`, `AdvisorSettings.tsx` | **Approved 2026-10-04:** open a blocked 400px dock/mobile sheet on the current page with precise blocker and Settings link. Every Settings → Doradca entry starts in **Mode A**, whether via that link or directly; B remains a visible switch for the visit. No automatic navigation, embedded setup form, answer submission or model call. Remove device-global mode persistence and fix blocked composer/reasons. |
 | 6 | Policy card copy says "abonament" (breaks I2) | §7 | **Decided.** Keys `policy.allowedHosts` and `policy.allowedHostsDescription`, proposed copy in §14.6, pending ux-ui-architect wording review only |
 | 7 | KISS: step 3 hidden until a grant exists adds a role branch | §5.2 | Default kept: show step 3 whenever `endpoint` is set, for everyone |
 | 8 | Two grant markups (table and cards) | §4.3, §4.4, §6 | Default kept: one responsive `ul` (§14.1) |
 | 9 | §4.5 return-to-invoice banner | §4.5 | **Decided.** Split out of TRY-180 into a follow-up ticket; not part of this delivery |
 | 10 | Shake and chip "pop" motion | §8 | Default kept: built last, CSS only, off under reduced motion, dropped if it slips |
 | 11 | Light-theme screens not drawn | §0 | Default kept: tokens only (§9); Playwright screenshots in both themes go to review |
+| 12 | Both mode choices expose status before selection | `AdvisorSettings.tsx` | **Approved 2026-10-04:** keep a concise, independent status line on A and B even while the other mode is selected. A follows the Settings-selected provider; B aggregates only this member's grants across hosts/environments. A mixed B state shows both a policy-allowed ACTIVE grant and another host's restriction, not a false global success or global blocker; denied grants do not count as currently eligible. Current cards show description only. Do not conflate saved/tested, WAITING/ACTIVE, endpoint configured/host validated, or API connectivity/tax-source readiness. Final B copy still needs customer review (ledger 2f). |
 
 Also decided: the UI label "Claude API" becomes "Anthropic API" (§14.6); Mode B uses a pre-registered OAuth client per host, and the setup copy follows the TRY-173 findings (§14.6, Mode B setup copy).
 
@@ -985,14 +1026,15 @@ Grant status is server-computed and covered by API route tests; there is no clie
 |---|---|---|---|
 | 1 | OpenRouter first setup | Key → "Pobierz listę modeli" sends a POST to the preview route with `{ credential }`; count is shown; model chosen; save sends PUT with `{ model, credential }`; key field empty with saved helper; chip "Zapisane — nie przetestowane"; **test request count is 0**; test → chip "Przetestowane"; scope line (TEST i PRODUKCJA) visible | 167, 169, 170, 171 |
 | 2 | Rejected key, rate limit | Preview returns 502 `PROVIDER_ERROR`: error mentions the key, key value kept, manual model ID still saves; a second preview returning 429 `RATE_LIMITED` shows the wait message | 167, 171 |
-| 3 | Policy gates | `allowedProviders` without OpenRouter and `operatorEnabled: false`: two separate readiness reasons; test `aria-disabled` with a description; save still sends PUT; success says only "Zapisano połączenie" | 169 |
+| 3 | Policy gates | Separate operator-off, company-off and provider-denied fixtures at 1440 and 390: explain who enables each; discovery, Save and test cannot submit (zero preview/PUT/test calls even via form submit); existing connection still displays and can disconnect; after enabling both gates, Save becomes available | Connection alignment |
 | 4 | Ollama not configured | `ollamaAvailable: false`: operator text, no save button, no URL input anywhere | 168, 171 |
 | 5 | Ollama configured | Discovery sends `{}` to `model-preview`; 502 `OLLAMA_UNREACHABLE` → message + retry; retry returns 409 `OLLAMA_NO_MODELS` → no-models message, save disabled; retry returns models → choose, "Zapisz model" sends PUT **without** `credential`; explicit test | 168, 171 |
 | 6 | Disconnect | Dialog opens with focus on Anuluj; confirm sends DELETE; chip "Nieskonfigurowane"; focus on readiness | 169 |
 | 7 | Grant | Consent text reflects host, environment and days; grant `aria-disabled` until consent; changing environment clears consent; grant sends PUT with `x-ksef-environment: PRODUCTION` and `{ days: 7 }`; copy URL (clipboard permission granted) shows "Skopiowano"; open-host link has `target=_blank` and `rel` containing `noopener` | 180 |
 | 8 | Grant states | Mocked grants with `status` `WAITING`, `ACTIVE` (expiring within 3 days), `EXPIRED`, `REVOKED` → chips, `lastUsedAt` shown; revoke dialog → DELETE with the environment header, mock returns `{ revoked: true }` and the row turns revoked; "Zezwól ponownie" pre-fills step 2, consent unticked, focus on consent, **no request sent** | 180 |
-| 10 | Dock deep link | Advisor dock (desktop) and mobile sheet show a link to `/dashboard/settings?section=advisor`; following it opens the advisor section | 169 |
 | 9 | Connector blockers | `endpoint: null` → unavailable; host not in `allowedConnectors` → grant disabled with the reason | 180 |
+| 10 | Settings mode default | At 1440 and 390, select B, leave Settings, then enter Doradca directly **and** through a blocked panel: both paths select A with B still switchable. No mode is stored in `localStorage`; blocked panel shows its reason and explicit Settings action without submitting | Mode alignment |
+| 11 | Both mode statuses | With independent settings and connector fixtures at 1440 and 390, both choices expose their own derived state before switching; pending/error cannot display a stale success, saved is not tested, WAITING means grant issued without an authorized read, and ACTIVE means an authorized read was recorded, not a real-account integration claim. With two embedded providers (one tested, one denied), the A choice follows the Settings selection and changing it updates only A, not the conversation provider. With separate ChatGPT TEST and Claude PRODUCTION grants, B summarizes this member's states without depending on its hidden host/environment selection. When ChatGPT remains policy-allowed and Claude becomes denied, both facts appear; Claude's historical ACTIVE grant does not count as currently eligible. When the only retained grants are EXPIRED/REVOKED, show no current access plus both distinct reasons, not the never-granted state. Assert final localized words after review of ledger 2e/2f | Mode-status alignment |
 
 TRY-171 is done when scenarios 1, 2, 4 and 5 pass at both widths. The backend engineer owns API route tests for §14.5.
 ### 14.10 Implementation sequence
@@ -1030,7 +1072,7 @@ Review with secops-security-auditor before steps 2 and 4b are merged:
 - Pre-registered OAuth clients per host; no anonymous DCR on the Keycloak realm. Callback URLs live in operator configuration, never in user-editable fields.
 - Consent is bound to the exact host × environment × days combination (`consentFor`). Row actions never grant directly (§14.8 issue 4).
 - The only clipboard content is the public MCP URL. Host links use `rel="noopener noreferrer"`. No user-supplied endpoint exists anywhere (I6).
-- `localStorage` holds only the last mode, and every access is wrapped in try/catch.
+- Do not persist advisor mode in `localStorage` or a module-global fallback; each Settings → Doradca entry starts in A. Secret drafts also remain component-local.
 - Return links never switch company or environment automatically (§4.5, follow-up).
 
 ### 14.12 Implementation backlog (for frontend-engineer)
@@ -1066,3 +1108,7 @@ Implementation status (2026-10-01): steps 0.1 to 0.5 are done. Details of what l
 - Integrated verification (2026-10-01): web `tsc`, web vitest (7 tests), API `tsc` and API vitest (168 tests) pass; web lint reports only the unrelated unused `redirect` in `onboarding/layout.tsx`. Playwright scenarios 3 (policy gates), 6 (disconnect dialog) and 10 (dock deep link) were added to `describe('provider connection')` at 1440 and 390, each with the no-horizontal-scroll check. Scenario 3 asserts native `disabled` on the test button (see the Mode A differences) and a PUT without `credential`. `advisor-settings.spec.ts` passed 100 of 100 with `--repeat-each=5`, including the revoke-focus test. The full e2e suite passed except `mobile-regression.spec.ts`, whose dock label expectation was still "Asystent podatkowy AI — wkrótce" and now reads "Otwórz doradcę". Not verified: light-theme screenshots and a human review of the screenshots.
 - Visual QA fixes (2026-10-01): the panel (`AdvisorConversation`) follows screen 15: mono context line with a "Zmień" control (provider, period, question kind and consent behind it), history behind a ghost button, ask field pinned to the bottom with the data disclosure above it; `AdvisorWorkspace` dock header with brand tile, subtitle and Esc hint. `summary` elements regained a rotating chevron. `Badge variant="tag"` (uppercase, compact), `Banner variant="accent"` (3px left border), `NativeDialog sheet` (26px top radius and grabber) are opt-in variants, so shared defaults are unchanged. `AdvisorStepEyebrow` renders "Krok n z 3" (aria-hidden), radios use the primary accent, `AdvisorReadinessSummary` uses status rows, `AdvisorAnswerCard` has a green short-answer block (only for `answered`), figure tiles and the calculations open by default. Dark and light both use existing tokens only. E2E: `advisor-settings.spec.ts` screenshots the full `#settings-panel` (viewport grown to the section height) in light and dark at 1440 and 390; the theme is switched through `data-theme` because the app reads it from localStorage, not from `prefers-color-scheme`. Remaining: dock action buttons wrap onto two lines in the 400px dock, P9/P10/P11 intentionally skipped.
 - `declined` answers (2026-10-01): `AdvisorAnswerCard` renders status `Poza zakresem doradcy` with the neutral short-answer block (green stays `answered` only), labels `explanation` as `W czym mogę pomóc` and shows no assumptions, questions, calculations, evidence or sources because the contract leaves them empty; no citations UI. The calculations summary now reads `Wyliczenia` because it is open by default. `advisor.spec.ts` covers a `declined` fixture at 1440 and 390 (label, hidden empty sections, no horizontal scroll, light and dark screenshots).
+
+**Customer-journey correction (2026-10-04):** the old implementation and test results above predate the approved “Block save until enabled” decision. `PUT /connections/:provider` already rejects operator-off and company-denied requests; `AdvisorProviderConnection` must also prevent Save (including form submission) while either gate is closed, render the relevant remedy, and preserve the ability to view/disconnect a pre-existing connection. Update scenario 3 in `advisor-settings.spec.ts` to assert **zero** blocked PUT/model-preview/test calls at 1440 and 390, then re-run the focused checks. No new or revised Stitch screen is requested until the whole journey is agreed.
+
+**Default-mode correction implemented 2026-10-06:** every Settings → Doradca entry starts in Mode A, regardless of whether B was chosen earlier. `AdvisorSettings.tsx` no longer persists or shares mode across visits. The existing section-only Settings link navigates from a blocked panel, and browser coverage enters via that link after switching to B on an earlier visit. No `mode=embedded` parameter or revised Stitch screen is required.

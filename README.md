@@ -21,8 +21,9 @@ Private design reference files stay on the developer's machine and are excluded 
 | [Mobile-first UX Remediation](docs/specs/mobile-first-remediation.md) | Mobile interaction tokens, shell/navigation contracts, secure KSeF switching, component states, and regression matrix |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
 | [Tax Advisor](docs/specs/tax-advisor.md) | Embedded provider setup, reviewed-source contract, subscription connector/OAuth deployment, and current release limits |
-| [Tax Advisor Connection UX](docs/specs/tax-advisor-connection-ux.md) | Settings → Doradca design: API-provider setup and ChatGPT/Claude read-only connector, states, microcopy, accessibility, Stitch screen map |
-| [Tax Advisor Implementation Plan](spec/tax-advisor-implementation-plan.md) | Provider setup design for OpenRouter/Ollama, advisor screens 15–19 mapping, implementation checklist, and release gates |
+| [Tax Advisor Connection UX](docs/specs/tax-advisor-connection-ux.md) | Settings → Doradca behavior, implemented four-state blocked dock/sheet, chosen visual reference and remaining app-level visual sign-off |
+| [Tax Advisor Blocked-Entry Reference](docs/specs/tax-advisor-blocked-entry-reference.html) | One Aurora HTML/CSS template for four blockers in both themes at desktop/mobile sizes; serve the repository root to open the 16 variant links in the implementation plan |
+| [Tax Advisor Implementation Plan](spec/tax-advisor-implementation-plan.md) | Advisor delivery/release gates and decision-gated customer journey with Aurora-versus-Stitch coverage, design polish, and pixel-perfect visual QA protocol |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
@@ -32,6 +33,7 @@ Private design reference files stay on the developer's machine and are excluded 
 ## Features
 
 - **Advisor (opt-in)** — Read-only company-record explanations, desktop/mobile chat, monthly briefing, private history and encrypted API-key connections for OpenRouter, OpenAI API, Anthropic API or operator-hosted Ollama. ChatGPT/Claude subscriptions are used in their own apps through a separately configured OAuth/MCP connector; users sign in there, while Księgowy Vibe only grants scoped read access. Embedded chat always uses separate API billing. Out-of-scope questions (PIT/CIT/ZUS, legal opinions, filing) get a `declined` answer, deterministically and without a paid model call when the wording is unambiguous. Tax answers require an operator-supplied reviewed source corpus; real provider/connector acceptance remains a release gate. See [setup and limitations](docs/specs/tax-advisor.md).
+  Blocked entry shows the highest-priority operator/company/provider/connection reason in the desktop dock or mobile sheet with a disabled composer; only the user's Settings action navigates, and every Settings visit opens in embedded Mode A.
   Contractor Explain carries the selected contractor and month; dashboard and document lists show at most one evidence-linked, dismissible advisor insight per view. Dismissals persist per membership, KSeF environment and insight version. Contractor payment figures are current cumulative invoice values, not historical month-end balances.
   Tax-source deployment is opt-in: mount only a reviewer-approved JSON file using `docker-compose.advisor-sources.yml`; the repository's draft corpus is deliberately rejected by the API loader. See [corpus review and promotion](docs/specs/tax-advisor-corpus/README.md).
 
