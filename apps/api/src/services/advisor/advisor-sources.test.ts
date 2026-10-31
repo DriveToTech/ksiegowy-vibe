@@ -4,7 +4,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { loadAdvisorSources, selectAdvisorSources } from './advisor-sources.js';
+import { hashAdvisorSourceReview, loadAdvisorSources, selectAdvisorSources } from './advisor-sources.js';
 import type { AdvisorSourceTopic } from './advisor-source-topics.js';
 
 const corpusDirectory = join(import.meta.dirname, '../../../../../docs/specs/tax-advisor-corpus');
@@ -63,7 +63,7 @@ describe('selectAdvisorSources() topic retrieval', () => {
     const selected = selectAdvisorSources(sources, '2026-10', now, 'KSeF ma awarię');
     expect(selected).toHaveLength(8);
     expect(selected.slice(0, 3).map((source) => source.id)).toEqual(['double', 'newer-single', 'filler-0']);
-    expect(selected.every((source) => !('topics' in source))).toBe(true);
+    expect(selected.every((source) => !('topics' in source) && !('reviewHash' in source) && !('reviewReportId' in source))).toBe(true);
   });
 
   it('is diacritic insensitive and keeps untopiced sources as general entries', () => {
@@ -93,8 +93,11 @@ describe('selectAdvisorSources() topic retrieval', () => {
 });
 
 describe('loadAdvisorSources()', () => {
-  const validSource = { id: 'rates', title: 'Rates', url: 'https://eli.gov.pl/act', section: 'art. 41', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31',
-    reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-01', reviewedBy: 'Reviewer', excerpt: 'Excerpt' };
+  const unsignedSource = { id: 'rates', title: 'Rates', url: 'https://eli.gov.pl/act', section: 'art. 41', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31',
+    reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-01', reviewedBy: 'ai:ANTHROPIC/claude-model+ai:OPENAI/gpt-model', reviewMethod: 'ai' as const,
+    reviewReportId: '0b9a5e0e-7a0c-4d5b-8f1e-3c2d1a4b5c6d', excerpt: 'Excerpt' };
+  const signSource = (source: typeof unsignedSource & { topics?: string[] }) => ({ ...source, reviewHash: hashAdvisorSourceReview(source as never) });
+  const validSource = signSource(unsignedSource);
   const loadFrom = async (sources: unknown) => {
     const directory = await mkdtemp(join(tmpdir(), 'advisor-sources-'));
     const sourcePath = join(directory, 'sources.json');
@@ -104,14 +107,24 @@ describe('loadAdvisorSources()', () => {
   };
 
   it('accepts sources with and without topics', async () => {
-    const loaded = await loadFrom([validSource, { ...validSource, id: 'tagged', topics: ['vat-rates'] }]);
+    const loaded = await loadFrom([validSource, signSource({ ...unsignedSource, id: 'tagged', topics: ['vat-rates'] })]);
     expect(loaded.sources.map((source) => source.id)).toEqual(['rates', 'tagged']);
   });
 
   it('rejects unknown, duplicated and oversized topics', async () => {
-    await expect(loadFrom([{ ...validSource, topics: ['invented'] }])).rejects.toThrow();
-    await expect(loadFrom([{ ...validSource, topics: ['vat-rates', 'vat-rates'] }])).rejects.toThrow();
-    await expect(loadFrom([{ ...validSource, topics: [] }])).rejects.toThrow();
+    await expect(loadFrom([signSource({ ...unsignedSource, topics: ['invented'] })])).rejects.toThrow();
+    await expect(loadFrom([signSource({ ...unsignedSource, topics: ['vat-rates', 'vat-rates'] })])).rejects.toThrow();
+    await expect(loadFrom([signSource({ ...unsignedSource, topics: [] })])).rejects.toThrow();
+  });
+
+  it('rejects entries without AI review metadata, with a single reviewer or with a stale review hash', async () => {
+    const { reviewMethod: _reviewMethod, ...withoutReviewMethod } = validSource;
+    const humanFormat = { ...validSource, reviewedBy: 'Jan Kowalski' };
+    const singleReviewer = signSource({ ...unsignedSource, reviewedBy: 'ai:ANTHROPIC/claude-model' });
+    await expect(loadFrom([withoutReviewMethod])).rejects.toThrow();
+    await expect(loadFrom([humanFormat])).rejects.toThrow();
+    await expect(loadFrom([singleReviewer])).rejects.toThrow();
+    await expect(loadFrom([{ ...validSource, excerpt: 'Edited after the AI review' }])).rejects.toThrow('reviewHash does not match');
   });
 
   it('rejects the pending-review draft corpus', async () => {
@@ -127,7 +140,8 @@ describe('draft corpus retrieval against eval-set.json', () => {
       id: string; expectedBehavior: string; question: string; period: string; requiredSourceIds: string[] }> };
     const reviewedCopy = draft.sources.map((source) => ({ id: source['id'], title: source['title'], url: source['url'], section: source['section'],
       effectiveFrom: source['effectiveFrom'], effectiveUntil: source['effectiveUntil'], excerpt: source['excerpt'], topics: source['topics'],
-      reviewedBy: 'Test reviewer', reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-31' }));
+      reviewedBy: 'ai:ANTHROPIC/claude-model+ai:OPENAI/gpt-model', reviewMethod: 'ai' as const, reviewReportId: '0b9a5e0e-7a0c-4d5b-8f1e-3c2d1a4b5c6d',
+      reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-31' })).map((source) => ({ ...source, reviewHash: hashAdvisorSourceReview(source as never) }));
     const { sources } = await (async () => {
       const directory = await mkdtemp(join(tmpdir(), 'advisor-draft-'));
       const sourcePath = join(directory, 'sources.json');

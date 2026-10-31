@@ -6,6 +6,8 @@ export const advisorGrantRetentionDays = 30;
 export const advisorModelPreviewDailyLimitPerUser = 30;
 export const advisorModelPreviewDailyLimitPerCompany = 100;
 export const advisorModelPreviewUsageRetentionDays = 7;
+// Polish user-facing text (translation of: AI-generated answer, sources checked by an AI model only, not legal or tax advice; verify in sources or with an accountant/tax advisor).
+export const advisorTaxDisclaimer = 'Odpowiedź wygenerowana przez AI. Źródła sprawdził wyłącznie model AI, nie doradca podatkowy. Nie stanowi porady prawnej ani podatkowej — zweryfikuj ją w źródłach lub u księgowego/doradcy podatkowego.';
 export const advisorScopeSchema = z.object({
   questionKind: z.enum(['records', 'tax']),
   period: z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/),

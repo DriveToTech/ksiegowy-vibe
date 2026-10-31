@@ -1,3 +1,4 @@
+import { hashAdvisorSourceReview } from '../services/advisor/advisor-sources.js';
 import { Builder } from 'builder-pattern';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
@@ -39,7 +40,8 @@ describe('advisorRoutes()', () => {
   });
   describe('GET /settings tax source coverage', () => {
     const coveringSource = { id: 'source', title: 'Title', url: 'https://www.podatki.gov.pl/source', section: 'Section', effectiveFrom: '2026-01-01',
-      effectiveUntil: '2026-12-31', reviewedAt: '2026-01-02', reviewExpiresAt: '2099-01-01', reviewedBy: 'Reviewer', excerpt: 'Excerpt text' };
+      effectiveUntil: '2026-12-31', reviewedAt: '2026-01-02', reviewExpiresAt: '2099-01-01', reviewedBy: 'ai:ANTHROPIC/claude-model+ai:OPENAI/gpt-model', reviewMethod: 'ai' as const,
+      reviewReportId: '0b9a5e0e-7a0c-4d5b-8f1e-3c2d1a4b5c6d', excerpt: 'Excerpt text' };
     const requestCoverage = (period: string) => application.inject({ method: 'GET', url: `/companies/company/advisor/settings?period=${period}`, cookies: { auth_token: token } });
 
     it('reports no coverage without a corpus', async () => {
@@ -48,7 +50,7 @@ describe('advisorRoutes()', () => {
     });
     it('reports coverage by version only, never source text', async () => {
       const sourcePath = join(mkdtempSync(join(tmpdir(), 'advisor-sources-')), 'sources.json');
-      writeFileSync(sourcePath, JSON.stringify([coveringSource]));
+      writeFileSync(sourcePath, JSON.stringify([{ ...coveringSource, reviewHash: hashAdvisorSourceReview(coveringSource) }]));
       vi.stubEnv('ADVISOR_TAX_SOURCES_PATH', sourcePath);
       const covered = await requestCoverage('2026-03');
       expect(covered.json().taxSourceCoverage).toEqual({ period: '2026-03', covered: true, sourceVersion: expect.stringMatching(/^[0-9a-f]{64}$/) });

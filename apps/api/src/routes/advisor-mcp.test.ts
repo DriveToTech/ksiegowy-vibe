@@ -4,6 +4,7 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../app.js';
 import { loadAuthConfig } from '../lib/auth-config.js';
+import { advisorTaxDisclaimer } from '../services/advisor/advisor-contract.js';
 import { advisorConnectorCallsPerMinute, reserveAdvisorConnectorCall } from '../services/advisor/advisor-connector.js';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
@@ -42,6 +43,8 @@ describe('advisorMcpRoutes()', () => {
       expect(database.advisorConnectorGrant.updateMany).toHaveBeenCalledWith({ where: { id: 'grant', revokedAt: null, expiresAt: { gt: expect.any(Date) },
         OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: expect.any(Date) } }] }, data: { lastUsedAt: expect.any(Date) } });
       expect(database.invoice.groupBy).toHaveBeenCalledTimes(2);
+      const taxSources = await application.inject({ ...call, payload: { ...call.payload, params: { ...call.payload.params, name: 'get_tax_sources' } } });
+      expect(JSON.parse(taxSources.json().result.content[0].text).facts).toEqual({ sources: [], sourceVersion: 'unreviewed', sourceReviewMethod: 'ai', disclaimer: advisorTaxDisclaimer });
       expect(database.invoice.findMany).not.toHaveBeenCalled();
       expect(database.incomingInvoice.findMany).not.toHaveBeenCalled();
       vi.mocked(database.advisorConnectorGrant.findFirst).mockResolvedValue(null);

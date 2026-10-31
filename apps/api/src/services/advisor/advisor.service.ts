@@ -1,7 +1,8 @@
 import type { FastifyRequest } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import type { AdvisorAnswer, AdvisorEnvironment, AdvisorProvider, AdvisorScope } from '@ksiegowy/types';
-import { AdvisorError } from './advisor-contract.js';
+import type { z } from 'zod';
+import type { AdvisorAnswer, AdvisorEnvironment, AdvisorProvider, AdvisorScope, AdvisorTaxSource } from '@ksiegowy/types';
+import { AdvisorError, advisorTaxDisclaimer, type advisorModelAnswerSchema } from './advisor-contract.js';
 import { buildAdvisorContext } from './advisor-context.js';
 import { readAdvisorConnection, requireAdvisorEnabled, requireAdvisorMembership, requireAdvisorPolicy, reserveAdvisorProviderRequest } from './advisor-access.js';
 import { generateAdvisorResponse } from './advisor-provider.js';
@@ -42,8 +43,9 @@ export async function answerAdvisorQuestion(request: FastifyRequest, options: {
 // Out-of-scope questions are declined deterministically: no context is loaded and no paid provider call is made.
 function declineAdvisorQuestion(companyId: string, environment: AdvisorEnvironment, scope: AdvisorScope, connection: { provider: AdvisorProvider; model: string }): AdvisorAnswer {
   return { status: 'declined', shortAnswer: declinedShortAnswer, explanation: declinedExplanation, assumptions: [], questions: [], evidence: [], calculations: [], sources: [],
+    ...(scope.questionKind === 'tax' ? { disclaimer: advisorTaxDisclaimer } : {}),
     provenance: { companyId, environment, period: scope.period, provider: connection.provider, model: connection.model, generatedAt: new Date().toISOString(),
-      recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'not-applicable' } };
+      recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'not-applicable', sourceReviewMethod: 'not-applicable' } };
 }
 
 async function generateAdvisorAnswer(request: FastifyRequest, options: {
@@ -58,29 +60,39 @@ async function generateAdvisorAnswer(request: FastifyRequest, options: {
   ]);
   const sources = selectAdvisorSources(corpus.sources, scope.period, new Date(), options.question);
   if (scope.questionKind === 'tax' && !sources.length) {
-    throw new AdvisorError(422, 'TAX_SOURCES_UNAVAILABLE', 'No reviewed tax sources cover this period. Ask about accounting records or consult your accountant.');
+    throw new AdvisorError(422, 'TAX_SOURCES_UNAVAILABLE', 'No AI-reviewed tax sources cover this period. Ask about accounting records or consult your accountant.');
   }
   signal.throwIfAborted();
   await reserveAdvisorProviderRequest(request, connection.id);
-  const result = await generateAdvisorResponse(connection, JSON.stringify({ question: options.question, scope,
-    previousQuestions: scope.includeRecords ? previousTurns.reverse().map((turn) => turn.question) : [],
-    untrustedAccountingData: context, legalSources: sources,
-    limitations: ['No bank balance or payment-event history', 'No deduction entitlement or tax-return calculation', 'Formal corrections excluded from totals; cancellation amounts included', 'Contractor currentOutstanding and recordedPayments group currencies for invoices issued before the end of the selected month; paymentReceived is the current cumulative recorded amount on those invoices, not payments made during the period or a historical month-end snapshot', 'Evidence documents are a bounded sample; totals cover the selected scope'],
-  }), signal);
-  if (result.evidenceIds.some((identifier) => !context.evidence.some((record) => record.id === identifier))
-    || result.sourceIds.some((identifier) => !sources.some((source) => source.id === identifier))) {
-    throw new AdvisorError(502, 'INVALID_CITATION', 'Provider referenced evidence outside the supplied context');
-  }
-  if ((result.containsTaxGuidance || (scope.questionKind === 'tax' && result.status === 'answered')) && !result.sourceIds.length) {
-    throw new AdvisorError(422, 'TAX_SOURCES_UNAVAILABLE', 'The answer lacks reviewed legal evidence');
-  }
+  const result = await generateAdvisorResponse(connection, composeAdvisorModelInput({ question: options.question, scope, context, sources,
+    previousQuestions: scope.includeRecords ? previousTurns.reverse().map((turn) => turn.question) : [] }), signal);
+  verifyAdvisorCitations(result, context.evidence, sources, scope.questionKind);
+  const citedSources = sources.filter((source) => result.sourceIds.includes(source.id));
   const answer: AdvisorAnswer = { status: result.status, shortAnswer: result.shortAnswer, explanation: result.explanation,
     assumptions: result.assumptions, questions: result.questions, calculations: result.status === 'declined' ? [] : context.calculations,
     evidence: context.evidence.filter((record) => result.evidenceIds.includes(record.id)),
     ...('contractorBalance' in context && context.contractorBalance && result.status !== 'declined' ? { contractorBalance: context.contractorBalance } : {}),
-    sources: sources.filter((source) => result.sourceIds.includes(source.id)),
+    sources: citedSources,
+    ...(scope.questionKind === 'tax' || citedSources.length ? { disclaimer: advisorTaxDisclaimer } : {}),
     provenance: { companyId, environment: environment, period: scope.period, provider: connection.provider,
       model: connection.model, generatedAt: new Date().toISOString(), recordsIncluded: scope.includeRecords,
-      evidenceTruncated: context.evidenceTruncated, sourceVersion: corpus.version } };
+      evidenceTruncated: context.evidenceTruncated, sourceVersion: corpus.version, sourceReviewMethod: citedSources.length ? 'ai' : 'not-applicable' } };
   return answer;
+}
+
+const modelInputLimitations = ['No bank balance or payment-event history', 'No deduction entitlement or tax-return calculation', 'Formal corrections excluded from totals; cancellation amounts included', 'Contractor currentOutstanding and recordedPayments group currencies for invoices issued before the end of the selected month; paymentReceived is the current cumulative recorded amount on those invoices, not payments made during the period or a historical month-end snapshot', 'Evidence documents are a bounded sample; totals cover the selected scope'];
+
+export function composeAdvisorModelInput(options: { question: string; scope: AdvisorScope; previousQuestions: string[]; context: unknown; sources: AdvisorTaxSource[] }): string {
+  return JSON.stringify({ question: options.question, scope: options.scope, previousQuestions: options.previousQuestions,
+    untrustedAccountingData: options.context, legalSources: options.sources, limitations: modelInputLimitations });
+}
+
+export function verifyAdvisorCitations(result: z.infer<typeof advisorModelAnswerSchema>, evidence: { id: string }[], sources: { id: string }[], questionKind: AdvisorScope['questionKind']): void {
+  if (result.evidenceIds.some((identifier) => !evidence.some((record) => record.id === identifier))
+    || result.sourceIds.some((identifier) => !sources.some((source) => source.id === identifier))) {
+    throw new AdvisorError(502, 'INVALID_CITATION', 'Provider referenced evidence outside the supplied context');
+  }
+  if ((result.containsTaxGuidance || (questionKind === 'tax' && result.status === 'answered')) && !result.sourceIds.length) {
+    throw new AdvisorError(422, 'TAX_SOURCES_UNAVAILABLE', 'The answer lacks AI-reviewed legal evidence');
+  }
 }

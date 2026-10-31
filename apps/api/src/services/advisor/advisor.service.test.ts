@@ -1,9 +1,14 @@
 import { Builder } from 'builder-pattern';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { answerAdvisorQuestion } from './advisor.service.js';
 import { generateAdvisorResponse } from './advisor-provider.js';
+import { advisorTaxDisclaimer } from './advisor-contract.js';
+import { hashAdvisorSourceReview } from './advisor-sources.js';
 
 vi.mock('./advisor-provider.js', () => ({ generateAdvisorResponse: vi.fn() }));
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks(); });
@@ -27,10 +32,10 @@ describe('answerAdvisorQuestion()', () => {
     vi.mocked(generateAdvisorResponse).mockResolvedValue(output);
     const answer = await answerAdvisorQuestion(request, options);
     expect(answer).toEqual({ status: output.status, shortAnswer: output.shortAnswer, explanation: '', assumptions: [], questions: output.questions,
-      calculations: [], evidence: [], sources: [], provenance: { companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: expect.any(String), recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'unreviewed' } });
+      calculations: [], evidence: [], sources: [], provenance: { companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: expect.any(String), recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'unreviewed', sourceReviewMethod: 'not-applicable' } });
     expect(database.advisorTurn.updateMany).toHaveBeenCalledWith({ where: { id: 'turn', status: 'PENDING' }, data: { status: 'COMPLETED', finishedAt: expect.any(Date), answer } });
     vi.mocked(generateAdvisorResponse).mockClear();
-    await expect(answerAdvisorQuestion(request, { ...options, scope: { ...options.scope, questionKind: 'tax' } })).rejects.toThrow('No reviewed tax sources cover this period');
+    await expect(answerAdvisorQuestion(request, { ...options, scope: { ...options.scope, questionKind: 'tax' } })).rejects.toThrow('No AI-reviewed tax sources cover this period');
     expect(generateAdvisorResponse).not.toHaveBeenCalled();
   });
 
@@ -46,11 +51,41 @@ describe('answerAdvisorQuestion()', () => {
     const answer = await answerAdvisorQuestion(request, { companyId: 'company', conversationId: 'conversation', turnId: 'turn', question: 'Czy estoński CIT mi się opłaca?',
       scope: { questionKind: 'tax', period: '2026-09', includeRecords: true }, signal: new AbortController().signal });
     expect(answer).toMatchObject({ status: 'declined', assumptions: [], questions: [], evidence: [], calculations: [], sources: [],
-      provenance: { provider: 'OPENAI', model: 'configured-model', recordsIncluded: false, sourceVersion: 'not-applicable' } });
+      provenance: { provider: 'OPENAI', model: 'configured-model', recordsIncluded: false, sourceVersion: 'not-applicable', sourceReviewMethod: 'not-applicable' }, disclaimer: advisorTaxDisclaimer });
     expect(generateAdvisorResponse).not.toHaveBeenCalled();
     expect(database.advisorConnection.updateMany).not.toHaveBeenCalled();
     expect(database.advisorTurn.findMany).not.toHaveBeenCalled();
     expect(database.advisorTurn.updateMany).toHaveBeenCalledWith({ where: { id: 'turn', status: 'PENDING' }, data: { status: 'COMPLETED', finishedAt: expect.any(Date), answer } });
+  });
+
+  it('attaches the AI-review disclaimer to a tax answer that cites sources, and none to a records answer without sources', async () => {
+    vi.stubEnv('ADVISOR_ENABLED', 'true');
+    const unsigned = { id: 'rates', title: 'Rates', url: 'https://eli.gov.pl/act', section: 'art. 41', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31',
+      reviewedAt: '2020-01-01', reviewExpiresAt: '2999-01-01', reviewedBy: 'ai:ANTHROPIC/claude-model+ai:OPENAI/gpt-model', reviewMethod: 'ai' as const,
+      reviewReportId: '0b9a5e0e-7a0c-4d5b-8f1e-3c2d1a4b5c6d', excerpt: 'Excerpt' };
+    const directory = await mkdtemp(join(tmpdir(), 'advisor-service-'));
+    const sourcePath = join(directory, 'sources.json');
+    await writeFile(sourcePath, JSON.stringify([{ ...unsigned, reviewHash: hashAdvisorSourceReview(unsigned) }]));
+    vi.stubEnv('ADVISOR_TAX_SOURCES_PATH', sourcePath);
+    const connection = { id: 'connection', provider: 'OPENAI', model: 'configured-model', credentialEncrypted: null, credentialNonce: null };
+    const database = Builder<PrismaClient>()
+      .companyMembership({ findUnique: vi.fn().mockResolvedValue({ id: 'membership', company: { advisorPolicy: { enabled: true, allowedProviders: ['OPENAI'] } } }) } as never)
+      .advisorConversation({ findFirst: vi.fn().mockResolvedValue({ id: 'conversation', provider: 'OPENAI', model: 'configured-model', environment: 'TEST' }) } as never)
+      .advisorConnection({ findUnique: vi.fn().mockResolvedValue(connection), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never)
+      .advisorTurn({ findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never).build();
+    const request = Builder<FastifyRequest>().server(Builder<FastifyInstance>().prisma(database).build()).user({ sub: 'user' } as never).accessJwtVerify(vi.fn().mockResolvedValue({ sub: 'user' }) as never).build();
+    const output = { status: 'answered' as const, shortAnswer: 'Answer', explanation: '', assumptions: [], questions: [], evidenceIds: [], sourceIds: ['rates'], containsTaxGuidance: true };
+    vi.mocked(generateAdvisorResponse).mockResolvedValueOnce(output);
+    const taxAnswer = await answerAdvisorQuestion(request, { companyId: 'company', conversationId: 'conversation', turnId: 'turn', question: 'Jaka jest stawka VAT?',
+      scope: { questionKind: 'tax', period: '2026-09', includeRecords: false }, signal: new AbortController().signal });
+    expect(taxAnswer.disclaimer).toBe(advisorTaxDisclaimer);
+    expect(taxAnswer.sources.map((source) => source.id)).toEqual(['rates']);
+    expect(taxAnswer.provenance.sourceReviewMethod).toBe('ai');
+    vi.mocked(generateAdvisorResponse).mockResolvedValueOnce({ ...output, sourceIds: [], containsTaxGuidance: false });
+    const recordsAnswer = await answerAdvisorQuestion(request, { companyId: 'company', conversationId: 'conversation', turnId: 'turn', question: 'Podsumuj fakturę',
+      scope: { questionKind: 'records', period: '2026-09', includeRecords: false }, signal: new AbortController().signal });
+    expect(recordsAnswer).not.toHaveProperty('disclaimer');
+    expect(recordsAnswer.provenance.sourceReviewMethod).toBe('not-applicable');
   });
 
   describe('rejected generations', () => {

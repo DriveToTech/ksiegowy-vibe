@@ -55,7 +55,9 @@ export interface AdvisorTaxSource {
   effectiveUntil: string;
   reviewedAt: string;
   reviewExpiresAt: string;
+  /** AI models only; never a qualified human review. */
   reviewedBy: string;
+  reviewMethod: 'ai';
   excerpt: string;
 }
 
@@ -75,6 +77,8 @@ export interface AdvisorAnswer {
   calculations: AdvisorCalculation[];
   contractorBalance?: AdvisorContractorBalance;
   sources: AdvisorTaxSource[];
+  /** Present on tax answers and any answer that used sources: states the answer is AI-generated and AI-reviewed only. */
+  disclaimer?: string;
   provenance: {
     companyId: string;
     environment: AdvisorEnvironment;
@@ -85,6 +89,7 @@ export interface AdvisorAnswer {
     recordsIncluded: boolean;
     evidenceTruncated: boolean;
     sourceVersion: string;
+    sourceReviewMethod: 'ai' | 'not-applicable';
   };
 }
 
