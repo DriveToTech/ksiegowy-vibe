@@ -56,8 +56,8 @@ describe('AdvisorAnswerCard()', () => {
       ]).evidence([
         { id: 'FV/1', kind: 'outgoing', title: 'FV/1', status: 'ISSUED', currency: 'PLN', gross: '100.00', vat: '18.70', updatedAt: '2026-09-01T00:00:00.000Z' },
         { id: 'IN/1', kind: 'incoming', title: 'IN/1', status: 'PENDING', currency: 'EUR', gross: '50.00', vat: '9.35', updatedAt: '2026-09-01T00:00:00.000Z' },
-      ]).sources([{ id: 'source', title: 'VAT Act', url: 'https://example.org/law', section: '1', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31', reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-31', reviewedBy: 'Reviewer', excerpt: 'Relevant section' }])
-      .provenance({ companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'model', generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: true, sourceVersion: 'v1' }).build();
+      ]).sources([{ id: 'source', title: 'VAT Act', url: 'https://example.org/law', section: '1', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31', reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-31', reviewedBy: 'ai:OPENAI/model-a+ai:ANTHROPIC/model-b', reviewMethod: 'ai', excerpt: 'Relevant section' }])
+      .provenance({ companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'model', generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: true, sourceVersion: 'v1', sourceReviewMethod: 'ai' }).build();
     const markup = renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer }));
     expect(markup).toContain('100.00 PLN');
     expect(markup).toContain('50.00 EUR');
@@ -66,6 +66,15 @@ describe('AdvisorAnswerCard()', () => {
     expect(markup).toContain('href="https://example.org/law" target="_blank" rel="noopener noreferrer"');
     expect(markup).toContain('Lista dokumentów jest ograniczona');
     expect(markup).toContain('Relevant section');
+    expect(markup).toContain('Sprawdzone przez AI · OPENAI/model-a + ANTHROPIC/model-b · 2026-09-01');
+  });
+  it('renders the server disclaimer as an always-visible note outside collapsible sections, and omits it when absent', () => {
+    const builder = () => Builder<AdvisorAnswer>().status('answered').shortAnswer('Odpowiedź').explanation('Wyjaśnienie').assumptions([]).questions([]).calculations([]).sources([]).evidence([])
+      .provenance({ companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'model', generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'v1', sourceReviewMethod: 'ai' });
+    const withDisclaimer = renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer: builder().disclaimer('Server disclaimer text').build() }));
+    expect(withDisclaimer).toMatch(/<p role="note"[^>]*>Server disclaimer text<\/p>/);
+    expect(withDisclaimer).not.toContain('<details');
+    expect(renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer: builder().build() }))).not.toContain('role="note"');
   });
   it('renders a selected contractor balance by currency with its accounting limitation and linked evidence', () => {
     const answer = Builder<AdvisorAnswer>().status('answered').shortAnswer('Saldo do sprawdzenia')
@@ -76,7 +85,7 @@ describe('AdvisorAnswerCard()', () => {
         balances: [{ currency: 'PLN', currentOutstanding: '100.00', recordedPayments: '25.00' },
           { currency: 'EUR', currentOutstanding: '40.00', recordedPayments: '0.00' }] })
       .provenance({ companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'model',
-        generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none' }).build();
+        generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none', sourceReviewMethod: 'not-applicable' }).build();
 
     const markup = renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer }));
     expect(markup).toContain('Example contractor');

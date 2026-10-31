@@ -14,6 +14,7 @@ export function AdvisorAnswerCard({ answer }: { answer: AdvisorAnswer }) {
       <p className={cn('font-mono text-[10px] uppercase tracking-[0.08em]', answer.status === 'answered' ? 'text-success-ink' : 'text-muted')}>{text.shortAnswer}</p>
       <h3 className="text-lg font-semibold leading-snug">{answer.shortAnswer}</h3>
     </div>
+    {answer.disclaimer && <p role="note" className="break-words rounded-inset border-l-[3px] border-l-warning-ink bg-surface-raised px-3 py-2 text-xs leading-normal text-foreground-secondary">{answer.disclaimer}</p>}
     {answer.status === 'declined' && <h4 className="text-sm font-semibold">{text.declinedExplanation}</h4>}
     <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground-secondary">{answer.explanation}</p>
     {answer.assumptions.length > 0 && <div><h4 className="text-sm font-semibold">{text.assumptions}</h4><ul className="list-disc space-y-1 pl-5 text-sm text-muted">{answer.assumptions.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
@@ -40,7 +41,7 @@ export function AdvisorAnswerCard({ answer }: { answer: AdvisorAnswer }) {
       </Link></li>)}</ul>
     </details>}
     {answer.sources.length > 0 && <details className="group"><summary className={summaryClassName}>{text.sources}</summary>
-      <ul className="space-y-3 text-sm">{answer.sources.map((source) => <li key={source.id} className="space-y-1"><a href={source.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{source.title} — {source.section}</a><p className="text-xs text-muted">{source.effectiveFrom} – {source.effectiveUntil} · {source.reviewedAt}</p><blockquote className="border-l border-outline pl-3 text-muted">{source.excerpt}</blockquote></li>)}</ul>
+      <ul className="space-y-3 text-sm">{answer.sources.map((source) => <li key={source.id} className="space-y-1"><a href={source.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{source.title} — {source.section}</a><p className="text-xs text-muted">{source.effectiveFrom} – {source.effectiveUntil}</p><p className="break-words text-xs text-muted">{text.sourceReviewedByAi(source.reviewedBy.split('+').map((model) => model.replace(/^ai:/, '')).join(' + '), source.reviewedAt)}</p><blockquote className="border-l border-outline pl-3 text-muted">{source.excerpt}</blockquote></li>)}</ul>
     </details>}
     {answer.provenance.evidenceTruncated && <p className="text-xs text-muted">{text.truncated}</p>}
     <p className="break-words font-mono text-[11px] text-muted">{text.providers[answer.provenance.provider]} · {answer.provenance.model} · {answer.provenance.environment} · {answer.provenance.period}<br />{new Date(answer.provenance.generatedAt).toLocaleString('pl-PL')}</p>

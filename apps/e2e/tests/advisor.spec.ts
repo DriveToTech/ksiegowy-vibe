@@ -10,7 +10,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const answer: AdvisorAnswer = { status: 'answered', shortAnswer: 'Recorded sales total', explanation: 'This is a record total, not tax due.', assumptions: [], questions: [], sources: [],
       calculations: [{ currency: 'PLN', issuedGross: '123.00', issuedVat: '23.00', acceptedGross: '123.00', invoiceCount: 1 }],
       evidence: [{ id: 'accepted-invoice-id', kind: 'outgoing', title: 'Invoice evidence', status: 'ISSUED', currency: 'PLN', gross: '123.00', vat: '23.00', updatedAt: '2026-09-19T12:00:00.000Z' }],
-      provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'unreviewed' } };
+      provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'unreviewed', sourceReviewMethod: 'not-applicable' } };
     await page.route('**/companies/test-company-id/advisor/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
       if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, canManagePolicy: false, canManageConnections: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
@@ -102,7 +102,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const conversation = { id: 'conversation', title: 'Out of scope', provider: 'OPENAI', model: 'configured-model', createdAt: '2026-09-19T12:00:00.000Z' };
     const answer: AdvisorAnswer = { status: 'declined', shortAnswer: 'This question is outside tax and bookkeeping advice.', explanation: 'I can explain VAT, PIT and CIT rules and summarize your recorded invoices.',
       assumptions: [], questions: [], sources: [], calculations: [], evidence: [],
-      provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'not-applicable' } };
+      provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'not-applicable', sourceReviewMethod: 'not-applicable' } };
     let asked = false;
     await page.route('**/companies/test-company-id/advisor/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
@@ -276,4 +276,30 @@ test('advisor retains the denied conversation provider on history load and setti
   await expect(panel.locator('#advisor-blocker-reason')).toHaveText('Dostawca Anthropic API nie jest dozwolony w tej firmie.');
   await expect(panel.getByRole('combobox', { name: 'Dostawca' })).toHaveValue('ANTHROPIC');
   expect(modelPosts).toEqual([]);
+});
+
+test('advisor shows the AI-review disclaimer on a tax answer replayed from history', async ({ authenticatedPage: page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const disclaimer = 'Odpowiedź przygotowana przez AI na podstawie źródeł sprawdzonych wyłącznie przez AI. To nie jest porada podatkowa.';
+  const conversation = { id: 'tax-history', title: 'Tax history', provider: 'OPENAI', model: 'configured-model', createdAt: '2026-09-19T12:00:00.000Z' };
+  const answer: AdvisorAnswer = { status: 'answered', shortAnswer: 'Stawka VAT wynosi 23%', explanation: 'Podstawowa stawka.', assumptions: [], questions: [], calculations: [], evidence: [], disclaimer,
+    sources: [{ id: 'vat-act', title: 'VAT Act', url: 'https://example.org/law', section: 'art. 41', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31', reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-31', reviewedBy: 'ai:OPENAI/model-a+ai:ANTHROPIC/model-b', reviewMethod: 'ai', excerpt: 'Stawka podstawowa' }],
+    provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'reviewed-2026', sourceReviewMethod: 'ai' } };
+  await page.route('**/companies/test-company-id/advisor/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, operatorEnabled: true, canManagePolicy: false, canManageConnections: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 1,
+      connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }] } });
+    if (path.endsWith('/conversations')) return route.fulfill({ json: [conversation] });
+    if (path.endsWith(`/conversations/${conversation.id}`)) return route.fulfill({ json: { ...conversation, turns: [{ id: 'turn', question: 'Jaka stawka VAT?', status: 'COMPLETED', answer, createdAt: '2026-09-19T12:00:00.000Z' }] } });
+    return route.fulfill({ status: 405, json: { code: 'UNEXPECTED_ADVISOR_REQUEST' } });
+  });
+  await page.goto('/dashboard');
+  await page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' }).click();
+  const panel = page.getByRole('dialog', { name: 'Doradca' });
+  await panel.getByRole('button', { name: 'Historia rozmów' }).click();
+  await panel.getByLabel('Historia rozmów').selectOption(conversation.id);
+  await expect(panel.getByRole('note')).toHaveText(disclaimer);
+  await panel.getByText('Źródła przepisów', { exact: true }).click();
+  await expect(panel.getByText('Sprawdzone przez AI · OPENAI/model-a + ANTHROPIC/model-b · 2026-09-01')).toBeVisible();
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
 });

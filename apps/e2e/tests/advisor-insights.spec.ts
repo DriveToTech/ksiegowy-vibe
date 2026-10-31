@@ -43,7 +43,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
             balances: [{ currency: 'PLN', currentOutstanding: '300.00', recordedPayments: '100.00' }] },
           evidence: [{ id: 'invoice-1', kind: 'outgoing', title: 'FV/1', status: 'ISSUED', currency: 'PLN', gross: '400.00', vat: '75.00', updatedAt: '2026-09-01T00:00:00.000Z' }],
           provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model',
-            generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none' },
+            generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none', sourceReviewMethod: 'not-applicable' },
         })}\n\nevent: done\ndata: {}\n\n` });
       }
       if (path.endsWith('/conversations') && request.method() === 'POST') return route.fulfill({ json: {

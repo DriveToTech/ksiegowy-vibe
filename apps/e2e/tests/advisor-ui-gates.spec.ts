@@ -7,7 +7,7 @@ const conversation = { id: 'conversation', title: 'Gate', provider: 'OPENAI', mo
 function answerStream(companyId: string) {
   const answer = { status: 'answered', shortAnswer: `Answer for ${companyId}`, explanation: 'Record summary only.', assumptions: [], questions: [], sources: [], calculations: [],
     evidence: [{ id: 'evidence-1', kind: 'outgoing', title: 'FV/1', status: 'ISSUED', currency: 'PLN', gross: '123.00', vat: '23.00', updatedAt: '2026-09-19T12:00:00.000Z' }],
-    provenance: { companyId, environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none' } };
+    provenance: { companyId, environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none', sourceReviewMethod: 'not-applicable' } };
   return `event: answer\ndata: ${JSON.stringify(answer)}\n\nevent: done\ndata: {}\n\n`;
 }
 
@@ -75,7 +75,7 @@ for (const viewport of viewports) {
     await expect(note).toBeVisible();
     await expect(textarea).toHaveAttribute('aria-describedby', 'advisor-tax-note');
     await expect(note).toContainText('Zmieniono rodzaj pytania na „Dokumenty firmy”.');
-    await expect(panel.getByText('Brak zatwierdzonych źródeł podatkowych. Dostępne są wyjaśnienia dokumentów')).toHaveCount(0);
+    await expect(panel.getByText('Brak sprawdzonych przez AI źródeł podatkowych. Dostępne są wyjaśnienia dokumentów')).toHaveCount(0);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
 
     await textarea.fill('Summarize these records');
