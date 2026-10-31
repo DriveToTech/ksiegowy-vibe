@@ -40,7 +40,7 @@ async function routeAdvisorApi(page: Page, mock: AdvisorMock) {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const provider = path.split('/connections/')[1]?.split('/')[0] as AdvisorProvider | undefined;
-    if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, operatorEnabled: mock.operatorEnabled, canManagePolicy: false, allowedProviders: mock.allowedProviders, allowedConnectors: [],
+    if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, operatorEnabled: mock.operatorEnabled, canManagePolicy: false, canManageConnections: true, allowedProviders: mock.allowedProviders, allowedConnectors: [],
       retentionDays: 30, ollamaAvailable: mock.ollamaAvailable, reviewedSourceCount: 0, connections: mock.connections } });
     if (path.endsWith('/connectors')) return route.fulfill({ json: { endpoint: null, clients: [], grants: [] } });
     if (path.endsWith('/model-preview')) {
@@ -281,7 +281,7 @@ test.describe('connectors', () => {
     await page.route('**/companies/test-company-id/advisor/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
       if (path.endsWith('/settings')) return route.fulfill({ json: {
-        enabled: true, canManagePolicy: false, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors,
+        enabled: true, canManagePolicy: false, canManageConnections: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors,
         retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0, connections: [],
       } });
       if (path.endsWith('/connectors') && route.request().method() === 'GET') return route.fulfill({ json: connectors });

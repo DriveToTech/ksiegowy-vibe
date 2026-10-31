@@ -31,7 +31,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         return route.fulfill({ json: { dismissed: true } });
       }
       if (path.endsWith('/settings')) return route.fulfill({ json: {
-        enabled: true, operatorEnabled: true, canManagePolicy: false, allowedProviders: ['OPENAI'], allowedConnectors: [],
+        enabled: true, operatorEnabled: true, canManagePolicy: false, canManageConnections: true, allowedProviders: ['OPENAI'], allowedConnectors: [],
         retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
         connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }],
       } });

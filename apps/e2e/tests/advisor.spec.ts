@@ -13,7 +13,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'unreviewed' } };
     await page.route('**/companies/test-company-id/advisor/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
-      if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, canManagePolicy: false, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
+      if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, canManagePolicy: false, canManageConnections: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
         connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }] } });
       if (path.endsWith('/messages')) {
         requests += 1; submittedScope = route.request().postDataJSON().scope;
@@ -65,7 +65,7 @@ test('advisor settings offer in-app and external chat connection modes', async (
   await page.route('**/companies/test-company-id/advisor/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/settings')) return route.fulfill({ json: {
-      enabled: true, canManagePolicy: false, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: ['CHATGPT', 'CLAUDE'],
+      enabled: true, canManagePolicy: false, canManageConnections: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: ['CHATGPT', 'CLAUDE'],
       retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0, connections: [],
     } });
     if (path.endsWith('/connectors')) return route.fulfill({ json: {
@@ -106,7 +106,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     let asked = false;
     await page.route('**/companies/test-company-id/advisor/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
-      if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, canManagePolicy: false, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
+      if (path.endsWith('/settings')) return route.fulfill({ json: { enabled: true, canManagePolicy: false, canManageConnections: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
         connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }] } });
       if (path.endsWith('/messages')) {
         asked = true;
@@ -184,7 +184,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       await page.route('**/companies/test-company-id/advisor/**', async (route) => {
         const path = new URL(route.request().url()).pathname;
         if (path.endsWith('/settings')) return route.fulfill({ json: {
-          enabled: blocked.enabled, operatorEnabled: blocked.operatorEnabled, canManagePolicy: false,
+          enabled: blocked.enabled, operatorEnabled: blocked.operatorEnabled, canManagePolicy: false, canManageConnections: true,
           allowedProviders: blocked.allowedProviders, allowedConnectors: [], retentionDays: 30,
           ollamaAvailable: false, reviewedSourceCount: 0, connections: blocked.connections,
         } });
@@ -252,7 +252,7 @@ test('advisor retains the denied conversation provider on history load and setti
   await page.route('**/companies/test-company-id/advisor/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/settings')) return route.fulfill({ json: {
-      enabled: true, operatorEnabled: true, canManagePolicy: false, allowedProviders: ['OPENAI'],
+      enabled: true, operatorEnabled: true, canManagePolicy: false, canManageConnections: true, allowedProviders: ['OPENAI'],
       allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
       connections: [{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }],
     } });

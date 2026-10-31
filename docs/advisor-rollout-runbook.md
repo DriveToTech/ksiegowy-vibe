@@ -144,7 +144,7 @@ All variables are read by the API only. Defaults are what the code does when the
 
 | Variable | Default when unset | Required? | Safe value / notes |
 | --- | --- | --- | --- |
-| `ADVISOR_ENABLED` | Disabled. Only the exact string `true` enables. | Required to use the advisor | Ship `false`. When not `true`: conversations and MCP reads return `503 ADVISOR_DISABLED`; provider discovery/save/test and grant issue are refused. Settings, disconnect, grant revoke, insights and the hourly retention cleanup keep working. |
+| `ADVISOR_ENABLED` | Disabled. Only the exact string `true` enables. | Required to use the advisor | Ship `false`. When not `true`: conversations and MCP reads return `503 ADVISOR_DISABLED`; provider discovery/save/test and grant issue are refused. `GET /insights` returns `null` (no strip) and dismissal returns `503`. Settings, disconnect, grant revoke and the hourly retention cleanup keep working. |
 | `ADVISOR_OLLAMA_URL` | Empty → Ollama shows "not configured", requests get `503 OLLAMA_NOT_CONFIGURED` | Optional | Leave empty unless Ollama is deployed. Must be `http(s)://`, no credentials/query/fragment, include `/v1`, e.g. `http://ollama:11434/v1`. Reached **from the API process**, never from the browser. |
 | `ADVISOR_TAX_SOURCES_PATH` | Empty → zero sources; tax questions fail closed with `422 TAX_SOURCES_UNAVAILABLE` before any paid call | Optional | Leave empty until a reviewer-approved corpus exists. Set by `docker-compose.advisor-sources.yml` to `/app/advisor/tax-sources.json`. A malformed configured file fails closed. |
 | `ADVISOR_TAX_SOURCES_HOST_PATH` | Compose aborts if the override file is used without it | Required only with `docker-compose.advisor-sources.yml` | Absolute host path to the approved JSON file. Compose variable, not read by the API. The file must already exist (`create_host_path: false`). |
@@ -307,7 +307,7 @@ flowchart TD
   S6 --> S7[Keep additive tables; retention cron keeps purging]
 ```
 
-1. **Switch off.** Set `ADVISOR_ENABLED=false` and run `docker compose up -d api`. API shutdown aborts in-flight provider calls; turns left `PENDING` are reported as failed after two minutes. Afterwards conversations and MCP reads return `503 ADVISOR_DISABLED`; users can still view settings, disconnect credentials and revoke grants.
+1. **Switch off.** Set `ADVISOR_ENABLED=false` and run `docker compose up -d api`. API shutdown aborts in-flight provider calls; turns left `PENDING` are reported as failed after two minutes. Afterwards conversations and MCP reads return `503 ADVISOR_DISABLED`, insight strips disappear (`GET /insights` returns `null`); users can still view settings, disconnect credentials and revoke grants.
 2. **Revoke connector grants** (only if connectors were enabled). Snapshot, then revoke; timestamps are stored as UTC `timestamp(3)`:
 
    ```sql
@@ -336,8 +336,6 @@ flowchart TD
 
 If a migration itself failed, follow [Production Migration Recovery](production-migration-recovery.md) instead; never restore over production.
 
-Known gap: `ADVISOR_ENABLED=false` does **not** hide deterministic insight strips. `GET /insights` is not gated by the runtime switch and `AdvisorInsightStrip` does not check `operatorEnabled`. They make no model call and expose only data the member can already see, but they remain visible during a rollback (open question below).
-
 ## 11. Single-instance caveat
 
 Run exactly **one** API replica while the advisor is enabled. Two limits are in-process memory and multiply with each replica:
@@ -356,7 +354,6 @@ These limits are already shared through PostgreSQL and hold across replicas: dai
 3. **Replica count.** Is the production API guaranteed to run as one instance? Needed for section 11.
 4. **OAuth issuer.** Where will Keycloak (or another issuer) be hosted, who administers it, how is it backed up and monitored? Nothing in the repository defines it.
 5. **Ollama.** Run on the API host or a private host, which models, and is a GPU available?
-6. **Insight strips during rollback.** Should `ADVISOR_ENABLED=false` (or the company policy) also hide deterministic insights? Currently it does not.
-7. **Provider egress.** Does the production network allow outbound HTTPS from the API to `openrouter.ai`, `api.openai.com` and `api.anthropic.com`, and is an egress allow-list required?
-8. **Retention/export obligations** for advisor data before any future destructive cleanup: who signs off?
-9. **Monitoring.** The plan lists metrics to observe, but no metrics or alerting pipeline exists for them; observation is currently log-based only.
+6. **Provider egress.** Does the production network allow outbound HTTPS from the API to `openrouter.ai`, `api.openai.com` and `api.anthropic.com`, and is an egress allow-list required?
+7. **Retention/export obligations** for advisor data before any future destructive cleanup: who signs off?
+8. **Monitoring.** The plan lists metrics to observe, but no metrics or alerting pipeline exists for them; observation is currently log-based only.

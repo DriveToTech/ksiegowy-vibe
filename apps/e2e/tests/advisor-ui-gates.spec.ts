@@ -12,7 +12,7 @@ function answerStream(companyId: string) {
 }
 
 // Routes the advisor API of any company; `taxCoveredPeriods` drives taxSourceCoverage for the requested ?period.
-async function routeAdvisorApi(page: Page, options: { taxCoveredPeriods?: string[] } = {}) {
+async function routeAdvisorApi(page: Page, options: { taxCoveredPeriods?: string[]; canManageConnections?: boolean } = {}) {
   const requests = { settingsCompanies: [] as string[], messageScopes: [] as unknown[], writes: [] as string[] };
   await page.route('**/companies/*/advisor/**', async (route) => {
     const request = route.request();
@@ -22,10 +22,12 @@ async function routeAdvisorApi(page: Page, options: { taxCoveredPeriods?: string
     if (url.pathname.endsWith('/settings')) {
       requests.settingsCompanies.push(companyId);
       const period = url.searchParams.get('period');
-      return route.fulfill({ json: { enabled: true, canManagePolicy: false, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
+      return route.fulfill({ json: { enabled: true, canManagePolicy: false, canManageConnections: options.canManageConnections ?? true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
         connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }],
         ...(period && options.taxCoveredPeriods ? { taxSourceCoverage: { period, covered: options.taxCoveredPeriods.includes(period), sourceVersion: 'reviewed-2026' } } : {}) } });
     }
+    if (url.pathname.endsWith('/connectors')) return route.fulfill({ json: { endpoint: 'https://api.example.com/advisor/mcp', clients: ['CHATGPT'],
+      grants: [{ client: 'CHATGPT', environment: 'TEST', status: 'ACTIVE', expiresAt: '2099-01-01T00:00:00.000Z', lastUsedAt: null, revokedAt: null }] } });
     if (url.pathname.endsWith('/messages')) {
       requests.messageScopes.push(request.postDataJSON().scope);
       return route.fulfill({ contentType: 'text/event-stream', body: answerStream(companyId) });
@@ -55,7 +57,9 @@ for (const viewport of viewports) {
     await panel.getByRole('button', { name: 'Zmień' }).click();
     const kind = panel.getByLabel('Rodzaj pytania');
     const taxOption = kind.locator('option[value="tax"]');
-    const reason = panel.getByText('Brak zatwierdzonych źródeł podatkowych dla tego okresu', { exact: false });
+    const reason = panel.locator('#advisor-tax-unavailable');
+    const note = panel.locator('#advisor-tax-note');
+    const textarea = panel.locator('textarea');
 
     await panel.locator('input[type="month"]').fill('2026-10');
     await expect(taxOption).toHaveJSProperty('disabled', false);
@@ -68,12 +72,22 @@ for (const viewport of viewports) {
     await expect(reason).toBeVisible();
     await expect(kind).toHaveAttribute('aria-describedby', 'advisor-tax-unavailable');
     await expect(kind).toHaveValue('records');
+    await expect(note).toBeVisible();
+    await expect(textarea).toHaveAttribute('aria-describedby', 'advisor-tax-note');
+    await expect(note).toContainText('Zmieniono rodzaj pytania na „Dokumenty firmy”.');
+    await expect(panel.getByText('Brak zatwierdzonych źródeł podatkowych. Dostępne są wyjaśnienia dokumentów')).toHaveCount(0);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
 
-    await panel.locator('textarea').fill('Summarize these records');
+    await textarea.fill('Summarize these records');
     await panel.getByRole('button', { name: 'Zapytaj', exact: true }).click();
     await expect(panel.getByRole('heading', { name: 'Answer for test-company-id' })).toBeVisible();
     expect(requests.messageScopes).toEqual([{ questionKind: 'records', period: '2026-09', includeRecords: false }]);
+    await expect(note).toBeVisible();
+    await expect(note).not.toContainText('Zmieniono rodzaj pytania');
+
+    await panel.locator('input[type="month"]').fill('2026-10');
+    await expect(note).toHaveCount(0);
+    await expect(textarea).not.toHaveAttribute('aria-describedby');
   });
 }
 
@@ -144,5 +158,26 @@ for (const viewport of viewports) {
     await page.keyboard.press('Meta+j');
     await expect(panel).toBeHidden();
     await expect(trigger).toBeFocused();
+  });
+}
+
+for (const viewport of viewports) {
+  test(`viewer cannot save connections or grant access but can disconnect and revoke at ${viewport.width}px`, async ({ authenticatedPage: page }) => {
+    await page.setViewportSize(viewport);
+    const requests = await routeAdvisorApi(page, { canManageConnections: false });
+    await page.goto('/dashboard/settings?section=advisor');
+    const settings = page.locator('#settings-panel');
+    const roleReason = 'Tylko administrator lub księgowy może zapisywać połączenia i udzielać dostępu.';
+
+    await expect(settings.getByRole('button', { name: 'Zapisz połączenie' })).toBeDisabled();
+    await expect(settings.getByText(roleReason, { exact: false }).first()).toBeVisible();
+    await expect(settings.getByRole('region', { name: 'Sprawdzenie' }).getByRole('button', { name: 'Odłącz' })).toBeEnabled();
+
+    await settings.getByRole('button', { name: /Rozmowa w ChatGPT lub Claude/ }).click();
+    await expect(settings.getByRole('button', { name: 'Zezwól na odczyt' })).toBeDisabled();
+    await expect(settings.locator('#advisor-grant-reason')).toContainText(roleReason);
+    await expect(settings.getByRole('button', { name: 'Cofnij zgodę' })).toBeEnabled();
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
+    expect(requests.writes).toEqual([]);
   });
 }
