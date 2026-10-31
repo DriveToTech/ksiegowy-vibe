@@ -2,7 +2,7 @@
 
 Linear: TRY-174. Drafted: 2026-10-01 against the VAT Act consolidated text **Dz. U. 2026 poz. 1263 (legal status 2026-08-26)**. Parent plan: [tax-advisor-implementation-plan](../../../spec/tax-advisor-implementation-plan.md) (phase 1 and phase 2 corpus items). Behaviour spec: [tax-advisor](../tax-advisor.md).
 
-**This is informational drafting material, not tax advice. Nothing here is reviewed.** Every entry has `review.status = "PENDING"`. A qualified human reviewer (doradca podatkowy or equivalent) must check each excerpt against the official text and sign off before any entry is loaded in production.
+**This is informational drafting material, not tax advice. Nothing here is reviewed.** Every entry has `review.status = "PENDING"`. Entries reach production only through the [AI review runner](#ai-review-runner) (AI review is not a qualified human review).
 
 ## Files
 
@@ -18,14 +18,85 @@ Linear: TRY-174. Drafted: 2026-10-01 against the VAT Act consolidated text **Dz.
 
 `sources.draft.json` carries extra fields (`authority`, `legalInstrument`, `excerptKind`, `verifiedAt`, `verificationMethod`, `confidence`, `drafterNotes`, `review`) that the strict schema rejects (`topics` is accepted by the loader), and `reviewedAt` is `null`. It therefore fails closed if someone points the loader at it. I checked this against the loader's zod schema: the draft is rejected, and the promoted shape below passes for all 24 entries.
 
-Promotion is a review gate, not a format conversion. The qualified reviewer must first verify the official text, mark each accepted entry `review.status = "APPROVED"`, supply their own name and review dates, and remove rejected entries. Keep the signed review record and the approved evaluation set separately; do not put an unreviewed or generated file on the API's source path. From this directory, export only after **every remaining entry** is approved:
+Promotion is now an automated AI review, not a manual export. There is no human reviewer (waived by the owner); an AI review is not a qualified legal or tax review. A human reviewer could later be added as `reviewMethod: 'human'`, which needs a loader schema change first.
+
+## AI review runner
 
 ```bash
-jq -e '(.sources | length > 0) and all(.sources[]; .review.status == "APPROVED" and .review.reviewedBy != "PENDING" and (.review.reviewedBy | length > 0) and (.review.reviewedAt | type == "string") and (.review.reviewExpiresAt | type == "string"))' sources.draft.json &&
-  jq '[.sources[] | {id,title,url,section,effectiveFrom,effectiveUntil,excerpt,topics,reviewedBy:.review.reviewedBy,reviewedAt:.review.reviewedAt,reviewExpiresAt:.review.reviewExpiresAt}]' sources.draft.json > /secure/path/advisor-tax-sources.json
+pnpm --filter @ksiegowy/api advisor:review-sources \
+  --output /secure/path/advisor-tax-sources.json --report-dir /secure/path/advisor-reviews \
+  [--draft <file>] [--eval <file>]
 ```
 
-If the first command returns false, stop. The strict API loader still validates the exported file; a passing export is **not** legal approval. Store the approved JSON outside the repository, record its SHA-256 and review sign-off, then use the opt-in Compose override described in [the advisor specification](../tax-advisor.md#reviewed-tax-source-corpus).
+`--draft` and `--eval` default to the files in this directory. `--output` must be outside the repository (the runner refuses a path inside it). The script loads `../../.env` through `tsx --env-file`; it runs offline from an operator machine and is never reachable over HTTP.
+
+**Current draft status:** `sources.draft.json` still lacks the top-level `draftedBy` and the per-entry `officialText` spans, so the runner rejects it until they are added.
+
+### Draft file additions
+
+| Field | Meaning |
+| --- | --- |
+| `draftedBy` (top level) | `human`, or the drafting model as `ai:PROVIDER/model`. It must differ from every reviewer model |
+| `sources[].officialText` | 1 to 4 verbatim spans from the official document at `url`, each at most 4,000 characters. Every span must be found in the fetched text |
+
+The runner reads only `sources`; the loader fields (`id, title, url, section, effectiveFrom, effectiveUntil, excerpt, topics`) are copied into the corpus. Drafting metadata and model output never enter the corpus.
+
+### Environment
+
+| Variable | Purpose |
+| --- | --- |
+| `ADVISOR_REVIEW_MODELS` | `ANTHROPIC:<id>,OPENAI:<id>`: at least two pinned models from **different providers** (ids ending in `latest` are refused) |
+| `ADVISOR_REVIEW_ANSWER_MODELS` | `OPENROUTER:<id>[,...]`: answering models the corpus is evaluated against. Configuration error if any equals a reviewer model |
+| `ADVISOR_REVIEW_ANTHROPIC_API_KEY`, `_OPENAI_API_KEY`, `_OPENROUTER_API_KEY` | Dedicated capped keys, read only from the environment and never logged or written to a report. Ollama reuses `ADVISOR_OLLAMA_URL` |
+| `ADVISOR_REVIEW_MAX_CALLS` | Total model calls, default 300. A full run costs about 2 calls per source plus 3 repetitions x up to 3 calls per model-answered case per answering model, so a 45-case set exceeds 300: raise the limit for a real run |
+
+Configuration errors (reviewer equal to an answering or drafting model, one provider twice, missing key, output inside the repository) stop the runner before any fetch or model call.
+
+### Flow
+
+```mermaid
+flowchart TD
+  A[Validate configuration and inputs, hash draft and eval set] --> B[Fetch each distinct gov.pl URL once]
+  B --> C{Every officialText span found?}
+  C -- no --> R[Source rejected, no model call]
+  C -- yes --> D[Each reviewer model returns verdict and six checks]
+  D --> E{All approve and all checks pass?}
+  E -- no --> R
+  E -- yes --> F[Candidate corpus from draft fields plus review metadata]
+  F --> G[Evaluation gate per answering model, 3 repetitions]
+  G --> H{All thresholds met, no rejected source?}
+  H -- no --> X[Exit 1, report only]
+  H -- yes --> W[Atomic write of the corpus, report, exit 0]
+```
+
+1. **Anchor check (no model).** Fetch is HTTPS only, host ends `.gov.pl`, no redirects, 30 s timeout, 20 MB cap, `text/html` or `application/pdf` only. HTML is stripped of script, style and tags; PDF text comes from `unpdf`. The ELI API serves consolidated acts as PDF only (`textHTML: false`; `text.html` returns an empty body), so PDF is the normal path. Text is normalised (whitespace, soft hyphens) before the substring match, and the fetched SHA-256 is recorded.
+2. **Reviewers.** Each reviewer model gets the entry plus `untrustedOfficialText` and returns `verdict`, `checks` (`excerptFaithful`, `notBroaderThanSource`, `conditionsAndExceptionsStated`, `effectiveDatesSupported`, `guidanceLabelled`, `noPersonalData`: pass, fail or unsure) and at most 5 issues. A source is approved only if every reviewer approves and every check passes (unsure counts as fail).
+3. **Corpus.** Approved entries only, with `reviewMethod: 'ai'`, `reviewedBy` (`ai:PROVIDER/model+ai:PROVIDER/model`), `reviewedAt` (run date), `reviewExpiresAt` (+30 days), `reviewReportId` and `reviewHash`, validated by `parseAdvisorSourceCorpus`.
+4. **Evaluation gate.** Each case reuses production logic: the deterministic out-of-scope check, `selectAdvisorSources`, `composeAdvisorModelInput`, the same prompt and `verifyAdvisorCitations`, with the case `companyFacts` as untrusted accounting data. Status and required citations are checked deterministically; every reviewer model then judges forbidden claims, `mustInclude` and `mustAskAbout` (any flag fails the case).
+
+| Threshold | Value |
+| --- | --- |
+| Forbidden claims | 0 |
+| Decline and `insufficient_evidence` cases | 100% pass |
+| `INVALID_CITATION` | 0 |
+| Overall case pass rate | at least 95% |
+| Failing case on a VAT rate or KSeF date topic | blocker (0 allowed) |
+| Repetitions | 3 whole evaluations, all must pass; a failing run stops the repetitions |
+| Answering models | all must pass |
+
+### Report and failure behaviour
+
+`<report-dir>/<reportId>.json` is always written and holds the input hashes, reviewers, answering models, per-source decision with fetched URL and SHA-256, reviewer verdicts, evaluation runs, thresholds, call count, `passed`, an optional `failure` message and the corpus path and SHA-256. It never holds keys or request headers. Any failure (configuration, fetch, rejected source, failed gate, call limit) exits 1, writes no corpus and leaves an existing output file untouched; the corpus is written to `<output>.tmp` and renamed. The corpus SHA-256 equals the API's `sourceVersion`.
+
+### Expiry and re-review triggers
+
+Reviews expire after 30 days; expired entries silently stop being selected, so tax questions fail closed. Re-run the review when any of these happens:
+
+- a new consolidated text of the VAT Act;
+- a new act touching a cited article;
+- a Monitor Polski notice under art. 146ef (due by 31 October each year);
+- a changed hash of a cited gov.pl page (compare `fetchedSha256` between reports);
+- a change of reviewer or answering model, the review prompt (`promptVersion`) or the corpus.
 
 ## Topic vocabulary
 

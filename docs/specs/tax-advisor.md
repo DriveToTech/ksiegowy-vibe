@@ -11,7 +11,7 @@ Implementation branch: `feat/tax-advisor`. Tracking: [TRY-160](https://linear.ap
 - Read-only MCP tools, external OAuth token verification, signed-in company/environment consent, grant expiry and revocation for ChatGPT and Claude.
 - Reviewed-source loading and period selection. **No reviewed tax corpus ships with this change.** Without one, tax-mode requests stop before a paid model call. Record explanations remain available. `GET .../advisor/settings?period=YYYY-MM` returns `taxSourceCoverage` (`period`, `covered`, `sourceVersion`; no source text). `AdvisorConversation` requests it for the selected period, disables the tax question kind before Send with a visible reason linked by `aria-describedby`, keeps records selectable and falls back to records if tax was selected. While loading, on fetch failure or for a stale period it does not block; the server still fails closed with `TAX_SOURCES_UNAVAILABLE`. Coverage is per period, not topic, so a covered period can still return that error on Send.
 
-Not yet released: validated live subscription integrations, accountant-reviewed tax evaluation, scheduled briefings, tax-regime comparison, and advisor-initiated accounting mutations. There is no bank ledger or cash forecast in this slice.
+Not yet released: validated live subscription integrations, qualified (human) tax review, which the owner has waived for now, scheduled briefings, tax-regime comparison, and advisor-initiated accounting mutations. There is no bank ledger or cash forecast in this slice.
 
 **Blocked first-use entry implemented 2026-10-06:** opening Doradca without a usable embedded provider stays on the current page and shows one current reason with its owner and a **Settings → Doradca** action in the desktop dock or mobile sheet. Runtime-off takes precedence over company-off, then conversation-selected provider denial, then no saved connection for this member/provider. The blocked composer is visibly noneditable with Send disabled and no model call. The action and a direct Settings visit both start in embedded Mode A; Mode B is one visible switch away and is no longer remembered across visits. The [single-source blocked-entry visual reference](tax-advisor-blocked-entry-reference.html) replaces inconsistent Stitch candidates; final app visual/accessibility review and the other release gates remain.
 
@@ -98,6 +98,8 @@ The pre-check (`isAdvisorQuestionOutOfScope` in `advisor-source-topics.ts`) only
 
 The model returns bounded structured text, status, assumptions, questions and evidence/source IDs. Unknown IDs are rejected. Reported tax guidance requires a cited supplied source. Server-owned calculations, source links and provenance are attached after validation. The UI renders plain text and application-constructed links. Schema/citation checks cannot prove that every sentence is legally correct: reviewed evaluation remains a release gate.
 
+**AI-review disclosure (UI, 2026-10-31):** `AdvisorAnswerCard` renders `answer.disclaimer` verbatim from the server (no client copy) as an always-visible `role="note"` directly under the short-answer box, never inside `<details>`, in the dock, `/dashboard/advisor`, the mobile sheet and history replays; it is omitted when the field is absent. Each source's meta line reads `Sprawdzone przez AI · <models> · <reviewedAt>`, where `<models>` is `reviewedBy` with the `ai:` prefixes removed and parts joined by ` + `. The UI never implies human or professional review; the tax-unavailable note says "sprawdzonych przez AI źródeł" and keeps the advice to consult an accountant.
+
 **Answer citation visibility approved 2026-10-04:** when the returned answer contains document evidence and/or reviewed sources, show a compact, always-visible summary immediately below the answer text: a document label/count and a reviewed-source title with its effective dates (plus the remaining count if needed). Preserve the detailed document amounts/links and reviewed-source sections/excerpts behind separate expandable controls. Label these as references, not proof that every sentence is correct; show no evidence/source claim or empty section when the corresponding list is empty (including a clarification with no citations; a decline has none). Render only returned, authorized evidence for the same company/environment/month and applicable reviewed sources; no fabricated examples or cross-context document metadata. `AdvisorAnswerCard` currently hides both evidence and sources in closed `<details>` and needs the summary in desktop dock, page, mobile sheet and history replay.
 
 **Clarification continuation approved 2026-10-04:** for `needs_clarification`, show the missing-fact question(s) above an editable reply in the **same conversation**. A customer types the missing fact and explicitly submits; selecting the answer or opening it never sends automatically. Associate the reply with the completed clarification turn, and provide the provider only bounded prior **user question plus that turn's clarification question(s)** so a short factual answer is meaningful; do not replay the whole assistant answer, other turns, previous document evidence or legal excerpts as implicit conversation memory. Current `generateAdvisorAnswer()` passes at most four prior *question texts* only when `includeRecords` is true and has no clarification-specific context, so a short follow-up is not yet supported. Extend the message contract with a reply-to turn identifier, persist and compare it in request-ID idempotency checks, and validate that the origin is a completed `needs_clarification` turn in the same membership/company/environment and period before building context. Per-turn record inclusion stays an explicit visible choice and only sends current authorized records when opted in; if the period or selected record context changes, do not attach a stale clarification. Conversation detail/history must show which reply answered which prompt.
@@ -145,11 +147,11 @@ Membership, policy, session validity and connection identity are rechecked befor
 
 **History deletion approved 2026-10-04:** delete only the selected member-owned conversation after a clear confirmation that identifies it. Cancel changes nothing; successful deletion removes its active application history/turns, clears any draft or pending clarification tied to it, refreshes the company/environment-scoped list and leaves a blank composer. Failed deletion leaves the conversation visible with an error. No bulk-delete or Undo in this journey. Explain that provider-owned storage/logs and any backups follow their own retention and are not erased by deleting a Księgowy Vibe thread. `DELETE /conversations/:conversationId` already checks membership and environment; replace the current `window.confirm` with an accessible, theme-matched dialog when implementing the approved visual treatment.
 
-## Reviewed tax source corpus
+## AI-reviewed tax source corpus
 
 Set `ADVISOR_TAX_SOURCES_PATH` to an operator-controlled JSON array. A missing path means no sources; malformed configured data fails closed. Limit: 128 KB, 40 unique entries; at most eight applicable entries are supplied. In Docker, mount the file read-only and use its container path.
 
-The repository's `sources.draft.json` contains **pending, unreviewed** entries and must never be mounted. After a qualified reviewer signs off the entries and the Polish evaluation set, export an approved JSON file outside the repository using the guarded procedure in [the corpus README](tax-advisor-corpus/README.md#loader-format-and-why-the-draft-is-deliberately-not-loadable). For Compose, opt in explicitly with the override; the host path must already be a file and is mounted read-only:
+The repository's `sources.draft.json` contains **pending, unreviewed** entries and must never be mounted. Run the AI review runner ([corpus README](tax-advisor-corpus/README.md#ai-review-runner)) to produce the corpus file outside the repository together with its review report. For Compose, opt in explicitly with the override; the host path must already be a file and is mounted read-only:
 
 ```bash
 ADVISOR_TAX_SOURCES_HOST_PATH=/absolute/path/to/approved-advisor-tax-sources.json \
@@ -166,8 +168,25 @@ Each entry requires:
 | `url` | HTTPS official `*.gov.pl` source, no embedded credentials |
 | `effectiveFrom`, `effectiveUntil` | Inclusive ISO dates covering the entire requested month |
 | `reviewedAt`, `reviewExpiresAt` | ISO dates covering today's date |
-| `reviewedBy` | Identifiable reviewer responsible for checking applicability |
-| `excerpt` | Reviewed excerpt, at most 2,000 characters |
+| `reviewMethod` | Always `ai`. Entries without it, including old human-format entries, are refused |
+| `reviewedBy` | At least two AI reviewers joined by `+`, each `ai:(ANTHROPIC|OPENAI|OPENROUTER|OLLAMA)/<model>`, at most 200 characters |
+| `reviewReportId` | UUID of the review report produced by the runner; never sent to models or users |
+| `reviewHash` | SHA-256 over canonical JSON of `id, title, url, section, effectiveFrom, effectiveUntil, excerpt, topics, reviewedBy, reviewedAt, reviewMethod` (`hashAdvisorSourceReview`). Any later edit of those fields makes the loader refuse the entry; never sent to models or users |
+| `excerpt` | AI-reviewed excerpt, at most 2,000 characters |
+
+**Review model (owner decision):** source review is performed by AI models only. There is **no human reviewer; this was waived by the owner**. An AI review is not a qualified legal or tax review, and the product never implies human review. The offline review runner (`pnpm --filter @ksiegowy/api advisor:review-sources`, `advisor-source-review.ts` and `advisor-source-evaluation.ts`) uses a 30-day expiry constant (`reviewExpiresAt = reviewedAt + 30 days`) and shares `hashAdvisorSourceReview`, `parseAdvisorSourceCorpus`, `composeAdvisorModelInput`, `verifyAdvisorCitations` and `requestStructuredModelOutput` with the API. It is never reachable over HTTP and reads its keys only from `ADVISOR_REVIEW_*` environment variables. Details: [corpus README](tax-advisor-corpus/README.md#ai-review-runner).
+
+```mermaid
+flowchart LR
+  A[Source entry] --> B[Runner: two or more AI reviewers]
+  B --> C[reviewReportId + reviewHash + reviewedBy]
+  C --> D[Loader: schema + hash check]
+  D -->|valid| E[Selected sources]
+  D -->|missing or stale| F[Refused, tax mode fails closed]
+  E --> G[Answer with disclaimer and provenance.sourceReviewMethod = ai]
+```
+
+**Disclaimer:** `AdvisorAnswer.disclaimer` carries the constant `advisorTaxDisclaimer` (Polish: AI-generated answer, sources checked by an AI model only, not legal or tax advice, verify in sources or with an accountant/tax advisor). It is attached to every tax-mode answer (including a tax-mode decline) and to any answer that cites sources; `provenance.sourceReviewMethod` is `ai` when sources were cited, otherwise `not-applicable`. The MCP `get_tax_sources` tool always returns `{ sources, sourceVersion, sourceReviewMethod: 'ai', disclaimer }`, even with no sources, and its description tells the host to show the `disclaimer` with any answer built from them.
 
 The corpus SHA-256 digest is persisted as provenance. There is no automatic web retrieval or claim that uploaded source metadata itself constitutes legal review. Changes within a month require narrower supported questions or a later day-level contract; the current selector excludes sources that do not cover the full month. Sources may carry an optional `topics` array (1-6 unique values from the fixed vocabulary in the [corpus README](tax-advisor-corpus/README.md#topic-vocabulary)); the loader stays strict and rejects unknown, duplicated or empty topics.
 
@@ -201,7 +220,7 @@ Decisions:
 - Keyword matching is a coarse classifier. A wrong or missed topic can only narrow the supplied sources; the model must still cite supplied sources or report insufficient evidence.
 - The keyword out-of-scope pre-check is deliberately narrow; a missed phrase reaches the model, which must decline through the prompt, and a declined model answer is validated like the deterministic one.
 
-Before enabling tax guidance, appoint a source owner and qualified reviewer, populate only supported VAT/invoice topics, and evaluate the Polish question set in the plan. No invented review dates or unreviewed tax rates are seeded.
+Before enabling tax guidance, appoint a source owner (no human reviewer, waived by the owner), populate only supported VAT/invoice topics, run the AI review, and evaluate the Polish question set in the plan. No invented review dates or unreviewed tax rates are seeded.
 
 ## Connector grant lifecycle and retention
 
@@ -304,7 +323,7 @@ Each tool requires explicit `companyId`, `environment`, and `period`. `get_invoi
 - `get_company_context`: bounded documents and monthly calculations.
 - `get_period_summary`: monthly calculations only.
 - `get_invoice_evidence`: selected document evidence plus monthly calculations.
-- `get_tax_sources`: currently reviewed sources applicable to the selected period.
+- `get_tax_sources`: currently AI-reviewed sources (not qualified legal review) applicable to the selected period, plus `sourceReviewMethod` and the `disclaimer` to show to the user.
 
 An ADMIN first allows the external client in the company policy. The signed-in user then grants a chosen client read-only access to a specific company/environment for up to 30 days. Grants bind membership, issuer, client and environment; changing issuer/client configuration invalidates old grants. Every tool call checks the current grant, membership and policy before reading and again before returning facts. Revocation is available in the same Settings section. No accounting writes are exposed, including for VIEWER users.
 

@@ -207,7 +207,18 @@ Pass: `event: status` with `preparing` appears within about a second, `working` 
 
 ## 6. Tax source corpus (optional, separate gate)
 
-Do not mount anything until a qualified reviewer has approved the entries and the Polish evaluation set ([corpus README](specs/tax-advisor-corpus/README.md)). `sources.draft.json` must never be mounted; the loader rejects it anyway.
+Do not mount anything until the AI review runner has passed for the entries and the Polish evaluation set ([corpus README](specs/tax-advisor-corpus/README.md#ai-review-runner)). `sources.draft.json` must never be mounted; the loader rejects it anyway.
+
+Run the review on an operator machine, never on the API host and never through HTTP:
+
+```bash
+# .env (repository root, untracked) holds ADVISOR_REVIEW_MODELS, ADVISOR_REVIEW_ANSWER_MODELS and the dedicated ADVISOR_REVIEW_*_API_KEY values
+pnpm --filter @ksiegowy/api advisor:review-sources --output /secure/path/advisor-tax-sources.json --report-dir /secure/path/advisor-reviews
+```
+
+Keep the keys in the untracked `.env` or a secret manager (capped, dedicated, not the API's keys), the output corpus and the reports outside the repository (the runner refuses an in-repository output). The draft must carry `draftedBy` and `officialText` spans first. Exit code 0 means the corpus was written; exit 1 means read the newest report in the report directory and fix the draft, models or limit (`ADVISOR_REVIEW_MAX_CALLS`). Keep each report with the corpus SHA-256.
+
+Expiry operations: every review lasts 30 days (`reviewExpiresAt`). Calendar a re-run about a week before expiry and after each trigger listed in the corpus README; an expired entry silently stops being selected and tax questions then fail closed. Recreate the API container with the new file as below.
 
 Initial mount:
 
@@ -221,7 +232,7 @@ Verify: `GET /companies/<id>/advisor/settings` reports `reviewedSourceCount` equ
 
 Corpus update:
 
-1. Reviewer approves the changed entries; export a **new** file (e.g. versioned file name) outside the repository and record its SHA-256 and sign-off.
+1. Re-run the AI review runner; write a **new** file (e.g. versioned file name) outside the repository and record its SHA-256 and report id.
 2. Validate on a non-production API first (`reviewedSourceCount`, one TEST tax question per enabled provider/model). Rerun the approved evaluation set when the corpus or a model changes.
 3. Point `ADVISOR_TAX_SOURCES_HOST_PATH` at the new file and recreate the API container (command above).
 

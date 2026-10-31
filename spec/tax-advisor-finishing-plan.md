@@ -20,8 +20,8 @@ Branch: `feat/tax-advisor`. Companion to [the implementation plan](tax-advisor-i
 
 ## Track B: blocked on people or accounts
 
-- [ ] B1 Name a tax reviewer and source-refresh owner; review `docs/specs/tax-advisor-corpus/sources.draft.json` and sign off the evaluation set.
-- [ ] B2 Reviewer runs the Polish question set against real providers.
+- [ ] B1 AI-driven (owner decision: no human reviewer; the review runner is pending, so not ticked). Name a source-refresh owner; AI models review `docs/specs/tax-advisor-corpus/sources.draft.json` and the evaluation set. API side done: AI-review metadata schema, disclaimer and provenance. Runner built; still needs `draftedBy` and `officialText` spans in the draft, review keys and a real run.
+- [ ] B2 AI-driven (runner built 2026-10-31, `pnpm --filter @ksiegowy/api advisor:review-sources`; still needs a real run with provider keys, not ticked): the runner executes the Polish question set against real providers.
 - [ ] B3 Deploy the OAuth issuer (Keycloak reference): PKCE S256, audience, exact redirects, user-ID mapping.
 - [ ] B4 One real check per provider (OpenRouter, OpenAI, Anthropic, Ollama) and per host (ChatGPT, Claude).
 - [ ] B5 Confirm Ollama location and connector eligibility on target accounts.

@@ -343,7 +343,7 @@ The checklist records implementation separately from release gates. Checked item
 - [x] Add scoped accounting reads in `apps/api/src/services/advisor/`, reusing public services where their semantics match.
 - [x] Reconcile correction and currency handling in affected shared read models; make any changed totals visible in their existing docs/tests. Keep accepted-sales and all-issued totals separately named.
 - [x] Add bounded source metadata loading, effective-period/current-review selection, corpus provenance, and fail-closed missing/stale-source behavior.
-- [ ] Populate an accountant-reviewed source corpus and designate review ownership. Topic retrieval beyond the first eight is implemented (deterministic keyword topics plus period ranking, see docs/specs/tax-advisor.md); the corpus and reviewer remain open.
+- [ ] Populate an AI-reviewed source corpus (owner decision: review by AI models only, no human reviewer; the review runner is still to be built; an AI review is never presented as qualified human review) and designate source ownership. Topic retrieval beyond the first eight is implemented (deterministic keyword topics plus period ranking, see docs/specs/tax-advisor.md); the corpus and reviewer remain open.
 - [x] Define bounded context snapshots, exclusion rules, source links, and provenance.
 
 **Gate:** deterministic totals reconcile to synthetic invoice fixtures, formal/cancellation corrections behave correctly, mixed currencies remain separate, and no cross-company/environment record can enter a context. Tax answers have period-appropriate reviewed evidence.
