@@ -27,7 +27,7 @@ async function startApplication(database: PrismaClient) {
   return { application, token, logLines };
 }
 
-const membership = (enabled = true) => ({ id: 'membership', companyId: 'company', role: 'ADMIN',
+const membership = (enabled = true, role = 'ADMIN') => ({ id: 'membership', companyId: 'company', role,
   company: { advisorPolicy: { enabled, allowedConnectors: ['CHATGPT'] } } });
 const mutation = { origin: 'http://localhost:3000', 'x-ksef-environment': 'TEST' };
 
@@ -94,6 +94,26 @@ describe('advisorConnectorRoutes()', () => {
       expect(revoked.json()).toEqual({ revoked: true });
       expect(database.advisorConnectorGrant.updateMany).toHaveBeenCalledWith({ where: { membershipId: 'membership', environment: 'TEST', client: 'CHATGPT', revokedAt: null }, data: { revokedAt: expect.any(Date) } });
       expect(logLines.find((line) => line['operation'] === 'advisor.connector.revoke')).toMatchObject({ membershipId: 'membership', client: 'CHATGPT', environment: 'TEST', outcome: 'revoked' });
+    } finally { await application.close(); }
+  });
+
+  it('denies a grant to a VIEWER, allows an ACCOUNTANT, and lets the VIEWER still revoke', async () => {
+    stubConnectorEnvironment(true);
+    const findUnique = vi.fn().mockResolvedValue(membership(true, 'VIEWER'));
+    const database = Builder<PrismaClient>()
+      .companyMembership({ findUnique } as never)
+      .advisorConnectorGrant({ findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never).build();
+    const { application, token } = await startApplication(database);
+    try {
+      const grant = { method: 'PUT' as const, url: '/companies/company/advisor/connectors/CHATGPT', cookies: { auth_token: token }, headers: mutation, payload: { days: 7 } };
+      const denied = await application.inject(grant);
+      expect(denied.statusCode).toBe(403);
+      expect(denied.json()).toEqual({ code: 'CONNECTION_ROLE_REQUIRED', message: 'Administrator or accountant role is required to connect providers and grant connectors' });
+      expect(database.advisorConnectorGrant.upsert).not.toHaveBeenCalled();
+      const revoked = await application.inject({ method: 'DELETE', url: grant.url, cookies: grant.cookies, headers: mutation });
+      expect(revoked.json()).toEqual({ revoked: true });
+      findUnique.mockResolvedValue(membership(true, 'ACCOUNTANT'));
+      expect((await application.inject(grant)).statusCode).toBe(200);
     } finally { await application.close(); }
   });
 });

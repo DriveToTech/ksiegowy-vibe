@@ -33,7 +33,7 @@ describe('advisorRoutes()', () => {
   it('returns masked settings using current membership instead of token company claims', async () => {
     const response = await application.inject({ method: 'GET', url: '/companies/company/advisor/settings', cookies: { auth_token: token } });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ enabled: true, canManagePolicy: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30,
+    expect(response.json()).toEqual({ enabled: true, canManagePolicy: true, canManageConnections: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30,
       ollamaAvailable: false, reviewedSourceCount: 0, connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }] });
     expect(database.companyMembership.findUnique).toHaveBeenCalledWith({ where: { companyId_userId: { companyId: 'company', userId: 'user' } }, include: { company: { select: { advisorPolicy: true } } } });
   });
@@ -228,6 +228,23 @@ describe('advisorRoutes()', () => {
       expect(database.advisorConnection.upsert).not.toHaveBeenCalled();
       const removed = await application.inject(connectionRequest('DELETE', 'OPENROUTER'));
       expect(removed.json()).toEqual({ deleted: true });
+    });
+
+    it('denies saving to a VIEWER, allows an ACCOUNTANT, and lets the VIEWER still remove their connection', async () => {
+      Object.assign(database.advisorConnection, { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}), deleteMany: vi.fn().mockResolvedValue({ count: 1 }) });
+      const membershipWithRole = (role: string) => ({ id: 'membership', companyId: 'company', role,
+        company: { advisorPolicy: { enabled: true, allowedProviders: ['OLLAMA'], retentionDays: 30 } } });
+      vi.stubEnv('ADVISOR_OLLAMA_URL', 'https://ollama.example');
+      vi.mocked(database.companyMembership.findUnique).mockResolvedValue(membershipWithRole('VIEWER') as never);
+      const denied = await application.inject(connectionRequest('PUT', 'OLLAMA'));
+      expect(denied.statusCode).toBe(403);
+      expect(denied.json()).toEqual({ code: 'CONNECTION_ROLE_REQUIRED', message: 'Administrator or accountant role is required to connect providers and grant connectors' });
+      expect(database.advisorConnection.upsert).not.toHaveBeenCalled();
+      expect((await application.inject(connectionRequest('DELETE', 'OLLAMA'))).json()).toEqual({ deleted: true });
+      const settings = await application.inject({ method: 'GET', url: '/companies/company/advisor/settings', cookies: { auth_token: token } });
+      expect(settings.json().canManageConnections).toBe(false);
+      vi.mocked(database.companyMembership.findUnique).mockResolvedValue(membershipWithRole('ACCOUNTANT') as never);
+      expect((await application.inject(connectionRequest('PUT', 'OLLAMA'))).json()).toEqual({ saved: true });
     });
   });
 });

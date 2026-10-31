@@ -99,6 +99,8 @@ export interface AdvisorSettings {
   enabled: boolean;
   operatorEnabled: boolean;
   canManagePolicy: boolean;
+  /** ADMIN or ACCOUNTANT: may save provider connections and grant connectors. VIEWER may only disconnect or revoke. */
+  canManageConnections: boolean;
   allowedProviders: AdvisorProvider[];
   allowedConnectors: AdvisorConnectorClient[];
   retentionDays: number;

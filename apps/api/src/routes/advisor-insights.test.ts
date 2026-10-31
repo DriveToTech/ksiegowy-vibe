@@ -11,6 +11,7 @@ describe('advisorInsightRoutes()', () => {
   let token: string;
   const headers = { 'x-ksef-environment': 'TEST' };
   beforeEach(async () => {
+    vi.stubEnv('ADVISOR_ENABLED', 'true');
     vi.stubEnv('CORS_ORIGIN', 'http://localhost:3000');
     database = Builder<PrismaClient>()
       .companyMembership({ findUnique: vi.fn().mockResolvedValue({ id: 'membership', role: 'VIEWER', company: { advisorPolicy: null } }) } as never)
@@ -67,5 +68,17 @@ describe('advisorInsightRoutes()', () => {
     const response = await application.inject({ method: 'GET', url: '/companies/other-company/advisor/insights?view=invoices', cookies: { auth_token: token }, headers });
     expect(response.statusCode).toBe(403);
     expect(database.invoice.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('returns no insight and refuses dismissal while the operator has disabled the advisor', async () => {
+    vi.stubEnv('ADVISOR_ENABLED', 'false');
+    const insight = await application.inject({ method: 'GET', url: '/companies/company/advisor/insights?view=invoices', cookies: { auth_token: token }, headers });
+    expect(insight.statusCode).toBe(200);
+    expect(insight.json()).toBeNull();
+    expect(database.invoice.findFirst).not.toHaveBeenCalled();
+    const dismissed = await application.inject({ method: 'POST', url: '/companies/company/advisor/insights/rejected-invoice/dismiss',
+      cookies: { auth_token: token }, headers: { ...headers, origin: 'http://localhost:3000' } });
+    expect(dismissed.statusCode).toBe(503);
+    expect(dismissed.json().code).toBe('ADVISOR_DISABLED');
   });
 });

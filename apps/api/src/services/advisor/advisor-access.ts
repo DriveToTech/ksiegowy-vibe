@@ -12,6 +12,10 @@ export async function requireAdvisorMembership(request: FastifyRequest, companyI
   return membership;
 }
 
+export function requireAdvisorConnectionManager(membership: Awaited<ReturnType<typeof requireAdvisorMembership>>) {
+  if (membership.role === 'VIEWER') throw new AdvisorError(403, 'CONNECTION_ROLE_REQUIRED', 'Administrator or accountant role is required to connect providers and grant connectors');
+}
+
 export function requireAdvisorEnabled() {
   if (process.env['ADVISOR_ENABLED'] !== 'true') throw new AdvisorError(503, 'ADVISOR_DISABLED', 'Advisor is disabled by the operator');
 }

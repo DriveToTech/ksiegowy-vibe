@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { requireExplicitKsefEnvironment } from '../lib/ksef-environment.js';
-import { requireAdvisorEnabled, requireAdvisorMembership } from '../services/advisor/advisor-access.js';
+import { requireAdvisorConnectionManager, requireAdvisorEnabled, requireAdvisorMembership } from '../services/advisor/advisor-access.js';
 import { advisorGrantRetentionDays, AdvisorError } from '../services/advisor/advisor-contract.js';
 import { advisorConnectorConfiguration } from '../services/advisor/advisor-connector.js';
 
@@ -25,6 +25,7 @@ export const advisorConnectorRoutes: FastifyPluginAsync = async (server) => {
   server.put<{ Params: { companyId: string; client: string } }>('/connectors/:client', { bodyLimit: 8_000 }, async (request) => {
     requireAdvisorEnabled();
     const membership = await requireAdvisorMembership(request, request.params.companyId);
+    requireAdvisorConnectionManager(membership);
     const environment = requireExplicitKsefEnvironment(request);
     const client = z.enum(['CHATGPT', 'CLAUDE']).parse(request.params.client);
     const { days } = z.object({ days: z.number().int().min(1).max(30) }).strict().parse(request.body);

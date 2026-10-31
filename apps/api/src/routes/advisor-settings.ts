@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { encrypt } from '@ksiegowy/shared-utils';
 import { z } from 'zod';
 import { AdvisorError, advisorProviderSchema, advisorScopeSchema } from '../services/advisor/advisor-contract.js';
-import { readAdvisorConnection, requireAdvisorMembership, requireAdvisorPolicy, reserveAdvisorModelPreview, reserveAdvisorProviderRequest } from '../services/advisor/advisor-access.js';
+import { readAdvisorConnection, requireAdvisorConnectionManager, requireAdvisorMembership, requireAdvisorPolicy, reserveAdvisorModelPreview, reserveAdvisorProviderRequest } from '../services/advisor/advisor-access.js';
 import { discoverAdvisorModels, generateAdvisorResponse, requireOllamaEndpoint } from '../services/advisor/advisor-provider.js';
 import { loadAdvisorSources, selectAdvisorSources } from '../services/advisor/advisor-sources.js';
 
@@ -18,6 +18,7 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
     ]);
     const policy = membership.company.advisorPolicy;
     return { enabled: policy?.enabled ?? false, operatorEnabled: process.env['ADVISOR_ENABLED'] === 'true', canManagePolicy: membership.role === 'ADMIN',
+      canManageConnections: membership.role !== 'VIEWER',
       allowedProviders: policy?.allowedProviders ?? [], retentionDays: policy?.retentionDays ?? 30,
       allowedConnectors: policy?.allowedConnectors ?? [],
       ollamaAvailable: Boolean(process.env['ADVISOR_OLLAMA_URL']), reviewedSourceCount: corpus.sources.length,
@@ -44,6 +45,7 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
 
   server.put<{ Params: { companyId: string; provider: string } }>('/connections/:provider', { bodyLimit: 8_000 }, async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
+    requireAdvisorConnectionManager(membership);
     const provider = advisorProviderSchema.parse(request.params.provider);
     const body = connectionBodySchema.parse(request.body);
     requireAdvisorPolicy(membership, provider);

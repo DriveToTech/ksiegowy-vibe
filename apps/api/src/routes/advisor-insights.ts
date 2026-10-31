@@ -4,7 +4,7 @@ import type { AdvisorInsight } from '@ksiegowy/types';
 import { z } from 'zod';
 import { requireExplicitKsefEnvironment } from '../lib/ksef-environment.js';
 import { AdvisorError } from '../services/advisor/advisor-contract.js';
-import { requireAdvisorMembership } from '../services/advisor/advisor-access.js';
+import { requireAdvisorEnabled, requireAdvisorMembership } from '../services/advisor/advisor-access.js';
 import { issuedInvoiceFinancialScope } from '../services/invoice-financial-scope.js';
 
 const version = 1;
@@ -14,6 +14,8 @@ const incomingStatuses = ['UPLOADED', 'OCR_PROCESSING', 'OCR_DONE', 'OCR_FAILED'
 
 export const advisorInsightRoutes: FastifyPluginAsync = async (server) => {
   server.get<{ Params: { companyId: string }; Querystring: { view?: string; contractorId?: string } }>('/insights', async (request) => {
+    // Rollback switch: no insight is shown while the operator has disabled the advisor.
+    if (process.env['ADVISOR_ENABLED'] !== 'true') return null;
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     const environment = requireExplicitKsefEnvironment(request);
     const { view, contractorId } = z.object({ view: viewSchema, contractorId: z.string().min(1).max(100).optional() }).strict().parse(request.query);
@@ -77,6 +79,7 @@ export const advisorInsightRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.post<{ Params: { companyId: string; key: string } }>('/insights/:key/dismiss', async (request) => {
+    requireAdvisorEnabled();
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     const environment = requireExplicitKsefEnvironment(request);
     const { key } = request.params;
