@@ -78,7 +78,7 @@ export function AdvisorSettings({ companyId, companyName }: { companyId: string;
     </>}
     {mode === 'external' && settings && <>
       <AdvisorReadinessSummary rows={externalRows} />
-      <AdvisorConnectors companyId={companyId} companyName={companyName} connectors={connectors} loadError={connectorsError} allowedClients={settings.enabled ? settings.allowedConnectors : []} onChanged={() => load()} />
+      <AdvisorConnectors companyId={companyId} companyName={companyName} connectors={connectors} loadError={connectorsError} allowedClients={settings.enabled ? settings.allowedConnectors : []} canManageConnections={settings.canManageConnections} onChanged={() => load()} />
     </>}
   </section>;
 }

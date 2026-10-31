@@ -47,7 +47,9 @@ export function AdvisorProviderConnection({ companyId, settings, provider, onCha
   const adminHint = settings.canManagePolicy ? ` ${text.readiness.policyAdminHint}` : '';
 
   // Each blocker says what is wrong and who can resolve it; setup and manual model entry stay possible.
+  const canManage = settings.canManageConnections;
   const blockers = [
+    ...(canManage ? [] : [text.connectionRoleRequired]),
     ...(readiness.runtime === 'disabled' ? [text.operatorDisabled] : []),
     ...(readiness.policy === 'disabled' ? [`${text.readiness.policyDisabled}${adminHint}`] : []),
     ...(readiness.policy === 'denied' ? [`${text.readiness.providerDeniedDescription(providerLabel)}${adminHint}`] : []),
@@ -111,6 +113,7 @@ export function AdvisorProviderConnection({ companyId, settings, provider, onCha
     }}>
       <h3 className="text-sm font-semibold"><AdvisorStepEyebrow step={2} />{text.embedded.stepKeyAndModel}</h3>
       {blockers.length > 0 && <div id={blockerIdentifier} className="space-y-2">{blockers.map((blocker) => <Banner variant="accent" key={blocker} tone="warning" role="status">{blocker}</Banner>)}</div>}
+      <fieldset disabled={!canManage} className="min-w-0 space-y-4">
       {isOllama
         ? <div className="space-y-2 rounded-card border border-outline bg-surface-raised p-4">
           <p className="flex flex-wrap items-center gap-2 text-sm">
@@ -140,6 +143,7 @@ export function AdvisorProviderConnection({ companyId, settings, provider, onCha
         <p id={discoverHintIdentifier} className="text-sm text-muted">{needsCredential ? text.embedded.credentialNeeded : text.embedded.fetchModelsHint}</p>
         <Button type="submit" className="w-full sm:w-auto" disabled={busy || ollamaNoModels} loading={busy && operation?.name === 'save'}>{isOllama ? text.embedded.saveModel : text.embedded.save}</Button>
       </>}
+      </fieldset>
       {operation?.name !== 'test' && message}
     </form>
 

@@ -26,8 +26,8 @@ function ConnectorChoice({ name, value, checked, disabled, onChange, children }:
   </label>;
 }
 
-export function AdvisorConnectors({ companyId, companyName, connectors, loadError, allowedClients, onChanged }: {
-  companyId: string; companyName: string; connectors: AdvisorConnectorSettings | null; loadError: string; allowedClients: AdvisorConnectorClient[]; onChanged: () => Promise<void>;
+export function AdvisorConnectors({ companyId, companyName, connectors, loadError, allowedClients, canManageConnections, onChanged }: {
+  companyId: string; companyName: string; connectors: AdvisorConnectorSettings | null; loadError: string; allowedClients: AdvisorConnectorClient[]; canManageConnections: boolean; onChanged: () => Promise<void>;
 }) {
   const [requestedHost, setRequestedHost] = useState<AdvisorConnectorClient>('CHATGPT');
   const [environment, setEnvironment] = useState<AdvisorEnvironment>('TEST');
@@ -46,7 +46,7 @@ export function AdvisorConnectors({ companyId, companyName, connectors, loadErro
   const hasConsent = consentFor === currentChoice;
   const hostAvailable = connectors?.clients.includes(host) ?? false;
   const hostAllowed = allowedClients.includes(host);
-  const grantBlockedReason = !hostAvailable ? text.external.hostUnavailableReason(hostName) : !hostAllowed ? text.external.hostNotAllowedReason(hostName) : !hasConsent ? text.external.consentRequiredReason : '';
+  const grantBlockedReason = !canManageConnections ? text.connectionRoleRequired : !hostAvailable ? text.external.hostUnavailableReason(hostName) : !hostAllowed ? text.external.hostNotAllowedReason(hostName) : !hasConsent ? text.external.consentRequiredReason : '';
   const environmentName = text.external.environments[environment];
 
   // Changing any choice clears consent, because consent is stored for the exact host, environment and duration.
@@ -129,7 +129,7 @@ export function AdvisorConnectors({ companyId, companyName, connectors, loadErro
 
       <section aria-labelledby="advisor-grants-title" className="space-y-3">
         <h3 id="advisor-grants-title" className="font-medium">{text.external.stepGrants}</h3>
-        <AdvisorConnectorGrants companyId={companyId} grants={connectors.grants} onRegrant={prefillGrant} onChanged={onChanged} />
+        <AdvisorConnectorGrants companyId={companyId} grants={connectors.grants} canRegrant={canManageConnections} onRegrant={prefillGrant} onChanged={onChanged} />
       </section>
     </>}
   </section>;

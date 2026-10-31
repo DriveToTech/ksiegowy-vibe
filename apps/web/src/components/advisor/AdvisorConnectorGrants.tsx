@@ -12,8 +12,8 @@ const statusTone = { WAITING: 'warning', ACTIVE: 'success', EXPIRED: 'draft', RE
 const expiresSoonMilliseconds = 3 * 24 * 60 * 60 * 1000;
 
 // Step 4: one responsive list. Status comes from the server; only "expires soon" is computed here. Re-granting pre-fills step 2 and never grants.
-export function AdvisorConnectorGrants({ companyId, grants, onRegrant, onChanged }: {
-  companyId: string; grants: AdvisorConnectorGrant[];
+export function AdvisorConnectorGrants({ companyId, grants, canRegrant, onRegrant, onChanged }: {
+  companyId: string; grants: AdvisorConnectorGrant[]; canRegrant: boolean;
   onRegrant: (client: AdvisorConnectorClient, environment: AdvisorEnvironment) => void; onChanged: () => Promise<void>;
 }) {
   const [now] = useState(() => Date.now());
@@ -67,9 +67,9 @@ export function AdvisorConnectorGrants({ companyId, grants, onRegrant, onChanged
             {(grant.status === 'EXPIRED' || grant.status === 'REVOKED') && <p className="text-sm text-muted">{text.external.recovery}</p>}
           </div>
           <div className="flex flex-col gap-2 md:flex-row">
-            {expiresSoon && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.extend}</Button>}
+            {canRegrant && expiresSoon && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.extend}</Button>}
             {isGranted && <Button variant="danger" onClick={() => { setError(''); setRevokeTarget(grant); }}>{text.external.revoke}</Button>}
-            {!isGranted && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.grantAgain}</Button>}
+            {canRegrant && !isGranted && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.grantAgain}</Button>}
           </div>
         </li>;
       })}

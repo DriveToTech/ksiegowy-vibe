@@ -23,6 +23,7 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
   const [seedRevision, setSeedRevision] = useState(seed.revision);
   const [period, setPeriod] = useState(seed.period ?? new Date().toISOString().slice(0, 7));
   const [questionKind, setQuestionKind] = useState<'records' | 'tax'>('records');
+  const [kindResetNotice, setKindResetNotice] = useState(false);
   const [includeRecords, setIncludeRecords] = useState(false);
   const [changingContext, setChangingContext] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -48,7 +49,12 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
   useEffect(() => { if (active) return refreshSettings(); }, [active, refreshSettings]);
   // Coverage is per period, not topic: a covered period can still fail with TAX_SOURCES_UNAVAILABLE on Send. Unknown coverage never blocks.
   const taxUnavailable = settings?.taxSourceCoverage?.period === period && settings.taxSourceCoverage.covered === false;
-  useEffect(() => { if (taxUnavailable) setQuestionKind('records'); }, [taxUnavailable]);
+  useEffect(() => {
+    if (!taxUnavailable) { setKindResetNotice(false); return; }
+    if (questionKind !== 'tax') return;
+    setQuestionKind('records');
+    setKindResetNotice(true);
+  }, [taxUnavailable, questionKind]);
   useEffect(() => {
     if (seedRevision === seed.revision) return;
     setSeedRevision(seed.revision);
@@ -89,7 +95,7 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
   async function sendQuestion() {
     if (busy || blocked || !settings || !question.trim()) return;
     const controller = new AbortController(); requestController.current = controller;
-    setBusy(true); setError(''); setProgress(text.loading);
+    setBusy(true); setError(''); setKindResetNotice(false); setProgress(text.loading);
     const submittedQuestion = question.trim();
     const requestId = crypto.randomUUID();
     const scope: AdvisorScope = { questionKind, period, includeRecords,
@@ -121,7 +127,7 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
         </select></label>
         <label className="text-sm">{text.period}<Input type="month" required value={period} onChange={(event) => setPeriod(event.target.value)} disabled={busy} /></label>
       </div>
-      <AdvisorQuestionKindChoice value={questionKind} taxUnavailable={taxUnavailable} disabled={busy} onChange={setQuestionKind} />
+      <AdvisorQuestionKindChoice value={questionKind} taxUnavailable={taxUnavailable} disabled={busy} onChange={(kind) => { setQuestionKind(kind); setKindResetNotice(false); }} />
       <label className="flex min-h-11 items-start gap-2 text-sm"><input className="mt-1 size-4 accent-[var(--primary)]" type="checkbox" checked={includeRecords} disabled={busy} onChange={(event) => setIncludeRecords(event.target.checked)} />{text.consent}</label>
       {seed.documentId && <p className="break-all text-xs text-muted">{text.selectedDocument}: {seed.documentId}</p>}
       {seed.contractorId && <p className="break-words text-xs text-muted">{text.contractorBalance}: {seed.contractorName ?? seed.contractorId}</p>}
@@ -160,14 +166,14 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
       </select></label>}
       {!turns.length && <div className="space-y-3"><p className="text-sm text-muted">{text.intro}</p><Button variant="secondary" onClick={() => setQuestion(text.briefingQuestion)}>{text.briefing}</Button></div>}
       {turns.map((turn) => <div key={turn.id} className="space-y-3"><p className="ml-8 rounded-card bg-surface-raised p-3 text-sm">{turn.question}</p>{turn.answer ? <AdvisorAnswerCard answer={turn.answer} /> : <p className="text-sm text-muted">{turn.status === 'PENDING' ? text.loading : text.failed}</p>}</div>)}
-      {!settings.reviewedSourceCount && <p className="rounded-inset bg-surface-raised p-3 text-xs text-muted">{text.sourceMissing}</p>}
     </>}
     <p className="text-xs leading-relaxed text-muted">{text.privacy} {text.readOnly}</p>
     {settings && <form className="sticky bottom-0 -mx-4 -mb-4 space-y-2 border-t border-outline bg-surface-panel px-4 pb-4 pt-3" onSubmit={(event) => { event.preventDefault(); void sendQuestion(); }}>
+      <div role="status">{taxUnavailable && <p id="advisor-tax-note" className="rounded-inset border-l-[3px] border-l-warning-ink bg-surface-raised px-3 py-2 text-xs leading-normal text-foreground-secondary break-words">{text.taxUnavailableForPeriod}{kindResetNotice && ` ${text.taxKindReset}`}</p>}</div>
       <p className="text-xs text-muted">{includeRecords ? text.disclosure : text.generalDisclosure}</p>
       <label className="sr-only" htmlFor="advisor-question">{text.question}</label>
       <div className="flex items-end gap-2">
-        <textarea id="advisor-question" rows={2} className="min-h-12 w-full resize-none rounded-control border border-outline-control bg-surface-raised p-3 text-base focus-visible:outline-primary" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={text.placeholder} maxLength={4000} required disabled={busy} />
+        <textarea id="advisor-question" rows={2} className="min-h-12 w-full resize-none rounded-control border border-outline-control bg-surface-raised p-3 text-base focus-visible:outline-primary" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={text.placeholder} maxLength={4000} aria-describedby={taxUnavailable ? 'advisor-tax-note' : undefined} required disabled={busy} />
         <Button type="submit" disabled={busy}>{text.send}</Button>
         {busy && <Button variant="secondary" onClick={() => requestController.current?.abort()}>{text.cancel}</Button>}
       </div>

@@ -2,8 +2,10 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Builder } from 'builder-pattern';
 import { describe, expect, it } from 'vitest';
-import type { AdvisorAnswer, AdvisorSettings } from '../../lib/advisor-api';
+import type { AdvisorAnswer, AdvisorConnectorSettings, AdvisorSettings } from '../../lib/advisor-api';
 import { AdvisorAnswerCard } from './AdvisorAnswerCard';
+import { AdvisorConnectors } from './AdvisorConnectors';
+import { AdvisorProviderConnection } from './AdvisorProviderConnection';
 import { AdvisorQuestionKindChoice } from './AdvisorQuestionKindChoice';
 import { AdvisorProviderChoice } from './AdvisorProviderChoice';
 import { AdvisorReadinessSummary } from './AdvisorReadinessSummary';
@@ -29,7 +31,7 @@ describe('AdvisorReadinessSummary()', () => {
 
 describe('AdvisorProviderChoice()', () => {
   it('keeps saved alternate providers visible and shows denied, tested and operator statuses', () => {
-    const settings = Builder<AdvisorSettings>().enabled(true).operatorEnabled(true).ollamaAvailable(false)
+    const settings = Builder<AdvisorSettings>().canManageConnections(true).enabled(true).operatorEnabled(true).ollamaAvailable(false)
       .allowedProviders(['OPENROUTER']).connections([
         { provider: 'ANTHROPIC', model: 'claude-model', hasCredential: true, testedAt: '2026-09-01T00:00:00.000Z' },
       ]).build();
@@ -103,5 +105,32 @@ describe('AdvisorQuestionKindChoice()', () => {
     expect(markup).not.toContain('aria-describedby');
     expect(markup).not.toContain('<option value="tax" disabled');
     expect(markup).not.toContain('advisor-tax-unavailable');
+  });
+});
+
+describe('AdvisorProviderConnection()', () => {
+  it('explains the role requirement, disables saving inputs and keeps disconnect enabled for a viewer', () => {
+    const settings = Builder<AdvisorSettings>().canManageConnections(false).canManagePolicy(false).enabled(true).operatorEnabled(true).ollamaAvailable(false)
+      .allowedProviders(['OPENAI']).connections([{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }]).build();
+    const markup = renderToStaticMarkup(createElement(AdvisorProviderConnection, { companyId: 'company', settings, provider: 'OPENAI', onChanged: async () => undefined }));
+    expect(markup).toContain('Tylko administrator lub księgowy może zapisywać połączenia');
+    expect(markup).toContain('<fieldset disabled=""');
+    expect(markup).toMatch(/<button[^>]*class="[^"]*"[^>]*>Odłącz<\/button>/);
+    expect(markup).not.toMatch(/<button[^>]*disabled=""[^>]*>Odłącz<\/button>/);
+  });
+});
+
+describe('AdvisorConnectors()', () => {
+  it('blocks granting with the role reason, hides re-grant and keeps revoke enabled for a viewer', () => {
+    const connectors = Builder<AdvisorConnectorSettings>().endpoint('https://api.example.com/advisor/mcp').clients(['CHATGPT']).grants([
+      { client: 'CHATGPT', environment: 'TEST', status: 'ACTIVE', expiresAt: '2099-01-01T00:00:00.000Z', lastUsedAt: null, revokedAt: null },
+      { client: 'CHATGPT', environment: 'PRODUCTION', status: 'EXPIRED', expiresAt: '2026-01-01T00:00:00.000Z', lastUsedAt: null, revokedAt: null },
+    ]).build();
+    const markup = renderToStaticMarkup(createElement(AdvisorConnectors, { companyId: 'company', companyName: 'Example', connectors, loadError: '', allowedClients: ['CHATGPT'], canManageConnections: false, onChanged: async () => undefined }));
+    expect(markup).toContain('id="advisor-grant-reason" class="text-sm text-muted">Tylko administrator lub księgowy');
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Zezwól na odczyt<\/button>/);
+    expect(markup).not.toMatch(/<button[^>]*disabled=""[^>]*>Cofnij zgodę<\/button>/);
+    expect(markup).toContain('Cofnij zgodę');
+    expect(markup).not.toContain('Zezwól ponownie');
   });
 });
