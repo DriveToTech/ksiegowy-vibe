@@ -2,21 +2,21 @@
 
 Linear: TRY-174. Drafted: 2026-10-01 against the VAT Act consolidated text **Dz. U. 2026 poz. 1263 (legal status 2026-08-26)**. Parent plan: [tax-advisor-implementation-plan](../../../spec/tax-advisor-implementation-plan.md) (phase 1 and phase 2 corpus items). Behaviour spec: [tax-advisor](../tax-advisor.md).
 
-**This is informational drafting material, not tax advice. Nothing here is reviewed.** Every entry has `review.status = "PENDING"`. Entries reach production only through the [AI review runner](#ai-review-runner) (AI review is not a qualified human review).
+**This is informational drafting material, not tax advice. Nothing here is reviewed.** The draft is AI-drafted (`draftedBy: ai:ANTHROPIC/claude-sonnet-5-5`) and carries no review fields. Entries reach production only through the [AI review runner](#ai-review-runner) (AI review is not a qualified human review).
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| `sources.draft.json` | 24 draft source entries (loader fields plus drafting metadata and `review` block, all PENDING) |
-| `eval-set.json` | 45 Polish evaluation cases: 26 answer, 7 clarify, 9 decline (`declined`), 3 insufficient-evidence. Single source of truth for the harness |
+| `sources.draft.json` | 27 draft source entries (loader fields, verbatim `officialText` anchors and drafting metadata; no review fields) |
+| `eval-set.json` | 47 Polish evaluation cases: 26 answer, 7 clarify, 9 decline (`declined`), 5 insufficient-evidence. Single source of truth for the harness |
 | `questions.md` | Reviewer-friendly view of the same cases, generated from `eval-set.json` |
 
 ## Loader format and why the draft is deliberately not loadable
 
 `apps/api/src/services/advisor/advisor-sources.ts` loads a JSON array from `ADVISOR_TAX_SOURCES_PATH`. The schema is `.strict()` and requires: `id`, `title`, `url` (HTTPS, host ending `.gov.pl`), `section`, `effectiveFrom`, `effectiveUntil`, `reviewedAt`, `reviewExpiresAt` (ISO dates), `reviewedBy`, `excerpt` (at most 2,000 characters). An optional `topics` array (1-6 unique values from the vocabulary below) is accepted. Limits: 128 KB, 40 entries, unique ids. `selectAdvisorSources` keeps entries that cover the **whole** requested month and whose review window contains today, then ranks them by topic match and recency and returns at most eight (see [tax-advisor](../tax-advisor.md#source-retrieval)).
 
-`sources.draft.json` carries extra fields (`authority`, `legalInstrument`, `excerptKind`, `verifiedAt`, `verificationMethod`, `confidence`, `drafterNotes`, `review`) that the strict schema rejects (`topics` is accepted by the loader), and `reviewedAt` is `null`. It therefore fails closed if someone points the loader at it. I checked this against the loader's zod schema: the draft is rejected, and the promoted shape below passes for all 24 entries.
+`sources.draft.json` carries extra fields (`authority`, `legalInstrument`, `excerptKind`, `verifiedAt`, `verificationMethod`, `confidence`, `drafterNotes`) that the strict schema rejects (`topics` is accepted by the loader), and has no `reviewedAt`/`reviewExpiresAt`/`reviewedBy`. It therefore fails closed if someone points the loader at it. I checked this against the loader's zod schema: the draft is rejected, and the promoted shape below passes for all 27 entries.
 
 Promotion is now an automated AI review, not a manual export. There is no human reviewer (waived by the owner); an AI review is not a qualified legal or tax review. A human reviewer could later be added as `reviewMethod: 'human'`, which needs a loader schema change first.
 
@@ -48,7 +48,7 @@ The runner reads only `sources`; the loader fields (`id, title, url, section, ef
 | `ADVISOR_REVIEW_MODELS` | `ANTHROPIC:<id>,OPENAI:<id>`: at least two pinned models from **different providers** (ids ending in `latest` are refused) |
 | `ADVISOR_REVIEW_ANSWER_MODELS` | `OPENROUTER:<id>[,...]`: answering models the corpus is evaluated against. Configuration error if any equals a reviewer model |
 | `ADVISOR_REVIEW_ANTHROPIC_API_KEY`, `_OPENAI_API_KEY`, `_OPENROUTER_API_KEY` | Dedicated capped keys, read only from the environment and never logged or written to a report. Ollama reuses `ADVISOR_OLLAMA_URL` |
-| `ADVISOR_REVIEW_MAX_CALLS` | Total model calls, default 300. A full run costs about 2 calls per source plus 3 repetitions x up to 3 calls per model-answered case per answering model, so a 45-case set exceeds 300: raise the limit for a real run |
+| `ADVISOR_REVIEW_MAX_CALLS` | Total model calls, default 300. A full run costs about 2 calls per source plus 3 repetitions x up to 3 calls per model-answered case per answering model, so a 47-case set exceeds 300: raise the limit for a real run |
 
 Configuration errors (reviewer equal to an answering or drafting model, one provider twice, missing key, output inside the repository) stop the runner before any fetch or model call.
 
@@ -134,7 +134,7 @@ First supported scope: Polish VAT and invoicing for a JDG or small company using
 ## Known blockers before this corpus is useful
 
 1. **Retrieval (resolved in code).** Topic retrieval replaces the first-eight cut. A test loads `eval-set.json` against a synthetic reviewed copy of this draft (review fields filled in the test only) and checks that every `requiredSourceIds` entry of the 26 answer cases is retrieved. The draft itself is still rejected by the loader until a human reviews it.
-2. **Date semantics.** The loader needs one entry to cover the whole month. Art. 145l (Feb–Mar 2026) and art. 145m (Apr–Dec 2026) sit in one entry dated from 2026-04-01; art. 106ni (penalties effective 2027-01-01) is dated from 2026-02-01 so 2026 questions can cite it. The reviewer should split or accept these.
+2. **Date semantics (resolved 2026-10-31).** Art. 145l (Feb–Mar 2026), art. 145m (Apr–Dec 2026) and art. 145n are separate entries. Art. 106ni ust. 4 (in force 2026-02-01) and ust. 1 (penalties, in force 2027-01-01 per art. 1 pkt 24 and art. 23 of the act of 16.06.2023) are separate entries; the penalty entry is dated 2027-01-01..2027-12-31, so it is the only entry outside the 2026 window and 2026 questions cannot cite it (Q11 no longer requires it). Q44 (2027-03) can now retrieve it; the case expects `insufficient_evidence` anyway.
 3. **`declined` status (resolved).** The answer contract has a fourth status `declined` for out-of-scope questions. The 9 decline cases expect `declined`; the 3 fail-closed cases keep `insufficient_evidence` (`expectedBehavior: insufficient_evidence`). A test checks that the keyword pre-check declines Q34-Q40 without a model call and does not flag any other case; Q41 (evasion) and Q42 (prompt injection) are declined by the model through the prompt.
 4. **Deduction is a hole.** Art. 86 and 88 are not in the corpus, yet "can I deduct VAT" is a likely question and appears in the plan's sample set. The expected behaviour is to clarify and state the limitation, not to answer.
 
@@ -172,6 +172,13 @@ First supported scope: Polish VAT and invoicing for a JDG or small company using
 
 For each case: send `question` with `period`, `questionKind: tax` and record consent set per `companyFacts` where relevant. Check (1) returned `status` equals `expectedStatus`; (2) for `answer`, every `requiredSourceIds` entry is among the cited source ids; (3) no `forbiddenClaims` statement appears; (4) `mustInclude` points are covered (reviewer or LLM-judge, not string match); (5) `clarify` cases ask about `mustAskAbout`; (6) `decline` cases return status `declined`, give no recommendation and no claim of an action performed. `reviewerNote` explains the intent of tricky cases.
 
+## Findings of the 2026-10-31 preparation pass
+
+- Dz. U. 2026 poz. 1263 is still the latest consolidated text. Newer amending act: Dz. U. 2026 poz. 1270 (act of 4.09.2026, in force mostly 2027-01-01; amends art. 19a, 29a, 41, 88, 96b ust. 2, 106b ust. 3 pkt 2, 113, 113a and annex 15). It touches no 2026-window rule cited here beyond editorial changes; any 2027 entry must account for it.
+- No Monitor Polski notice under art. 146ef ust. 2 was found in the ELI MP 2026 listing (latest item 2026-10-29), so 23%/8% continue. Re-check on or after 2026-10-31 and re-run the review if a notice appears.
+- Every entry has 1-4 verbatim `officialText` spans (at most 4,000 characters), checked against the live documents with the runner's fetch and normalisation logic. Excerpt corrections: art. 106b 3-month limit (exempt sales only), 146ef section, MF below-10,000 page start date and 2027 wording, FA(3) brochure and MF scope page unsupported references removed.
+- Eval set: deduction (Q46) and correction-settlement (Q47) cases added as `insufficient_evidence`; extra forbidden claims for Q07, Q11, Q17, Q22, Q44.
+
 ## Open questions for the human reviewer
 
 1. Art. 146ef: has the 23%/8% period ended or been announced to end? Which rates apply from 2027-01-01?
@@ -179,7 +186,7 @@ For each case: send `question` with `period`, `questionKind: tax` and record con
 3. What date did art. 106k (credit notes) cease to apply, and which text of the 5 August 2025 act states it? Confirm "correction to zero then a new invoice" for a wrong buyer NIP.
 4. How do art. 106na ust. 1 (issued on the day sent to KSeF) and the invoice date field interact for the issue deadline in art. 106i?
 5. Are art. 113 taxpayers within the KSeF obligation (art. 106ga ust. 2 pkt 6 names only art. 113a)? Do simplified invoices for exempt sellers change that?
-6. Is it acceptable to date art. 106ni from 2026-02-01 and 145l/145m in one entry, or should the loader contract gain day-level or multi-period entries?
+6. ~~Dating of art. 106ni and 145l/145m.~~ **Decided:** split into separate entries, see blocker 2.
 7. Which additional entries are required for the supported scope: art. 86 and 88 (deduction), art. 29a (correction effects), art. 117ba (white-list payments), annexes 3, 10 and 15, art. 42 (WDT conditions), art. 106nb and the KSeF regulation Dz. U. 2025 poz. 1815?
 8. Who is the named source owner and the qualified reviewer, and what is their review SLA?
 9. Should the evaluation also cover the plan's "apparent VAT discrepancy" and "rejected KSeF document" cases? They need company records and a defined meaning of KSeF acceptance; they are not in this question set.

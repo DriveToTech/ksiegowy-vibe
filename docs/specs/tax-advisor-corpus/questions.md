@@ -13,10 +13,10 @@
 | Q05 | 2026-10 | Klient wpłacił zaliczkę 1 października 2026 r., a usługę wykonam w grudniu. Kiedy wystawić fakturę? | vat-106b-duty-to-issue, vat-106i-issue-deadlines |
 | Q06 | 2026-10 | Jaka jest podstawowa stawka VAT w październiku 2026 r.? | vat-41-nominal-rates, vat-146ef-temporary-rates |
 | Q07 | 2026-10 | Jaką stawką VAT opodatkowana jest wewnątrzwspólnotowa dostawa towarów i eksport? | vat-41-nominal-rates |
-| Q08 | 2026-04 | Czy od 1 kwietnia 2026 r. muszę wystawiać faktury w KSeF? | vat-106ga-ksef-obligation, vat-145l-145n-transitional |
-| Q09 | 2026-10 | Jak działa limit 10 000 zł w KSeF i co jeśli go przekroczę? | vat-145l-145n-transitional, mf-ksef-below-10000 |
-| Q10 | 2026-10 | W październiku 2026 wystawiłem faktury na 9 000 zł brutto, a teraz chcę wystawić kolejną na 3 000 zł brutto dla firmy. Czy ta nowa faktura może być poza KSeF? | vat-145l-145n-transitional |
-| Q11 | 2026-12 | Co zmienia się w KSeF od 1 stycznia 2027 r.? | vat-145l-145n-transitional, vat-106ni-ksef-penalty |
+| Q08 | 2026-04 | Czy od 1 kwietnia 2026 r. muszę wystawiać faktury w KSeF? | vat-106ga-ksef-obligation, vat-145m-ksef-limit-apr-dec-2026 |
+| Q09 | 2026-10 | Jak działa limit 10 000 zł w KSeF i co jeśli go przekroczę? | vat-145m-ksef-limit-apr-dec-2026, mf-ksef-below-10000 |
+| Q10 | 2026-10 | W październiku 2026 wystawiłem faktury na 9 000 zł brutto, a teraz chcę wystawić kolejną na 3 000 zł brutto dla firmy. Czy ta nowa faktura może być poza KSeF? | vat-145m-ksef-limit-apr-dec-2026 |
+| Q11 | 2026-12 | Co zmienia się w KSeF od 1 stycznia 2027 r.? | vat-145m-ksef-limit-apr-dec-2026, vat-106ni-ksef-penalty |
 | Q12 | 2026-10 | Czy fakturę dla konsumenta też muszę wystawić w KSeF? | vat-106ga-ksef-obligation, vat-106b-duty-to-issue |
 | Q13 | 2026-10 | Którą datę uznaje się za datę wystawienia faktury w KSeF? | vat-106na-ksef-dates |
 | Q14 | 2026-10 | Kiedy kupujący jest uznany za odbiorcę faktury wystawionej w KSeF? | vat-106na-ksef-dates |
@@ -68,3 +68,5 @@ Oczekiwany status: `declined` (nie `insufficient_evidence`). Q34-Q40 są odrzuca
 | Q43 | 2025-12 | Jak wystawić fakturę korygującą w grudniu 2025 r. do faktury z listopada 2025 r.? | brak źródła |
 | Q44 | 2027-03 | Czy w marcu 2027 r. nadal mogę wystawiać faktury poza KSeF do 10 000 zł? | brak źródła |
 | Q45 | 2026-10 | Jaka stawka VAT obowiązuje na usługi gastronomiczne w 2026 r.? | brak źródła |
+| Q46 | 2026-10 | Kupiłem laptop do firmy za 2460 zł brutto (VAT 460 zł), jestem czynnym podatnikiem VAT i sprzedaję wyłącznie towary opodatkowane. Czy odliczę cały VAT 460 zł i w którym miesiącu? | brak źródła (art. 86, 88) |
+| Q47 | 2026-10 | Wystawiłem fakturę korygującą w dół. Jak to wpływa na moje rozliczenie VAT i odliczenie u nabywcy? | brak źródła (art. 29a, 86, 89) |

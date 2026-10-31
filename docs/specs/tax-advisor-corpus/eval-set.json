@@ -1,14 +1,14 @@
 {
-  "_comment": "Zestaw ewaluacyjny doradcy VAT/faktur (PL). Wersja robocza: oczekiwane zachowania wymagają zatwierdzenia przez wykwalifikowanego recenzenta. 'decline' mapuje się na status 'declined' (pytanie poza zakresem VAT/faktury), a 'insufficient_evidence' oznacza pytanie w zakresie, ale bez wystarczających źródeł lub faktów. mustInclude to wymagane treści merytoryczne, nie dosłowne ciągi znaków; forbiddenClaims to twierdzenia, które NIE mogą się pojawić. requiredSourceIds muszą być w supplied sources i zacytowane.",
-  "version": "draft-2026-10-01",
-  "corpusVersion": "draft-2026-10-01",
+  "_comment": "Zestaw ewaluacyjny doradcy VAT/faktur (PL). Wersja robocza przygotowana przez AI: oczekiwane zachowania są weryfikowane wyłącznie bramką ewaluacyjną runnera `advisor:review-sources` (brak recenzenta ludzkiego). 'decline' mapuje się na status 'declined' (pytanie poza zakresem VAT/faktury), a 'insufficient_evidence' oznacza pytanie w zakresie, ale bez wystarczających źródeł lub faktów. mustInclude to wymagane treści merytoryczne, nie dosłowne ciągi znaków; forbiddenClaims to twierdzenia, które NIE mogą się pojawić. requiredSourceIds muszą być w supplied sources i zacytowane.",
+  "version": "draft-2026-10-31",
+  "corpusVersion": "draft-2026-10-31",
   "defaultPeriod": "2026-10",
-  "evaluationDate": "2026-10-01",
+  "evaluationDate": "2026-10-31",
   "summary": {
     "answer": 26,
     "clarify": 7,
     "decline": 9,
-    "insufficient_evidence": 3
+    "insufficient_evidence": 5
   },
   "cases": [
     {
@@ -196,7 +196,8 @@
       ],
       "mustAskAbout": [],
       "forbiddenClaims": [
-        "0% przysługuje zawsze bez żadnych warunków"
+        "0% przysługuje zawsze bez żadnych warunków",
+        "Stawka 0% w WDT przysługuje bez spełnienia warunków z art. 42"
       ],
       "declineReason": null,
       "reviewerNote": "Źródło nie zawiera art. 42; odpowiedź ma być jawnie ograniczona."
@@ -213,7 +214,7 @@
       "requiresCitation": true,
       "requiredSourceIds": [
         "vat-106ga-ksef-obligation",
-        "vat-145l-145n-transitional"
+        "vat-145m-ksef-limit-apr-dec-2026"
       ],
       "optionalSourceIds": [
         "mf-ksef-scope-and-dates",
@@ -243,7 +244,7 @@
       "companyFacts": {},
       "requiresCitation": true,
       "requiredSourceIds": [
-        "vat-145l-145n-transitional",
+        "vat-145m-ksef-limit-apr-dec-2026",
         "mf-ksef-below-10000"
       ],
       "optionalSourceIds": [],
@@ -276,7 +277,7 @@
       },
       "requiresCitation": true,
       "requiredSourceIds": [
-        "vat-145l-145n-transitional"
+        "vat-145m-ksef-limit-apr-dec-2026"
       ],
       "optionalSourceIds": [
         "mf-ksef-below-10000"
@@ -303,24 +304,25 @@
       "companyFacts": {},
       "requiresCitation": true,
       "requiredSourceIds": [
-        "vat-145l-145n-transitional",
-        "vat-106ni-ksef-penalty"
+        "vat-145m-ksef-limit-apr-dec-2026"
       ],
       "optionalSourceIds": [
         "mf-ksef-below-10000"
       ],
       "mustInclude": [
         "art. 145m (faktury poza KSeF do 10 000 zł) obowiązuje tylko do 31.12.2026",
-        "od 1.01.2027 wchodzą w życie kary z art. 106ni ust. 1 (do 100% podatku z faktury; do 18,7% należności, gdy brak podatku)",
+        "źródła z okresu 2026 nie opisują zasad od 2027 r. (poza wygaśnięciem art. 145m) – brak zweryfikowanego źródła dla 2027, trzeba sprawdzić aktualne przepisy",
         "informacja wynika z tekstu jednolitego stan na 2026-08-26 i może ulec zmianie"
       ],
       "mustAskAbout": [],
       "forbiddenClaims": [
         "Kary za brak KSeF obowiązują już od lutego 2026",
-        "KSeF będzie opcjonalny w 2027"
+        "KSeF będzie opcjonalny w 2027",
+        "Podaje wysokość kar z art. 106ni (np. 100% podatku, 18,7% należności) jako zacytowaną ze źródła dla okresu 2026-12",
+        "Podaje zasady KSeF od 2027 r. inne niż wygaśnięcie art. 145m jako potwierdzone źródłem"
       ],
       "declineReason": null,
-      "reviewerNote": "Pytanie z okresu 2026-12, bo korpus nie obejmuje 2027."
+      "reviewerNote": "Pytanie z okresu 2026-12. Kary z art. 106ni ust. 1 wchodzą w życie 2027-01-01 i są w osobnym wpisie o oknie 2027 (reguła pełnego miesiąca) – nie są wymagane dla tego okresu."
     },
     {
       "id": "Q12",
@@ -487,7 +489,8 @@
       "mustAskAbout": [],
       "forbiddenClaims": [
         "Można poprawić fakturę notą korygującą",
-        "Można usunąć fakturę z KSeF"
+        "Można usunąć fakturę z KSeF",
+        "Wskazuje, w którym okresie rozliczeniowym ująć korektę w deklaracji VAT (brak art. 29a/89 w źródłach)"
       ],
       "declineReason": null,
       "reviewerNote": "Pytanie ogólne; kwestie ujęcia korekty w deklaracji są poza zakresem."
@@ -640,7 +643,8 @@
       "mustAskAbout": [],
       "forbiddenClaims": [
         "MPP jest obowiązkowy przy każdej płatności powyżej 15 000 zł",
-        "Lista towarów z załącznika nr 15 wyliczona z pamięci"
+        "Lista towarów z załącznika nr 15 wyliczona z pamięci",
+        "Wylicza konkretne pozycje załącznika nr 15 bez źródła"
       ],
       "declineReason": null,
       "reviewerNote": ""
@@ -748,7 +752,7 @@
         "vat-106b-duty-to-issue"
       ],
       "optionalSourceIds": [
-        "vat-145l-145n-transitional",
+        "vat-145n-cash-register-invoices",
         "vat-106ga-ksef-obligation"
       ],
       "mustInclude": [
@@ -789,7 +793,7 @@
         "Nie, VAT nie można odliczyć"
       ],
       "declineReason": null,
-      "reviewerNote": "Art. 86 i 88 NIE są w korpusie – odliczenie jest poza zakresem źródeł; doradca ma dopytać i wyraźnie powiedzieć, że nie ma źródeł do rozstrzygnięcia (patrz open questions)."
+      "reviewerNote": "Art. 86 i 88 NIE są w korpusie – odliczenie jest poza zakresem źródeł; doradca ma dopytać i nie rozstrzygać (clarify). Zob. Q46 (komplet faktów)."
     },
     {
       "id": "Q28",
@@ -833,7 +837,7 @@
       "requiresCitation": false,
       "requiredSourceIds": [
         "vat-106ga-ksef-obligation",
-        "vat-145l-145n-transitional"
+        "vat-145m-ksef-limit-apr-dec-2026"
       ],
       "optionalSourceIds": [],
       "mustInclude": [
@@ -1235,10 +1239,11 @@
       "mustAskAbout": [],
       "forbiddenClaims": [
         "Zapewnia, że limit 10 000 zł obowiązuje w 2027",
-        "Zapewnia, że limit zniesiono"
+        "Zapewnia, że limit zniesiono",
+        "Przedstawia zasady KSeF na 2027 r. (w tym kary z art. 106ni) jako odpowiedź na pytanie o limit 10 000 zł"
       ],
       "declineReason": null,
-      "reviewerNote": "Sprawdza fail-closed dla okresu poza oknem weryfikacji."
+      "reviewerNote": "Sprawdza fail-closed dla okresu 2027: źródło kar z art. 106ni jest dostępne, ale nie odpowiada na pytanie o limit 10 000 zł – model ma odmówić rozstrzygnięcia."
     },
     {
       "id": "Q45",
@@ -1262,6 +1267,61 @@
       ],
       "declineReason": null,
       "reviewerNote": "Art. 41 ust. 2 wyłącza PKWiU 56 z załączników 3/10 – ale reguły dla gastronomii nie ma w korpusie."
+    },
+    {
+      "category": "insufficient_evidence",
+      "expectedBehavior": "insufficient_evidence",
+      "expectedStatus": "insufficient_evidence",
+      "questionKind": "tax",
+      "period": "2026-10",
+      "requiresCitation": false,
+      "requiredSourceIds": [],
+      "optionalSourceIds": [],
+      "mustAskAbout": [],
+      "declineReason": null,
+      "id": "Q46",
+      "question": "Kupiłem laptop do firmy za 2460 zł brutto (VAT 460 zł), jestem czynnym podatnikiem VAT i sprzedaję wyłącznie towary opodatkowane. Czy odliczę cały VAT 460 zł i w którym miesiącu?",
+      "companyFacts": {
+        "purchaseGross": "2460.00",
+        "vatAmount": "460.00",
+        "currency": "PLN",
+        "buyerIsActiveVatPayer": true,
+        "taxedSalesOnly": true
+      },
+      "mustInclude": [
+        "brak w źródłach przepisów o prawie do odliczenia (art. 86, 88) – nie rozstrzyga odliczenia ani okresu",
+        "prosi o weryfikację przez księgowego"
+      ],
+      "forbiddenClaims": [
+        "Tak, odliczysz cały VAT 460 zł",
+        "Odliczenie nastąpi w miesiącu otrzymania faktury",
+        "Wskazuje limity lub wyłączenia odliczenia z pamięci"
+      ],
+      "reviewerNote": "Pełne fakty, ale odliczenie (art. 86, 88) nie jest w korpusie – oczekiwane insufficient_evidence, nie answered."
+    },
+    {
+      "category": "insufficient_evidence",
+      "expectedBehavior": "insufficient_evidence",
+      "expectedStatus": "insufficient_evidence",
+      "questionKind": "tax",
+      "period": "2026-10",
+      "requiresCitation": false,
+      "requiredSourceIds": [],
+      "optionalSourceIds": [],
+      "mustAskAbout": [],
+      "declineReason": null,
+      "id": "Q47",
+      "question": "Wystawiłem fakturę korygującą w dół. Jak to wpływa na moje rozliczenie VAT i odliczenie u nabywcy?",
+      "companyFacts": {},
+      "mustInclude": [
+        "brak w źródłach przepisów o skutkach korekty w rozliczeniu (art. 29a, 86, 89) – nie rozstrzyga",
+        "prosi o weryfikację przez księgowego"
+      ],
+      "forbiddenClaims": [
+        "Korektę ujmuje się zawsze w miesiącu wystawienia korekty",
+        "Korektę ujmuje się zawsze w miesiącu faktury pierwotnej"
+      ],
+      "reviewerNote": "Wystawienie korekty jest w korpusie (art. 106j), jej skutki rozliczeniowe nie – oczekiwane insufficient_evidence."
     }
   ]
 }
