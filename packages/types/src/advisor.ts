@@ -105,6 +105,8 @@ export interface AdvisorSettings {
   connections: AdvisorConnectionSummary[];
   ollamaAvailable: boolean;
   reviewedSourceCount: number;
+  /** Present only when `GET /settings?period=YYYY-MM` is requested. Period-level only; topic fit is checked on Send. */
+  taxSourceCoverage?: { period: string; covered: boolean; sourceVersion: string };
 }
 
 export type AdvisorConnectorGrantStatus = 'WAITING' | 'ACTIVE' | 'EXPIRED' | 'REVOKED';

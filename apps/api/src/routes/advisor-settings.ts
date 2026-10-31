@@ -1,15 +1,16 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { encrypt } from '@ksiegowy/shared-utils';
 import { z } from 'zod';
-import { AdvisorError, advisorProviderSchema } from '../services/advisor/advisor-contract.js';
+import { AdvisorError, advisorProviderSchema, advisorScopeSchema } from '../services/advisor/advisor-contract.js';
 import { readAdvisorConnection, requireAdvisorMembership, requireAdvisorPolicy, reserveAdvisorModelPreview, reserveAdvisorProviderRequest } from '../services/advisor/advisor-access.js';
 import { discoverAdvisorModels, generateAdvisorResponse, requireOllamaEndpoint } from '../services/advisor/advisor-provider.js';
-import { loadAdvisorSources } from '../services/advisor/advisor-sources.js';
+import { loadAdvisorSources, selectAdvisorSources } from '../services/advisor/advisor-sources.js';
 
 const connectionBodySchema = z.object({ model: z.string().trim().min(1).max(200), credential: z.string().trim().min(1).max(4096).optional() }).strict();
 
 export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
-  server.get<{ Params: { companyId: string } }>('/settings', async (request) => {
+  server.get<{ Params: { companyId: string }; Querystring: { period?: string } }>('/settings', async (request) => {
+    const period = request.query.period === undefined ? undefined : advisorScopeSchema.shape.period.parse(request.query.period);
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     const [connections, corpus] = await Promise.all([
       server.prisma.advisorConnection.findMany({ where: { membershipId: membership.id } }),
@@ -20,11 +21,12 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
       allowedProviders: policy?.allowedProviders ?? [], retentionDays: policy?.retentionDays ?? 30,
       allowedConnectors: policy?.allowedConnectors ?? [],
       ollamaAvailable: Boolean(process.env['ADVISOR_OLLAMA_URL']), reviewedSourceCount: corpus.sources.length,
+      ...(period ? { taxSourceCoverage: { period, covered: selectAdvisorSources(corpus.sources, period).length > 0, sourceVersion: corpus.version } } : {}),
       connections: connections.map((connection) => ({ provider: connection.provider, model: connection.model,
         hasCredential: Boolean(connection.credentialEncrypted), testedAt: connection.testedAt?.toISOString() ?? null })) };
   });
 
-  server.patch<{ Params: { companyId: string } }>('/policy', async (request) => {
+  server.patch<{ Params: { companyId: string } }>('/policy', { bodyLimit: 8_000 }, async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     if (membership.role !== 'ADMIN') throw new AdvisorError(403, 'ACCESS_DENIED', 'Administrator role is required');
     const body = z.object({ enabled: z.boolean(), allowedProviders: z.array(advisorProviderSchema).max(4), allowedConnectors: z.array(z.enum(['CHATGPT', 'CLAUDE'])).max(2).default([]), retentionDays: z.number().int().min(1).max(30) }).strict().parse(request.body);
@@ -40,7 +42,7 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
     return { saved: true };
   });
 
-  server.put<{ Params: { companyId: string; provider: string } }>('/connections/:provider', async (request) => {
+  server.put<{ Params: { companyId: string; provider: string } }>('/connections/:provider', { bodyLimit: 8_000 }, async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     const provider = advisorProviderSchema.parse(request.params.provider);
     const body = connectionBodySchema.parse(request.body);
@@ -86,7 +88,7 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
   });
 
   // Transient discovery before a connection exists: the submitted key is never stored or logged.
-  server.post<{ Params: { companyId: string; provider: string } }>('/connections/:provider/model-preview', async (request) => {
+  server.post<{ Params: { companyId: string; provider: string } }>('/connections/:provider/model-preview', { bodyLimit: 8_000 }, async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     const provider = advisorProviderSchema.parse(request.params.provider);
     const { credential } = z.object({ credential: z.string().trim().min(1).max(4096).optional() }).strict().parse(request.body ?? {});

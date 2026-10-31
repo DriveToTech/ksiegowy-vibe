@@ -43,6 +43,7 @@ export const advisorText = {
   calculationNote: 'Sumy za miesiąc według waluty. Korekty formalne wyłączone, korekty do zera uwzględnione. To nie jest obliczenie zobowiązania podatkowego.',
   truncated: 'Lista dokumentów jest ograniczona. Sumy obejmują cały wybrany miesiąc.',
   privacy: 'Rozmowy widzisz tylko Ty. Dostawca może stosować własne zasady przechowywania danych.',
+  taxUnavailableForPeriod: 'Brak zatwierdzonych źródeł podatkowych dla tego okresu. Skonsultuj się z księgowym. Pytania o dokumenty firmy są nadal dostępne.',
   sourceMissing: 'Brak zatwierdzonych źródeł podatkowych. Dostępne są wyjaśnienia dokumentów; odpowiedzi podatkowe wymagają źródeł dla danego okresu.',
   failed: 'Odpowiedź nie została ukończona. Możesz zadać pytanie ponownie.',
   cancelled: 'Przerwano odpowiedź. Dostawca mógł naliczyć koszt rozpoczętego żądania.',

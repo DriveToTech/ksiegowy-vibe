@@ -15,8 +15,8 @@ export interface AdvisorPolicyInput {
   retentionDays: number;
 }
 
-export function readAdvisorSettings(companyId: string, signal?: AbortSignal): Promise<AdvisorSettings> {
-  return advisorRequest<AdvisorSettings>(companyId, '/settings', signal ? { signal } : undefined);
+export function readAdvisorSettings(companyId: string, signal?: AbortSignal, period?: string): Promise<AdvisorSettings> {
+  return advisorRequest<AdvisorSettings>(companyId, period ? `/settings?period=${encodeURIComponent(period)}` : '/settings', signal ? { signal } : undefined);
 }
 
 export function saveAdvisorPolicy(companyId: string, policy: AdvisorPolicyInput): Promise<unknown> {

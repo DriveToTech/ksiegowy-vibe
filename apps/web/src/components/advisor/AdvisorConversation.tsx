@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { advisorErrorMessage, advisorRequest, streamAdvisorAnswer, type AdvisorConversationDetail, type AdvisorConversationSummary, type AdvisorEnvironment, type AdvisorProvider, type AdvisorScope, type AdvisorSettings as Settings, type AdvisorTurn } from '../../lib/advisor-api';
+import { advisorErrorMessage, advisorRequest, readAdvisorSettings, streamAdvisorAnswer, type AdvisorConversationDetail, type AdvisorConversationSummary, type AdvisorEnvironment, type AdvisorProvider, type AdvisorScope, type AdvisorSettings as Settings, type AdvisorTurn } from '../../lib/advisor-api';
 import { advisorText as text } from '../../lib/advisor-translations';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { AdvisorAnswerCard } from './AdvisorAnswerCard';
+import { AdvisorQuestionKindChoice } from './AdvisorQuestionKindChoice';
 
 const settingsLink = '/dashboard/settings?section=advisor';
 
@@ -33,7 +34,7 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
   const environmentHeaders = { 'x-ksef-environment': environment };
   const refreshSettings = useCallback(() => {
     const controller = new AbortController();
-    void advisorRequest<Settings>(companyId, '/settings', { signal: controller.signal }).then((result) => {
+    void readAdvisorSettings(companyId, controller.signal, period).then((result) => {
       if (controller.signal.aborted) return;
       setSettings(result);
       if (!providerSelected.current) {
@@ -42,9 +43,12 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
       }
     }).catch((failure: unknown) => { if (!controller.signal.aborted) setError(advisorErrorMessage(failure)); });
     return () => controller.abort();
-  }, [companyId]);
+  }, [companyId, period]);
 
   useEffect(() => { if (active) return refreshSettings(); }, [active, refreshSettings]);
+  // Coverage is per period, not topic: a covered period can still fail with TAX_SOURCES_UNAVAILABLE on Send. Unknown coverage never blocks.
+  const taxUnavailable = settings?.taxSourceCoverage?.period === period && settings.taxSourceCoverage.covered === false;
+  useEffect(() => { if (taxUnavailable) setQuestionKind('records'); }, [taxUnavailable]);
   useEffect(() => {
     if (seedRevision === seed.revision) return;
     setSeedRevision(seed.revision);
@@ -117,7 +121,7 @@ export function AdvisorConversation({ companyId, environment, active, seed }: {
         </select></label>
         <label className="text-sm">{text.period}<Input type="month" required value={period} onChange={(event) => setPeriod(event.target.value)} disabled={busy} /></label>
       </div>
-      <label className="block text-sm">{text.questionKind}<select className="mt-1 min-h-11 w-full rounded-control border border-outline-control bg-surface-panel px-3" value={questionKind} disabled={busy} onChange={(event) => setQuestionKind(event.target.value as 'records' | 'tax')}><option value="records">{text.records}</option><option value="tax">{text.tax}</option></select></label>
+      <AdvisorQuestionKindChoice value={questionKind} taxUnavailable={taxUnavailable} disabled={busy} onChange={setQuestionKind} />
       <label className="flex min-h-11 items-start gap-2 text-sm"><input className="mt-1 size-4 accent-[var(--primary)]" type="checkbox" checked={includeRecords} disabled={busy} onChange={(event) => setIncludeRecords(event.target.checked)} />{text.consent}</label>
       {seed.documentId && <p className="break-all text-xs text-muted">{text.selectedDocument}: {seed.documentId}</p>}
       {seed.contractorId && <p className="break-words text-xs text-muted">{text.contractorBalance}: {seed.contractorName ?? seed.contractorId}</p>}

@@ -2,6 +2,9 @@ import { Builder } from 'builder-pattern';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { buildApp } from '../app.js';
 import { loadAuthConfig } from '../lib/auth-config.js';
 
@@ -33,6 +36,32 @@ describe('advisorRoutes()', () => {
     expect(response.json()).toEqual({ enabled: true, canManagePolicy: true, operatorEnabled: true, allowedProviders: ['OPENAI'], allowedConnectors: [], retentionDays: 30,
       ollamaAvailable: false, reviewedSourceCount: 0, connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }] });
     expect(database.companyMembership.findUnique).toHaveBeenCalledWith({ where: { companyId_userId: { companyId: 'company', userId: 'user' } }, include: { company: { select: { advisorPolicy: true } } } });
+  });
+  describe('GET /settings tax source coverage', () => {
+    const coveringSource = { id: 'source', title: 'Title', url: 'https://www.podatki.gov.pl/source', section: 'Section', effectiveFrom: '2026-01-01',
+      effectiveUntil: '2026-12-31', reviewedAt: '2026-01-02', reviewExpiresAt: '2099-01-01', reviewedBy: 'Reviewer', excerpt: 'Excerpt text' };
+    const requestCoverage = (period: string) => application.inject({ method: 'GET', url: `/companies/company/advisor/settings?period=${period}`, cookies: { auth_token: token } });
+
+    it('reports no coverage without a corpus', async () => {
+      const response = await requestCoverage('2026-03');
+      expect(response.json().taxSourceCoverage).toEqual({ period: '2026-03', covered: false, sourceVersion: 'unreviewed' });
+    });
+    it('reports coverage by version only, never source text', async () => {
+      const sourcePath = join(mkdtempSync(join(tmpdir(), 'advisor-sources-')), 'sources.json');
+      writeFileSync(sourcePath, JSON.stringify([coveringSource]));
+      vi.stubEnv('ADVISOR_TAX_SOURCES_PATH', sourcePath);
+      const covered = await requestCoverage('2026-03');
+      expect(covered.json().taxSourceCoverage).toEqual({ period: '2026-03', covered: true, sourceVersion: expect.stringMatching(/^[0-9a-f]{64}$/) });
+      expect(covered.body).not.toContain('Excerpt text');
+      expect((await requestCoverage('2027-03')).json().taxSourceCoverage.covered).toBe(false);
+    });
+    it('rejects an invalid period', async () => {
+      expect((await requestCoverage('2026-13')).statusCode).toBe(400);
+    });
+    it('denies non-members', async () => {
+      vi.mocked(database.companyMembership.findUnique).mockResolvedValue(null);
+      expect((await requestCoverage('2026-03')).statusCode).toBe(403);
+    });
   });
   it('denies revoked membership without loading credentials', async () => {
     vi.mocked(database.companyMembership.findUnique).mockResolvedValue(null);

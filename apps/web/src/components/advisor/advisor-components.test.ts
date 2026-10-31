@@ -4,6 +4,7 @@ import { Builder } from 'builder-pattern';
 import { describe, expect, it } from 'vitest';
 import type { AdvisorAnswer, AdvisorSettings } from '../../lib/advisor-api';
 import { AdvisorAnswerCard } from './AdvisorAnswerCard';
+import { AdvisorQuestionKindChoice } from './AdvisorQuestionKindChoice';
 import { AdvisorProviderChoice } from './AdvisorProviderChoice';
 import { AdvisorReadinessSummary } from './AdvisorReadinessSummary';
 
@@ -84,5 +85,23 @@ describe('AdvisorAnswerCard()', () => {
     expect(markup).not.toContain('Zapłacono w tym roku');
     expect(markup).toContain('href="/dashboard/invoices/invoice%2F1"');
     expect(markup).not.toContain('/dashboard/invoices/new');
+  });
+});
+
+describe('AdvisorQuestionKindChoice()', () => {
+  it('disables tax with a linked reason when the period has no reviewed sources, keeping records selectable', () => {
+    const markup = renderToStaticMarkup(createElement(AdvisorQuestionKindChoice, { value: 'records', taxUnavailable: true, disabled: false, onChange: () => undefined }));
+    expect(markup).toContain('aria-describedby="advisor-tax-unavailable"');
+    expect(markup).toContain('<option value="tax" disabled="">');
+    expect(markup).toContain('<option value="records" selected="">');
+    expect(markup).toContain('id="advisor-tax-unavailable"');
+    expect(markup).toContain('Skonsultuj się z księgowym');
+  });
+
+  it('keeps tax selectable without a reason when coverage is available or unknown', () => {
+    const markup = renderToStaticMarkup(createElement(AdvisorQuestionKindChoice, { value: 'tax', taxUnavailable: false, disabled: false, onChange: () => undefined }));
+    expect(markup).not.toContain('aria-describedby');
+    expect(markup).not.toContain('<option value="tax" disabled');
+    expect(markup).not.toContain('advisor-tax-unavailable');
   });
 });
