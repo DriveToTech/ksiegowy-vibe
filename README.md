@@ -24,6 +24,7 @@ Private design reference files stay on the developer's machine and are excluded 
 | [Tax Advisor Connection UX](docs/specs/tax-advisor-connection-ux.md) | Settings → Doradca behavior, implemented four-state blocked dock/sheet, chosen visual reference and remaining app-level visual sign-off |
 | [Tax Advisor Blocked-Entry Reference](docs/specs/tax-advisor-blocked-entry-reference.html) | One Aurora HTML/CSS template for four blockers in both themes at desktop/mobile sizes; serve the repository root to open the 16 variant links in the implementation plan |
 | [Tax Advisor Implementation Plan](spec/tax-advisor-implementation-plan.md) | Advisor delivery/release gates and decision-gated customer journey with Aurora-versus-Stitch coverage, design polish, and pixel-perfect visual QA protocol |
+| [Advisor Rollout Runbook](docs/advisor-rollout-runbook.md) | Operator steps for advisor migrations, `ADVISOR_*` variables, SSE proxy settings, tax corpus mounting, Ollama placement, OAuth issuer checklist, staged rollout and rollback |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |

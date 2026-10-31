@@ -9,7 +9,7 @@ Implementation branch: `feat/tax-advisor`. Tracking: [TRY-160](https://linear.ap
 - Company processing policy, encrypted per-membership API credentials, model discovery, and a synthetic connection test. Tests can incur provider charges; opening a panel never generates an answer automatically.
 - OpenRouter, OpenAI API, Anthropic API and operator-hosted Ollama transports. A selected model must support JSON Schema output. Provider/model IDs are entered or discovered, rather than baked into the application.
 - Read-only MCP tools, external OAuth token verification, signed-in company/environment consent, grant expiry and revocation for ChatGPT and Claude.
-- Reviewed-source loading and period selection. **No reviewed tax corpus ships with this change.** Without one, tax-mode requests stop before a paid model call. Record explanations remain available. **UI alignment pending:** `AdvisorConversation` currently allows selecting tax with zero reviewed sources and then surfaces the API error; the approved 2026-10-04 journey disables that choice with a visible reason before Send while leaving records available.
+- Reviewed-source loading and period selection. **No reviewed tax corpus ships with this change.** Without one, tax-mode requests stop before a paid model call. Record explanations remain available. `GET .../advisor/settings?period=YYYY-MM` returns `taxSourceCoverage` (`period`, `covered`, `sourceVersion`; no source text). `AdvisorConversation` requests it for the selected period, disables the tax question kind before Send with a visible reason linked by `aria-describedby`, keeps records selectable and falls back to records if tax was selected. While loading, on fetch failure or for a stale period it does not block; the server still fails closed with `TAX_SOURCES_UNAVAILABLE`. Coverage is per period, not topic, so a covered period can still return that error on Send.
 
 Not yet released: validated live subscription integrations, accountant-reviewed tax evaluation, scheduled briefings, tax-regime comparison, and advisor-initiated accounting mutations. There is no bank ledger or cash forecast in this slice.
 
@@ -110,7 +110,7 @@ Browser routes use the existing authenticated session and require the exact conf
 
 | Route | Purpose |
 | --- | --- |
-| `GET /settings`, `PATCH /policy` | Masked settings; ADMIN-only company policy |
+| `GET /settings[?period=YYYY-MM]`, `PATCH /policy` | Masked settings; ADMIN-only company policy. With `period` (validated like the scope period; invalid gives 400) the response adds `taxSourceCoverage: { period, covered, sourceVersion }`: `covered` is true when at least one reviewed source passes `selectAdvisorSources` for the whole month with a current review. Period-level only (no question topics), never returns source text; a covered period can still fail topic fit on Send (`TAX_SOURCES_UNAVAILABLE`) |
 | `PUT /connections/:provider`, `DELETE /connections/:provider` | Save encrypted personal key/model; disconnect |
 | `POST /connections/:provider/test`, `GET /connections/:provider/models` | Synthetic structured-output test; model discovery for a saved connection |
 | `POST /connections/:provider/model-preview` | Model discovery before a connection exists; body `{ "credential"?: string }`, response `{ "models": string[] }` |
@@ -247,6 +247,24 @@ flowchart TD
   E -- no --> F[Decrement, 429 DAILY_LIMIT_REACHED, log daily_limit]
   E -- yes --> G[Log allowed, call provider /models]
 ```
+
+### Prompt-injection, audit and Ollama hardening
+
+| Control | Behaviour |
+|---|---|
+| Document text sanitisation | Invoice numbers (evidence titles) and contractor names are normalised once in `buildAdvisorContext`: capped at 64 characters, only letters, digits, space and `/._-#` are kept (others become `_`); an empty result falls back to the record id |
+| Data envelope | The user message carries accounting facts under `untrustedAccountingData`; the system instruction names that key as untrusted data. MCP tool descriptions state that document text is sanitised data |
+| Answer output filter | `advisorModelAnswerSchema` rejects `shortAnswer`, `explanation`, `assumptions` and `questions` containing `http://`, `https://`, `www.`, `<`, `](` or `![` (case-insensitive); the provider maps this to `502 INVALID_ANSWER` |
+| Connector read audit | One info log `advisor.connector.read` per authorised tool call: `grantId`, `tool`, `companyId`, `environment`, `period`, `documentId` (if any), `bytes`. The result body is never logged. No table |
+| Ollama endpoint | `ADVISOR_OLLAMA_URL` must be `https` unless `ADVISOR_OLLAMA_ALLOW_INSECURE=true`. Link-local and metadata hosts (`169.254.0.0/16`, `fe80::/10`, `metadata.google.internal`) are always rejected; loopback is rejected when `NODE_ENV=production` unless the insecure flag is set. Violations return `503 OLLAMA_NOT_CONFIGURED` |
+| Model discovery size | `/models` responses are read incrementally and rejected above 1 MB (`502 PROVIDER_ERROR`) before JSON parsing |
+| Write body size | Policy, connection, model-preview and connector grant routes use `bodyLimit: 8000` |
+
+### Documented ceilings
+
+- Rate limits (connector calls, provider requests) are per process; a single API instance is supported. Multiple instances need a shared store.
+- The `ksiegowy_user_id` claim must be administrator-provisioned by the OAuth issuer; users must not be able to set it themselves.
+- Follow-up: per-company cap on Ollama usage is not implemented.
 
 Not yet decided: the exact meaning of `ACTIVE`.
 

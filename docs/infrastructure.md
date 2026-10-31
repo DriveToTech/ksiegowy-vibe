@@ -605,7 +605,9 @@ This slice keeps backup scheduling flows separate intentionally:
 
 ## Optional advisor deployment
 
-Apply `20260919080000_tax_advisor` before setting API `ADVISOR_ENABLED=true`. The existing `ENCRYPTION_KEY` encrypts user-entered advisor credentials; OCR's `OPENROUTER_API_KEY` is not reused. `.env.example` lists the advisor variables. API Compose already consumes `.env`; mount any `ADVISOR_TAX_SOURCES_PATH` file read-only and keep `ADVISOR_OLLAMA_URL` on operator-controlled infrastructure.
+Step-by-step procedure: [Advisor Rollout Runbook](./advisor-rollout-runbook.md).
+
+Apply all four advisor migrations (`20260919080000_tax_advisor` through `20261002100000_advisor_insight_dismissal`) before setting API `ADVISOR_ENABLED=true`. The existing `ENCRYPTION_KEY` encrypts user-entered advisor credentials; OCR's `OPENROUTER_API_KEY` is not reused. `.env.example` lists the advisor variables. API Compose already consumes `.env`; mount any `ADVISOR_TAX_SOURCES_PATH` file read-only and keep `ADVISOR_OLLAMA_URL` on operator-controlled infrastructure.
 
 Reverse proxies must preserve streaming for `/companies/*/advisor/conversations/*/messages` (SSE, no buffering, timeout greater than 60 seconds). For subscription connectors, forward `/advisor/mcp` and `/.well-known/oauth-protected-resource/advisor/mcp` under the same public API prefix. Configure HTTPS, external OAuth issuer/JWKS/client IDs, exact callbacks, S256 PKCE and immutable user mapping following [the connector runbook](specs/tax-advisor.md#chatgpt-and-claude-subscription-connectors). Do not expose an unauthenticated invoice connector.
 
