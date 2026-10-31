@@ -27,6 +27,10 @@ const TEST_COMPANY = {
   updatedAt: '2026-08-30T00:00:00.000Z',
 };
 
+// Extra session tokens that reuse the test company: a read-only member and a member of two companies.
+const TEST_TOKEN_ROLES = { 'test-token': 'ADMIN', 'viewer-token': 'VIEWER', 'two-company-token': 'ADMIN' };
+const SECOND_COMPANY = { ...TEST_COMPANY, id: 'second-company-id', name: 'Birchwood Sample Studio Ltd', nip: 'TEST-NIP-0001' };
+
 const TEST_CONTRACTOR = {
   id: 'test-contractor-id',
   companyId: 'test-company-id',
@@ -698,7 +702,7 @@ const server = http.createServer((req, res) => {
   const method = req.method ?? 'GET';
   const cookies = parseCookies(req);
   const authToken = cookies['auth_token'];
-  const isTestCompanyToken = authToken === 'test-token';
+  const isTestCompanyToken = Object.hasOwn(TEST_TOKEN_ROLES, authToken ?? '');
 
   if (method === 'OPTIONS') {
     return respond(req, res, 204, {});
@@ -724,7 +728,7 @@ const server = http.createServer((req, res) => {
       authenticated: true,
       user: TEST_USER,
       companies: isTestCompanyToken
-        ? [{ id: TEST_COMPANY.id, role: 'ADMIN' }]
+        ? [{ id: TEST_COMPANY.id, role: TEST_TOKEN_ROLES[authToken] }, ...(authToken === 'two-company-token' ? [{ id: SECOND_COMPANY.id, role: 'ADMIN' }] : [])]
         : onboardingCompany
           ? [{ id: onboardingCompany.id, role: 'ADMIN' }]
           : [],
@@ -746,7 +750,7 @@ const server = http.createServer((req, res) => {
   if (url === '/companies' && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
     const onboardingCompany = isTestCompanyToken ? null : findOnboardingCompanyByToken(authToken);
-    return respond(req, res, 200, isTestCompanyToken ? [TEST_COMPANY] : onboardingCompany ? [onboardingCompany.company] : []);
+    return respond(req, res, 200, isTestCompanyToken ? (authToken === 'two-company-token' ? [TEST_COMPANY, SECOND_COMPANY] : [TEST_COMPANY]) : onboardingCompany ? [onboardingCompany.company] : []);
   }
 
   if (url === '/companies' && method === 'POST') {
@@ -846,6 +850,7 @@ const server = http.createServer((req, res) => {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
     const [, companyId] = url.match(/^\/companies\/([^/]+)$/) ?? [];
     if (companyId === TEST_COMPANY.id) return respond(req, res, 200, TEST_COMPANY);
+    if (companyId === SECOND_COMPANY.id) return respond(req, res, 200, SECOND_COMPANY);
     const onboardingEntry = companyId ? onboardingCompanies.get(companyId) : undefined;
     if (onboardingEntry) return respond(req, res, 200, onboardingEntry.company);
     return respond(req, res, 404, { error: 'Not found' });

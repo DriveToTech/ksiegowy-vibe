@@ -24,9 +24,21 @@ export const test = base.extend<{
   authenticatedPage: Page;
   authenticatedPageNoCompany: Page;
   onboardingPage: Page;
+  viewerPage: Page;
+  multiCompanyPage: Page;
 }>({
   authenticatedPage: async ({ page }, use) => {
     await setAuthCookies(page, 'test-token', true);
+    await use(page);
+  },
+  // Read-only member of the test company.
+  viewerPage: async ({ page }, use) => {
+    await setAuthCookies(page, 'viewer-token', true);
+    await use(page);
+  },
+  // Member of the test company and a second company; the test company is active.
+  multiCompanyPage: async ({ page }, use) => {
+    await setAuthCookies(page, 'two-company-token', true);
     await use(page);
   },
   authenticatedPageNoCompany: async ({ page }, use) => {
