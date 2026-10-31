@@ -3,6 +3,12 @@ import type { AdvisorCalculation, AdvisorEvidence, AdvisorScope } from '@ksiegow
 import { AdvisorError } from './advisor-contract.js';
 import { issuedInvoiceFinancialScope } from '../invoice-financial-scope.js';
 
+// Document-derived text is attacker-controlled (supplier-chosen invoice numbers, contractor names): keep only a short, inert character set.
+function normaliseDocumentText(text: string | null | undefined, fallback: string) {
+  const normalised = (text ?? '').slice(0, 64).replace(/[^\p{L}\p{N} /._\-#]/gu, '_').trim();
+  return normalised || fallback;
+}
+
 export async function buildAdvisorContext(database: PrismaClient, companyId: string, environment: KsefEnvironment, scope: AdvisorScope, includeEvidence = true) {
   if (!scope.includeRecords) return { calculations: [], evidence: [], evidenceTruncated: false };
   if (scope.contractorId) {
@@ -25,11 +31,11 @@ export async function buildAdvisorContext(database: PrismaClient, companyId: str
     const zero = new Prisma.Decimal(0);
     return {
       calculations: [],
-      contractorBalance: { contractorId: contractor.id, name: contractor.name, period: scope.period,
+      contractorBalance: { contractorId: contractor.id, name: normaliseDocumentText(contractor.name, contractor.id), period: scope.period,
         balances: totals.map((group) => ({ currency: group.currency,
           currentOutstanding: Prisma.Decimal.max(zero, (group._sum.totalGross ?? zero).minus(group._sum.paymentReceived ?? zero)).toFixed(2),
           recordedPayments: (group._sum.paymentReceived ?? zero).toFixed(2) })) },
-      evidence: invoices.slice(0, 20).map((invoice) => ({ id: invoice.id, kind: 'outgoing' as const, title: invoice.invoiceNumber ?? invoice.id,
+      evidence: invoices.slice(0, 20).map((invoice) => ({ id: invoice.id, kind: 'outgoing' as const, title: normaliseDocumentText(invoice.invoiceNumber, invoice.id),
         status: invoice.status, currency: invoice.currency, gross: invoice.totalGross.toFixed(2), vat: invoice.totalVat.toFixed(2), updatedAt: invoice.updatedAt.toISOString() })),
       evidenceTruncated: invoices.length > 20,
     };
@@ -65,7 +71,7 @@ export async function buildAdvisorContext(database: PrismaClient, companyId: str
   const evidence: AdvisorEvidence[] = [
     ...outgoing.slice(0, 20).map((record) => ({ ...record, kind: 'outgoing' as const })),
     ...incoming.slice(0, 20).map((record) => ({ ...record, kind: 'incoming' as const })),
-  ].map((record) => ({ id: record.id, kind: record.kind, title: record.invoiceNumber ?? record.id,
+  ].map((record) => ({ id: record.id, kind: record.kind, title: normaliseDocumentText(record.invoiceNumber, record.id),
     status: record.status, currency: record.currency ?? 'UNKNOWN', gross: record.totalGross?.toFixed(2) ?? null,
     vat: record.totalVat?.toFixed(2) ?? null, updatedAt: record.updatedAt.toISOString() }));
   return { calculations, evidence, evidenceTruncated: outgoing.length > 20 || incoming.length > 20 };

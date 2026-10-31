@@ -27,6 +27,12 @@ export const advisorModelAnswerSchema = z.object({
   sourceIds: z.array(z.string().max(100)).max(8),
   containsTaxGuidance: z.boolean(),
 }).strict().superRefine((answer, context) => {
+  // Model output is rendered to users: links, HTML and markdown images are an exfiltration channel for injected document text.
+  const linkPattern = /https?:\/\/|www\.|<|\]\(|!\[/i;
+  if ([answer.shortAnswer, answer.explanation, ...answer.assumptions, ...answer.questions].some((text) => linkPattern.test(text))) {
+    context.addIssue({ code: 'custom', message: 'Answer text must not contain links, HTML or markdown images' });
+    return;
+  }
   if (answer.status !== 'declined') return;
   // A decline is a bounded out-of-scope notice: shortAnswer = why, explanation = what the advisor can help with. No claims, no citations.
   const violations = [

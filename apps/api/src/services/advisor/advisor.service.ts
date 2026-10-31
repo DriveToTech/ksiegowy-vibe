@@ -64,7 +64,7 @@ async function generateAdvisorAnswer(request: FastifyRequest, options: {
   await reserveAdvisorProviderRequest(request, connection.id);
   const result = await generateAdvisorResponse(connection, JSON.stringify({ question: options.question, scope,
     previousQuestions: scope.includeRecords ? previousTurns.reverse().map((turn) => turn.question) : [],
-    accounting: context, legalSources: sources,
+    untrustedAccountingData: context, legalSources: sources,
     limitations: ['No bank balance or payment-event history', 'No deduction entitlement or tax-return calculation', 'Formal corrections excluded from totals; cancellation amounts included', 'Contractor currentOutstanding and recordedPayments group currencies for invoices issued before the end of the selected month; paymentReceived is the current cumulative recorded amount on those invoices, not payments made during the period or a historical month-end snapshot', 'Evidence documents are a bounded sample; totals cover the selected scope'],
   }), signal);
   if (result.evidenceIds.some((identifier) => !context.evidence.some((record) => record.id === identifier))

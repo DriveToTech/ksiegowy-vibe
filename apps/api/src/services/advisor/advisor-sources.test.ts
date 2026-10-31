@@ -21,6 +21,25 @@ describe('selectAdvisorSources()', () => {
   });
 });
 
+describe('selectAdvisorSources() period and review boundaries', () => {
+  const source = Builder<AdvisorTaxSource>().id('law').effectiveFrom('2026-09-01').effectiveUntil('2026-09-30')
+    .reviewedAt('2026-09-10').reviewExpiresAt('2026-09-20').build();
+
+  it('accepts a source covering exactly the first to the last day of the month', () => {
+    expect(selectAdvisorSources([source], '2026-09', new Date('2026-09-20T23:00:00Z'))).toEqual([source]);
+  });
+
+  it('rejects a source ending before the last day of the month or starting after the first day', () => {
+    expect(selectAdvisorSources([{ ...source, effectiveUntil: '2026-09-29' }], '2026-09', new Date('2026-09-15'))).toEqual([]);
+    expect(selectAdvisorSources([{ ...source, effectiveFrom: '2026-09-02' }], '2026-09', new Date('2026-09-15'))).toEqual([]);
+  });
+
+  it('rejects a stale review the day after it expires and a review dated in the future', () => {
+    expect(selectAdvisorSources([source], '2026-09', new Date('2026-09-21'))).toEqual([]);
+    expect(selectAdvisorSources([source], '2026-09', new Date('2026-09-09'))).toEqual([]);
+  });
+});
+
 describe('selectAdvisorSources() topic retrieval', () => {
   const now = new Date('2026-10-01');
   const reviewedSource = (id: string, topics: AdvisorSourceTopic[] | undefined, effectiveFrom = '2026-01-01') =>

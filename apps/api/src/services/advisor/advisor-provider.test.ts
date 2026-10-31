@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { discoverAdvisorModels, generateAdvisorResponse } from './advisor-provider.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { discoverAdvisorModels, generateAdvisorResponse, requireOllamaEndpoint } from './advisor-provider.js';
 
+beforeEach(() => { vi.stubEnv('ADVISOR_OLLAMA_ALLOW_INSECURE', 'true'); });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('generateAdvisorResponse()', () => {
@@ -88,8 +89,41 @@ describe('discoverAdvisorModels()', () => {
     await expect(discoverAdvisorModels(ollama)).rejects.toMatchObject({ code: 'OLLAMA_NO_MODELS', statusCode: 409 });
   });
 
+  it('rejects a model list larger than one megabyte', async () => {
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'https://ollama.internal/v1');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'x'.repeat(1_100_000) }] }))));
+    await expect(discoverAdvisorModels(ollama)).rejects.toMatchObject({ code: 'PROVIDER_ERROR', statusCode: 502 });
+  });
+
   it('maps an unexpected upstream model list shape to a provider error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ models: [] }))));
     await expect(discoverAdvisorModels({ provider: 'OPENAI', model: '', credential: 'private-key' })).rejects.toMatchObject({ code: 'PROVIDER_ERROR', statusCode: 502 });
+  });
+});
+
+describe('requireOllamaEndpoint()', () => {
+  it('requires https unless insecure transport is explicitly allowed', () => {
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://ollama.internal:11434/v1');
+    vi.stubEnv('ADVISOR_OLLAMA_ALLOW_INSECURE', 'false');
+    expect(() => requireOllamaEndpoint()).toThrow(expect.objectContaining({ code: 'OLLAMA_NOT_CONFIGURED' }));
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'https://ollama.internal/v1');
+    expect(requireOllamaEndpoint()).toBe('https://ollama.internal/v1');
+    vi.stubEnv('ADVISOR_OLLAMA_ALLOW_INSECURE', 'true');
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://ollama.internal:11434/v1');
+    expect(requireOllamaEndpoint()).toBe('http://ollama.internal:11434/v1');
+  });
+
+  it.each(['https://169.254.169.254/v1', 'https://metadata.google.internal/v1', 'http://[fe80::1]/v1'])('always rejects link-local and metadata host %s', (endpoint) => {
+    vi.stubEnv('ADVISOR_OLLAMA_URL', endpoint);
+    expect(() => requireOllamaEndpoint()).toThrow(expect.objectContaining({ code: 'OLLAMA_NOT_CONFIGURED' }));
+  });
+
+  it('rejects loopback in production unless insecure transport is allowed', () => {
+    vi.stubEnv('ADVISOR_OLLAMA_URL', 'https://localhost:11434/v1');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('ADVISOR_OLLAMA_ALLOW_INSECURE', 'false');
+    expect(() => requireOllamaEndpoint()).toThrow(expect.objectContaining({ code: 'OLLAMA_NOT_CONFIGURED' }));
+    vi.stubEnv('ADVISOR_OLLAMA_ALLOW_INSECURE', 'true');
+    expect(requireOllamaEndpoint()).toBe('https://localhost:11434/v1');
   });
 });

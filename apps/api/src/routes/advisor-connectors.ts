@@ -22,7 +22,7 @@ export const advisorConnectorRoutes: FastifyPluginAsync = async (server) => {
       grants: grants.map((grant) => ({ client: grant.client, environment: grant.environment, expiresAt: grant.expiresAt, lastUsedAt: grant.lastUsedAt, revokedAt: grant.revokedAt,
         status: grant.revokedAt ? 'REVOKED' : grant.expiresAt <= now ? 'EXPIRED' : grant.lastUsedAt ? 'ACTIVE' : 'WAITING' })) };
   });
-  server.put<{ Params: { companyId: string; client: string } }>('/connectors/:client', async (request) => {
+  server.put<{ Params: { companyId: string; client: string } }>('/connectors/:client', { bodyLimit: 8_000 }, async (request) => {
     requireAdvisorEnabled();
     const membership = await requireAdvisorMembership(request, request.params.companyId);
     const environment = requireExplicitKsefEnvironment(request);
