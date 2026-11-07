@@ -23,8 +23,8 @@ export function Badge({ children, className, tone = 'draft', variant = 'default'
   return (
     <span
       className={cn(
-        'inline-flex items-center whitespace-nowrap rounded-chip font-mono text-[10px] tracking-[0.08em]',
-        variant === 'tag' ? 'px-2 py-1 uppercase' : 'min-h-7 px-3',
+        'inline-flex items-center whitespace-nowrap rounded-chip font-mono text-[10px] uppercase tracking-[0.08em]',
+        variant === 'tag' ? 'px-2 py-1' : 'min-h-7 px-3',
         toneClasses[tone],
         className,
       )}

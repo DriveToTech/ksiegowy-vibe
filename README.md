@@ -175,7 +175,7 @@ For supported development setups, see [Development Run Modes](docs/development-r
 
 ### Option A — Fully containerised (recommended)
 
-Runs API, web frontend, and database inside Docker. Poppler and Tesseract are included in the API image — no local installation needed.
+Runs API, web frontend, and database inside Docker. Poppler and Tesseract are included in the API image — no local installation needed. To build the API image without Tesseract, set `API_INSTALL_TESSERACT=false` (in `.env` or inline: `API_INSTALL_TESSERACT=false docker compose up --build`); OCR then falls back to the OpenRouter vision LLM, so `OPENROUTER_API_KEY` is required. See [Infrastructure](docs/infrastructure.md#api--appsapidockerfile).
 
 #### 1. Clone and configure environment
 

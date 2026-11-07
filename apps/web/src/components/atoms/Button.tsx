@@ -42,7 +42,7 @@ export function Button(props: ButtonProps) {
   const { children, className, variant = 'primary', size = 'md', loading = false, ...elementProps } = props;
   const isDisabled = loading || elementProps.disabled === true;
   const buttonClassName = cn(
-    'inline-flex min-h-11 items-center justify-center font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:bg-surface-raised disabled:text-foreground-disabled disabled:opacity-100 aria-disabled:cursor-not-allowed aria-disabled:bg-surface-raised aria-disabled:text-foreground-disabled aria-disabled:opacity-100',
+    'inline-flex min-h-11 items-center justify-center font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:border disabled:border-outline disabled:bg-surface-raised disabled:bg-none disabled:text-foreground-disabled disabled:opacity-100 aria-disabled:cursor-not-allowed aria-disabled:border aria-disabled:border-outline aria-disabled:bg-surface-raised aria-disabled:bg-none aria-disabled:text-foreground-disabled aria-disabled:opacity-100',
     variantClasses[variant],
     sizeClasses[size],
     className,

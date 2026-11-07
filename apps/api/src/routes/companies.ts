@@ -2,7 +2,8 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import type { AccessTokenPayload } from '../lib/auth-config.js';
 import { requireExplicitKsefEnvironment } from '../lib/ksef-environment.js';
-import { fetchCompanyByNip } from '../services/company-registry.service.js';
+import { isValidNip } from '@ksiegowy/shared-utils';
+import { lookupCompanyByNip, RegistryLimitError, reserveCompanyLookup } from '../services/company-registry.service.js';
 import { encrypt } from '@ksiegowy/shared-utils';
 
 const KSEF_ENVIRONMENTS = ['TEST', 'PRODUCTION'] as const;
@@ -68,9 +69,11 @@ const companyLookupResponseSchema = {
     nip: { type: 'string' },
     addressLine1: { type: 'string' },
     addressLine2: { type: ['string', 'null'] },
-    vatStatus: { type: 'string', enum: ['ACTIVE', 'EXEMPT', 'NO_VAT'] }
+    vatStatus: { type: 'string', enum: ['ACTIVE', 'EXEMPT', 'NO_VAT'] },
+    checkedAt: { type: 'string', format: 'date-time' },
+    requestId: { type: ['string', 'null'] }
   },
-  required: ['name', 'nip', 'addressLine1', 'addressLine2', 'vatStatus']
+  required: ['name', 'nip', 'addressLine1', 'addressLine2', 'vatStatus', 'checkedAt', 'requestId']
 } as const;
 
 const patchCompanyBodySchema = {
@@ -258,10 +261,32 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
         200: companyLookupResponseSchema
       }
     }
-  }, async (request) => {
-    return fetchCompanyByNip(request.query.nip, {
+  }, async (request, reply) => {
+    const userId = (request.user as AccessTokenPayload).sub;
+
+    // Checksum before any quota is reserved: a garbage NIP must not spend the per-user window or the shared daily cap.
+    if (!isValidNip(request.query.nip)) throw fastify.httpErrors.badRequest('Invalid NIP');
+
+    const limited = (error: RegistryLimitError) => {
+      // Never log the NIP: for a sole trader it is personal data.
+      request.log.warn({ operation: 'companies.lookup', userId, outcome: error.code.toLowerCase() }, 'Company lookup rejected');
+      return reply.header('Retry-After', String(error.retryAfterSeconds)).code(429).send({ code: error.code });
+    };
+
+    try {
+      reserveCompanyLookup(userId);
+    } catch (error: unknown) {
+      if (error instanceof RegistryLimitError) return limited(error);
+      throw error;
+    }
+
+    return lookupCompanyByNip(request.query.nip, {
+      userId,
       ...(process.env['GUS_API_KEY'] ? { gusApiKey: process.env['GUS_API_KEY'] } : {}),
+      onDailyLimitReached: () => request.log.warn({ operation: 'companies.lookup', outcome: 'registry_daily_limit_reached' }, 'MF registry daily call cap reached'),
     }).catch((error: unknown) => {
+      if (error instanceof RegistryLimitError) return limited(error);
+
       const message = error instanceof Error ? error.message : 'Company lookup failed';
 
       if (message === 'Invalid NIP') {
@@ -272,7 +297,9 @@ export const companiesRoutes: FastifyPluginAsync = async (fastify): Promise<void
         throw fastify.httpErrors.notFound(message);
       }
 
-      throw fastify.httpErrors.badGateway(message);
+      // Upstream text (status, undici internals, provider names) stays in the log; never log the NIP.
+      request.log.error({ operation: 'companies.lookup', userId, error: message }, 'Company registry lookup failed');
+      throw fastify.httpErrors.badGateway('Company registry unavailable');
     });
   });
 

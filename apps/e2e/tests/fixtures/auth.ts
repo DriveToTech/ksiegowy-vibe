@@ -26,6 +26,7 @@ export const test = base.extend<{
   onboardingPage: Page;
   viewerPage: Page;
   multiCompanyPage: Page;
+  manyInvoicesPage: Page;
 }>({
   authenticatedPage: async ({ page }, use) => {
     await setAuthCookies(page, 'test-token', true);
@@ -39,6 +40,11 @@ export const test = base.extend<{
   // Member of the test company and a second company; the test company is active.
   multiCompanyPage: async ({ page }, use) => {
     await setAuthCookies(page, 'two-company-token', true);
+    await use(page);
+  },
+  // Session whose invoice list has 25 extra invoices (PAGE-FV-001..025), for pagination.
+  manyInvoicesPage: async ({ page }, use) => {
+    await setAuthCookies(page, 'many-invoices-token', true);
     await use(page);
   },
   authenticatedPageNoCompany: async ({ page }, use) => {

@@ -43,11 +43,17 @@ export async function extractTextWithTesseract(imageBuffers: Buffer[]): Promise<
     try {
       await fs.writeFile(tempFilePath, imageBuffer);
 
-      const { stdout: tsvOutput } = await executeFile(
+      const tesseractResult = await executeFile(
         'tesseract',
         [tempFilePath, 'stdout', '-l', 'pol', '--oem', '1', '--psm', '6', 'tsv'],
         { encoding: 'utf8', maxBuffer: 2 * 1024 * 1024, timeout: 30_000 },
-      );
+      ).catch((error: NodeJS.ErrnoException) => {
+        // Image built with INSTALL_TESSERACT=false: skip local OCR so the caller falls back to the vision LLM.
+        if (error.code === 'ENOENT') return null;
+        throw error;
+      });
+      if (!tesseractResult) return null;
+      const tsvOutput = tesseractResult.stdout;
 
       const lines = tsvOutput.split('\n');
       const header = lines[0];

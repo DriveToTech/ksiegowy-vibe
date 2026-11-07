@@ -14,6 +14,7 @@ interface FormFieldProps {
   required?: boolean;
   children: ReactNode;
   className?: string;
+  labelClassName?: string;
 }
 
 export function FormField({
@@ -24,6 +25,7 @@ export function FormField({
   required = false,
   children,
   className,
+  labelClassName,
 }: FormFieldProps) {
   const generatedId = useId();
   const childControl = isValidElement<FormControlProps>(children) ? children : null;
@@ -43,7 +45,7 @@ export function FormField({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <label htmlFor={fieldId} className="block text-sm font-semibold text-foreground">
+      <label htmlFor={fieldId} className={cn('block text-sm font-semibold text-foreground', labelClassName)}>
         {label}
         {required ? ' *' : ''}
       </label>

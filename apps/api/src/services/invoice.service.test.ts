@@ -393,6 +393,44 @@ describe('issueInvoice()', () => {
     );
     expect(invoiceUpdate).not.toHaveBeenCalled();
   });
+
+  it('rejects a buyer whose NIP fails the checksum', async () => {
+    const prisma = {
+      $transaction: vi.fn(async (callback: (transactionClient: unknown) => Promise<unknown>) => callback({
+        $queryRaw: vi.fn(async () => [{ id: 'invoice-1' }]),
+        invoice: {
+          findUnique: vi.fn(async () => ({
+            id: 'invoice-1',
+            status: 'DRAFT',
+            lines: [{ id: 'line-1' }],
+            contractor: { nip: '1234567890', countryCode: 'PL' },
+          })),
+        },
+      })),
+    } as unknown as PrismaClient;
+
+    await expect(issueInvoice(prisma, 'invoice-1', 'company-1', 'TEST')).rejects.toThrow('Invalid buyer NIP');
+  });
+
+  it('does not apply the NIP checksum to a foreign buyer tax id', async () => {
+    const prisma = {
+      $transaction: vi.fn(async (callback: (transactionClient: unknown) => Promise<unknown>) => callback({
+        $queryRaw: vi.fn(async () => [{ id: 'invoice-1' }]),
+        invoice: {
+          findUnique: vi.fn(async () => ({
+            id: 'invoice-1',
+            status: 'DRAFT',
+            invoiceType: 'KOR',
+            correctedInvoiceId: null,
+            lines: [{ id: 'line-1' }],
+            contractor: { nip: 'DE123456789', countryCode: 'DE' },
+          })),
+        },
+      })),
+    } as unknown as PrismaClient;
+
+    await expect(issueInvoice(prisma, 'invoice-1', 'company-1', 'TEST')).rejects.toThrow('KOR invoice is missing correctedInvoiceId');
+  });
 });
 
 describe('finalizeInvoiceIssuance()', () => {

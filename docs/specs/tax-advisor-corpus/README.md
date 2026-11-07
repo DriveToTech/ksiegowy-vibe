@@ -11,6 +11,7 @@ Linear: TRY-174. Drafted: 2026-10-01 against the VAT Act consolidated text **Dz.
 | `sources.draft.json` | 27 draft source entries (loader fields, verbatim `officialText` anchors and drafting metadata; no review fields) |
 | `eval-set.json` | 47 Polish evaluation cases: 26 answer, 7 clarify, 9 decline (`declined`), 5 insufficient-evidence. Single source of truth for the harness |
 | `questions.md` | Reviewer-friendly view of the same cases, generated from `eval-set.json` |
+| `review-notes.md` | Follow-up on the AI review runs `c39a3ee9` and `a92fdb61`: entry fixes, objections judged wrong, the art. 106b ust. 3 pkt 2 answer, remaining doubts |
 
 ## Loader format and why the draft is deliberately not loadable
 
@@ -30,13 +31,13 @@ pnpm --filter @ksiegowy/api advisor:review-sources \
 
 `--draft` and `--eval` default to the files in this directory. `--output` must be outside the repository (the runner refuses a path inside it). The script loads `../../.env` through `tsx --env-file`; it runs offline from an operator machine and is never reachable over HTTP.
 
-**Current draft status:** `sources.draft.json` still lacks the top-level `draftedBy` and the per-entry `officialText` spans, so the runner rejects it until they are added.
+**Current draft status:** `sources.draft.json` has `draftedBy` and anchored `officialText` spans for all 27 entries (checked against the fetched documents). Two AI review runs (`c39a3ee9`, `a92fdb61`) rejected most entries; content objections from both were fixed (see `review-notes.md`). `effectiveFrom`/`effectiveUntil` is a corpus review window, not a legal expiry. A new runner pass is required; nothing is approved until it passes.
 
 ### Draft file additions
 
 | Field | Meaning |
 | --- | --- |
-| `draftedBy` (top level) | `human`, or the drafting model as `ai:PROVIDER/model`. It must differ from every reviewer model |
+| `draftedBy` (top level) | `human`, or the drafting model as `ai:PROVIDER/model`. It must differ from every reviewer model, and no reviewer may share its model vendor |
 | `sources[].officialText` | 1 to 4 verbatim spans from the official document at `url`, each at most 4,000 characters. Every span must be found in the fetched text |
 
 The runner reads only `sources`; the loader fields (`id, title, url, section, effectiveFrom, effectiveUntil, excerpt, topics`) are copied into the corpus. Drafting metadata and model output never enter the corpus.
@@ -45,12 +46,12 @@ The runner reads only `sources`; the loader fields (`id, title, url, section, ef
 
 | Variable | Purpose |
 | --- | --- |
-| `ADVISOR_REVIEW_MODELS` | `ANTHROPIC:<id>,OPENAI:<id>`: at least two pinned models from **different providers** (ids ending in `latest` are refused) |
+| `ADVISOR_REVIEW_MODELS` | e.g. `OPENROUTER:google/<id>,OPENROUTER:nvidia/<id>`: at least two distinct pinned models from **different model vendors** (ids ending in `latest` are refused; `:free` suffixes are fine). Vendor is the id prefix before the first `/` on OpenRouter, `anthropic` for ANTHROPIC, `openai` for OPENAI, and the model family before `:` for Ollama (a full `name/path` Ollama id is its own vendor) |
 | `ADVISOR_REVIEW_ANSWER_MODELS` | `OPENROUTER:<id>[,...]`: answering models the corpus is evaluated against. Configuration error if any equals a reviewer model |
 | `ADVISOR_REVIEW_ANTHROPIC_API_KEY`, `_OPENAI_API_KEY`, `_OPENROUTER_API_KEY` | Dedicated capped keys, read only from the environment and never logged or written to a report. Ollama reuses `ADVISOR_OLLAMA_URL` |
-| `ADVISOR_REVIEW_MAX_CALLS` | Total model calls, default 300. A full run costs about 2 calls per source plus 3 repetitions x up to 3 calls per model-answered case per answering model, so a 47-case set exceeds 300: raise the limit for a real run |
+| `ADVISOR_REVIEW_MAX_CALLS` | Total model calls including retries, default 300. A full run costs about 2 calls per source plus 3 repetitions x up to 3 calls per model-answered case per answering model, so a 47-case set exceeds 300: raise the limit for a real run |
 
-Configuration errors (reviewer equal to an answering or drafting model, one provider twice, missing key, output inside the repository) stop the runner before any fetch or model call.
+Configuration errors (reviewer equal to an answering or drafting model, reviewers from one model vendor, a reviewer sharing the drafter's vendor, missing key, output inside the repository) stop the runner before any fetch or model call.
 
 ### Flow
 
@@ -70,7 +71,7 @@ flowchart TD
 ```
 
 1. **Anchor check (no model).** Fetch is HTTPS only, host ends `.gov.pl`, no redirects, 30 s timeout, 20 MB cap, `text/html` or `application/pdf` only. HTML is stripped of script, style and tags; PDF text comes from `unpdf`. The ELI API serves consolidated acts as PDF only (`textHTML: false`; `text.html` returns an empty body), so PDF is the normal path. Text is normalised (whitespace, soft hyphens) before the substring match, and the fetched SHA-256 is recorded.
-2. **Reviewers.** Each reviewer model gets the entry plus `untrustedOfficialText` and returns `verdict`, `checks` (`excerptFaithful`, `notBroaderThanSource`, `conditionsAndExceptionsStated`, `effectiveDatesSupported`, `guidanceLabelled`, `noPersonalData`: pass, fail or unsure) and at most 5 issues. A source is approved only if every reviewer approves and every check passes (unsure counts as fail).
+2. **Reviewers.** Each reviewer model gets the entry plus `untrustedOfficialText` and returns `verdict`, `checks` (`excerptFaithful`, `notBroaderThanSource`, `conditionsAndExceptionsStated`, `effectiveDatesSupported`, `guidanceLabelled`, `noPersonalData`: pass, fail or unsure) and at most 5 issues. `effectiveDatesSupported` rule (prompt `advisor-source-review-2026-10-v2`): `effectiveFrom` must follow from the official text (entry-into-force or application date, without mixing legal regimes). `effectiveUntil` is the corpus review window we assign, not a legal expiry: it passes when it is not later than any end, sunset or repeal date stated in the official text, and fails only when the text shows the provision ends or changes earlier, or when it is before `reviewedAt`. A source is approved only if every reviewer approves and every check passes (unsure counts as fail).
 3. **Corpus.** Approved entries only, with `reviewMethod: 'ai'`, `reviewedBy` (`ai:PROVIDER/model+ai:PROVIDER/model`), `reviewedAt` (run date), `reviewExpiresAt` (+30 days), `reviewReportId` and `reviewHash`, validated by `parseAdvisorSourceCorpus`.
 4. **Evaluation gate.** Each case reuses production logic: the deterministic out-of-scope check, `selectAdvisorSources`, `composeAdvisorModelInput`, the same prompt and `verifyAdvisorCitations`, with the case `companyFacts` as untrusted accounting data. Status and required citations are checked deterministically; every reviewer model then judges forbidden claims, `mustInclude` and `mustAskAbout` (any flag fails the case).
 
@@ -86,7 +87,7 @@ flowchart TD
 
 ### Report and failure behaviour
 
-`<report-dir>/<reportId>.json` is always written and holds the input hashes, reviewers, answering models, per-source decision with fetched URL and SHA-256, reviewer verdicts, evaluation runs, thresholds, call count, `passed`, an optional `failure` message and the corpus path and SHA-256. It never holds keys or request headers. Any failure (configuration, fetch, rejected source, failed gate, call limit) exits 1, writes no corpus and leaves an existing output file untouched; the corpus is written to `<output>.tmp` and renamed. The corpus SHA-256 equals the API's `sourceVersion`.
+`<report-dir>/<reportId>.json` is always written and holds the input hashes, reviewers, answering models, per-source decision with fetched URL and SHA-256, reviewer verdicts, evaluation runs, thresholds, call count, `passed`, an optional `failure` message and the corpus path and SHA-256. Each reviewer, answer and judge call gets a fresh 180 s timeout and is retried up to 2 more times (3 attempts) on timeout or provider errors (HTTP 429, 5xx); schema errors and invalid answers are not retried. Every attempt counts toward `ADVISOR_REVIEW_MAX_CALLS`. It never holds keys or request headers. Any failure (configuration, fetch, rejected source, failed gate, call limit) exits 1, writes no corpus and leaves an existing output file untouched; the corpus is written to `<output>.tmp` and renamed. The corpus SHA-256 equals the API's `sourceVersion`.
 
 ### Expiry and re-review triggers
 

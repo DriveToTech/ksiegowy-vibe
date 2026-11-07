@@ -15,8 +15,9 @@ export const advisorEvaluationThresholds = {
   overallCasePassRate: 0.95,
 } as const;
 
-const judgeTokenLimit = 1500;
-const answerTokenLimit = 3000;
+// Reasoning models spend the completion budget on hidden reasoning tokens, so the cap must be generous.
+const judgeTokenLimit = 8000;
+const answerTokenLimit = 8000;
 
 export const advisorEvaluationSetSchema = z.object({
   version: z.string().min(1),

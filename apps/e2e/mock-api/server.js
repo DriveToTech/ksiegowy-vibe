@@ -28,14 +28,14 @@ const TEST_COMPANY = {
 };
 
 // Extra session tokens that reuse the test company: a read-only member and a member of two companies.
-const TEST_TOKEN_ROLES = { 'test-token': 'ADMIN', 'viewer-token': 'VIEWER', 'two-company-token': 'ADMIN' };
+const TEST_TOKEN_ROLES = { 'test-token': 'ADMIN', 'viewer-token': 'VIEWER', 'two-company-token': 'ADMIN', 'many-invoices-token': 'ADMIN' };
 const SECOND_COMPANY = { ...TEST_COMPANY, id: 'second-company-id', name: 'Birchwood Sample Studio Ltd', nip: 'TEST-NIP-0001' };
 
 const TEST_CONTRACTOR = {
   id: 'test-contractor-id',
   companyId: 'test-company-id',
   name: 'Bluebird Example Studio LLC',
-  nip: 'TEST-NIP-0001',
+  nip: '1110001113',
   pesel: null,
   addressLine1: '22 Fictional Street, Sample Town, TEST-0001',
   addressLine2: null,
@@ -55,7 +55,7 @@ const SECOND_TEST_CONTRACTOR = {
   id: 'test-contractor-second-id',
   companyId: 'test-company-id',
   name: 'Juniper Fictional Works LLC',
-  nip: 'TEST-NIP-0002',
+  nip: '2220002226',
   pesel: null,
   addressLine1: '7 Placeholder Avenue, Demo Borough, TEST-0002',
   addressLine2: 'Suite 404',
@@ -71,7 +71,30 @@ const SECOND_TEST_CONTRACTOR = {
   updatedAt: '2026-08-18T00:00:00.000Z',
 };
 
-const TEST_CONTRACTORS = [TEST_CONTRACTOR, SECOND_TEST_CONTRACTOR];
+// White-list fixtures: the NIP decides what GET /companies/lookup returns (valid checksums, synthetic).
+const LOOKUP_NOT_FOUND_NIP = '3330003339';
+const LOOKUP_UNAVAILABLE_NIP = '4440004441';
+const LOOKUP_EXEMPT_NIP = '5550005554';
+const LOOKUP_RATE_LIMITED_NIP = '6660006667';
+const LOOKUP_INVALID_CHECKSUM_NIP = '7770007770';
+
+const WHITE_LIST_FIXTURE_CONTRACTORS = [
+  ['not-found', 'Whitelist Missing Example LLC', LOOKUP_NOT_FOUND_NIP],
+  ['unavailable', 'Whitelist Outage Example LLC', LOOKUP_UNAVAILABLE_NIP],
+  ['exempt', 'Whitelist Exempt Example LLC', LOOKUP_EXEMPT_NIP],
+  ['rate-limited', 'Whitelist Throttled Example LLC', LOOKUP_RATE_LIMITED_NIP],
+  ['invalid-nip', 'Whitelist Invalid Checksum Example LLC', LOOKUP_INVALID_CHECKSUM_NIP],
+  ['without-nip', 'Private Buyer Without Tax Id', null],
+].map(([key, name, nip]) => ({
+  ...SECOND_TEST_CONTRACTOR,
+  id: `test-contractor-${key}-id`,
+  name,
+  nip,
+  email: `${key}@example.test`,
+  turnover: '0.00',
+}));
+
+const TEST_CONTRACTORS = [TEST_CONTRACTOR, SECOND_TEST_CONTRACTOR, ...WHITE_LIST_FIXTURE_CONTRACTORS];
 
 const TEST_SERVICE_TEMPLATES = [
   {
@@ -321,6 +344,17 @@ const invoices = new Map([
     vatBreakdown: [{ id: 'draft-invoice-id-vat-1', vatRate: '23', netAmount: '960.00', vatAmount: '220.80' }],
   })],
 ]);
+
+// Only the 'many-invoices-token' session sees these, so pagination can be tested without changing dashboard totals.
+const PAGINATION_FIXTURE_INVOICES = Array.from({ length: 25 }, (_, index) => {
+  const invoiceId = `pagination-invoice-${index + 1}`;
+  return createInvoice(invoiceId, {
+    invoiceNumber: `PAGE-FV-${String(index + 1).padStart(3, '0')}`,
+    issueDate: demoDate(0, 5),
+    createdAt: demoTimestamp(-3, 1 + index, 8),
+    updatedAt: demoTimestamp(-3, 1 + index, 8),
+  });
+});
 
 /**
  * @param {string | null | undefined} contractorId
@@ -738,12 +772,18 @@ const server = http.createServer((req, res) => {
   if (url === '/companies/lookup' && method === 'GET') {
     if (!authToken) return respond(req, res, 401, { error: 'Unauthorized' });
     const nip = new URLSearchParams(rawUrl.split('?')[1] ?? '').get('nip') ?? '';
+    if (nip === LOOKUP_NOT_FOUND_NIP) return respond(req, res, 404, { error: 'Company not found' });
+    if (nip === LOOKUP_INVALID_CHECKSUM_NIP) return respond(req, res, 400, { error: 'Invalid NIP' });
+    if (nip === LOOKUP_RATE_LIMITED_NIP) return respond(req, res, 429, { error: 'Too many requests', code: 'RATE_LIMITED' });
+    if (nip === LOOKUP_UNAVAILABLE_NIP) return respond(req, res, 502, { error: 'Registry unavailable' });
     return respond(req, res, 200, {
       name: `Registry Demo Company ${nip}`,
       nip,
       addressLine1: '10 Registry Way, Demo City, TEST-0004',
       addressLine2: null,
-      vatStatus: 'ACTIVE',
+      vatStatus: nip === LOOKUP_EXEMPT_NIP ? 'EXEMPT' : 'ACTIVE',
+      checkedAt: new Date().toISOString(),
+      requestId: `TEST-REQUEST-${nip}`,
     });
   }
 
@@ -885,17 +925,25 @@ const server = http.createServer((req, res) => {
     const limit = Number.isInteger(requestedLimit) && requestedLimit > 0 ? requestedLimit : 20;
     const status = searchParameters.get('status');
     const ksefStatus = searchParameters.get('ksefStatus');
-    const filteredInvoices = Array.from(invoices.values())
+    const search = (searchParameters.get('search') ?? '').trim().toLowerCase();
+    const issueMonth = searchParameters.get('issueMonth');
+    const filteredInvoices = [...invoices.values(), ...(authToken === 'many-invoices-token' ? PAGINATION_FIXTURE_INVOICES : [])]
       .filter((invoice) => !status || invoice.status === status)
       .filter((invoice) => !ksefStatus || invoice.ksefStatus === ksefStatus)
+      .filter((invoice) => !issueMonth || String(invoice.issueDate).startsWith(issueMonth))
+      .filter((invoice) => !search || [invoice.invoiceNumber, invoice.buyerName, invoice.buyerNip, invoice.ksefReference].some((value) => String(value ?? '').toLowerCase().includes(search)))
       .sort((firstInvoice, secondInvoice) => String(secondInvoice.createdAt).localeCompare(String(firstInvoice.createdAt)));
     const startIndex = (page - 1) * limit;
-    return respond(req, res, 200, {
+    const listBody = {
       data: filteredInvoices.slice(startIndex, startIndex + limit).map(serializeInvoiceSummary),
       total: filteredInvoices.length,
       page,
       limit,
-    });
+      totalGross: filteredInvoices.reduce((sum, invoice) => sum + Number(invoice.totalGross), 0).toFixed(2),
+    };
+    // Lets tests observe the loading skeleton.
+    if (search === 'slow-response') return setTimeout(() => respond(req, res, 200, listBody), 2000);
+    return respond(req, res, 200, listBody);
   }
 
   const invoiceDetailMatch = url.match(/^\/companies\/([^/]+)\/invoices\/([^/]+)$/);

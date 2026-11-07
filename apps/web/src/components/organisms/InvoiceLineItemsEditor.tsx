@@ -1,53 +1,21 @@
 'use client';
 
-import type { Dispatch, SetStateAction } from 'react';
-import { useCallback } from 'react';
+import { Fragment, useEffect, useId, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { ContractorServiceRate, ServiceTemplate, VatRate } from '../../lib/api-types';
-import { formatMoney, parseDecimalValue } from '../../lib/format';
+import { formatMoney } from '../../lib/format';
+import {
+  calcLine,
+  calcLineTotals,
+  emptyLine,
+  VAT_RATE_LABELS,
+  VAT_RATES,
+  type LineItem,
+} from '../../lib/invoice-line-calculation';
 import { t } from '../../lib/translations';
-import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { Select } from '../atoms/Select';
 import { Surface } from '../atoms/Surface';
 import { CatalogueItemPicker } from '../molecules/CatalogueItemPicker';
-import { FormField } from '../molecules/FormField';
-
-export interface LineItem {
-  name: string;
-  quantity: string;
-  unit: string;
-  unitNetPrice: string;
-  vatRate: VatRate;
-}
-
-export const VAT_RATES: VatRate[] = ['23', '8', '5', '0', 'zw', 'np', 'oo'];
-
-export const VAT_RATE_LABELS: Record<VatRate, string> = {
-  '23': '23%',
-  '8': '8%',
-  '5': '5%',
-  '0': '0%',
-  zw: 'zw.',
-  np: 'np.',
-  oo: 'oo.',
-};
-
-export function emptyLine(): LineItem {
-  return { name: '', quantity: '1', unit: 'szt.', unitNetPrice: '', vatRate: '23' };
-}
-
-export function vatMultiplier(rate: VatRate): number {
-  if (rate === 'zw' || rate === 'np' || rate === 'oo') return 0;
-  return parseInt(rate, 10) / 100;
-}
-
-export function calcLine(line: LineItem): { net: number; vat: number; gross: number } {
-  const qty = parseDecimalValue(line.quantity) ?? 0;
-  const price = parseDecimalValue(line.unitNetPrice) ?? 0;
-  const net = Math.round(qty * price * 100) / 100;
-  const vat = Math.round(net * vatMultiplier(line.vatRate) * 100) / 100;
-  return { net, vat, gross: Math.round((net + vat) * 100) / 100 };
-}
 
 interface InvoiceLineItemsEditorProps {
   lines: LineItem[];
@@ -57,6 +25,14 @@ interface InvoiceLineItemsEditorProps {
   contractorId: string;
 }
 
+// The table layout starts at a 640px wide card (container query), cards below it.
+// Fields keep the atom defaults (48px, 16px font) in the card layout and become 44px / 13px in the table.
+const tableField = '@[760px]:h-11 @[760px]:text-[13px]';
+const numericField = `${tableField} text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`;
+const headerAction =
+  '-my-3 min-h-11 items-center rounded-control px-2 text-[12.5px] font-medium text-primary transition hover:bg-secondary-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+const eyebrow = 'font-mono text-[10px] uppercase tracking-[0.13em] text-muted';
+
 export function InvoiceLineItemsEditor({
   lines,
   onLinesChange,
@@ -64,285 +40,338 @@ export function InvoiceLineItemsEditor({
   contractorRates = [],
   contractorId,
 }: InvoiceLineItemsEditorProps) {
-  const updateLine = useCallback(
-    (index: number, field: keyof LineItem, value: string) => {
-      onLinesChange((prev) => prev.map((l, i) => (i === index ? { ...l, [field]: value } : l)));
-    },
-    [onLinesChange],
-  );
+  const headingId = useId();
+  // Focus is moved after the render that adds or removes the row: a row index, or 'add' for the add button.
+  const pendingFocus = useRef<number | 'add' | null>(null);
+  const totals = calcLineTotals(lines);
+  const hasCatalogue = serviceTemplates.length > 0;
 
-  const addLine = useCallback(() => onLinesChange((prev) => [...prev, emptyLine()]), [onLinesChange]);
+  useEffect(() => {
+    if (pendingFocus.current === null) return;
+    const candidates =
+      pendingFocus.current === 'add'
+        ? ['invoice-add-line-header', 'invoice-add-line-footer']
+        : [`invoice-line-${pendingFocus.current}-desktop-name`, `invoice-line-${pendingFocus.current}-mobile-name`];
+    pendingFocus.current = null;
+    // Both layouts are mounted, only one is displayed: focus the one that has a layout box.
+    candidates
+      .map((candidate) => document.getElementById(candidate))
+      .find((element) => element !== null && element.offsetParent !== null)
+      ?.focus();
+  }, [lines]);
 
-  const removeLine = useCallback(
-    (index: number) => onLinesChange((prev) => prev.filter((_, i) => i !== index)),
-    [onLinesChange],
-  );
+  const updateLine = (index: number, field: keyof LineItem, value: string) =>
+    onLinesChange((previous) => previous.map((line, lineIndex) => (lineIndex === index ? { ...line, [field]: value } : line)));
 
-  const applyTemplate = useCallback(
-    (templateId: string, lineIndex: number) => {
-      const template = serviceTemplates.find((tmpl) => tmpl.id === templateId);
-      if (!template) return;
+  const addLine = () => {
+    pendingFocus.current = lines.length;
+    onLinesChange((previous) => [...previous, emptyLine()]);
+  };
 
-      const rate = contractorRates.find(
-        (r) => r.serviceTemplateId === templateId && r.contractorId === contractorId,
-      );
+  const removeLine = (index: number) => {
+    pendingFocus.current = index > 0 ? index - 1 : 'add';
+    onLinesChange((previous) => previous.filter((_, lineIndex) => lineIndex !== index));
+  };
 
-      onLinesChange((prev) =>
-        prev.map((line, i) =>
-          i === lineIndex
-            ? {
-                ...line,
-                name: template.name,
-                unit: template.unit,
-                vatRate: template.vatRate as VatRate,
-                unitNetPrice: rate ? rate.unitNetPrice : line.unitNetPrice,
-              }
-            : line,
-        ),
-      );
-    },
-    [serviceTemplates, contractorRates, contractorId, onLinesChange],
-  );
+  const applyTemplate = (templateId: string, lineIndex: number) => {
+    const template = serviceTemplates.find((candidate) => candidate.id === templateId);
+    if (!template) return;
+
+    const rate = contractorRates.find(
+      (candidate) => candidate.serviceTemplateId === templateId && candidate.contractorId === contractorId,
+    );
+
+    onLinesChange((previous) =>
+      previous.map((line, index) =>
+        index === lineIndex
+          ? {
+              ...line,
+              name: template.name,
+              unit: template.unit,
+              vatRate: template.vatRate as VatRate,
+              unitNetPrice: rate ? rate.unitNetPrice : line.unitNetPrice,
+            }
+          : line,
+      ),
+    );
+  };
+
+  const labelFor = (label: string, position: number) => t.invoiceLineItemsEditor.fieldAriaLabel(label, position);
 
   return (
-    <>
-      {/* Desktop table */}
-      <div className="hidden xl:block">
-        <table className="w-full table-fixed text-sm">
+    <Surface tone="panel" className="@container">
+      <div className="flex items-center justify-between gap-3 border-b border-outline px-[18px] py-[13px]">
+        <h2 id={headingId} className="min-w-0 truncate text-sm font-semibold text-foreground">{t.invoiceDetail.sections.lineItemsTitle}</h2>
+        <div className="flex shrink-0 items-center gap-1 whitespace-nowrap @[760px]:gap-3.5">
+          {hasCatalogue ? (
+            <button type="button" onClick={addLine} className={`${headerAction} inline-flex`}>
+              {t.invoiceLineItemsEditor.fromCatalogueButton}
+            </button>
+          ) : null}
+          <button type="button" id="invoice-add-line-header" onClick={addLine} className={`${headerAction} hidden @[760px]:inline-flex`}>
+            {t.invoiceLineItemsEditor.addLineButton}
+          </button>
+        </div>
+      </div>
+
+      {/* Table layout */}
+      <div className="hidden @[760px]:block">
+        <table className="w-full table-fixed border-collapse text-[13px]" aria-labelledby={headingId}>
           <colgroup>
-            <col style={{ width: '24%' }} />
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '7%' }} />
+            <col className="w-[50px]" />
+            <col />
+            <col className="w-[74px]" />
+            <col className="w-[74px]" />
+            <col className="w-[116px]" />
+            <col className="w-[74px]" />
+            <col className="w-[114px]" />
+            <col className="w-[66px]" />
           </colgroup>
-          <thead>
-            <tr className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-              <th className="pb-3 pl-1 text-left">{t.invoiceLineItemsEditor.nameColumn}</th>
-              <th className="pb-3 text-right">{t.invoiceLineItemsEditor.quantityColumn}</th>
-              <th className="pb-3 pl-2 text-left">{t.invoiceLineItemsEditor.unitColumn}</th>
-              <th className="pb-3 text-right">{t.invoiceLineItemsEditor.unitNetPriceColumn}</th>
-              <th className="pb-3 pl-2 text-left">{t.invoiceLineItemsEditor.vatRateColumn}</th>
-              <th className="pb-3 text-right">{t.invoiceLineItemsEditor.grossValueColumn}</th>
-              <th />
+          <thead className={`bg-surface-muted ${eyebrow} tracking-[0.12em]`}>
+            <tr>
+              <th scope="col" className="py-2.5 pl-[18px] pr-1 text-left font-normal">{t.invoiceLineItemsEditor.numberColumn}</th>
+              <th scope="col" className="px-1 py-2.5 text-left font-normal">{t.invoiceLineItemsEditor.nameColumn}</th>
+              <th scope="col" className="px-1 py-2.5 text-left font-normal">{t.invoiceLineItemsEditor.unitColumn}</th>
+              <th scope="col" className="px-1 py-2.5 text-right font-normal">{t.invoiceLineItemsEditor.quantityColumn}</th>
+              <th scope="col" className="px-1 py-2.5 text-right font-normal">{t.invoiceLineItemsEditor.unitNetPriceColumn}</th>
+              <th scope="col" className="px-1 py-2.5 text-right font-normal">{t.invoiceLineItemsEditor.vatRateColumn}</th>
+              <th scope="col" className="px-1 py-2.5 text-right font-normal">{t.invoiceLineItemsEditor.grossValueColumn}</th>
+              <th scope="col" className="py-2.5 pl-1 pr-[18px]"><span className="sr-only">{t.invoiceLineItemsEditor.removeButton}</span></th>
             </tr>
           </thead>
           <tbody>
             {lines.map((line, index) => {
+              const position = index + 1;
               const { gross } = calcLine(line);
               return (
-                <tr key={index} className="align-middle">
-                  <td className="py-1 pr-1">
-                    <CatalogueItemPicker
-                      id={`invoice-line-${index}-desktop-name`}
-                      serviceTemplates={serviceTemplates}
-                      contractorRates={contractorRates}
-                      contractorId={contractorId}
-                      value={line.name}
-                      onNameChange={(name) => updateLine(index, 'name', name)}
-                      onTemplateSelect={(templateId) => applyTemplate(templateId, index)}
-                      ariaLabel={t.invoiceLineItemsEditor.itemNameAriaLabel}
-                      placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
-                    />
-                  </td>
-                  <td className="px-1 py-1">
-                     <Input
-                       id={`invoice-line-${index}-desktop-quantity`}
-                       type="text"
-                      inputMode="decimal"
-                      aria-label={t.invoiceLineItemsEditor.quantityAriaLabel}
-                      value={line.quantity}
-                      onChange={(e) => updateLine(index, 'quantity', e.target.value)}
-                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </td>
-                  <td className="px-1 py-1">
-                     <Input
-                       id={`invoice-line-${index}-desktop-unit`}
-                       type="text"
-                      aria-label={t.invoiceLineItemsEditor.unitAriaLabel}
-                      value={line.unit}
-                      onChange={(e) => updateLine(index, 'unit', e.target.value)}
-                    />
-                  </td>
-                  <td className="px-1 py-1">
-                     <Input
-                       id={`invoice-line-${index}-desktop-unit-net-price`}
-                       type="text"
-                      inputMode="decimal"
-                      aria-label={t.invoiceLineItemsEditor.unitNetPriceAriaLabel}
-                      value={line.unitNetPrice}
-                      onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
-                      placeholder="0,00"
-                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </td>
-                  <td className="px-1 py-1">
-                     <Select
-                       id={`invoice-line-${index}-desktop-vat-rate`}
-                       aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
-                      value={line.vatRate}
-                      onChange={(e) => updateLine(index, 'vatRate', e.target.value)}
-                    >
-                      {VAT_RATES.map((rate) => (
-                        <option key={rate} value={rate}>
-                          {VAT_RATE_LABELS[rate]}
-                        </option>
-                      ))}
-                    </Select>
-                  </td>
-                  <td className="px-1 py-1">
-                    <div className="flex h-11 w-full items-center justify-end rounded-control border border-outline bg-surface-raised px-3 font-semibold tabular-nums text-foreground">
-                      {formatMoney(gross)}
-                    </div>
-                  </td>
-                  <td className="py-1 pl-1">
-                    <div className="flex h-11 items-center justify-center">
-                       {lines.length > 1 ? (
-                        <Button
+                <Fragment key={index}>
+                  <tr className="border-t border-outline">
+                    <td className="py-2.5 pl-[18px] pr-1 tabular-nums text-muted">{position}</td>
+                    <td className="px-1 py-2.5">
+                      <CatalogueItemPicker
+                        id={`invoice-line-${index}-desktop-name`}
+                        panelHostId={`invoice-line-${index}-catalogue-panel`}
+                        serviceTemplates={serviceTemplates}
+                        contractorRates={contractorRates}
+                        contractorId={contractorId}
+                        value={line.name}
+                        onNameChange={(name) => updateLine(index, 'name', name)}
+                        onTemplateSelect={(templateId) => applyTemplate(templateId, index)}
+                        ariaLabel={labelFor(t.invoiceLineItemsEditor.itemNameAriaLabel, position)}
+                        placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
+                        className={`${tableField} @[760px]:px-[11px]`}
+                      />
+                    </td>
+                    <td className="px-1 py-2.5">
+                      <Input
+                        id={`invoice-line-${index}-desktop-unit`}
+                        type="text"
+                        aria-label={labelFor(t.invoiceLineItemsEditor.unitAriaLabel, position)}
+                        value={line.unit}
+                        onChange={(event) => updateLine(index, 'unit', event.target.value)}
+                        className={`${tableField} @[760px]:px-2 @[760px]:text-[12.5px]`}
+                      />
+                    </td>
+                    <td className="px-1 py-2.5">
+                      <Input
+                        id={`invoice-line-${index}-desktop-quantity`}
+                        type="text"
+                        inputMode="decimal"
+                        aria-label={labelFor(t.invoiceLineItemsEditor.quantityAriaLabel, position)}
+                        value={line.quantity}
+                        onChange={(event) => updateLine(index, 'quantity', event.target.value)}
+                        className={`${numericField} @[760px]:px-2`}
+                      />
+                    </td>
+                    <td className="px-1 py-2.5">
+                      <Input
+                        id={`invoice-line-${index}-desktop-unit-net-price`}
+                        type="text"
+                        inputMode="decimal"
+                        aria-label={labelFor(t.invoiceLineItemsEditor.unitNetPriceAriaLabel, position)}
+                        value={line.unitNetPrice}
+                        onChange={(event) => updateLine(index, 'unitNetPrice', event.target.value)}
+                        placeholder="0,00"
+                        className={`${numericField} @[760px]:px-2.5`}
+                      />
+                    </td>
+                    <td className="px-1 py-2.5">
+                      <Select
+                        id={`invoice-line-${index}-desktop-vat-rate`}
+                        aria-label={labelFor(t.invoiceLineItemsEditor.vatRateAriaLabel, position)}
+                        value={line.vatRate}
+                        onChange={(event) => updateLine(index, 'vatRate', event.target.value)}
+                        className={`${tableField} appearance-none text-right [text-align-last:right] @[760px]:px-2 @[760px]:font-normal`}
+                      >
+                        {VAT_RATES.map((rate) => (
+                          <option key={rate} value={rate}>
+                            {VAT_RATE_LABELS[rate]}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
+                    <td className={`px-1 py-2.5 text-right font-semibold tabular-nums ${gross === 0 ? 'text-muted' : 'text-foreground'}`}>
+                      {gross === 0 ? '0,00' : formatMoney(gross)}
+                    </td>
+                    <td className="py-2.5 pl-1 pr-[18px]">
+                      {lines.length > 1 ? (
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t.invoiceLineItemsEditor.removeLineAriaLabel}
+                          aria-label={t.invoiceLineItemsEditor.removeLineAriaLabel(position)}
                           onClick={() => removeLine(index)}
-                          className="min-w-11 p-0 text-muted hover:bg-error hover:text-error-ink"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-control text-muted transition hover:bg-error hover:text-error-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M18 6L6 18M6 6l12 12" />
                           </svg>
-                        </Button>
+                        </button>
                       ) : null}
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
+                  {hasCatalogue ? (
+                    <tr>
+                      <td colSpan={8} className="p-0">
+                        <div id={`invoice-line-${index}-catalogue-panel`} />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               );
             })}
           </tbody>
         </table>
-        <Button type="button" variant="secondary" size="sm" onClick={addLine} className="mt-3">
-          {t.invoiceLineItemsEditor.addLineButton}
-        </Button>
       </div>
 
-      {/* Mobile cards */}
-      <div className="grid gap-4 xl:hidden">
+      {/* Card layout */}
+      <div className="grid gap-3 p-3 @[760px]:hidden">
         {lines.map((line, index) => {
+          const position = index + 1;
           const { net, vat, gross } = calcLine(line);
           return (
-            <Surface key={index} tone="inset" className="space-y-4 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
-                  {t.invoiceLineItemsEditor.positionLabel(index + 1)}
-                </p>
+            <div key={index} className="space-y-3 rounded-inset border border-outline bg-surface-raised p-[13px]">
+              <div className="flex items-center justify-between gap-3">
+                <p className={eyebrow}>{t.invoiceLineItemsEditor.positionLabel(position)}</p>
                 {lines.length > 1 ? (
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    className="text-error-ink hover:bg-error"
+                    aria-label={t.invoiceLineItemsEditor.removeLineAriaLabel(position)}
                     onClick={() => removeLine(index)}
+                    className="-my-2 inline-flex min-h-11 items-center rounded-control px-2 text-[13px] font-medium text-error-ink transition hover:bg-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error-ink"
                   >
                     {t.invoiceLineItemsEditor.removeButton}
-                  </Button>
+                  </button>
                 ) : null}
               </div>
 
-              <div className="grid gap-4">
-                <FormField label={t.invoiceLineItemsEditor.nameFieldLabel} required>
-                  <CatalogueItemPicker
-                    serviceTemplates={serviceTemplates}
-                    contractorRates={contractorRates}
-                    contractorId={contractorId}
-                    value={line.name}
-                    onNameChange={(name) => updateLine(index, 'name', name)}
-                    onTemplateSelect={(templateId) => applyTemplate(templateId, index)}
-                    ariaLabel={t.invoiceLineItemsEditor.itemNameAriaLabel}
-                    placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
+              <div className="flex flex-col gap-[5px]">
+                <label htmlFor={`invoice-line-${index}-mobile-name`} className="text-xs text-muted">{t.invoiceLineItemsEditor.nameFieldLabel}</label>
+                <CatalogueItemPicker
+                  id={`invoice-line-${index}-mobile-name`}
+                  serviceTemplates={serviceTemplates}
+                  contractorRates={contractorRates}
+                  contractorId={contractorId}
+                  value={line.name}
+                  onNameChange={(name) => updateLine(index, 'name', name)}
+                  onTemplateSelect={(templateId) => applyTemplate(templateId, index)}
+                  ariaLabel={labelFor(t.invoiceLineItemsEditor.itemNameAriaLabel, position)}
+                  placeholder={t.invoiceLineItemsEditor.itemNamePlaceholder}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-[5px]">
+                  <label htmlFor={`invoice-line-${index}-mobile-unit`} className="text-xs text-muted">{t.invoiceLineItemsEditor.unitFieldLabel}</label>
+                  <Input
+                    id={`invoice-line-${index}-mobile-unit`}
+                    type="text"
+                    aria-label={labelFor(t.invoiceLineItemsEditor.unitAriaLabel, position)}
+                    value={line.unit}
+                    onChange={(event) => updateLine(index, 'unit', event.target.value)}
                   />
-                </FormField>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label={t.invoiceLineItemsEditor.unitFieldLabel}>
-                     <Input
-                       id={`invoice-line-${index}-mobile-unit`}
-                       type="text"
-                      aria-label={t.invoiceLineItemsEditor.unitAriaLabel}
-                      value={line.unit}
-                      onChange={(e) => updateLine(index, 'unit', e.target.value)}
-                    />
-                  </FormField>
-                  <FormField label={t.invoiceLineItemsEditor.quantityFieldLabel}>
-                     <Input
-                       id={`invoice-line-${index}-mobile-quantity`}
-                       type="text"
-                      inputMode="decimal"
-                      aria-label={t.invoiceLineItemsEditor.quantityAriaLabel}
-                      value={line.quantity}
-                      onChange={(e) => updateLine(index, 'quantity', e.target.value)}
-                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </FormField>
-                  <FormField label={t.invoiceLineItemsEditor.unitNetPriceFieldLabel} required>
-                     <Input
-                       id={`invoice-line-${index}-mobile-unit-net-price`}
-                       type="text"
-                      inputMode="decimal"
-                      aria-label={t.invoiceLineItemsEditor.unitNetPriceAriaLabel}
-                      value={line.unitNetPrice}
-                      onChange={(e) => updateLine(index, 'unitNetPrice', e.target.value)}
-                      placeholder="0,00"
-                      className="text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </FormField>
-                  <FormField label={t.invoiceLineItemsEditor.vatRateFieldLabel}>
-                     <Select
-                       id={`invoice-line-${index}-mobile-vat-rate`}
-                       aria-label={t.invoiceLineItemsEditor.vatRateAriaLabel}
-                      value={line.vatRate}
-                      onChange={(e) => updateLine(index, 'vatRate', e.target.value)}
-                    >
-                      {VAT_RATES.map((rate) => (
-                        <option key={rate} value={rate}>
-                          {VAT_RATE_LABELS[rate]}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormField>
                 </div>
-
-                <div className="grid gap-3 rounded-card bg-surface-raised p-4 sm:grid-cols-3">
-                  <MobileTotalItem label={t.invoiceDetail.metrics.net} value={formatMoney(net)} />
-                  <MobileTotalItem label={t.invoiceDetail.metrics.vat} value={formatMoney(vat)} />
-                  <MobileTotalItem label={t.invoiceDetail.metrics.gross} value={formatMoney(gross)} bold />
+                <div className="flex flex-col gap-[5px]">
+                  <label htmlFor={`invoice-line-${index}-mobile-quantity`} className="text-xs text-muted">{t.invoiceLineItemsEditor.quantityFieldLabel}</label>
+                  <Input
+                    id={`invoice-line-${index}-mobile-quantity`}
+                    type="text"
+                    inputMode="decimal"
+                    aria-label={labelFor(t.invoiceLineItemsEditor.quantityAriaLabel, position)}
+                    value={line.quantity}
+                    onChange={(event) => updateLine(index, 'quantity', event.target.value)}
+                    className="text-right tabular-nums"
+                  />
+                </div>
+                <div className="flex flex-col gap-[5px]">
+                  <label htmlFor={`invoice-line-${index}-mobile-unit-net-price`} className="text-xs text-muted">{t.invoiceLineItemsEditor.unitNetPriceFieldLabel}</label>
+                  <Input
+                    id={`invoice-line-${index}-mobile-unit-net-price`}
+                    type="text"
+                    inputMode="decimal"
+                    aria-label={labelFor(t.invoiceLineItemsEditor.unitNetPriceAriaLabel, position)}
+                    value={line.unitNetPrice}
+                    onChange={(event) => updateLine(index, 'unitNetPrice', event.target.value)}
+                    placeholder="0,00"
+                    className="text-right tabular-nums"
+                  />
+                </div>
+                <div className="flex flex-col gap-[5px]">
+                  <label htmlFor={`invoice-line-${index}-mobile-vat-rate`} className="text-xs text-muted">{t.invoiceLineItemsEditor.vatRateFieldLabel}</label>
+                  <Select
+                    id={`invoice-line-${index}-mobile-vat-rate`}
+                    aria-label={labelFor(t.invoiceLineItemsEditor.vatRateAriaLabel, position)}
+                    value={line.vatRate}
+                    onChange={(event) => updateLine(index, 'vatRate', event.target.value)}
+                  >
+                    {VAT_RATES.map((rate) => (
+                      <option key={rate} value={rate}>
+                        {VAT_RATE_LABELS[rate]}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
-            </Surface>
+
+              <dl className="grid grid-cols-3 gap-2 border-t border-outline pt-3 text-right text-[12.5px]">
+                <div>
+                  <dt className={eyebrow}>{t.invoiceDetail.metrics.net}</dt>
+                  <dd className="tabular-nums text-foreground-secondary">{formatMoney(net)}</dd>
+                </div>
+                <div>
+                  <dt className={eyebrow}>{t.invoiceDetail.metrics.vat}</dt>
+                  <dd className="tabular-nums text-foreground-secondary">{formatMoney(vat)}</dd>
+                </div>
+                <div>
+                  <dt className={eyebrow}>{t.invoiceDetail.metrics.gross}</dt>
+                  <dd className="font-semibold tabular-nums text-foreground">{formatMoney(gross)}</dd>
+                </div>
+              </dl>
+            </div>
           );
         })}
-        <Button type="button" variant="secondary" size="sm" onClick={addLine}>
+        <button
+          type="button"
+          id="invoice-add-line-footer"
+          onClick={addLine}
+          className="min-h-12 w-full rounded-control border border-outline bg-secondary-surface text-sm font-semibold text-secondary-ink transition hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
           {t.invoiceLineItemsEditor.addLineButton}
-        </Button>
+        </button>
       </div>
-    </>
-  );
-}
 
-function MobileTotalItem({
-  label,
-  value,
-  bold = false,
-}: {
-  label: string;
-  value: string;
-  bold?: boolean;
-}) {
-  return (
-    <div className="text-right">
-      <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{label}</div>
-      <div className={bold ? 'mt-1 text-lg font-semibold tabular-nums text-foreground' : 'mt-1 text-sm font-medium tabular-nums text-foreground'}>
-        {value}
-      </div>
-    </div>
+      <dl className="flex flex-wrap justify-end gap-x-4 gap-y-2 rounded-b-card border-t border-outline bg-surface-muted px-[18px] py-3.5 @[760px]:gap-x-9">
+        <div className="text-right">
+          <dt className={eyebrow}>{t.invoiceDetail.metrics.net}</dt>
+          <dd className="text-base font-medium tabular-nums text-foreground">{formatMoney(totals.net)}</dd>
+        </div>
+        <div className="text-right">
+          <dt className={eyebrow}>{t.invoiceDetail.metrics.vat}</dt>
+          <dd className="text-base font-medium tabular-nums text-foreground">{formatMoney(totals.vat)}</dd>
+        </div>
+        <div className="text-right">
+          <dt className={eyebrow}>{t.invoiceDetail.metrics.gross}</dt>
+          <dd className="text-base font-semibold tabular-nums text-foreground">{formatMoney(totals.gross)}</dd>
+        </div>
+      </dl>
+    </Surface>
   );
 }

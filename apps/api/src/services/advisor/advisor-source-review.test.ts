@@ -133,10 +133,37 @@ describe('reviewAdvisorSourceCorpus()', () => {
     await expect(readFile(inputs.outputPath)).rejects.toThrow();
   });
 
+  it('retries a timed out model call once and counts both attempts', async () => {
+    const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildDeclineCase().build()] });
+    const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+    const normalResponse = vi.mocked(requestStructuredModelOutput).getMockImplementation() as never as typeof requestStructuredModelOutput;
+    vi.mocked(requestStructuredModelOutput).mockRejectedValueOnce(timeout);
+    vi.mocked(requestStructuredModelOutput).mockImplementation(normalResponse);
+
+    const report = await reviewAdvisorSourceCorpus({ ...inputs, environment, now });
+
+    expect(report.failure).toBeUndefined();
+    expect(report.passed).toBe(true);
+    expect(report.callCount).toBe(3);
+  });
+
+  it('fails after three attempts when every model call times out', async () => {
+    const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildAnswerCase().build()] });
+    vi.mocked(requestStructuredModelOutput).mockRejectedValue(Object.assign(new Error('This operation was aborted'), { name: 'TimeoutError' }));
+
+    const report = await reviewAdvisorSourceCorpus({ ...inputs, environment, now });
+
+    expect(report.passed).toBe(false);
+    expect(report.callCount).toBe(3);
+    expect(report.failure).toBe('This operation was aborted');
+  });
+
   it.each([
     ['a reviewer is also an answering model', { ADVISOR_REVIEW_ANSWER_MODELS: 'OPENAI:gpt-reviewer-1' }, 'ai:OLLAMA/drafter-1'],
     ['a reviewer drafted the corpus', {}, 'ai:ANTHROPIC/claude-reviewer-1'],
     ['both reviewers use the same provider', { ADVISOR_REVIEW_MODELS: 'OPENAI:gpt-reviewer-1,OPENAI:gpt-reviewer-2' }, 'human'],
+    ['two OpenRouter reviewers share a model vendor', { ADVISOR_REVIEW_MODELS: 'OPENROUTER:google/gemma-a:free,OPENROUTER:google/gemini-b' }, 'human'],
+    ['a reviewer shares the vendor of the drafting model', {}, 'ai:ANTHROPIC/claude-drafter-1'],
     ['a reviewer model is not pinned', { ADVISOR_REVIEW_MODELS: 'ANTHROPIC:claude-latest,OPENAI:gpt-reviewer-1' }, 'human'],
   ])('refuses before any fetch or model call when %s', async (_name, environmentOverrides, draftedBy) => {
     const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildAnswerCase().build()], draftedBy });
@@ -144,6 +171,14 @@ describe('reviewAdvisorSourceCorpus()', () => {
     await expect(reviewAdvisorSourceCorpus({ ...inputs, environment: { ...environment, ...environmentOverrides }, now })).rejects.toThrow(AdvisorSourceReviewConfigurationError);
     expect(fetch).not.toHaveBeenCalled();
     expect(requestStructuredModelOutput).not.toHaveBeenCalled();
+  });
+
+  it('accepts two OpenRouter reviewers from different model vendors', async () => {
+    const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildAnswerCase().build(), buildDeclineCase().build(), buildInsufficientCase().build()], draftedBy: 'human' });
+
+    const report = await reviewAdvisorSourceCorpus({ ...inputs, environment: { ...environment, ADVISOR_REVIEW_MODELS: 'OPENROUTER:google/gemma-a:free,OPENROUTER:nvidia/nemotron-b:free' }, now });
+
+    expect(report.reviewers).toEqual(['ai:OPENROUTER/google/gemma-a:free', 'ai:OPENROUTER/nvidia/nemotron-b:free']);
   });
 
   it('refuses an output path inside the repository', async () => {

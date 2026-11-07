@@ -86,8 +86,8 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
           activeKsefEnvironment={session.activeKsefEnvironment}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[226px_minmax(0,1fr)] xl:has-[[data-advisor-docked]]:grid-cols-[226px_minmax(0,1fr)_400px] lg:overflow-hidden">
-          <aside className="hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-[22px] lg:overflow-y-auto lg:border-r lg:border-outline lg:bg-chrome lg:p-[18px_14px]">
+        <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[226px_minmax(0,1fr)] xl:has-[[data-advisor-docked]]:grid-cols-[226px_minmax(0,1fr)_400px] lg:has-[[data-invoice-focus-layout]]:grid-cols-[minmax(0,1fr)] xl:has-[[data-invoice-focus-layout]]:has-[[data-advisor-docked]]:grid-cols-[minmax(0,1fr)_400px] lg:[&:has([data-invoice-focus-layout])>[data-dashboard-rail]]:hidden lg:overflow-hidden">
+          <aside data-dashboard-rail className="hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-[22px] lg:overflow-y-auto lg:border-r lg:border-outline lg:bg-chrome lg:p-[18px_14px]">
             <nav aria-label="Nawigacja dashboardu" className="flex flex-col gap-0.5">
               <DashboardNavigation items={items} />
             </nav>

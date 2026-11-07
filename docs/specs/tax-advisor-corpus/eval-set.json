@@ -342,12 +342,12 @@
       "mustInclude": [
         "obowiązek KSeF nie dotyczy faktur na rzecz osoby fizycznej nieprowadzącej działalności (art. 106ga ust. 2 pkt 4)",
         "wystawia się wtedy fakturę elektroniczną lub papierową; można też wystawić ustrukturyzowaną",
-        "faktura dla konsumenta jest na jego żądanie w ciągu 3 miesięcy od końca miesiąca sprzedaży (art. 106b ust. 3)"
+        "na żądanie nabywcy podatnik wystawia fakturę (art. 106b ust. 3); 3-miesięczny termin zgłoszenia żądania z ust. 3 pkt 2 dotyczy tylko sprzedaży zwolnionej z ust. 2"
       ],
       "mustAskAbout": [],
       "forbiddenClaims": [
         "Faktura dla konsumenta zawsze musi być w KSeF",
-        "Konsument może żądać faktury bez ograniczenia czasowego"
+        "3-miesięczny termin żądania faktury dotyczy każdej sprzedaży (dotyczy tylko sprzedaży zwolnionej z art. 106b ust. 2)"
       ],
       "declineReason": null,
       "reviewerNote": ""
@@ -757,7 +757,7 @@
       ],
       "mustInclude": [
         "na rzecz podatnika fakturę do paragonu wystawia się tylko, jeśli paragon zawiera jego numer identyfikacyjny (art. 106b ust. 5)",
-        "na rzecz osoby fizycznej nieprowadzącej działalności faktura na żądanie w ciągu 3 miesięcy (art. 106b ust. 3)",
+        "na rzecz osoby fizycznej nieprowadzącej działalności faktura na jej żądanie (art. 106b ust. 3); 3-miesięczny termin z ust. 3 pkt 2 dotyczy tylko sprzedaży zwolnionej z ust. 2",
         "kwestie KSeF: art. 145n dla kas rejestrujących w 2026"
       ],
       "mustAskAbout": [],

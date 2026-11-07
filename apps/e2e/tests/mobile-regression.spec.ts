@@ -244,7 +244,7 @@ test.describe('mobile responsive route flows', () => {
 
     await page.goto('/dashboard/invoices/new');
     await expect(page.getByRole('heading', { name: 'Nowa faktura' })).toBeVisible();
-    await expect(page.getByLabel('Kontrahent', { exact: false })).toBeVisible();
+    await expect(page.getByLabel('Nabywca', { exact: true })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       viewportWidth: document.documentElement.clientWidth,
       documentScrollWidth: document.documentElement.scrollWidth,

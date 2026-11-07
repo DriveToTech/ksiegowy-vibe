@@ -44,6 +44,8 @@ export interface CompanyLookupResult {
   addressLine1: string;
   addressLine2: string | null;
   vatStatus: 'ACTIVE' | 'EXEMPT' | 'NO_VAT';
+  checkedAt: string;
+  requestId: string | null;
 }
 
 export interface Contractor {
@@ -121,6 +123,14 @@ export interface InvoiceSummary {
   createdAt: string;
   updatedAt: string;
   contractor?: { id: string; name: string; nip: string | null } | null;
+}
+
+export interface InvoiceListResponse {
+  data: InvoiceSummary[];
+  total: number;
+  totalGross: string;
+  page: number;
+  limit: number;
 }
 
 export interface DashboardSummary {

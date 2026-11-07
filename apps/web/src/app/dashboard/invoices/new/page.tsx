@@ -1,11 +1,15 @@
+import Link from 'next/link';
 import { getContractors, getServiceTemplates, getContractorServiceRates } from '../../../../lib/api';
 import type { ContractorServiceRate } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
 import { EmptyState } from '../../../../components/molecules/EmptyState';
 import { PageHeader } from '../../../../components/molecules/PageHeader';
+import { emptyLine } from '../../../../lib/invoice-line-calculation';
 import { requireAuthSession } from '../../../../lib/auth';
 import { t } from '../../../../lib/translations';
-import NewInvoiceForm from './NewInvoiceForm';
+import InvoiceDraftForm from '../InvoiceDraftForm';
+
+const backLinkClassName = 'hidden min-h-11 items-center text-[13px] text-muted transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:inline-flex';
 
 export default async function NewInvoicePage() {
   const session = await requireAuthSession('/dashboard/invoices/new');
@@ -35,8 +39,11 @@ export default async function NewInvoicePage() {
     return <EmptyState title={t.newInvoice.noCompanyTitle} description={t.newInvoice.noCompanyDescription} />;
   }
 
-  const company = session.companies.find((candidateCompany) => candidateCompany.id === companyId);
-  const initialDate = new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const dueDay = new Date(today);
+  dueDay.setUTCDate(dueDay.getUTCDate() + 14);
+  const initialDate = today.toISOString().slice(0, 10);
+  const dueDate = dueDay.toISOString().slice(0, 10);
 
   const [contractors, serviceTemplates] = await Promise.all([
     getContractors(companyId, activeEnvironment),
@@ -71,16 +78,27 @@ export default async function NewInvoicePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow={t.newInvoice.pageEyebrow}
-        title={t.newInvoice.pageTitle}
-        description={t.newInvoice.pageDescription}
-      />
-      <NewInvoiceForm
+      <div>
+        <Link href="/dashboard/invoices" className={backLinkClassName}>{t.newInvoice.backToInvoicesLink}</Link>
+        <PageHeader
+          eyebrow={t.newInvoice.pageEyebrow}
+          title={t.newInvoice.pageTitle}
+          description={t.newInvoice.pageDescription}
+          descriptionClassName="text-[13px] sm:text-[13px]"
+        />
+      </div>
+      <InvoiceDraftForm
         companyId={companyId}
         activeEnvironment={activeEnvironment}
-        initialDate={initialDate}
-        defaultBankAccount={company?.bankAccount ?? null}
+        initialDraft={{
+          contractorId: contractors[0].id,
+          issueDate: initialDate,
+          saleDate: '',
+          paymentDueDate: dueDate,
+          paymentMethod: 'BANK_TRANSFER',
+          lines: [emptyLine()],
+          notes: '',
+        }}
         contractors={contractors}
         serviceTemplates={serviceTemplates}
         contractorRates={allRates}
