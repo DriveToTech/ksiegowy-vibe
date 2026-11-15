@@ -12,7 +12,7 @@ concurrency:
 jobs:
   typecheck:
     name: Typecheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +36,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -57,7 +57,7 @@ jobs:
 
   test-unit:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -95,7 +95,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [typecheck, lint]
     steps:
       - uses: actions/checkout@v4
@@ -120,7 +120,7 @@ jobs:
 
   container-build:
     name: Build Docker images (${{ matrix.name }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [typecheck, lint]
     strategy:
       fail-fast: false
@@ -213,6 +213,7 @@ jobs:
             --env DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ksiegowy_smoke \
             --env JWT_SECRET=ci-smoke-access-secret \
             --env JWT_REFRESH_SECRET=ci-smoke-refresh-secret \
+            --env CORS_ORIGIN=http://localhost:3000 \
             "$application_image_name"
 
           for attempt in $(seq 1 30); do
@@ -236,7 +237,7 @@ jobs:
 
   test-integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build]
     services:
       postgres:
@@ -285,7 +286,7 @@ jobs:
 
   test-e2e:
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build]
     steps:
       - uses: actions/checkout@v4
