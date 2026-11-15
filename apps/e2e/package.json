@@ -6,6 +6,7 @@
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
+    "visual": "bash scripts/run-visual-regression.sh",
     "report": "playwright show-report"
   },
   "devDependencies": {

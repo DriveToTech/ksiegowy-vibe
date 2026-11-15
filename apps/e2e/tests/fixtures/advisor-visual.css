@@ -1,3 +1,4 @@
 /* Applied only while an advisor visual is captured. The Next dev badge is not part of the product UI. */
 * { transition: none !important; }
 nextjs-portal { display: none !important; }
+[class*='h-[3px]'] > div { width: 68% !important; }

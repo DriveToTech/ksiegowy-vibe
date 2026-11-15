@@ -647,17 +647,11 @@ pnpm --filter @ksiegowy/e2e test:debug
 pnpm --filter @ksiegowy/e2e report
 ```
 
-Visual dashboard baselines must be generated and verified with the exact
-Playwright dependency and matching Linux container image (`1.59.1`). Setting
-`VISUAL_REGRESSION=true` enables the `chromium-linux` project; the default
-project does not run the visual tests:
+Visual baselines (dashboard, invoices, advisor) are generated and verified in the pinned Playwright `1.59.1` Linux container with one command. It bind-mounts the repository, keeps Linux `node_modules` and the production web build in named Docker volumes (host files stay untouched), and takes about 2 minutes:
 
 ```bash
-# Regenerate the three dashboard baselines
-docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:' --update-snapshots"
-
-# Verify without changing baselines
-docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:'"
+pnpm --filter @ksiegowy/e2e visual                                           # verify
+pnpm --filter @ksiegowy/e2e visual -- --update tests/advisor-visual.spec.ts  # regenerate one spec
 ```
 
 Do not use a floating Playwright package range or a different container image
