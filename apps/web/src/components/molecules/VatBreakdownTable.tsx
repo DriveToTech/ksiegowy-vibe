@@ -59,11 +59,11 @@ export function VatBreakdownTable({ lines, totals }: VatBreakdownTableProps) {
     <div>
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-            <th className="pb-3 text-left">Stawka VAT</th>
-            <th className="pb-3 text-right">Suma netto</th>
-            <th className="pb-3 text-right">Suma VAT</th>
-            <th className="pb-3 text-right">Suma brutto</th>
+          <tr className="whitespace-nowrap font-mono text-[10px] font-normal uppercase tracking-[0.14em] text-muted">
+            <th className="pb-3 font-normal text-left">Stawka VAT</th>
+            <th className="pb-3 font-normal text-right">Suma netto</th>
+            <th className="pb-3 font-normal text-right">Suma VAT</th>
+            <th className="pb-3 font-normal text-right">Suma brutto</th>
           </tr>
         </thead>
         <tbody>

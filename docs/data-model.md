@@ -878,3 +878,23 @@ When the selected environment has no token configured:
 - The shell displays a persistent environment badge (`TEST` or `PRODUCTION`) visible without opening settings.
 - `PRODUCTION` actions require explicit confirmation with stronger language.
 - The environment switcher persists the user's selection synchronously in the company-scoped `active_ksef_environment_{companyId}` cookie with a 30-day max age, `path=/`, and `SameSite=Lax`; it survives page refreshes without a server persistence endpoint.
+
+## Advisor ownership and retention
+
+Migration `20260919080000_tax_advisor` adds `CompanyAdvisorPolicy`, `AdvisorConnection`, `AdvisorConversation`, `AdvisorTurn` and `AdvisorConnectorGrant`. Policy is company-owned; credentials, history and connector grants are membership-owned and cascade on membership deletion. Provider secrets use the existing encryption mechanism. Turns have a unique `(conversationId, requestId)` and an atomic `startedAt` claim. Conversations pin provider, model and environment. Grants bind issuer/client/environment and expire independently; all grants are read-only. No tax-profile fields are added to Company.
+
+```mermaid
+erDiagram
+  Company ||--o| CompanyAdvisorPolicy : controls
+  CompanyMembership ||--o{ AdvisorConnection : owns
+  CompanyMembership ||--o{ AdvisorConversation : owns
+  CompanyMembership ||--o{ AdvisorConnectorGrant : authorises
+  AdvisorConversation ||--o{ AdvisorTurn : contains
+  CompanyMembership ||--o{ AdvisorInsightDismissal : dismisses
+```
+
+History expires 1–30 days after conversation creation; lowering policy retention clamps existing expiry. Expired history is hidden immediately and removed by hourly cleanup. Connector grants expire within 30 days. Migration `20260930090000_advisor_connector_grant_lifecycle` adds nullable `AdvisorConnectorGrant.lastUsedAt` (updated on each authorised MCP tool request) and `revokedAt` (set on revocation instead of deleting the row), plus an index on `revokedAt`. Revoked and expired grants are retained for 30 days (from `revokedAt`, or `expiresAt` when never revoked) and then removed by hourly cleanup; they never authorise requests. See [advisor specification](specs/tax-advisor.md) for scope and token rules.
+
+Migration `20261001090000_advisor_model_preview_usage` adds `AdvisorModelPreviewUsage` (`id`, `userId`, `companyId`, `day` as UTC `YYYY-MM-DD`, `count`), unique on `(userId, companyId, day)` and indexed by `(companyId, day)` and `day`. It is a counter of model-discovery attempts (30 per user and 100 per company per day) with no credentials and no foreign keys; rows older than 7 days are removed by the hourly retention cron.
+
+Migration `20261002100000_advisor_insight_dismissal` adds `AdvisorInsightDismissal`: one dismissal per `(membershipId, environment, insightKey, version)`, timestamped and cascaded when the membership is deleted. A membership binds the user to the company; TEST and PRODUCTION dismissals remain independent. Incrementing an insight version allows revised advice to appear again without removing older dismissal records.

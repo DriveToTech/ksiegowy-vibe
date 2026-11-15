@@ -6,7 +6,7 @@ test('desktop sidebar contains navigation only and one active page', async ({ au
   const sidebar = page.getByRole('complementary');
   const dashboardNavigation = sidebar.getByRole('navigation', { name: 'Nawigacja dashboardu', exact: true });
 
-  await expect(dashboardNavigation.getByRole('link')).toHaveCount(6);
+  await expect(dashboardNavigation.getByRole('link')).toHaveCount(7);
   await expect(dashboardNavigation.getByRole('link', { name: 'Przegląd' })).toHaveAttribute('aria-current', 'page');
   await expect(dashboardNavigation).toHaveClass(/flex-col/);
   const activeNavigationContrasts = await dashboardNavigation.getByRole('link', { name: 'Przegląd' }).evaluate((element) => {

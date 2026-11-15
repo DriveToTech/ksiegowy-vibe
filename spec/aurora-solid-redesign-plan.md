@@ -17,6 +17,7 @@
 - Branch: `design/improvements`
 - Source design details are captured in the token specification and phase descriptions below.
 - Supersedes the visual layer of the prior "Aeon Ethereal" redesign (`spec/stitch-ui-implementation-plan.md`, `spec/ui/00-06`), which stays as historical record. Component architecture (atoms/molecules/organisms/templates) from that effort is kept, not rebuilt.
+- Sections **Objective** through **Phase 4 — Onboarding Wizard Design** are a dated pre-implementation plan; their "current" stack, missing routes, and endpoint assertions are not the current code inventory. Use the completed Status and the Production alignment audit below for current decisions.
 
 ## Objective
 Replace the current "Aeon Ethereal" glass visual system in `apps/web` with "Aurora Solid": opaque layered surfaces, no `blur()`/`backdrop-filter`, one shadow per frame, Sora + IBM Plex Mono typography. This is a full redesign, not a retint — where a mock screen's layout (grid structure, chrome bar, rail, split panels, steppers, KPI cells, etc.) differs from what exists today, rebuild the layout to match, not just the colors. Apply it to every existing screen, and add a first-run onboarding wizard that does not exist today. Bank reconciliation and Reports & JPK export are documented as backlog, not built in this plan (see Backlog).
@@ -153,8 +154,8 @@ Out of scope (see Backlog):
 | 4 | frontend-architect + backend-architect (consult) → frontend-engineer → e2e-test-engineer |
 | 5 | frontend-architect/principal-engineer review → e2e-test-engineer |
 
-## Next Step
-This document is a plan only — no implementation has started. On approval, kick off Phase 0 by delegating to **ux-ui-architect** for the token spec and light-theme derivation.
+## Historical kickoff instruction
+The Phase 0 kickoff and migration instructions above are historical; the six completed phases in Status are the implemented baseline. Current production-alignment work is tracked in the addendum below.
 
 ---
 
@@ -290,3 +291,78 @@ Mock screen 02's step 2 includes an "Invoice numbering" block (pattern / reset /
   4. Step 4 renders a copyable invite link (no email is sent — §5).
 - `pnpm --filter @ksiegowy/web typecheck && build`.
 - Both themes checked on the new screens — the wizard is the first surface built after the Phase 1 token work with no Phase 2/3 precedent to inherit from.
+
+## Production alignment audit — 2026-09-30
+
+**Source boundary.** Stitch MCP access to project `12153636040275536997` was restored on retry. The project is titled **Ksiegowy Vibe Dashboard**, updated 2026-09-30, and contains current screen screenshots/HTML plus imported text references. The local `docs/redesign/kv-redesign-platform*.html` exports remain historical and must not substitute for the live screens. The project-level theme describes a light “KSeF Modern Ledger” (Plus Jakarta Sans/Inter/JetBrains Mono, 260px rail), while the inspected dashboard screenshot renders Aurora-like chrome matching the current app; do not globally retheme from project metadata without reconciling each screen. Illustrative balances, filing claims, deadlines, and bank-matched OCR in design assets are not live product data.
+
+### Existing-view mapping and decisions
+
+| Historical mock | Current surface | Alignment decision |
+|---|---|---|
+| 01 Sign in | `/login` | Split Aurora frame exists. Keep Google-only auth honest; marketing copy corrected for token-only KSeF, private license, retry, OCR without bank matching. |
+| 02 Onboarding | `/onboarding/{company,ksef,team}` | Existing step rail and forms. Fixed parent-layout redirect that prevented the optional team step after token setup. Invite acceptance link remains nonfunctional; **release blocker**, not a layout-only task. |
+| 03 Overview | `/dashboard` | KPI/chart/attention implemented. Check mobile chart stats and alert order in a rendered viewport; do not manufacture offline24/payment figures. |
+| 04 Outgoing invoices | `/dashboard/invoices` | Responsive table/cards exist. Check status-tab overflow at 320–430px; bulk actions/search/payment status need actual API contracts. |
+| 05 New invoice | `/dashboard/invoices/new` and `/dashboard/invoices/[id]/edit` | Keep both existing forms; verify intermediate 1024–1279px editor width with 226px rail and 340px summary aside, plus mobile submit reachability. |
+| 06 Invoice detail | `/dashboard/invoices/[id]` | Clearance/detail exists; validate permitted actions and mobile ordering without adding unsupported payment actions. |
+| 07 Incoming | `/dashboard/incoming` | Responsive list exists. Page-scoped processing/confirmed counts must not be presented beside the total as all-record aggregates. |
+| 08 OCR inbox | `/dashboard/incoming/[id]` | Desktop queue/detail split exists. Check mobile ordering: current queue precedes preview and review form. |
+| 09 Contractors | `/dashboard/contractors` (+ existing create/edit) | List/detail exists. Check fixed 372px detail and list widths at 1024–1279px; no fabricated turnover/payment KPIs. |
+| 10 Reports & JPK | `/dashboard/compliance` | Existing route is a **placeholder**. Keep unavailable labeling and statutory deadline informational; no filing/export claim without implementation and tax review. |
+| 11 Bank reconciliation | none | Historical concept only; no backend or existing view to edit. No route or fake balance under this scope. |
+| 12 Settings | `/dashboard/settings` | Existing subnavigation; evaluate refresh/deep-link behavior and keyboard focus on section change. No API/webhooks claims. |
+| 13 Products & services | `/dashboard/settings/service-catalog` | Existing split list/detail; verify breakpoint against available main width, not mock-only item fields. |
+| 14 Mobile | responsive existing routes | Verify 320/360/390/430px, safe-area, focus, scroll and both themes; native phone status bar in mock is not app chrome. |
+| 15–19 Advisor | `/dashboard/advisor`, existing panel/sheet/answer components | Separate tax-advisor rollout: do not infer a production-ready tax corpus, subscription OAuth or enabled providers from layouts. |
+| 20–37 Personal finance | no personal ledger routes | Separate product/domain not in the accounting app; do not create personal views or a fake mode switch. |
+
+### Priority and acceptance
+
+1. **P0 — truthful, reachable production journeys.** Keep the onboarding `/team` step reachable after KSeF setup (existing-view fix applied); ensure completed `/onboarding` goes to dashboard and `/team` without a token returns to KSeF. An invite generated by the existing team/members UI currently points at `/invite/{token}` with no accepting page: either a separately approved accept flow must ship before invitations are offered to real users or invitation actions must be withheld. Do not call the displayed URL a working invite. The login copy must describe shipped functionality and the private license. The JPK widget is a calendar reminder, not a filing confirmation.
+2. **P1 — responsive correctness in existing views.** Inspect the outgoing status strip, new/edit invoice editor and summary, OCR review queue, contractors/catalog split panes, dashboard chart, and invoice detail actions at 320/360/390/430/1024/1280/1440px. Adjust existing breakpoints/order only where a measured overflow, buried action or unreadable form occurs. Validate light and dark surfaces, WCAG AA text and meaningful controls, focus restoration, keyboard/screen reader order, loading/empty/error states; never copy low-contrast text from the dark mock.
+3. **P2 — navigation and data meaning.** Remove inactive affordances (desktop search-shaped placeholder removed), label incoming page counts by their actual scope, preserve settings section on refresh where feasible, and clearly identify unavailable compliance actions. Do not add new views, mock search, fake report numbers, or backend-less personal/bank screens.
+4. **Release gate — independent of visual parity.** Staging migration, isolated restore drill, authorized KSeF TEST and controlled PRODUCTION flows, invitation acceptance, mobile Safari keyboard/safe-area checks, dependency/image/CI security gates, and advisor reviewed sources/provider/OAuth validation (if enabled) require their own evidence. Historical synthetic E2E screenshots and completed redesign phases are not release sign-off.
+
+Live Stitch review is now possible. The live screen inventory and route-specific differences are recorded below; keep screen screenshot/HTML evidence separate from the historical Aurora exports, edit only matching existing views, and never turn missing backend domains into client-only layouts.
+
+### Live Stitch inventory and route fit
+
+MCP `list_screens` returned **30 rendered desktop screens** and **5 imported text/reference records** (README, mobile remediation, redesign plan, screenshots listing, and an external artifact). All 30 screen IDs below were inspected via `get_screen` and their screenshot URLs. Screenshot variants labeled **1:1** mostly reproduce existing Aurora screens; unqualified variants are sometimes *concepts* depicting capabilities this product does not yet have. No live mobile screen was listed, so mobile parity remains a rendered-app acceptance task, not a Stitch-approved design. Example names, tax calculations, deadlines, account values, and credential strings are fixture content.
+
+| Stitch screen ID | Design / existing route | Finding |
+|---|---|---|
+| `712611f003ef49cda56ba5460aea31c7` | Landing 1:1 → `/` | Existing entry and sign-in CTA fit; retain signed-in redirect. |
+| `e58bfa48393d46a78402d6335f058203` | Login 1:1 → `/login` | Split layout fits; mock's AGPL, offline24 and bank-match promises are false for current product, so keep corrected copy. |
+| `cf1e1eb28e22494d8ab580614f6dd224` | Dashboard → `/dashboard` | KPI/chart/alerts fit; mock header contains inert search and synthetic VAT-to-pay figures. Current real advisor and data-backed metrics take precedence. |
+| `722deff75b1b4454b7e579d360883b1d` | Sales list → `/dashboard/invoices` | Current tabs, paginated table/cards fit; mock search and payment chips cannot be inferred from list API. |
+| `e6cfdc2f48ab4ee6b7e0687af372fc3c` | New invoice concept → `/dashboard/invoices/new` | Numbered preflight and direct send CTA conflict with safe draft→issue→KSeF process; do not shortcut legal filing. |
+| `24b7b129074a4f43af879b49d7028707` | New invoice 1:1 → same route | Existing two-column form and draft action fit; sampled line/amount are illustrative. |
+| `1c7d81913a3745b58038ce4b722f172b` | Edit draft concept → `/dashboard/invoices/[id]/edit` | Delete/send shortcuts are not the current guarded edit contract; keep validation and draft-only access. |
+| `7b9b7dd11ffc4160aca4a330d78c635f` | Edit draft 1:1 → same route | Existing buyer/items/notes/totals and save/cancel fit. |
+| `078e816ded134574a8e356a441126892` | Accepted invoice concept → `/dashboard/invoices/[id]` | Historical timeline/audit events are not available from current read model; never invent timestamps. |
+| `b45fefcc824c4c2083fb279a8195ec4e` | Invoice detail 1:1 → same route | Clearance, totals and conditional actions fit; data and credentials govern what appears. |
+| `5a73eef252e746ecbcff6011b91a8ae1` | Purchase register concept → `/dashboard/incoming` | VAT/category/due KPIs, search and statuses require backend aggregation/filter contracts. |
+| `aa446e2b61754d26969da26494387a9e` | Incoming 1:1 → same route | Current paginated list fits; processing/confirmed cards now say “this page”, and an out-of-range page redirects to the last page. |
+| `6161179fa0a9480792b2d540c10001e9` | OCR review 1:1 → `/dashboard/incoming/[id]` | Existing queue/document/review split fits on desktop; check mobile ordering and deep-linked item outside first 20. |
+| `b69f93c5360c4c22b28aedd2a1c6c482` | OCR enhanced concept → same route | VIES, per-field OCR confidence, cost-center selectors and auto-booking are unsupported; keep review/confirm semantics. |
+| `69d69f0699ff4b5db82ee125d89926b7` | Contractors 1:1 → `/dashboard/contractors` | Existing list/detail/filters fit; check intermediate-width split. |
+| `6540e5cc2ff642d0ae26279ed0000d65` | Add contractor 1:1 → `/dashboard/contractors/new` | Form fits; direct VIEWER access previously exposed a submit that API rejects, now withheld on existing page. |
+| `778f755f7e884a12a3cd4ee8b048eb15` | Edit contractor 1:1 → `/dashboard/contractors/[id]/edit` | Existing role-gated form and service rates fit. |
+| `f83b03797f4d4caabb49f5f21026d6e3` | Reports/JPK mock → `/dashboard/compliance` | XML/download/submit and settlement proof are illustrative; current route is correctly unavailable; lorem-ipsum subtitle removed. |
+| `4fa5dff431ef4c5682485b105936ba04` | Company onboarding 1:1 → `/onboarding/company` | Existing step rail and lookup fit; sample prefilled company is not a default. |
+| `2451b4d30f5943b5b1b343554d075cf3` | KSeF onboarding 1:1 → `/onboarding/ksef` | TEST/PRODUCTION cards fit; credential remains masked and input empty by design. |
+| `3b36517b29ff4807a109efd10d750c5b` | Team onboarding 1:1 → `/onboarding/team` | Existing success link is not usable without invite-accept route; release blocker, not visual completion. |
+| `858c9894211f4acca4e2f06974161b99` | Company settings 1:1 → `/dashboard/settings` company section | Summary and form fit; sample organization is fixture. |
+| `649d3a5fb2ba4c8cb43e09c3637512d3` | KSeF settings 1:1 → same route, KSeF section | Default environment and token-status cards fit; selecting PRODUCTION does not imply a working credential. |
+| `3f00ab4d14df4bc1ab1ff7f9c3a69b29` | Numbering 1:1 → same route, numbering section | Presets, pattern, preview and reset fit; do not seed DEMO numbering. |
+| `caac9e87858e4ccd969ed435112b07d9` | Members 1:1 → same route, team section | Role/member list fits; invite action has same missing acceptance blocker. |
+| `cfdd271a32f441339039b48c10f378fb` | Backup 1:1 → same route, backup section | Status and policy view fits; screenshot's healthy Drive/database status is not operational proof. |
+| `f2a2cac12fad41ac8dd67b8ccdb5b507` | Products tab 1:1 → same route, products section | Link to existing catalogue fits; do not duplicate manager. |
+| `7eff7b8d190e4ef28afe982d461b1a0e` | Catalogue 1:1 → `/dashboard/settings/service-catalog` | Split/editor/filters fit; check 372px aside at 1024–1279px. |
+| `1437f63788f94b7aa17b358689bdca34` | AI advisor 1:1 → `/dashboard/advisor` and dock | Current conversation renders provider answers and available evidence; reviewed tax sources require separate deployment verification. Mock optimization/tax cards are illustrative, not sanctioned advice. |
+| `e0b9ef410f7248ca90b491ec456c16f0` | AI advisor concept → same surfaces | Proposed side alerts, tax classification and sample conversation lack a live read model; do not generate a fake second dashboard. |
+
+**Resolved against current code:** the `1:1` screens mostly validate the existing Aurora layout rather than require a new theme. The original historical 14-screen/37-screen HTML exports are not this live project inventory. Stitch's generic 260px/Plus Jakarta theme conflicts with its individual Aurora-like screenshots; preserve implemented 226px/Sora chrome until a coherent screen-level replacement is actually designed. Desktop mock screens do not establish mobile correctness.
+
+**Remaining production work, existing views only:** P0—do not offer unusable invitations pending a separately scoped acceptance journey; keep compliance and advisor legal claims honest. P1—measure 320/360/390/430/1024/1280/1440px in light/dark across existing forms, OCR queue and contractors/catalog panes; correct only observed overflow/order/accessibility defects. P2—address OCR deep-link queue coherence and settings section refresh/focus if they affect the actual user flow. No new page, mock filter, export, or tax calculation follows from a screenshot alone.

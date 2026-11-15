@@ -19,3 +19,10 @@ test('incoming invoices page opens KSeF import modal', async ({ authenticatedPag
   await expect(page.getByLabel('Data do')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Importuj', exact: true })).toBeVisible();
 });
+
+test('incoming page beyond the last result returns to the last populated page', async ({ authenticatedPage: page }) => {
+  await page.goto('/dashboard/incoming?page=2');
+
+  await expect(page).toHaveURL(/\/dashboard\/incoming\?page=1$/);
+  await expect(page.getByText('Strona 1 z 1')).toBeVisible();
+});

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "vitest run",
     "typecheck": "tsc --project tsconfig.json --pretty false"
   },
   "dependencies": {
@@ -20,7 +21,9 @@
     "@types/node": "^22.14.1",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.5",
+    "builder-pattern": "2.2.0",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.2.6"
   }
 }

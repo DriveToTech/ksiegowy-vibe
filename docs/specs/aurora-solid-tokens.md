@@ -1,9 +1,9 @@
 # Aurora Solid — Design Token Spec
 
 ## Status
-- Phase: `0` of `spec/aurora-solid-redesign-plan.md` — **spec only, nothing implemented**
-- Dark theme: documented in the token tables below.
-- Light theme: **original design work** — the mock is dark-only. Needs sign-off before Phase 1.
+- Status: Aurora Solid is implemented in the web app; the tables below preserve Phase 0 design decisions and are not an unstarted migration checklist. See `spec/aurora-solid-redesign-plan.md` for the current production-alignment plan.
+- Dark theme: implemented with accessibility corrections to the historical mock.
+- Light theme: implemented as an original counterpart; the historical mock was dark-only.
 - Contrast: every text and non-text pairing below was measured (WCAG 2.1 relative luminance); 9 failures are listed in §7 with the corrective values already folded into the tables.
 - Review: frontend-architect Phase 0 feasibility review — conditional GO. Blockers B1 (status fill/text token ambiguity) and B2 (`--error-action-ink` orphaned deletion) fixed; B3 count corrections applied; the light `--foreground-disabled` pushback accepted (§7 F9). Architect addendum §A1–A3 appended below.
 

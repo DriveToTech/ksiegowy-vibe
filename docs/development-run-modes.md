@@ -204,3 +204,9 @@ POSTGRESQL_BACKUP_ARTIFACTS_PATH=/Users/maciejtrybula/Projects/ksiegowy-vibe.pl/
 ```
 
 If this variable is missing in local API runtime, freshness checks can resolve `./backups/postgresql` under `apps/api` instead of the repo root backup directory.
+
+## Advisor development
+
+The advisor uses the normal API/web processes. After applying its additive migration to your chosen development database, set `ADVISOR_ENABLED=true` and the existing `ENCRYPTION_KEY`, then enable the company policy under Settings → Doradca. Each user supplies their own model/API key; omit `ADVISOR_TAX_SOURCES_PATH` to develop record explanations without pretending tax evidence has been reviewed. Optional Ollama must be reachable from the API process at `ADVISOR_OLLAMA_URL` including `/v1`.
+
+Browser tests in `apps/e2e/tests/advisor.spec.ts` intercept advisor calls with synthetic records and do not need paid provider credentials. Connector tests use locally signed test tokens and mocked signing-key responses; running a real connector additionally needs public HTTPS and an external OAuth issuer. Follow [the advisor specification](specs/tax-advisor.md) for setup and current release gates.

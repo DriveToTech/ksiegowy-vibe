@@ -4,12 +4,16 @@
 # ─── Stage 1: deps ───────────────────────────────────────────────────────────
 FROM node:24-trixie-slim AS deps
 
-# Install system dependencies required at runtime (Poppler for PDF rendering,
-# and Tesseract with the Polish language pack for OCR).
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+# Set INSTALL_TESSERACT=false to skip local OCR; invoice OCR then falls back to
+# the OpenRouter vision LLM (OPENROUTER_API_KEY required).
+ARG INSTALL_TESSERACT=true
+
+# Install system dependencies (Poppler for PDF rendering, and optionally
+# Tesseract with the Polish language pack for OCR).
+RUN if [ "$INSTALL_TESSERACT" = "true" ]; then tesseract_packages="tesseract-ocr tesseract-ocr-pol"; fi \
+    && apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
       poppler-utils \
-      tesseract-ocr \
-      tesseract-ocr-pol \
+      $tesseract_packages \
       libxml2-utils \
       ca-certificates \
       libasound2t64 \
@@ -128,16 +132,18 @@ RUN cd apps/api && ./node_modules/.bin/prisma generate --schema prisma/schema.pr
 # ─── Stage 4: runner ─────────────────────────────────────────────────────────
 FROM node:24-alpine AS runner
 
+ARG INSTALL_TESSERACT=true
+
 # Re-install only the runtime system dependencies (no build tools). Alpine's
-# packages provide Chromium, Poppler, Tesseract, and XML validation without
-# carrying the Debian runtime package set into the final image.
-RUN apk update \
+# packages provide Chromium, Poppler, optional Tesseract, and XML validation
+# without carrying the Debian runtime package set into the final image.
+RUN if [ "$INSTALL_TESSERACT" = "true" ]; then tesseract_packages="tesseract-ocr tesseract-ocr-data-pol"; fi \
+    && apk update \
     && apk upgrade \
     && apk add --no-cache \
       chromium \
       poppler-utils \
-      tesseract-ocr \
-      tesseract-ocr-data-pol \
+      $tesseract_packages \
       libxml2-utils \
       ca-certificates \
     && rm -rf /var/cache/apk/*

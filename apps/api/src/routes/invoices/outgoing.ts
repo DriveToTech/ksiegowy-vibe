@@ -216,6 +216,8 @@ const listQuerySchema = {
       type: 'string',
       enum: ['not_submitted', 'pending', 'accepted', 'rejected']
     },
+    search: { type: 'string', minLength: 1, maxLength: 100 },
+    issueMonth: { type: 'string', pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' },
     page: { type: 'integer', minimum: 1, default: 1 },
     limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 }
   }
@@ -350,6 +352,8 @@ type DatabaseInvoiceCorrectionMode = 'CANCELLATION' | 'FORMAL';
 interface ListQuerystring {
   status?: 'DRAFT' | 'ISSUED' | 'CANCELLED';
   ksefStatus?: 'not_submitted' | 'pending' | 'accepted' | 'rejected';
+  search?: string;
+  issueMonth?: string;
   page?: number;
   limit?: number;
 }
@@ -710,9 +714,10 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
               data: { type: 'array', items: invoiceListItemSchema },
               total: { type: 'integer' },
               page: { type: 'integer' },
-              limit: { type: 'integer' }
+              limit: { type: 'integer' },
+              totalGross: { type: 'string' }
             },
-            required: ['data', 'total', 'page', 'limit']
+            required: ['data', 'total', 'page', 'limit', 'totalGross']
           }
         }
       }
@@ -720,20 +725,45 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
     async (request) => {
       const user = request.user as AccessTokenPayload;
       const { companyId } = request.params;
-      const { status, ksefStatus, page = 1, limit = 20 } = request.query;
+      const { status, ksefStatus, issueMonth, page = 1, limit = 20 } = request.query;
+      const search = request.query.search?.trim();
 
       assertCompanyAccess(user, companyId, fastify);
       const selectedEnvironment = await resolveEffectiveKsefEnvironment(request, fastify.prisma, companyId);
+
+      // AND-composed: buildKsefStatusWhere may return a top-level OR that a spread search OR would overwrite.
+      const conditions: Prisma.InvoiceWhereInput[] = [buildKsefStatusWhere(selectedEnvironment, ksefStatus)];
+
+      if (search) {
+        const searchDigits = search.replace(/\D/g, '');
+        // Prisma does not escape LIKE wildcards in contains (verified: '%_' is sent as '%%_%'), so '%' would match every row.
+        const searchPattern = search.replace(/[\\%_]/g, '\\$&');
+        conditions.push({
+          OR: [
+            { invoiceNumber: { contains: searchPattern, mode: 'insensitive' } },
+            { contractor: { name: { contains: searchPattern, mode: 'insensitive' } } },
+            ...(searchDigits ? [{ contractor: { nip: { startsWith: searchDigits } } }] : []),
+            { ksefStates: { some: { environment: selectedEnvironment, ksefReference: { contains: searchPattern } } } },
+          ],
+        });
+      }
+
+      if (issueMonth) {
+        const [year, month] = issueMonth.split('-').map(Number) as [number, number];
+        conditions.push({ issueDate: { gte: new Date(Date.UTC(year, month - 1, 1)), lt: new Date(Date.UTC(year, month, 1)) } });
+      }
 
       const where: Prisma.InvoiceWhereInput = {
         companyId,
         environment: selectedEnvironment,
         ...(status ? { status } : {}),
-        ...buildKsefStatusWhere(selectedEnvironment, ksefStatus),
+        AND: conditions,
       };
 
-      const [total, invoices] = await Promise.all([
+      // ponytail: the sum assumes one currency (UI issues PLN only, corrections inherit); group by currency if multi-currency invoicing ships.
+      const [total, totalGrossAggregate, invoices] = await Promise.all([
         fastify.prisma.invoice.count({ where }),
+        fastify.prisma.invoice.aggregate({ where, _sum: { totalGross: true } }),
         fastify.prisma.invoice.findMany({
           where,
           orderBy: { createdAt: 'desc' },
@@ -765,7 +795,8 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         data: invoices.map(serializeInvoiceListItem),
         total,
         page,
-        limit
+        limit,
+        totalGross: totalGrossAggregate._sum.totalGross?.toFixed(2) ?? '0.00'
       };
     }
   );
@@ -1112,7 +1143,7 @@ export const outgoingInvoiceRoutes: FastifyPluginAsync = async (fastify): Promis
         ) {
           throw fastify.httpErrors.conflict(errorMessage);
         }
-        if (errorMessage.includes('must have')) throw fastify.httpErrors.badRequest(errorMessage);
+        if (errorMessage.includes('must have') || errorMessage === 'Invalid buyer NIP') throw fastify.httpErrors.badRequest(errorMessage);
         throw fastify.httpErrors.internalServerError(errorMessage);
       }
 

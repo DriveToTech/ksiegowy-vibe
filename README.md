@@ -20,6 +20,11 @@ Private design reference files stay on the developer's machine and are excluded 
 | [Dashboard Summary](docs/specs/dashboard-summary.md) | Environment-aware dashboard read model, aggregation semantics, and verification |
 | [Mobile-first UX Remediation](docs/specs/mobile-first-remediation.md) | Mobile interaction tokens, shell/navigation contracts, secure KSeF switching, component states, and regression matrix |
 | [Environment Context Switcher Plan](spec/environment-context-switcher-plan.md) | Implementation plan and ticket backlog for user-scoped `TEST` / `PRODUCTION` KSeF context switching |
+| [Tax Advisor](docs/specs/tax-advisor.md) | Embedded provider setup, AI-reviewed-source contract, subscription connector/OAuth deployment, and current release limits |
+| [Tax Advisor Connection UX](docs/specs/tax-advisor-connection-ux.md) | Settings → Doradca behavior, implemented four-state blocked dock/sheet, chosen visual reference and remaining app-level visual sign-off |
+| [Tax Advisor Blocked-Entry Reference](docs/specs/tax-advisor-blocked-entry-reference.html) | One Aurora HTML/CSS template for four blockers in both themes at desktop/mobile sizes; serve the repository root to open the 16 variant links in the implementation plan |
+| [Tax Advisor Implementation Plan](spec/tax-advisor-implementation-plan.md) | Advisor delivery/release gates and decision-gated customer journey with Aurora-versus-Stitch coverage, design polish, and pixel-perfect visual QA protocol |
+| [Advisor Rollout Runbook](docs/advisor-rollout-runbook.md) | Operator steps for advisor migrations, `ADVISOR_*` variables, SSE proxy settings, tax corpus mounting, Ollama placement, OAuth issuer checklist, staged rollout and rollback |
 | [PostgreSQL Restore Runbook](docs/restore-postgresql.md) | Initial restore procedure for PostgreSQL logical backups |
 | [Production Migration Recovery](docs/production-migration-recovery.md) | Clone-first recovery for failed Prisma migrations and migration-history drift |
 | [File Restore Runbook](docs/restore-files.md) | Restore procedure for company Google Drive and platform iCloud file backups |
@@ -27,6 +32,11 @@ Private design reference files stay on the developer's machine and are excluded 
 | [Demo Screenshots](docs/screenshots/README.md) | Synthetic mock-API fixture and commands for safe UI screenshot capture |
 
 ## Features
+
+- **Advisor (opt-in)** — Read-only company-record explanations, desktop/mobile chat, a full `/dashboard/advisor` page (history column plus an on-demand "Podsumowanie okresu" card that only prepares the question), private history and encrypted API-key connections for OpenRouter, OpenAI API, Anthropic API or operator-hosted Ollama. ChatGPT/Claude subscriptions are used in their own apps through a separately configured OAuth/MCP connector; users sign in there, while Księgowy Vibe only grants scoped read access. Embedded chat always uses separate API billing. Out-of-scope questions (PIT/CIT/ZUS, legal opinions, filing) get a `declined` answer, deterministically and without a paid model call when the wording is unambiguous. Tax answers require an operator-supplied AI-reviewed source corpus for the selected month (AI review only, never qualified human review; tax answers carry an AI disclaimer) (the composer explains when a month has none); viewers can disconnect or revoke but cannot save connections or grant access; real provider/connector acceptance remains a release gate. See [setup and limitations](docs/specs/tax-advisor.md).
+  Blocked entry shows the highest-priority operator/company/provider/connection reason in the desktop dock or mobile sheet with a disabled composer; only the user's Settings action navigates, and every Settings visit opens in embedded Mode A.
+  Contractor Explain carries the selected contractor and month; dashboard and document lists show at most one evidence-linked, dismissible advisor insight per view. Dismissals persist per membership, KSeF environment and insight version. Contractor payment figures are current cumulative invoice values, not historical month-end balances.
+  Tax-source deployment is opt-in: mount only a corpus produced by the offline AI review runner (`pnpm --filter @ksiegowy/api advisor:review-sources`, `ADVISOR_REVIEW_*` variables, 30-day expiry) using `docker-compose.advisor-sources.yml`; the repository's draft corpus is deliberately rejected by the API loader. See [AI review runner](docs/specs/tax-advisor-corpus/README.md#ai-review-runner).
 
 - **KSeF Integration** — Submit VAT invoices and sync incoming invoices from the National e-Invoice System (FA(3) XML generation, XSD validation, session management, offline queue with retry)
 - **KSeF Environment Context** — Per-user `TEST` / `PRODUCTION` environment context with separate credentials, sessions, invoice visibility, invoice KSeF state, and direct PDF/file access per environment. The shell shows a passive environment indicator; context changes stay in the dedicated settings flow. Token presence is exposed without token values so KSeF actions can fail closed. See the [implementation plan](spec/environment-context-switcher-plan.md) and [data model docs](docs/data-model.md#environment-aware-ksef-operating-model) for details.
@@ -90,13 +100,13 @@ ksiegowy-vibe/
 
 The visual system is **Aurora Solid** — opaque layered surfaces, no `blur()`/`backdrop-filter`, one shadow per page frame, Sora + IBM Plex Mono typography. Tokens live as CSS custom properties in `apps/web/src/app/globals.css` and are exposed to Tailwind v4 via `@theme inline`.
 
-Source of truth: **`spec/aurora-solid-redesign-plan.md`** (plan and phase history) and **`docs/specs/aurora-solid-tokens.md`** (the token spec: both themes, contrast findings, component states). `spec/stitch-ui-implementation-plan.md` and `spec/ui/00-06` describe the previous "Aeon Ethereal" system and are superseded historical record.
+Source of truth: **`spec/aurora-solid-redesign-plan.md`** (completed redesign plus 2026 live-Stitch production-alignment audit) and **`docs/specs/aurora-solid-tokens.md`** (implemented theme tokens and historical design decisions). The live Stitch project has a separate generic theme; verify its individual screenshots before changing Aurora tokens. `spec/stitch-ui-implementation-plan.md` and `spec/ui/00-06` describe the previous "Aeon Ethereal" system and are superseded historical record.
 
 - The web app uses the themed SVG wordmarks from `apps/web/src/components/brand/assets/` in the app and onboarding headers, the stacked lockup on the login panel, and the SVG mark as the favicon.
 - The 60px chrome bar is the sole global brand anchor and contains company, KSeF, theme, and session context.
 - The 226px desktop rail contains navigation plus contextual status widgets (JPK_V7M filing deadline, rejected-invoice count); page actions live beside the content they affect.
 - Light mode is the default, with an explicit dark preference stored locally in the browser. Both themes are held to WCAG AA on text and interactive boundaries.
-- Mobile uses the redesign's 90px persistent bottom navigation: Start, Zakupy, centered AI assistant placeholder, Sprzedaż, and Więcej. The shell reserves the bar and safe-area inset so content and focused controls are not covered while scrolling.
+- Mobile uses the redesign's 90px persistent bottom navigation: Start, Zakupy, the tax-advisor trigger, Sprzedaż, and Więcej. The shell reserves the bar and safe-area inset so content and focused controls are not covered while scrolling. Advisor access depends on company/operator configuration and reviewed-source availability.
 
 ## First-Run Flow
 
@@ -107,7 +117,7 @@ A signed-in user with no company is redirected from `/dashboard` into the onboar
 3. **KSeF connection** — token per environment (`PATCH /companies/:id/ksef-settings`).
 4. **Invite your accountant** — optional (`POST /companies/:companyId/invites`); no email is sent, so the UI surfaces a copyable invite link.
 
-Progress is not stored separately — the wizard resumes by deriving the first incomplete step from the session and the company record, so "Save and finish later" is simply a link back to `/dashboard`. Invited users join an existing company through `POST /invites/:token/accept` and never enter this flow.
+Progress is not stored separately — the wizard resumes by deriving the first incomplete step from the session and the company record, so "Save and finish later" is simply a link back to `/dashboard`. **Production blocker:** the optional accountant invitation currently generates `/invite/{token}` without a browser route to accept it; do not offer invitations to real recipients until an acceptance journey is shipped and verified.
 
 ## Prerequisites
 
@@ -165,7 +175,7 @@ For supported development setups, see [Development Run Modes](docs/development-r
 
 ### Option A — Fully containerised (recommended)
 
-Runs API, web frontend, and database inside Docker. Poppler and Tesseract are included in the API image — no local installation needed.
+Runs API, web frontend, and database inside Docker. Poppler and Tesseract are included in the API image — no local installation needed. To build the API image without Tesseract, set `API_INSTALL_TESSERACT=false` (in `.env` or inline: `API_INSTALL_TESSERACT=false docker compose up --build`); OCR then falls back to the OpenRouter vision LLM, so `OPENROUTER_API_KEY` is required. See [Infrastructure](docs/infrastructure.md#api--appsapidockerfile).
 
 #### 1. Clone and configure environment
 
@@ -637,17 +647,11 @@ pnpm --filter @ksiegowy/e2e test:debug
 pnpm --filter @ksiegowy/e2e report
 ```
 
-Visual dashboard baselines must be generated and verified with the exact
-Playwright dependency and matching Linux container image (`1.59.1`). Setting
-`VISUAL_REGRESSION=true` enables the `chromium-linux` project; the default
-project does not run the visual tests:
+Visual baselines (dashboard, invoices, advisor) are generated and verified in the pinned Playwright `1.59.1` Linux container with one command. It bind-mounts the repository, keeps Linux `node_modules` and the production web build in named Docker volumes (host files stay untouched), and takes about 2 minutes:
 
 ```bash
-# Regenerate the three dashboard baselines
-docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:' --update-snapshots"
-
-# Verify without changing baselines
-docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:'"
+pnpm --filter @ksiegowy/e2e visual                                           # verify
+pnpm --filter @ksiegowy/e2e visual -- --update tests/advisor-visual.spec.ts  # regenerate one spec
 ```
 
 Do not use a floating Playwright package range or a different container image

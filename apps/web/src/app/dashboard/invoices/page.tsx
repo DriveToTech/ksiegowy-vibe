@@ -1,22 +1,20 @@
-import Link from 'next/link';
 import { getContractors, getInvoices } from '../../../lib/api';
 import { Button } from '../../../components/atoms/Button';
 import { EmptyState } from '../../../components/molecules/EmptyState';
 import { PageHeader } from '../../../components/molecules/PageHeader';
 import { InvoicesTable } from '../../../components/organisms/InvoicesTable';
 import { formatMoney } from '../../../lib/format';
+import { InvoiceListPagination } from './InvoiceListPagination';
+import { InvoicesFilterBar } from './InvoicesFilterBar';
+import { invoiceListApiParams, invoiceListMonthOptions, invoiceListSegments, parseInvoiceListQuery } from './invoice-list-query';
 import { requireAuthSession } from '../../../lib/auth';
 import { t } from '../../../lib/translations';
-
-const statusTabs = [
-  { value: undefined, label: t.outgoingInvoices.filters.all },
-  { value: 'DRAFT', label: t.outgoingInvoices.filters.drafts },
-] as const;
+import { AdvisorInsightStrip } from '../../../components/advisor/AdvisorInsightStrip';
 
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; status?: string; ksefStatus?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await requireAuthSession('/dashboard/invoices');
   const companyId = session.activeCompanyId;
@@ -43,76 +41,64 @@ export default async function InvoicesPage({
     return <EmptyState title={t.outgoingInvoices.noCompanyTitle} description={t.outgoingInvoices.noCompanyDescription} />;
   }
 
-  const { page: pageParam, status: statusParam, ksefStatus: ksefStatusParam } = await searchParams;
-  const page = Number(pageParam) > 0 ? Number(pageParam) : 1;
-  const activeStatus = statusParam === 'DRAFT' ? 'DRAFT' : undefined;
-  const activeKsefStatus = ['not_submitted', 'pending', 'accepted', 'rejected'].includes(ksefStatusParam ?? '')
-    ? ksefStatusParam
-    : undefined;
+  const query = parseInvoiceListQuery(await searchParams);
+  const hasActiveFilter = Boolean(query.search || query.issueMonth || query.segment || query.ksefStatus);
 
   const [invoicesResult, contractors] = await Promise.all([
-    getInvoices(companyId, activeEnvironment, {
-      page: String(page),
-      ...(activeStatus ? { status: activeStatus } : {}),
-      ...(activeKsefStatus ? { ksefStatus: activeKsefStatus } : {}),
-    }),
+    getInvoices(companyId, activeEnvironment, invoiceListApiParams(query)),
     getContractors(companyId, activeEnvironment).catch(() => []),
   ]);
-  const { data: invoices, total, limit } = invoicesResult;
+  const { data: invoices, total, totalGross, limit } = invoicesResult;
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasContractors = contractors.length > 0;
-  const totalGrossOnPage = invoices.reduce((sum, invoice) => sum + (parseFloat(invoice.totalGross) || 0), 0);
+  const monthOptions = invoiceListMonthOptions(query.issueMonth);
+
+  const activeFilterDescriptions = [
+    query.search ? `"${query.search}"` : undefined,
+    query.issueMonth ? monthOptions.find((option) => option.value === query.issueMonth)?.label : undefined,
+    invoiceListSegments.find((candidate) => candidate.segment === query.segment)?.label,
+    query.ksefStatus ? t.outgoingInvoices.notSubmittedFilter : undefined,
+  ].filter((description): description is string => Boolean(description));
+
+  const emptyFilteredState = (
+    <>
+      <p className="text-[13px] text-muted">{t.outgoingInvoices.emptyFiltered}</p>
+      <Button href="/dashboard/invoices" variant="ghost" size="sm" className="self-start">
+        {t.outgoingInvoices.clearFilters}
+      </Button>
+    </>
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow={t.outgoingInvoices.pageEyebrow}
         title={t.outgoingInvoices.pageTitle}
-        description={t.outgoingInvoices.pageDescription}
         actions={
           hasContractors ? (
-            <Button href="/dashboard/invoices/new" variant="primaryQuiet">
+            <Button href="/dashboard/invoices/new" variant="primary">
               {t.dashboard.createInvoice}
             </Button>
           ) : (
-            <Button type="button" variant="primaryQuiet" disabled>
+            <Button type="button" variant="primary" disabled>
               {t.dashboard.createInvoice}
             </Button>
           )
         }
       />
+      <AdvisorInsightStrip companyId={companyId} environment={activeEnvironment} view="invoices" />
 
-      <div className="flex gap-1 rounded-control border border-outline bg-surface-raised p-1">
-        {statusTabs.map((tab) => (
-          <Link
-            key={tab.label}
-            href={tab.value ? `/dashboard/invoices?status=${tab.value}` : '/dashboard/invoices'}
-            className={
-                (tab.value ?? undefined) === activeStatus
-                ? 'inline-flex min-h-11 items-center rounded-chip bg-foreground/10 px-3.5 py-1.5 text-[12.5px] font-medium text-foreground'
-                : 'inline-flex min-h-11 items-center rounded-chip px-3.5 py-1.5 text-[12.5px] text-muted transition hover:text-foreground-secondary'
-            }
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
-
-      {total === 0 ? (
+      {total === 0 && !hasActiveFilter ? (
         <EmptyState
-          title={activeStatus ? t.outgoingInvoices.filters.drafts : t.outgoingInvoices.emptyState.title}
-          description={activeStatus
-            ? t.contractors.emptyFiltered
-            : hasContractors
+          title={t.outgoingInvoices.emptyState.title}
+          description={
+            hasContractors
               ? t.outgoingInvoices.emptyState.withContractorsDescription
-              : t.outgoingInvoices.emptyState.withoutContractorsDescription}
+              : t.outgoingInvoices.emptyState.withoutContractorsDescription
+          }
           action={
-            activeStatus ? (
-              <Button href="/dashboard/invoices" variant="secondary">
-                {t.outgoingInvoices.filters.all}
-              </Button>
-            ) : hasContractors ? (
-              <Button href="/dashboard/invoices/new" variant="primaryQuiet">
+            hasContractors ? (
+              <Button href="/dashboard/invoices/new" variant="primary">
                 {t.outgoingInvoices.emptyState.createFirstInvoice}
               </Button>
             ) : (
@@ -122,41 +108,22 @@ export default async function InvoicesPage({
         />
       ) : (
         <>
-          <InvoicesTable invoices={invoices} />
-          <div className="flex flex-col gap-3 rounded-control border border-outline bg-surface-raised px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
-              {t.outgoingInvoices.pageSummary(invoices.length, total, formatMoney(totalGrossOnPage))}
-            </p>
-            <div className="flex items-center justify-between gap-4 sm:justify-end">
-              {page <= 1 ? (
-                <Button type="button" variant="secondary" size="sm" disabled>
-                  {t.pagination.previous}
-                </Button>
-              ) : (
-                <Button
-                  href={`/dashboard/invoices?page=${page - 1}${activeStatus ? `&status=${activeStatus}` : ''}${activeKsefStatus ? `&ksefStatus=${activeKsefStatus}` : ''}`}
-                  variant="secondary"
-                  size="sm"
-                >
-                  {t.pagination.previous}
-                </Button>
-              )}
-              <p className="text-sm text-muted">{t.pagination.pageOf(page, totalPages)}</p>
-              {page >= totalPages ? (
-                <Button type="button" variant="secondary" size="sm" disabled>
-                  {t.pagination.next}
-                </Button>
-              ) : (
-                <Button
-                  href={`/dashboard/invoices?page=${page + 1}${activeStatus ? `&status=${activeStatus}` : ''}${activeKsefStatus ? `&ksefStatus=${activeKsefStatus}` : ''}`}
-                  variant="secondary"
-                  size="sm"
-                >
-                  {t.pagination.next}
-                </Button>
-              )}
-            </div>
-          </div>
+          <InvoicesFilterBar query={query} monthOptions={monthOptions} />
+          <InvoicesTable
+            invoices={invoices}
+            caption={t.outgoingInvoices.tableCaption(activeFilterDescriptions)}
+            emptyState={invoices.length === 0 ? emptyFilteredState : undefined}
+            footer={
+              invoices.length === 0 ? undefined : (
+                <>
+                  <p role="status" className="font-mono text-[11px] uppercase text-muted">
+                    {t.outgoingInvoices.pageSummary(invoices.length, total, formatMoney(totalGross))}
+                  </p>
+                  <InvoiceListPagination query={query} totalPages={totalPages} />
+                </>
+              )
+            }
+          />
         </>
       )}
     </div>

@@ -12,7 +12,7 @@ concurrency:
 jobs:
   typecheck:
     name: Typecheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +36,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -57,7 +57,7 @@ jobs:
 
   test-unit:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -95,7 +95,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [typecheck, lint]
     steps:
       - uses: actions/checkout@v4
@@ -120,7 +120,7 @@ jobs:
 
   container-build:
     name: Build Docker images (${{ matrix.name }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [typecheck, lint]
     strategy:
       fail-fast: false
@@ -213,6 +213,7 @@ jobs:
             --env DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ksiegowy_smoke \
             --env JWT_SECRET=ci-smoke-access-secret \
             --env JWT_REFRESH_SECRET=ci-smoke-refresh-secret \
+            --env CORS_ORIGIN=http://localhost:3000 \
             "$application_image_name"
 
           for attempt in $(seq 1 30); do
@@ -236,7 +237,7 @@ jobs:
 
   test-integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build]
     services:
       postgres:
@@ -284,9 +285,13 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ksiegowy_test
 
   test-e2e:
-    name: E2E Tests
-    runs-on: ubuntu-latest
+    name: E2E Tests (shard ${{ matrix.shard }}/5)
+    runs-on: ubuntu-24.04
     needs: [build]
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
 
@@ -314,24 +319,18 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @ksiegowy/api exec prisma generate --schema prisma/schema.prisma
 
-      - name: Build web app
-        run: pnpm --filter @ksiegowy/web build
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:3001
-
       - name: Install Playwright browsers
         run: pnpm --filter @ksiegowy/e2e exec playwright install --with-deps chromium
 
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/5
         env:
           CI: true
-          NEXT_PUBLIC_API_URL: http://localhost:3001
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: apps/e2e/playwright-report/
           retention-days: 7

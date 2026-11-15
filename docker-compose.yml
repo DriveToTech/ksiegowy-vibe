@@ -32,6 +32,8 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        INSTALL_TESSERACT: ${API_INSTALL_TESSERACT:-true}
     restart: unless-stopped
     ports:
       - '3001:3001'

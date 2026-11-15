@@ -1,0 +1,755 @@
+{
+  "_comment": "SZKIC korpusu przygotowany przez AI (draftedBy). Brak recenzenta ludzkiego: wpisy zatwierdza wyłącznie runner `advisor:review-sources` (kotwiczenie officialText w dokumencie spod url + co najmniej dwa modele z różnych dostawców + bramka ewaluacyjna). Modele recenzujące MUSZĄ różnić się od modelu z draftedBy oraz od modeli odpowiadających. Pola reviewedBy/reviewedAt/reviewExpiresAt/reviewMethod/reviewReportId/reviewHash zapisuje runner – nie dodawać ich tutaj. Pola authority, legalInstrument, excerptKind, verifiedAt, verificationMethod, confidence, drafterNotes to metadane szkicu i są odrzucane przez runner.",
+  "draftedBy": "ai:ANTHROPIC/claude-sonnet-5-5",
+  "corpusVersion": "draft-2026-10-31",
+  "statusOfLawVerifiedAgainst": "Dz. U. 2026 poz. 1263 (tekst jednolity ustawy o VAT, stan na 2026-08-26) – najnowszy tekst jednolity na 2026-10-31; nowelizacja Dz. U. 2026 poz. 1270 obowiązuje od 2027-01-01 (nie dotyczy wpisów 2026)",
+  "sources": [
+    {
+      "id": "vat-106b-duty-to-issue",
+      "title": "Ustawa o VAT art. 106b ust. 1–2 – obowiązek wystawienia faktury",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106b ust. 1, 1a, 1b, 2",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 106b. 1. Podatnik jest obowiązany wystawić fakturę dokumentującą: 1) sprzedaż, a także dostawę towarów i świadczenie usług, o których mowa w art. 106a pkt 2, dokonywane przez niego na rzecz innego podatnika podatku, podatku od wartości dodanej lub podatku o podobnym charakterze lub na rzecz osoby prawnej niebędącej podatnikiem; 2) wewnątrzwspólnotową sprzedaż towarów na odległość, chyba że podatnik korzysta z procedury szczególnej, o której mowa w dziale XII w rozdziale 6a; 3) wewnątrzwspólnotową dostawę towarów na rzecz podmiotu innego niż wskazany w pkt 1; 4) otrzymanie przez niego całości lub części zapłaty przed dokonaniem czynności, o których mowa w pkt 1 i 2, z wyjątkiem przypadku, gdy zapłata dotyczy: a) wewnątrzwspólnotowej dostawy towarów, b) czynności, dla których obowiązek podatkowy powstaje zgodnie z art. 19a ust. 5 pkt 4, c) dostaw towarów, dla których obowiązek podatkowy powstaje zgodnie z art. 19a ust. 1b. 1a. Podatnik nie jest obowiązany do wystawienia faktury, o której mowa w ust. 1 pkt 4, jeżeli całość lub część zapłaty, o której mowa w tym przepisie, otrzymał w tym samym miesiącu, w którym dokonał czynności, na poczet których otrzymał całość lub część tej zapłaty. 1b. Przepisu ust. 1a nie stosuje się w przypadkach, dla których terminy wystawienia faktury określone są w art. 106i ust. 3–8. 2. Podatnik nie jest obowiązany do wystawienia faktury w odniesieniu do sprzedaży zwolnionej od podatku na podstawie art. 43 ust. 1, art. 113 ust. 1 i 9, art. 113a ust. 1 lub przepisów wydanych na podstawie art. 82 ust. 3.",
+      "topics": [
+        "invoice-obligation"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Cytat dosłowny ust. 1–2 (bez rozdzielania ust. 1a–1b). Żądanie nabywcy (ust. 3) i faktura do paragonu (ust. 5) są w osobnym wpisie vat-106b-invoice-on-request. Wyjątki z ust. 1 pkt 4 lit. a–c są w cytacie w całości. Stan prawny tekstu jednolitego 26.08.2026; okno 2026-08-26..2026-12-31 jest oknem korpusu (początek = stan prawny udowodniony obwieszczeniem), nie datą wejścia w życie ani wygaśnięcia przepisu.",
+      "officialText": [
+        "Art. 106b. 1. Podatnik jest obowiązany wystawić fakturę dokumentującą: 1) sprzedaż, a także dostawę towarów i świadczenie usług, o których mowa w art. 106a pkt 2, dokonywane przez niego na rzecz innego podatnika podatku, podatku od wartości dodanej lub podatku o podobnym charakterze lub na rzecz osoby prawnej niebędącej podatnikiem; 2) wewnątrzwspólnotową sprzedaż towarów na odległość, chyba że podatnik korzysta z procedury szczególnej, o której mowa w dziale XII w rozdziale 6a; 3) wewnątrzwspólnotową dostawę towarów na rzecz podmiotu innego niż wskazany w pkt 1; 4) otrzymanie przez niego całości lub części zapłaty przed dokonaniem czynności, o których mowa w pkt 1 i 2, z wyjąt- kiem przypadku, gdy zapłata dotyczy: a) wewnątrzwspólnotowej dostawy towarów, b) czynności, dla których obowiązek podatkowy powstaje zgodnie z art. 19a ust. 5 pkt 4, c) dostaw towarów, dla których obowiązek podatkowy powstaje zgodnie z art. 19a ust. 1b. 1a. Podatnik nie jest obowiązany do wystawienia faktury, o której mowa w ust. 1 pkt 4, jeżeli całość lub część zapłaty, o której mowa w tym przepisie, otrzymał w tym samym miesiącu, w którym dokonał czynności, na poczet których otrzymał całość lub część tej zapłaty. 1b. Przepisu ust. 1a nie stosuje się w przypadkach, dla których terminy wystawienia faktury określone są w art. 106i ust. 3–8. 2. Podatnik nie jest obowiązany do wystawienia faktury w odniesieniu do sprzedaży zwolnionej od podatku na podsta- wie art. 43 ust. 1, art. 113 ust. 1 i 9, art. 113a ust. 1 lub przepisów wydanych na podstawie art. 82 ust. 3.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-106b-invoice-on-request",
+      "title": "Ustawa o VAT art. 106b ust. 3 i 5 – faktura na żądanie nabywcy i faktura do paragonu",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106b ust. 3, 5",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "3. Na żądanie nabywcy towaru lub usługi podatnik jest obowiązany wystawić fakturę dokumentującą: 1) czynności, o których mowa w ust. 1 pkt 1, jeżeli obowiązek wystawienia faktury nie wynika z ust. 1, z wyjątkiem: a) czynności, o których mowa w art. 19a ust. 5 pkt 4, b) czynności, o których mowa w art. 106a pkt 3 i 4, 1a) otrzymanie całości lub części zapłaty przed wykonaniem czynności, o których mowa w ust. 1 pkt 1, jeżeli obowiązek wystawienia faktury nie wynika z ust. 1, z wyjątkiem: a) przypadku, gdy zapłata dotyczy czynności, o których mowa w art. 19a ust. 1b i ust. 5 pkt 4 oraz art. 106a pkt 3 i 4, b) wewnątrzwspólnotowej dostawy towarów, 2) sprzedaż zwolnioną, o której mowa w ust. 2, z zastrzeżeniem art. 117 pkt 1 i art. 118 – jeżeli żądanie jej wystawienia zostało zgłoszone w terminie 3 miesięcy, licząc od końca miesiąca, w którym dostarczono towar lub wykonano usługę bądź otrzymano całość lub część zapłaty. 5. W przypadku sprzedaży zaewidencjonowanej przy zastosowaniu kasy rejestrującej potwierdzonej paragonem fiskalnym fakturę na rzecz podatnika podatku lub podatku od wartości dodanej wystawia się wyłącznie, jeżeli paragon potwierdzający dokonanie tej sprzedaży zawiera numer, za pomocą którego nabywca towarów lub usług jest zidentyfikowany na potrzeby podatku lub podatku od wartości dodanej.",
+      "topics": [
+        "invoice-obligation"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Cytat dosłowny ust. 3 oraz ust. 5 (ust. 4 pominięty, nie dotyczy pytań korpusu). Odesłania do art. 117 pkt 1 i art. 118 (rolnik ryczałtowy) oraz do art. 19a ust. 5 pkt 4 i art. 106a pkt 3 i 4 występują tylko jako odesłania; ich treści nie przepisano. Kto dokładnie może żądać faktury z ust. 3 pkt 1 – patrz review-notes.md. Stan prawny tekstu jednolitego 26.08.2026; okno korpusu 2026-08-26..2026-12-31 (początek = stan prawny udowodniony obwieszczeniem) nie jest datą wejścia w życie ani wygaśnięcia.",
+      "officialText": [
+        "3. Na żądanie nabywcy towaru lub usługi podatnik jest obowiązany wystawić fakturę dokumentującą: 1) czynności, o których mowa w ust. 1 pkt 1, jeżeli obowiązek wystawienia faktury nie wynika z ust. 1, z wyjątkiem: a) czynności, o których mowa w art. 19a ust. 5 pkt 4, b) czynności, o których mowa w art. 106a pkt 3 i 4, 1a) otrzymanie całości lub części zapłaty przed wykonaniem czynności, o których mowa w ust. 1 pkt 1, jeżeli obowiązek wystawienia faktury nie wynika z ust. 1, z wyjątkiem: a) przypadku, gdy zapłata dotyczy czynności, o których mowa w art. 19a ust. 1b i ust. 5 pkt 4 oraz art. 106a pkt 3 i 4, b) wewnątrzwspólnotowej dostawy towarów, 2) sprzedaż zwolnioną, o której mowa w ust. 2, z zastrzeżeniem art. 117 pkt 1 i art. 118 – jeżeli żądanie jej wystawienia zostało zgłoszone w terminie 3 miesięcy, licząc od końca miesiąca, w którym dostarczono towar lub wykonano usługę bądź otrzymano całość lub część zapłaty.",
+        "5. W przypadku sprzedaży zaewidencjonowanej przy zastosowaniu kasy rejestrującej potwierdzonej paragonem fiskal- nym fakturę na rzecz podatnika podatku lub podatku od wartości dodanej wystawia się wyłącznie, jeżeli paragon potwier- dzający dokonanie tej sprzedaży zawiera numer, za pomocą którego nabywca towarów lub usług jest zidentyfikowany na potrzeby podatku lub podatku od wartości dodanej.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-106e-invoice-content",
+      "title": "Ustawa o VAT art. 106e ust. 1 pkt 1–15 – obowiązkowa treść faktury",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106e ust. 1 pkt 1–15",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza listy art. 106e ust. 1 pkt 1–15; inne punkty ust. 1 (m.in. pkt 16–27) i pozostałe ustępy nie są tu omówione. Faktura powinna zawierać: 1) datę wystawienia; 2) kolejny numer nadany w ramach jednej lub więcej serii, który jednoznacznie identyfikuje fakturę; 3) imiona i nazwiska lub nazwy podatnika i nabywcy oraz ich adresy; 4) numer, za pomocą którego podatnik jest zidentyfikowany na potrzeby podatku, z zastrzeżeniem pkt 24 lit. a oraz pkt 25; 5) numer, za pomocą którego nabywca jest zidentyfikowany na potrzeby podatku lub podatku od wartości dodanej, pod którym otrzymał on towary lub usługi, z zastrzeżeniem pkt 24 lit. b, pkt 26 i 27; 6) datę dokonania lub zakończenia dostawy towarów lub wykonania usługi albo datę otrzymania zapłaty (art. 106b ust. 1 pkt 4) „o ile taka data jest określona i różni się od daty wystawienia faktury”; 7) nazwę (rodzaj) towaru lub usługi; 8) miarę i ilość (liczbę) towarów lub zakres usług; 9) cenę jednostkową bez podatku (cenę jednostkową netto); 10) kwoty wszelkich opustów lub obniżek cen, w tym rabatu z tytułu wcześniejszej zapłaty, o ile nie zostały uwzględnione w cenie jednostkowej netto; 11) wartość sprzedaży netto; 12) stawkę podatku albo stawkę podatku od wartości dodanej w przypadku procedur szczególnych z działu XII rozdz. 6a, 7 i 9; 13) sumę wartości sprzedaży netto z podziałem na stawki i sprzedaż zwolnioną; 14) kwotę podatku z podziałem na stawki; 15) kwotę należności ogółem. Zmiany w pkt 5 oraz pkt 26 i 27 obowiązują od 2026-02-01 (ustawa z 5.08.2025, Dz. U. poz. 1203). Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "invoice-content",
+        "sale-date"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Lista pkt 1–15 nie zawiera terminu płatności (obserwacja autora szkicu z lektury listy, nie cytat). Brzmienie sprzed 2026-02-01 jest inne (pkt 5/26/27), stąd effectiveFrom = 2026-02-01.",
+      "officialText": [
+        "Art. 106e. 1. Faktura powinna zawierać: 1) datę wystawienia; 2) kolejny numer nadany w ramach jednej lub więcej serii, który w sposób jednoznaczny identyfikuje fakturę; 3) imiona i nazwiska lub nazwy podatnika i nabywcy towarów lub usług oraz ich adresy; 4) numer, za pomocą którego podatnik jest zidentyfikowany na potrzeby podatku, z zastrzeżeniem pkt 24 lit. a oraz pkt 25; 5)17) numer, za pomocą którego nabywca towarów lub usług jest zidentyfikowany na potrzeby podatku lub podatku od wartości dodanej, pod którym otrzymał on towary lub usługi, z zastrzeżeniem pkt 24 lit. b, pkt 26 i 27; 6) datę dokonania lub zakończenia dostawy towarów lub wykonania usługi lub datę otrzymania zapłaty, o której mowa w art. 106b ust. 1 pkt 4, o ile taka data jest określona i różni się od daty wystawienia faktury; 7) nazwę (rodzaj) towaru lub usługi; 8) miarę i ilość (liczbę) dostarczonych towarów lub zakres wykonanych usług; 9) cenę jednostkową towaru lub usługi bez kwoty podatku (cenę jednostkową netto); 10) kwoty wszelkich opustów lub obniżek cen, w tym w formie rabatu z tytułu wcześniejszej zapłaty, o ile nie zostały one uwzględnione w cenie jednostkowej netto; 11) wartość dostarczonych towarów lub wykonanych usług, objętych transakcją, bez kwoty podatku (wartość sprzedaży netto); 12) stawkę podatku albo stawkę podatku od wartości dodanej w przypadku korzystania z procedur szczególnych, o których mowa w dziale XII w rozdziałach 6a, 7 i 9; 13) sumę wartości sprzedaży netto, z podziałem na sprzedaż objętą poszczególnymi stawkami podatku i sprzedaż zwol- nioną od podatku; 14) kwotę podatku od sumy wartości sprzedaży netto, z podziałem na kwoty dotyczące poszczególnych stawek podatku; 15) kwotę należności ogółem;",
+        "Dodany przez art. 1 pkt 1 ustawy z dnia 5 sierpnia 2025 r. o zmianie ustawy o podatku od towarów i usług oraz ustawy o zmianie ustawy o podatku od towarów i usług oraz niektórych innych ustaw (Dz. U. poz. 1203), która weszła w życie z dniem 2 września 2025 r.; wszedł w życie z dniem 1 lutego 2026 r. 17) Ze zmianą wprowadzoną przez art. 1 pkt 2 lit. a ustawy, o której mowa w odnośniku 16; weszła w życie z dniem 1 lutego 2026 r.",
+        "26)18) w przypadku gdy nabywca towarów lub usług jest podatnikiem niezarejestrowanym na potrzeby podatku albo osobą prawną niebędącą podatnikiem i niezarejestrowaną na potrzeby podatku – numer identyfikacji podatkowej tego nabywcy, jeżeli posiada on taki numer; 27)18) w przypadku gdy nabywca towarów lub usług jest podatnikiem, u którego sprzedaż jest zwolniona od podatku na podstawie art. 113a ust. 1 – indywidualny numer identyfikacyjny, o którym mowa w art. 113a ust. 2 pkt 2.",
+        "18) Dodany przez art. 1 pkt 2 lit. b ustawy, o której mowa w odnośniku 16; weszła w życie z dniem 1 lutego 2026 r."
+      ]
+    },
+    {
+      "id": "vat-106e-special-marks",
+      "title": "Ustawa o VAT art. 106e ust. 1 pkt 16–19 – adnotacje na fakturze (MPP, odwrotne obciążenie, zwolnienie, metoda kasowa)",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106e ust. 1 pkt 16, 17, 18, 18a, 19; ust. 12–13",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza wybranych punktów art. 106e ust. 1 (pkt 16–19) i ust. 12–13; inne punkty nie są tu omówione. Faktura zawiera wyrazy: „metoda kasowa” (pkt 16) w przypadku dostawy/usługi, dla której obowiązek podatkowy powstaje wg art. 19a ust. 5 pkt 1 lub art. 21 ust. 1 albo wg przepisów wydanych na podstawie art. 19a ust. 12 (termin z chwilą otrzymania zapłaty); „samofakturowanie” (pkt 17) wyłącznie w fakturach z art. 106d ust. 1; „odwrotne obciążenie” (pkt 18) wyłącznie gdy do rozliczenia VAT lub podobnego podatku obowiązany jest nabywca; „mechanizm podzielonej płatności” (pkt 18a) w fakturach, w których kwota należności ogółem przekracza 15 000 zł lub równowartość w walucie obcej (przeliczanie wg zasad dla podstawy opodatkowania), obejmujących dokonaną na rzecz podatnika dostawę towarów lub świadczenie usług, o których mowa w załączniku nr 15 do ustawy. Przy dostawie/usłudze zwolnionej na podstawie art. 43 ust. 1, art. 113 ust. 1 i 9, art. 113a ust. 1 albo przepisów wydanych na podstawie art. 82 ust. 3 faktura wskazuje przepis ustawy lub aktu wykonawczego, przepis dyrektywy 2006/112/WE albo inną podstawę prawną zwolnienia (pkt 19). Ust. 12: za wystawienie faktury z naruszeniem pkt 18a ustala się dodatkowe zobowiązanie 30% kwoty podatku przypadającej na pozycje z załącznika nr 15 wykazane na fakturze; nie ustala się go wobec osób fizycznych, które za ten sam czyn ponoszą odpowiedzialność za wykroczenie lub przestępstwo skarbowe. Ust. 13: ust. 12 nie stosuje się, jeśli zapłata kwoty podatku od tych pozycji została dokonana z zastosowaniem MPP. Daty wpisu (2026-08-26..2026-12-31) wyznaczają okno korpusu (początek = data stanu prawnego tekstu jednolitego); nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "invoice-content",
+        "split-payment",
+        "exempt-sales"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Załącznik nr 15 (wykaz towarów i usług) NIE jest w korpusie; doradca nie może z pamięci wyliczać jego pozycji.",
+      "officialText": [
+        "16) w przypadku dostawy towarów lub świadczenia usług, w odniesieniu do których: a) obowiązek podatkowy powstaje zgodnie z art. 19a ust. 5 pkt 1 lub art. 21 ust. 1, lub b) w przepisach wydanych na podstawie art. 19a ust. 12 określono termin powstania obowiązku podatkowego z chwilą otrzymania całości lub części zapłaty – wyrazy „metoda kasowa”; 17) w przypadku faktur, o których mowa w art. 106d ust. 1 – wyraz „samofakturowanie”; 18) w przypadku dostawy towarów lub wykonania usługi, dla których obowiązanym do rozliczenia podatku od wartości dodanej lub podatku o podobnym charakterze jest nabywca towaru lub usługi – wyrazy „odwrotne obciążenie”; 18a) w przypadku faktur, w których kwota należności ogółem przekracza kwotę 15 000 zł lub jej równowartość wyrażoną w walucie obcej, obejmujących dokonaną na rzecz podatnika dostawę towarów lub świadczenie usług, o których mowa w załączniku nr 15 do ustawy – wyrazy „mechanizm podzielonej płatności”, przy czym do przeliczania na złote kwot wyrażonych w walucie obcej stosuje się zasady przeliczania kwot stosowane w celu określenia podstawy opodatkowania; 19) w przypadku dostawy towarów lub świadczenia usług zwolnionych od podatku na podstawie art. 43 ust. 1, art. 113 ust. 1 i 9, art. 113a ust. 1 albo przepisów wydanych na podstawie art. 82 ust. 3 – wskazanie: a) przepisu ustawy albo aktu wydanego na podstawie ustawy, na podstawie którego podatnik stosuje zwolnienie od podatku, b) przepisu dyrektywy 2006/112/WE, który zwalnia od podatku taką dostawę towarów lub takie świadczenie usług, lub c) innej podstawy prawnej wskazującej na to, że dostawa towarów lub świadczenie usług korzysta ze zwolnienia;",
+        "12. W przypadku stwierdzenia, że podatnik wystawił fakturę z naruszeniem ust. 1 pkt 18a, naczelnik urzędu skarbo- wego lub naczelnik urzędu celno-skarbowego ustala dodatkowe zobowiązanie podatkowe w wysokości odpowiadającej 30 % kwoty podatku przypadającej na dostawę towarów lub świadczenie usług wymienionych w załączniku nr 15 do ustawy, wykazanej na tej fakturze. W stosunku do osób fizycznych, które za ten sam czyn ponoszą odpowiedzialność za wykroczenie skarbowe albo za przestępstwo skarbowe, dodatkowego zobowiązania podatkowego nie ustala się.",
+        "13. Przepisu ust. 12 nie stosuje się, jeżeli zapłata kwoty odpowiadającej kwocie podatku przypadającej na dostawę towa- rów lub świadczenie usług wymienionych w załączniku nr 15 do ustawy, wykazanej na fakturze, została dokonana z zastoso- waniem mechanizmu podzielonej płatności."
+      ]
+    },
+    {
+      "id": "vat-106e-simplified-amounts",
+      "title": "Ustawa o VAT art. 106e ust. 5–6 – dane, które faktura może pomijać (do 450 zł / 100 euro) i wyjątki",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106e ust. 5 i 6",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "5. Faktura może nie zawierać: 1) w przypadku, o którym mowa w art. 106a pkt 2 lit. a – danych określonych w ust. 1 pkt 10 i 12–14; 2) w przypadku, o którym mowa w art. 106a pkt 2 lit. b – danych określonych w ust. 1 pkt 5 i 12–14; 3) w przypadku gdy kwota należności ogółem nie przekracza kwoty 450 zł albo kwoty 100 euro, jeżeli kwota ta określona jest w euro – danych określonych w ust. 1 pkt 3 dotyczących nabywcy i danych określonych w ust. 1 pkt 8, 9 i 11–14, pod warunkiem że zawiera dane pozwalające określić dla poszczególnych stawek podatku kwotę podatku. 6. Przepisu ust. 5 pkt 3 nie stosuje się w przypadku wewnątrzwspólnotowej sprzedaży towarów na odległość, sprzedaży na odległość towarów importowanych, sprzedaży, dla której nie jest na fakturze podawany numer, o którym mowa w ust. 1 pkt 5, wewnątrzwspólnotowej dostawy towarów oraz w przypadku, o którym mowa w art. 106a pkt 2 lit. a.",
+      "topics": [
+        "invoice-content"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Cytat dosłowny ust. 5 (pkt 1–3) i ust. 6. Obliczanie kwoty podatku, ceny brutto i zaokrąglanie (ust. 7–11) są w osobnym wpisie vat-106e-tax-amount-calculation. Zasady wystawiania uproszczonych faktur w KSeF (rozporządzenie, Dz. U. 2021 poz. 1979 ze zm.) nie zostały przeczytane.",
+      "officialText": [
+        "5. Faktura może nie zawierać: 1) w przypadku, o którym mowa w art. 106a pkt 2 lit. a – danych określonych w ust. 1 pkt 10 i 12–14; 2) w przypadku, o którym mowa w art. 106a pkt 2 lit. b – danych określonych w ust. 1 pkt 5 i 12–14; 3) w przypadku gdy kwota należności ogółem nie przekracza kwoty 450 zł albo kwoty 100 euro, jeżeli kwota ta określona jest w euro – danych określonych w ust. 1 pkt 3 dotyczących nabywcy i danych określonych w ust. 1 pkt 8, 9 i 11–14, pod warunkiem że zawiera dane pozwalające określić dla poszczególnych stawek podatku kwotę podatku.",
+        "6. Przepisu ust. 5 pkt 3 nie stosuje się w przypadku wewnątrzwspólnotowej sprzedaży towarów na odległość, sprzedaży na odległość towarów importowanych, sprzedaży, dla której nie jest na fakturze podawany numer, o którym mowa w ust. 1 pkt 5, wewnątrzwspólnotowej dostawy towarów oraz w przypadku, o którym mowa w art. 106a pkt 2 lit. a.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-106e-tax-amount-calculation",
+      "title": "Ustawa o VAT art. 106e ust. 7–11 – wyliczanie kwoty podatku, ceny brutto, waluta i zaokrąglanie",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106e ust. 7–11",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "7. Kwotę podatku w odniesieniu do dostarczanych towarów lub świadczonych usług objętych daną stawką podatku podatnik może obliczyć według następującego wzoru: 𝐾𝑃 = 𝑊𝐵 × 𝑆𝑃 100 + 𝑆𝑃 gdzie: 𝐾𝑃 – oznacza kwotę podatku, 𝑊B – oznacza wartość dostarczonych towarów lub wykonanych usług objętych stawką podatku, uwzględniającą kwotę podatku (wartość sprzedaży brutto), 𝑆𝑃 – oznacza stawkę podatku. 8. W przypadku gdy podatnik oblicza kwotę podatku zgodnie z ust. 7, zamiast ceny jednostkowej netto podatnik może wykazywać na fakturze cenę wraz z kwotą podatku (cenę jednostkową brutto), a zamiast wartości sprzedaży netto – wartość sprzedaży brutto. 9. W przypadku, o którym mowa w ust. 8, sumę wartości sprzedaży netto stanowi różnica między wartością sprzedaży brutto a kwotą podatku, z podziałem na poszczególne stawki podatku. 10. Podatnik może określić w fakturze również kwoty podatku dotyczące wartości poszczególnych dostarczonych towarów i wykonanych usług wykazanych w tej fakturze; w tym przypadku łączna kwota podatku może być ustalona w wyniku podsumowania jednostkowych kwot podatku. 11. Kwoty podatku wykazuje się w złotych. Kwoty podatku wyrażone w walucie obcej wykazuje się w złotych przy zastosowaniu zasad przeliczania na złote przyjętych dla przeliczania kwot stosowanych do określenia podstawy opodatkowania. Kwoty wykazywane w fakturze zaokrągla się do pełnych groszy, przy czym końcówki poniżej 0,5 grosza pomija się, a końcówki od 0,5 grosza zaokrągla się do 1 grosza.",
+      "topics": [
+        "amounts",
+        "rounding"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Cytat dosłowny ust. 7–11. Wzór w ust. 7 jest ułamkiem (licznik: WB × SP, mianownik: 100 + SP); tekst z PDF spłaszcza go do jednej linii, więc cytat jest dosłowny wobec wyekstrahowanego tekstu, a nie wobec układu graficznego. Kwoty liczy serwer, nie model (zob. eval Q23).",
+      "officialText": [
+        "7. Kwotę podatku w odniesieniu do dostarczanych towarów lub świadczonych usług objętych daną stawką podatku podatnik może obliczyć według następującego wzoru: 𝐾𝑃 = 𝑊𝐵 × 𝑆𝑃 100 + 𝑆𝑃 gdzie: 𝐾𝑃 – oznacza kwotę podatku, 𝑊B – oznacza wartość dostarczonych towarów lub wykonanych usług objętych stawką podatku, uwzględniającą kwotę podatku (wartość sprzedaży brutto), 𝑆𝑃 – oznacza stawkę podatku. 8. W przypadku gdy podatnik oblicza kwotę podatku zgodnie z ust. 7, zamiast ceny jednostkowej netto podatnik może wykazywać na fakturze cenę wraz z kwotą podatku (cenę jednostkową brutto), a zamiast wartości sprzedaży netto – wartość sprzedaży brutto. 9. W przypadku, o którym mowa w ust. 8, sumę wartości sprzedaży netto stanowi różnica między wartością sprzedaży brutto a kwotą podatku, z podziałem na poszczególne stawki podatku. 10. Podatnik może określić w fakturze również kwoty podatku dotyczące wartości poszczególnych dostarczonych towarów i wykonanych usług wykazanych w tej fakturze; w tym przypadku łączna kwota podatku może być ustalona w wyniku podsumowania jednostkowych kwot podatku. 11. Kwoty podatku wykazuje się w złotych. Kwoty podatku wyrażone w walucie obcej wykazuje się w złotych przy zastosowaniu zasad przeliczania na złote przyjętych dla przeliczania kwot stosowanych do określenia podstawy opodatko- wania. Kwoty wykazywane w fakturze zaokrągla się do pełnych groszy, przy czym końcówki poniżej 0,5 grosza pomija się, a końcówki od 0,5 grosza zaokrągla się do 1 grosza.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-106i-issue-deadlines",
+      "title": "Ustawa o VAT art. 106i – terminy wystawienia faktury",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106i ust. 1, 2, 6, 7",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 106i ust. 1–9. Ust. 1: fakturę wystawia się nie później niż 15. dnia miesiąca następującego po miesiącu dostawy towaru lub wykonania usługi, z zastrzeżeniem ust. 2–9. Ust. 2: jeśli przed dostawą/usługą otrzymano całość lub część zapłaty (art. 106b ust. 1 pkt 4) – nie później niż 15. dnia miesiąca następującego po miesiącu otrzymania zapłaty. Ust. 3: odrębne terminy nie później niż: 30. dnia od wykonania usług (art. 19a ust. 5 pkt 3 lit. a), 60. dnia od wydania towarów (pkt 3 lit. b, z zastrzeżeniem ust. 4), 90. dnia od wykonania czynności (pkt 3 lit. c), z upływem terminu płatności (art. 19a ust. 5 pkt 4). Ust. 4: przy zwrotach wydawnictw – 120. dnia od pierwszego dnia wydania towarów. Ust. 5 (art. 29a ust. 12): 7. dnia od określonego w umowie dnia zwrotu opakowania albo 60. dnia od jego wydania, gdy umowa nie określa terminu zwrotu. Ust. 6 (żądanie nabywcy, art. 106b ust. 3): zgodnie z ust. 1 i 2, jeśli żądanie zgłoszono do końca miesiąca dostawy/wykonania/zapłaty; w przeciwnym razie nie później niż 15. dnia od dnia zgłoszenia żądania. Ust. 7: faktury nie mogą być wystawione wcześniej niż 60. dnia przed dostawą/usługą lub przed otrzymaniem zapłaty przed dostawą/usługą. Ust. 8: ust. 7 pkt 1 nie dotyczy dostaw i usług z art. 19a ust. 3, 4 i ust. 5 pkt 4, jeśli faktura wskazuje okres rozliczeniowy. Ust. 9: ust. 3, 4 i 8 nie stosuje się do bonów z art. 8a ust. 1 i 3. Wpis nie rozstrzyga, czy 15. dzień przypadający w dzień wolny od pracy ulega przesunięciu. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "issue-date",
+        "advance-payment"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Tekst art. 106i nie rozstrzyga wprost, czy 15. dzień wypadający w sobotę/niedzielę/święto się przesuwa (art. 12 Ordynacji podatkowej NIE jest w korpusie). Doradca nie powinien twierdzić ani tak, ani nie, bez źródła – pytanie do reviewera.",
+      "officialText": [
+        "Art. 106i. 1. Fakturę wystawia się niepóźniej niż 15. dnia miesiąca następującego po miesiącu, w którym dokonano dostawy towaru lub wykonano usługę, z zastrzeżeniem ust. 2‒9. 2. Jeżeli przed dokonaniem dostawy towaru lub wykonaniem usługi otrzymano całość lub część zapłaty, o której mowa w art. 106b ust. 1 pkt 4, fakturę wystawia się niepóźniej niż 15. dnia miesiąca następującego po miesiącu, w którym otrzymano całość lub część zapłaty od nabywcy. 3. Fakturę wystawia się niepóźniej niż: 1) 30. dnia od dnia wykonania usług – w przypadku, o którym mowa w art. 19a ust. 5 pkt 3 lit. a; 2) 60. dnia od dnia wydania towarów – w przypadku, o którym mowa w art. 19a ust. 5 pkt 3 lit. b, z zastrzeżeniem ust. 4; 3) 90. dnia od dnia wykonania czynności – w przypadku, o którym mowa w art. 19a ust. 5 pkt 3 lit. c; 4) z upływem terminu płatności – w przypadku, o którym mowa w art. 19a ust. 5 pkt 4. 4. W przypadku dostawy towarów, o których mowa w art. 19a ust. 5 pkt 3 lit. b, gdy umowa przewiduje rozliczenie zwrotów wydawnictw, fakturę wystawia się niepóźniej niż 120. dnia od pierwszego dnia wydania towarów. 5. W przypadku, o którym mowa w art. 29a ust. 12, fakturę wystawia się niepóźniej niż: 1) 7. dnia od określonego w umowie dnia zwrotu opakowania; 2) 60. dnia od dnia wydania opakowania, jeżeli w umowie nie określono terminu zwrotu opakowania. 6. W przypadkach, o których mowa w art. 106b ust. 3, fakturę wystawia się: 1) zgodnie z ust. 1 i 2 – jeżeli żądanie wystawienia faktury zostało zgłoszone do końca miesiąca, w którym dostarczono towar lub wykonano usługę bądź otrzymano całość lub część zapłaty; 2) niepóźniej niż 15. dnia od dnia zgłoszenia żądania – jeżeli żądanie wystawienia faktury zostało zgłoszone po upływie miesiąca, o którym mowa w pkt 1.",
+        "7. Faktury nie mogą być wystawione wcześniej niż 60. dnia przed: 1) dokonaniem dostawy towaru lub wykonaniem usługi; 2) otrzymaniem, przed dokonaniem dostawy towaru lub wykonaniem usługi, całości lub części zapłaty. 8. Przepis ust. 7 pkt 1 nie dotyczy wystawiania faktur w zakresie dostawy i świadczenia usług, o których mowa w art. 19a ust. 3, 4 i ust. 5 pkt 4, jeżeli faktura zawiera informację, jakiego okresu rozliczeniowego dotyczy. 9. Przepisów ust. 3, 4 i 8 nie stosuje się do wystawiania faktur w zakresie dostawy towarów lub świadczenia usług, o których mowa w art. 8a ust. 1 i 3."
+      ]
+    },
+    {
+      "id": "vat-19a-tax-point",
+      "title": "Ustawa o VAT art. 19a – powstanie obowiązku podatkowego (zasada ogólna)",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 19a ust. 1–4",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 19a. 1. Obowiązek podatkowy powstaje z chwilą dokonania dostawy towarów lub wykonania usługi, z zastrzeżeniem ust. 1a, 1b, 5 i 7–11, art. 14 ust. 6, art. 20, art. 21 ust. 1 i art. 138f. 1a. W przypadku, o którym mowa w art. 8a ust. 1 i 3, obowiązek podatkowy powstaje z chwilą dokonania transferu bonu jednego przeznaczenia. 1b. W odniesieniu do dostaw towarów, o których mowa w art. 7a ust. 1 i 2, dokonywanych na rzecz podatnika ułatwiającego dostawy towarów oraz przez tego podatnika, obowiązek podatkowy powstaje w momencie zaakceptowania płatności w rozumieniu art. 41a rozporządzenia 282/2011. 2. W odniesieniu do przyjmowanych częściowo usług, usługę uznaje się również za wykonaną, w przypadku wykonania części usługi, dla której to części określono zapłatę. 3. Usługę, dla której w związku z jej świadczeniem ustalane są następujące po sobie terminy płatności lub rozliczeń, uznaje się za wykonaną z upływem każdego okresu, do którego odnoszą się te płatności lub rozliczenia, do momentu zakończenia świadczenia tej usługi. Usługę świadczoną w sposób ciągły przez okres dłuższy niż rok, dla której w związku z jej świadczeniem w danym roku nie upływają terminy płatności lub rozliczeń, uznaje się za wykonaną z upływem każdego roku podatkowego, do momentu zakończenia świadczenia tej usługi. 4. Przepis ust. 3 stosuje się odpowiednio do dostawy towarów, z wyjątkiem dostaw towarów, o których mowa w: 1) art. 7 ust. 1 pkt 2; 2) art. 7a ust. 1 i 2, dokonywanych na rzecz podatnika ułatwiającego dostawy towarów oraz przez tego podatnika.",
+      "topics": [
+        "tax-point"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Cytat dosłowny ust. 1–4. Ust. 5 i 7–11 (m.in. zaliczki, ust. 8) NIE są w cytacie; ust. 1 odsyła do nich tylko jako zastrzeżenie. Doradca ma pytać o rodzaj czynności i nie rozstrzygać przypadków szczególnych. Stan prawny tekstu jednolitego 26.08.2026 (obwieszczenie z 1.09.2026); tekst nie zawiera daty wejścia w życie poszczególnych ustępów – okno 2026-02-01..2026-12-31 jest oknem korpusu, nie datą wejścia w życie ani wygaśnięcia przepisu.",
+      "officialText": [
+        "Art. 19a. 1. Obowiązek podatkowy powstaje z chwilą dokonania dostawy towarów lub wykonania usługi, z zastrzeże- niem ust. 1a, 1b, 5 i 7–11, art. 14 ust. 6, art. 20, art. 21 ust. 1 i art. 138f. 1a. W przypadku, o którym mowa w art. 8a ust. 1 i 3, obowiązek podatkowy powstaje z chwilą dokonania transferu bonu jednego przeznaczenia. 1b. W odniesieniu do dostaw towarów, o których mowa w art. 7a ust. 1 i 2, dokonywanych na rzecz podatnika ułatwia- jącego dostawy towarów oraz przez tego podatnika, obowiązek podatkowy powstaje w momencie zaakceptowania płatności w rozumieniu art. 41a rozporządzenia 282/2011. 2. W odniesieniu do przyjmowanych częściowo usług, usługę uznaje się również za wykonaną, w przypadku wykona- nia części usługi, dla której to części określono zapłatę. 3. Usługę, dla której w związku z jej świadczeniem ustalane są następujące po sobie terminy płatności lub rozliczeń, uznaje się za wykonaną z upływem każdego okresu, do którego odnoszą się te płatności lub rozliczenia, do momentu zakoń- czenia świadczenia tej usługi. Usługę świadczoną w sposób ciągły przez okres dłuższy niż rok, dla której w związku z jej świadczeniem w danym roku nie upływają terminy płatności lub rozliczeń, uznaje się za wykonaną z upływem każdego roku podatkowego, do momentu zakończenia świadczenia tej usługi. 4. Przepis ust. 3 stosuje się odpowiednio do dostawy towarów, z wyjątkiem dostaw towarów, o których mowa w: 1) art. 7 ust. 1 pkt 2; 2) art. 7a ust. 1 i 2, dokonywanych na rzecz podatnika ułatwiającego dostawy towarów oraz przez tego podatnika.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-41-nominal-rates",
+      "title": "Ustawa o VAT art. 41 ust. 1–6 – stawki podatku (stawki nominalne)",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 41 ust. 1–6",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 41. 1. Stawka podatku wynosi 22 %, z zastrzeżeniem ust. 2–12c, art. 83, art. 119 ust. 7, art. 120 ust. 2 i 3, art. 122 i art. 129 ust. 1. 2. Dla towarów i usług wymienionych w załączniku nr 3 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 7 %, z zastrzeżeniem art. 114 ust. 1 i art. 138i ust. 4. 2a. Dla towarów i usług wymienionych w załączniku nr 10 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 5 %, z zastrzeżeniem art. 138i ust. 4. 3. W wewnątrzwspólnotowej dostawie towarów stawka podatku wynosi 0 %, z zastrzeżeniem art. 42. 4. W eksporcie towarów, o którym mowa w art. 2 pkt 8 lit. a, stawka podatku wynosi 0 %. 5. W eksporcie towarów, o którym mowa w art. 2 pkt 8 lit. a, dokonywanym przez rolników ryczałtowych stawka podatku wynosi 0 %, pod warunkiem prowadzenia przez podatnika ewidencji określonej w art. 109 ust. 3. 6. Stawkę podatku 0 % stosuje się w eksporcie towarów, o którym mowa w ust. 4 i 5, pod warunkiem że podatnik przed upływem terminu do złożenia deklaracji podatkowej za dany okres rozliczeniowy otrzymał dokument potwierdzający wywóz towaru poza terytorium Unii Europejskiej.",
+      "topics": [
+        "vat-rates"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Cytat dosłowny ust. 1–6 (stawki nominalne). Stawki tymczasowe 23 % / 8 % z art. 146ef są w osobnym wpisie vat-146ef-temporary-rates i nie są częścią tego wpisu; odpowiedź o stawce w 2026 musi cytować oba wpisy. Ust. 6a–12c nie są cytowane. Przypisanie towaru/usługi do załączników nr 3 i 10 wymaga klasyfikacji (PKWiU/CN); załączniki NIE są w korpusie. Warunki 0 % dla WDT (art. 42) nie są przepisane.",
+      "officialText": [
+        "Art. 41. 1. Stawka podatku wynosi 22 %, z zastrzeżeniem ust. 2–12c, art. 83, art. 119 ust. 7, art. 120 ust. 2 i 3, art. 122 i art. 129 ust. 1. 2. Dla towarów i usług wymienionych w załączniku nr 3 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 7 %, z zastrzeże- niem art. 114 ust. 1 i art. 138i ust. 4. 2a. Dla towarów i usług wymienionych w załączniku nr 10 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 5 %, z zastrzeżeniem art. 138i ust. 4. 3. W wewnątrzwspólnotowej dostawie towarów stawka podatku wynosi 0 %, z zastrzeżeniem art. 42. 4. W eksporcie towarów, o którym mowa w art. 2 pkt 8 lit. a, stawka podatku wynosi 0 %. 5. W eksporcie towarów, o którym mowa w art. 2 pkt 8 lit. a, dokonywanym przez rolników ryczałtowych stawka podatku wynosi 0 %, pod warunkiem prowadzenia przez podatnika ewidencji określonej w art. 109 ust. 3. 6. Stawkę podatku 0 % stosuje się w eksporcie towarów, o którym mowa w ust. 4 i 5, pod warunkiem że podatnik przed upływem terminu do złożenia deklaracji podatkowej za dany okres rozliczeniowy otrzymał dokument potwierdzający wy- wóz towaru poza terytorium Unii Europejskiej.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-146ef-temporary-rates",
+      "title": "Ustawa o VAT art. 146ef – czasowe stawki 23% / 8% (od 2024 r.), cytat dosłowny",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 146ef ust. 1–2",
+      "effectiveFrom": "2024-01-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 146ef. 1. W okresie od dnia 1 stycznia 2024 r. do końca roku, w którym suma wydatków wymienionych w art. 40 ust. 1 pkt 2 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny (Dz. U. z 2025 r. poz. 825, z późn. zm.34)) określonych na ten rok w ustawie budżetowej, w brzmieniu obowiązującym na dzień 31 lipca tego roku, oraz planie finansowym Funduszu Wsparcia Sił Zbrojnych przedłożonym zgodnie z art. 42 ust. 4 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny albo projekcie tego planu przedstawionym do zatwierdzenia Ministrowi Obrony Narodowej zgodnie z art. 42 ust. 2 i 3 tej ustawy, jeżeli plan ten nie został przedłożony zgodnie z art. 42 ust. 4 tej ustawy, po wyłączeniu planowanych przepływów finansowych w ramach tej sumy wydatków, jest wyższa niż 3 % wartości produktu krajowego brutto określonego zgodnie z art. 40 ust. 2 tej ustawy: 1) stawka podatku, o której mowa w art. 41 ust. 1 i 13, art. 109 ust. 2, art. 110, art. 120 ust. 3a i art. 138i ust. 4, wynosi 23 %; 2) stawka podatku, o której mowa w art. 41 ust. 2, art. 120 ust. 2 i 3 oraz tytule załącznika nr 3 do ustawy, wynosi 8 %; 3) stawka zryczałtowanego zwrotu podatku, o której mowa w art. 115 ust. 2, wynosi 7 %; 4) stawka ryczałtu, o której mowa w art. 114 ust. 1, wynosi 4 %. 2. Minister właściwy do spraw finansów publicznych ogłosi, w drodze obwieszczenia, w Dzienniku Urzędowym Rzeczypospolitej Polskiej „Monitor Polski”, koniec okresu obowiązywania stawek podatku, o których mowa w ust. 1, w terminie do dnia 31 października roku, dla którego zostały spełnione warunki określone w ust. 1.",
+      "topics": [
+        "vat-rates"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Wskazówka redakcyjna (nie treść ustawy): ust. 1 nie wymienia stawki 5% z art. 41 ust. 2a. Wpis nie rozstrzyga, czy warunek z ust. 1 został spełniony ani czy obwieszczenie z ust. 2 opublikowano; to należy sprawdzić w Monitorze Polskim. Data końcowa wpisu (2026-12-31) wyznacza okno korpusu, nie wygaśnięcie przepisu. Sprawdzenie MP (2026-11-09, lista ELI API https://api.sejm.gov.pl/eli/acts/MP/2026, poz. 1-1100, ogłoszone do 2026-11-05): wśród pozycji MP 2026 nie ma obwieszczenia Ministra Finansów o końcu okresu stawek 23%/8% (przeszukano tytuły; termin ustawowy 31.10.2026 minął). To dowód negatywny z listy, nie treść ustawy – do potwierdzenia przez operatora w monitorpolski.gov.pl. Nie ustalono, czy warunek >3% PKB z ust. 1 jest spełniony dla 2026 ani 2027 r. ani czy nowelizacja Dz. U. 2026 poz. 1270 zmienia stawki od 2027-01-01. Dziewiąte przejście: excerpt jest dosłowny łącznie z przypisem 'z późn. zm.34))'; jedyne zmiany względem tekstu PDF to scalenie dzielenia wyrazów na końcach wierszy.",
+      "officialText": [
+        "Art. 146ef. 1. W okresie od dnia 1 stycznia 2024 r. do końca roku, w którym suma wydatków wymienionych w art. 40 ust. 1 pkt 2 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny (Dz. U. z 2025 r. poz. 825, z późn. zm.34)) określonych na ten rok w ustawie budżetowej, w brzmieniu obowiązującym na dzień 31 lipca tego roku, oraz planie finansowym Funduszu Wsparcia Sił Zbrojnych przedłożonym zgodnie z art. 42 ust. 4 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny albo pro- jekcie tego planu przedstawionym do zatwierdzenia Ministrowi Obrony Narodowej zgodnie z art. 42 ust. 2 i 3 tej ustawy, jeżeli plan ten nie został przedłożony zgodnie z art. 42 ust. 4 tej ustawy, po wyłączeniu planowanych przepływów finanso- wych w ramach tej sumy wydatków, jest wyższa niż 3 % wartości produktu krajowego brutto określonego zgodnie z art. 40 ust. 2 tej ustawy: 1) stawka podatku, o której mowa w art. 41 ust. 1 i 13, art. 109 ust. 2, art. 110, art. 120 ust. 3a i art. 138i ust. 4, wynosi 23 %; 2) stawka podatku, o której mowa w art. 41 ust. 2, art. 120 ust. 2 i 3 oraz tytule załącznika nr 3 do ustawy, wynosi 8 %; 3) stawka zryczałtowanego zwrotu podatku, o której mowa w art. 115 ust. 2, wynosi 7 %; 4) stawka ryczałtu, o której mowa w art. 114 ust. 1, wynosi 4 %. 2. Minister właściwy do spraw finansów publicznych ogłosi, w drodze obwieszczenia, w Dzienniku Urzędowym Rzeczy- pospolitej Polskiej „Monitor Polski”, koniec okresu obowiązywania stawek podatku, o których mowa w ust. 1, w terminie do dnia 31 października roku, dla którego zostały spełnione warunki określone w ust. 1."
+      ]
+    },
+    {
+      "id": "vat-106j-corrections",
+      "title": "Ustawa o VAT art. 106j – faktury korygujące",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106j ust. 1, 2, 2a, 4, art. 106k (uchylony)",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 106j ust. 1, 2, 2a, 4 oraz cytat brzmienia art. 106k; wpis nie omawia pozostałych ustępów. Ust. 1: jeżeli po wystawieniu faktury zmieniła się podstawa opodatkowania lub kwota podatku, dokonano zwrotu podatnikowi towarów i opakowań, dokonano zwrotu nabywcy całości lub części zapłaty z art. 106b ust. 1 pkt 4 albo stwierdzono pomyłkę w jakiejkolwiek pozycji faktury – podatnik wystawia fakturę korygującą. Ust. 2: faktura korygująca powinna zawierać: numer kolejny i datę wystawienia; numer identyfikujący w KSeF fakturę, której dotyczy (z wyjątkiem faktur, którym nie nadano numeru KSeF); dane z faktury korygowanej określone w art. 106e ust. 1 pkt 1–5 oraz nazwę towaru lub usługi objętych korektą; jeśli korekta zmienia podstawę opodatkowania lub podatek należny – kwotę korekty z podziałem na stawki i sprzedaż zwolnioną, a w pozostałych przypadkach – prawidłową treść korygowanych pozycji. Ust. 2a: może zawierać wyrazy „FAKTURA KORYGUJĄCA” albo „KOREKTA” oraz przyczynę korekty. Ust. 4: fakturę korygującą fakturę ustrukturyzowaną wystawia się w postaci faktury ustrukturyzowanej albo faktury z art. 106nda ust. 1. Art. 106k w tekście jednolitym (stan prawny na dzień 26 sierpnia 2026 r.) ma brzmienie: „Art. 106k. (uchylony)”. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "correction"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Skutki podatkowe korekty (moment ujęcia, art. 29a ust. 13–17) NIE są w korpusie; doradca nie rozstrzyga, w którym okresie rozliczyć korektę. Wskazówka dla odpowiedzi (nie przepis): nowych korekt nie robić notą korygującą (art. 106k jest uchylony), lecz fakturą korygującą (art. 106j). Dokładna data uchylenia art. 106k NIE wynika z przeczytanego tekstu (art. 23 ustawy zmieniającej podaje 1 lutego 2026 r. jako ogólną datę wejścia w życie, ale nie wskazano, który punkt art. 1 uchyla art. 106k; MF na stronie KSeF pisze o uchyleniu not korygujących z dniem 1 lutego 2026 r.); nie podawać jej w odpowiedziach do czasu potwierdzenia w ustawie z 5.08.2025.",
+      "officialText": [
+        "Art. 106j. 1. W przypadku gdy po wystawieniu faktury: 1) podstawa opodatkowania lub kwota podatku wskazana w fakturze uległa zmianie, 2) (uchylony) 3) dokonano zwrotu podatnikowi towarów i opakowań, 4) dokonano zwrotu nabywcy całości lub części zapłaty, o której mowa w art. 106b ust. 1 pkt 4, 5) stwierdzono pomyłkę w jakiejkolwiek pozycji faktury – podatnik wystawia fakturę korygującą.",
+        "2. Faktura korygująca powinna zawierać: 1) (uchylony) 2) numer kolejny oraz datę jej wystawienia; 2a) numer identyfikujący w Krajowym Systemie e-Faktur fakturę, której dotyczy faktura korygująca, z wyjątkiem faktur korygujących wystawianych do faktur, dla których nie został nadany numer identyfikujący w Krajowym Systemie e-Faktur; 3) dane zawarte w fakturze, której dotyczy faktura korygująca: a) określone w art. 106e ust. 1 pkt 1–5, b) nazwę (rodzaj) towaru lub usługi objętych korektą; 4) (uchylony) 5) jeżeli korekta wpływa na zmianę podstawy opodatkowania lub kwoty podatku należnego – odpowiednio kwotę korekty podstawy opodatkowania lub kwotę korekty podatku należnego z podziałem na kwoty dotyczące poszczególnych stawek podatku i sprzedaży zwolnionej; 6) w przypadkach innych niż wskazane w pkt 5 – prawidłową treść korygowanych pozycji. 2a. Faktura korygująca może zawierać: 1) wyrazy „FAKTURA KORYGUJĄCA” albo „KOREKTA”; 2) przyczynę korekty.",
+        "4.20) Fakturę korygującą fakturę ustrukturyzowaną wystawia się w postaci faktury ustrukturyzowanej albo faktury, o której mowa w art. 106nda ust. 1.",
+        "Art. 106k. (uchylony)"
+      ]
+    },
+    {
+      "id": "vat-106ga-ksef-obligation",
+      "title": "Ustawa o VAT art. 106ga – obowiązek wystawiania faktur ustrukturyzowanych w KSeF i wyłączenia",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106ga ust. 1–4",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 106ga ust. 1–4. Ust. 1: podatnicy są obowiązani wystawiać faktury ustrukturyzowane przy użyciu KSeF. Ust. 2: obowiązek nie dotyczy wystawiania faktur: 1) przez podatnika bez siedziby i bez stałego miejsca prowadzenia działalności w kraju; 2) przez podatnika bez siedziby w kraju, który ma w kraju stałe miejsce prowadzenia działalności, jeśli to miejsce nie uczestniczy w dostawie lub usłudze, dla której wystawiono fakturę; 3) przez podatnika w procedurach szczególnych (dział XII rozdz. 7, 7a i 9), dokumentujących czynności rozliczane w tych procedurach; 4) na rzecz nabywcy będącego osobą fizyczną nieprowadzącą działalności gospodarczej; 5) w przypadku odpowiednio udokumentowanych dostaw towarów lub usług określonych w przepisach wydanych na podstawie art. 106s (rozporządzenie – zob. wpis reg-1740-ksef-exclusions); 6) przez podatnika zwolnionego na podstawie art. 113a ust. 1. Ust. 3: w tych przypadkach wystawia się faktury elektroniczne lub papierowe. Ust. 4: w przypadkach z ust. 2 pkt 1, 2 i 4 podatnicy mogą wystawiać faktury ustrukturyzowane. Wskazówka redakcyjna (nie treść art. 106ga): faktyczny początek obowiązku zależy od przepisów przejściowych (m.in. art. 145l, 145m – osobne wpisy), a art. 106ga sam w sobie ich nie zawiera. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "ksef-obligation"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Podatnik zwolniony z art. 113 (nie 113a) NIE jest wymieniony w ust. 2 – nie wywodzić zwolnienia z KSeF dla art. 113 bez źródła; pytanie do reviewera.",
+      "officialText": [
+        "Art. 106ga. 1. Podatnicy są obowiązani wystawiać faktury ustrukturyzowane przy użyciu Krajowego Systemu e-Faktur. 2. Obowiązek, o którym mowa w ust. 1, nie dotyczy wystawiania faktur: 1) przez podatnika nieposiadającego siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju; 2) przez podatnika nieposiadającego siedziby działalności gospodarczej na terytorium kraju, który posiada stałe miejsce prowadzenia działalności gospodarczej na terytorium kraju, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub świadczeniu usług, dla których wystawiono fakturę; 3) przez podatnika korzystającego z procedur szczególnych, o których mowa w dziale XII w rozdziałach 7, 7a i 9, doku- mentujących czynności rozliczane w tych procedurach; 4) na rzecz nabywcy towarów lub usług będącego osobą fizyczną nieprowadzącą działalności gospodarczej; 5) w przypadku odpowiednio udokumentowanych dostaw towarów lub świadczenia usług, określonych w przepisach wy- danych na podstawie art. 106s; 6) przez podatnika korzystającego ze zwolnienia, o którym mowa w art. 113a ust. 1. 3. W przypadku, o którym mowa w ust. 2, wystawia się faktury elektroniczne lub faktury w postaci papierowej. 4. W przypadku, o którym mowa w ust. 2 pkt 1, 2 i 4, podatnicy mogą wystawiać faktury ustrukturyzowane.",
+        "Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 w zakresie art. 299g § 2 i art. 299h § 2, art. 7 pkt 2 oraz art. 10, które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 3a) art. 17b, który wchodzi w życie z dniem 1 listopada 2025 r.; 3b) art. 1 pkt 12 w zakresie art. 106gba ust. 2–8 i pkt 25 w zakresie art. 106r pkt 7–9 oraz art. 17a, które wchodzą w życie z dniem 1 stycznia 2026 r.;"
+      ]
+    },
+    {
+      "id": "vat-106gb-ksef-delivery",
+      "title": "Ustawa o VAT art. 106gb – wystawianie i otrzymywanie faktur w KSeF, udostępnianie nabywcy",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106gb ust. 1, 4, 5",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 106gb. 1. Faktura ustrukturyzowana jest wystawiana i otrzymywana przy użyciu Krajowego Systemu e-Faktur za pomocą oprogramowania interfejsowego, w postaci elektronicznej i zgodnie z wzorem dokumentu elektronicznego w rozumieniu ustawy z dnia 17 lutego 2005 r. o informatyzacji działalności podmiotów realizujących zadania publiczne. […] 4. W przypadku gdy: 1) miejscem świadczenia jest terytorium państwa członkowskiego inne niż terytorium kraju lub terytorium państwa trzeciego lub 2) nabywcą jest podmiot nieposiadający siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju, lub 3) nabywcą jest podmiot nieposiadający siedziby działalności gospodarczej na terytorium kraju, który posiada stałe miejsce prowadzenia działalności gospodarczej na terytorium kraju, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w nabyciu towaru lub usługi, dla którego wystawiono fakturę, lub 4) nabywcą jest podatnik korzystający ze zwolnienia, o którym mowa w art. 113a ust. 1, lub 5) nabywcą jest podmiot, który nie posługuje się numerem, za pomocą którego jest zidentyfikowany na potrzeby podatku, ani numerem identyfikacji podatkowej, inny niż nabywca, o którym mowa w pkt 1–3 i 6, lub 6) nabywcą jest osoba fizyczna nieprowadząca działalności gospodarczej – faktura ustrukturyzowana jest udostępniana nabywcy w sposób z nim uzgodniony. 5. Podatnik jest obowiązany do oznaczenia faktury ustrukturyzowanej kodem umożliwiającym dostęp do tej faktury w Krajowym Systemie e-Faktur oraz umożliwiającym weryfikację danych zawartych na tej fakturze, w przypadku: 1) udostępnienia jej nabywcy, o którym mowa w ust. 4, w sposób inny niż przy użyciu Krajowego Systemu e-Faktur, lub 2) użycia tej faktury poza Krajowym Systemem e-Faktur.",
+      "topics": [
+        "ksef-obligation",
+        "ksef-delivery"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Format kodu (QR) określają przepisy wykonawcze/dokumentacja MF – poza korpusem. Excerpt to cytat ust. 1, 4 i 5; znacznik […] zastępuje pominięte ust. 2-3. Usunięto z excerptu etykietę 'lista wyczerpująca' (nie występuje w tekście) i daty okna korpusu (2026-02-01..2026-12-31 to okno korpusu, nie data wejścia w życie ani wygaśnięcia). Ust. 4 ma charakter wyliczenia, ale ustawa nie nazywa go listą wyczerpującą.",
+      "officialText": [
+        "Art. 106gb. 1. Faktura ustrukturyzowana jest wystawiana i otrzymywana przy użyciu Krajowego Systemu e-Faktur za pomocą oprogramowania interfejsowego, w postaci elektronicznej i zgodnie z wzorem dokumentu elektronicznego w rozu- mieniu ustawy z dnia 17 lutego 2005 r. o informatyzacji działalności podmiotów realizujących zadania publiczne.",
+        "4. W przypadku gdy: 1) miejscem świadczenia jest terytorium państwa członkowskiego inne niż terytorium kraju lub terytorium państwa trzeciego lub 2) nabywcą jest podmiot nieposiadający siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju, lub 3) nabywcą jest podmiot nieposiadający siedziby działalności gospodarczej na terytorium kraju, który posiada stałe miej- sce prowadzenia działalności gospodarczej na terytorium kraju, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w nabyciu towaru lub usługi, dla którego wystawiono fakturę, lub 4) nabywcą jest podatnik korzystający ze zwolnienia, o którym mowa w art. 113a ust. 1, lub 5) nabywcą jest podmiot, który nie posługuje się numerem, za pomocą którego jest zidentyfikowany na potrzeby podatku, ani numerem identyfikacji podatkowej, inny niż nabywca, o którym mowa w pkt 1–3 i 6, lub 6) nabywcą jest osoba fizyczna nieprowadząca działalności gospodarczej – faktura ustrukturyzowana jest udostępniana nabywcy w sposób z nim uzgodniony. 5. Podatnik jest obowiązany do oznaczenia faktury ustrukturyzowanej kodem umożliwiającym dostęp do tej faktury w Krajowym Systemie e-Faktur oraz umożliwiającym weryfikację danych zawartych na tej fakturze, w przypadku: 1) udostępnienia jej nabywcy, o którym mowa w ust. 4, w sposób inny niż przy użyciu Krajowego Systemu e-Faktur, lub 2) użycia tej faktury poza Krajowym Systemem e-Faktur.",
+        "W brzmieniu ustalonym przez art. 1 pkt 3 ustawy, o której mowa w odnośniku 16; wszedł w życie z dniem 1 lutego 2026 r."
+      ]
+    },
+    {
+      "id": "vat-106na-ksef-dates",
+      "title": "Ustawa o VAT art. 106na – data wystawienia i otrzymania faktury ustrukturyzowanej",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106na ust. 1, 3, 4",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 106na ust. 1, 3, 4 (ust. 2 jest uchylony; pozostałe ustępy nie są tu omówione). Ust. 1: fakturę ustrukturyzowaną uznaje się za wystawioną w dniu jej przesłania do KSeF. Ust. 3: jest uznana za otrzymaną przy użyciu KSeF w dniu przydzielenia w tym systemie numeru identyfikującego fakturę. Ust. 4: gdy fakturę udostępniono nabywcy z art. 106gb ust. 4 w sposób inny niż przez KSeF, za datę otrzymania uznaje się datę faktycznego otrzymania przez tego nabywcę. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "ksef-dates",
+        "issue-date"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Poza excerptem (komentarz, nie tekst prawa): faktury w trybie art. 106nda ust. 1 mają odrębne zasady dat (art. 106nda ust. 10 i 11, zob. wpis vat-106nda-offline24). Relacja między datą przesłania do KSeF (art. 106na ust. 1) a datą wystawienia wpisaną na fakturze (art. 106e pkt 1) wymaga potwierdzenia w wytycznych MF – pytanie do reviewera; doradca nie powinien wyciągać wniosków o terminie z art. 106i bez uwzględnienia art. 106na.",
+      "officialText": [
+        "Art. 106na. 1. Fakturę ustrukturyzowaną uznaje się za wystawioną w dniu jej przesłania do Krajowego Systemu e-Faktur. 2. (uchylony) 3. Faktura ustrukturyzowana jest uznana za otrzymaną przy użyciu Krajowego Systemu e-Faktur w dniu przydzielenia w tym systemie numeru identyfikującego tę fakturę. 4. W przypadku udostępnienia faktury ustrukturyzowanej nabywcy, o którym mowa w art. 106gb ust. 4, w sposób inny niż przy użyciu Krajowego Systemu e-Faktur, za datę otrzymania tej faktury uznaje się datę jej faktycznego otrzymania przez tego nabywcę.",
+        "Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 w zakresie art. 299g § 2 i art. 299h § 2, art. 7 pkt 2 oraz art. 10, które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 3a) art. 17b, który wchodzi w życie z dniem 1 listopada 2025 r.; 3b) art. 1 pkt 12 w zakresie art. 106gba ust. 2–8 i pkt 25 w zakresie art. 106r pkt 7–9 oraz art. 17a, które wchodzą w życie z dniem 1 stycznia 2026 r.;"
+      ]
+    },
+    {
+      "id": "vat-106nda-offline24",
+      "title": "Ustawa o VAT art. 106nda – faktura w trybie offline24",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106nda ust. 1, 2, 10–13, 16",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 106nda ust. 1, 2, 10–13, 16; ust. 3–9, 14 i 15 (m.in. duplikat zniszczonej lub zagubionej faktury) nie zostały tu omówione. Ust. 1: podatnik obowiązany do wystawiania faktur ustrukturyzowanych może wystawiać faktury w postaci elektronicznej, zgodnie ze wzorem udostępnionym na podstawie art. 106gb ust. 8. Ust. 2: jest wtedy obowiązany niezwłocznie, nie później niż w następnym dniu roboczym po dniu wystawienia, przesłać fakturę do KSeF w celu przydzielenia numeru identyfikującego ją w KSeF. Ust. 10: za datę wystawienia uznaje się datę z art. 106e ust. 1 pkt 1 wskazaną przez podatnika na fakturze. Ust. 11: za datę otrzymania – datę przydzielenia numeru w KSeF, a przy udostępnieniu nabywcy z art. 106gb ust. 4 poza KSeF – datę faktycznego otrzymania. Ust. 12: fakturę korygującą wystawia się po przydzieleniu fakturze numeru KSeF; ust. 13: w postaci faktury ustrukturyzowanej albo faktury z ust. 1. Ust. 16: za fakturę z ust. 1 uznaje się także fakturę ustrukturyzowaną, jeśli data jej przesłania do KSeF jest późniejsza niż data wystawienia wskazana na fakturze; wtedy stosuje się odpowiednio ust. 4, ust. 6 pkt 1, ust. 8–10, 12 i 13. Wskazówka redakcyjna (nie treść ustawy): tryb z ust. 1 bywa nazywany „offline24” w materiałach MF (np. broszura FA(3), zob. wpis mf-fa3-brochure-corrections); ustawa tej nazwy nie używa. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "ksef-offline",
+        "ksef-dates"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Ust. 3–9 i 14–15 nie zostały przepisane. Nazwa 'offline24' pochodzi z broszury MF o FA(3) (źródło mf-fa3-brochure-corrections), nie z tekstu ustawy.",
+      "officialText": [
+        "Art. 106nda.21) 1. Podatnik obowiązany do wystawiania faktur ustrukturyzowanych może wystawiać faktury w postaci elektronicznej, zgodnie ze wzorem udostępnionym na podstawie art. 106gb ust. 8. 2. W przypadku gdy podatnik wystawi fakturę w sposób określony w ust. 1, jest obowiązany niezwłocznie, niepóźniej niż w następnym dniu roboczym po dniu jej wystawienia, przesłać tę fakturę do Krajowego Systemu e-Faktur w celu przy- dzielenia numeru identyfikującego tę fakturę w Krajowym Systemie e-Faktur.",
+        "10. Za datę wystawienia faktury, o której mowa w ust. 1, uznaje się datę, o której mowa w art. 106e ust. 1 pkt 1, wska- zaną przez podatnika na tej fakturze. 11. Za datę otrzymania faktury, o której mowa w ust. 1, uznaje się datę przydzielenia numeru identyfikującego tę fakturę w Krajowym Systemie e-Faktur. W przypadku udostępnienia faktury, o której mowa w ust. 1, na rzecz nabywcy, o którym mowa w art. 106gb ust. 4, w sposób inny niż przy użyciu Krajowego Systemu e-Faktur, za datę otrzymania tej faktury uznaje się datę faktycznego otrzymania tej faktury przez nabywcę. 12. Fakturę korygującą fakturę, o której mowa w ust. 1, wystawia się po przydzieleniu tej fakturze numeru identyfiku- jącego w Krajowym Systemie e-Faktur.",
+        "Dodany przez art. 1 pkt 22a ustawy z dnia 16 czerwca 2023 r. o zmianie ustawy o podatku od towarów i usług oraz niektórych innych ustaw (Dz. U. poz. 1598, z 2024 r. poz. 852 i 1721 oraz z 2025 r. poz. 1203), która weszła w życie z dniem 1 lutego 2026 r.",
+        "13. Fakturę korygującą fakturę, o której mowa w ust. 1, wystawia się w postaci faktury ustrukturyzowanej albo faktury, o której mowa w ust. 1. 14. W przypadku gdy faktura, o której mowa w ust. 1, udostępniona nabywcy, o którym mowa w art. 106gb ust. 4, w sposób inny niż przy użyciu Krajowego Systemu e-Faktur, ulegnie zniszczeniu albo zaginie przed przesłaniem jej do Krajowego Systemu e-Faktur, podatnik wystawia ponownie fakturę zgodnie z danymi zawartymi na fakturze, przy czym faktura wystawiona ponownie może zawierać datę wystawienia i wyraz „DUPLIKAT”. 15. Do oznaczania faktur, o których mowa w ust. 14, udostępnianych w sposób inny niż przy użyciu Krajowego Sys- temu e-Faktur przepisy ust. 6 i 7 stosuje się odpowiednio. 16. Za fakturę, o której mowa w ust. 1, uznaje się także fakturę ustrukturyzowaną, jeżeli data jej przesłania do Krajo- wego Systemu e-Faktur jest późniejsza niż data, o której mowa w art. 106e ust. 1 pkt 1, wskazana na tej fakturze. Przepisy ust. 4, ust. 6 pkt 1, ust. 8–10, 12 i 13 stosuje się odpowiednio."
+      ]
+    },
+    {
+      "id": "vat-106ne-106nh-ksef-failure",
+      "title": "Ustawa o VAT art. 106ne, 106nf, 106nh – awaria i niedostępność KSeF",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106ne ust. 1, 3, 4; art. 106nf ust. 1, 4; art. 106ng; art. 106nh ust. 1, 2",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 106ne ust. 1, 3, 4; art. 106nf ust. 1, 4; art. 106ng; art. 106nh ust. 1, 2; pozostałe ustępy (m.in. art. 106ne ust. 2, art. 106nf ust. 2 i 3) nie są tu omówione. Art. 106ne ust. 1: Minister Finansów zamieszcza w BIP komunikaty o wystąpieniu i zakończeniu awarii KSeF, które wyznaczają okres jej trwania; ust. 4: zamieszcza w BIP informację o okresie niedostępności KSeF. Art. 106nf ust. 1 dotyczy tylko awarii, o której mowa w art. 106ne ust. 1, czyli ogłoszonej komunikatem w BIP: w okresie jej trwania podatnik wystawia faktury w postaci elektronicznej zgodnie ze wzorem udostępnionym na podstawie art. 106gb ust. 8; ust. 4: w terminie 7 dni roboczych od dnia zakończenia awarii wskazanego w komunikacie o jej zakończeniu przesyła je do KSeF w celu przydzielenia numerów. Art. 106nh ust. 1 i 2: w okresie niedostępności KSeF podatnik wystawia faktury elektroniczne wg wzoru i przesyła je do KSeF nie później niż w następnym dniu roboczym po dniu zakończenia niedostępności. Art. 106ng (odrębny przypadek, w którym art. 106nf ust. 1 nie ma zastosowania): gdy komunikatu nie można zamieścić w BIP i awarię ogłoszono w środkach społecznego przekazu (art. 106ne ust. 3), w okresie trwania awarii podatnik wystawia faktury w postaci papierowej lub faktury elektroniczne. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "ksef-failure"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Doradca nie zna bieżących komunikatów awarii – ma odsyłać do BIP/komunikatów MF.",
+      "officialText": [
+        "Art. 106ne. 1. Minister właściwy do spraw finansów publicznych zamieszcza w Biuletynie Informacji Publicznej na stronie podmiotowej urzędu obsługującego tego ministra komunikaty o wystąpieniu i zakończeniu awarii Krajowego Sys- temu e-Faktur, które wyznaczają okres trwania tej awarii. Komunikaty te są zamieszczane również za pośrednictwem opro- gramowania interfejsowego. 2. Oprogramowanie interfejsowe, o którym mowa w ust. 1, jest dostępne na stronie, której adres jest podany w Biule- tynie Informacji Publicznej na stronie podmiotowej urzędu obsługującego ministra właściwego do spraw finansów publicznych. 3. W przypadku braku możliwości zamieszczenia komunikatów, o których mowa w ust. 1, w Biuletynie Informacji Publicznej na stronie podmiotowej urzędu obsługującego ministra właściwego do spraw finansów publicznych, minister właściwy do spraw finansów publicznych zamieszcza w środkach społecznego przekazu komunikat o wystąpieniu awarii Krajowego Systemu e-Faktur. W tym przypadku komunikat o zakończeniu awarii Krajowego Systemu e-Faktur jest za- mieszczany w środkach społecznego przekazu. Komunikaty o wystąpieniu i zakończeniu awarii Krajowego Systemu e-Faktur zamieszczone w środkach społecznego przekazu wyznaczają okres trwania tej awarii. 4. Minister właściwy do spraw finansów publicznych zamieszcza w Biuletynie Informacji Publicznej na stronie podmio- towej urzędu obsługującego tego ministra informację dotyczącą okresu trwania niedostępności Krajowego Systemu e-Faktur.",
+        "Art. 106nf. 1. W okresie trwania awarii Krajowego Systemu e-Faktur, o której mowa w art. 106ne ust. 1, podatnik wystawia faktury w postaci elektronicznej zgodnie z wzorem udostępnionym na podstawie art. 106gb ust. 8. 2. Faktury, o których mowa w ust. 1, udostępnia się nabywcy w sposób z nim uzgodniony. 3. W przypadku udostępnienia nabywcy faktury, o której mowa w ust. 1, w sposób inny niż przy użyciu Krajowego Systemu e-Faktur, przepisy art. 106nda ust. 6 i 7 stosuje się odpowiednio. 4. W terminie 7 dni roboczych od dnia zakończenia awarii Krajowego Systemu e-Faktur, o której mowa w ust. 1, wska- zanego w komunikacie o zakończeniu tej awarii, podatnik jest obowiązany do przesłania do Krajowego Systemu e-Faktur faktur, o których mowa w ust. 1, w celu przydzielenia numerów identyfikujących te faktury w Krajowym Systemie e-Faktur.",
+        "Art. 106ng. W przypadku, o którym mowa w art. 106ne ust. 3, podatnik w okresie trwania awarii wystawia faktury w postaci papierowej lub faktury elektroniczne. Art. 106nh. 1. W okresie trwania niedostępności Krajowego Systemu e-Faktur, o której mowa w art. 106ne ust. 4, podatnik wystawia faktury w postaci elektronicznej zgodnie ze wzorem udostępnionym na podstawie art. 106gb ust. 8. 2. Podatnik jest obowiązany przesłać faktury, o których mowa w ust. 1, do Krajowego Systemu e-Faktur w celu przy- dzielenia numeru identyfikującego te faktury w Krajowym Systemie e-Faktur niepóźniej niż w następnym dniu roboczym po dniu zakończenia okresu trwania niedostępności Krajowego Systemu e-Faktur, o której mowa w art. 106ne ust. 4.",
+        "Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 w zakresie art. 299g § 2 i art. 299h § 2, art. 7 pkt 2 oraz art. 10, które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 3a) art. 17b, który wchodzi w życie z dniem 1 listopada 2025 r.; 3b) art. 1 pkt 12 w zakresie art. 106gba ust. 2–8 i pkt 25 w zakresie art. 106r pkt 7–9 oraz art. 17a, które wchodzą w życie z dniem 1 stycznia 2026 r.;"
+      ]
+    },
+    {
+      "id": "vat-145l-ksef-feb-mar-2026",
+      "title": "Ustawa o VAT art. 145l – przepis przejściowy KSeF (luty–marzec 2026)",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 145l",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-03-31",
+      "excerpt": "Art. 145l (cytat/parafraza): w okresie od 1 lutego do 31 marca 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników nie przekroczyła w 2024 r. kwoty 200 000 000 zł. Odesłanie (nie treść art. 145l): od 1 kwietnia 2026 r. obowiązuje odrębny art. 145m ust. 1 (limit 10 000 zł miesięcznie, do 31 grudnia 2026 r.), cytowany w drugim fragmencie źródła i opisany we wpisie vat-145m-ksef-limit-apr-dec-2026.",
+      "topics": [
+        "ksef-obligation",
+        "transitional"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Wydzielone z dawnego wpisu vat-145l-145n-transitional (loader wymaga pokrycia całego miesiąca przez jeden wpis).",
+      "officialText": [
+        "Art. 145l. W okresie od dnia 1 lutego 2026 r. do dnia 31 marca 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprze- daży wraz z kwotą podatku u tych podatników nie przekroczyła w 2024 r. kwoty 200 000 000 zł.",
+        "Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 w zakresie art. 299g § 2 i art. 299h § 2, art. 7 pkt 2 oraz art. 10, które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 3a) art. 17b, który wchodzi w życie z dniem 1 listopada 2025 r.; 3b) art. 1 pkt 12 w zakresie art. 106gba ust. 2–8 i pkt 25 w zakresie art. 106r pkt 7–9 oraz art. 17a, które wchodzą w życie z dniem 1 stycznia 2026 r.;",
+        "Art. 145m. 1. W okresie od dnia 1 kwietnia 2026 r. do dnia 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników udokumentowana tymi fakturami wystawionymi w danym miesiącu jest mniejsza lub równa 10 000 zł."
+      ]
+    },
+    {
+      "id": "vat-145m-ksef-limit-apr-dec-2026",
+      "title": "Ustawa o VAT art. 145m – limit 10 000 zł miesięcznie (kwiecień–grudzień 2026)",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 145m ust. 1–2",
+      "effectiveFrom": "2026-04-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 145m. 1. W okresie od dnia 1 kwietnia 2026 r. do dnia 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników udokumentowana tymi fakturami wystawionymi w danym miesiącu jest mniejsza lub równa 10 000 zł. 2. Podatnik, o którym mowa w ust. 1, traci prawo do wystawiania faktur elektronicznych oraz faktur w postaci papierowej począwszy od faktury, którą przekroczono wartość, o której mowa w ust. 1.",
+      "topics": [
+        "ksef-obligation",
+        "ksef-limit-10000",
+        "transitional"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Wydzielone z dawnego wpisu vat-145l-145n-transitional. Koniec okresu (31.12.2026) wynika wprost z brzmienia art. 145m ust. 1, nie z odrębnego przepisu o wygaśnięciu. Komentarz usunięty z excerptu (tylko tu): wpis nie rozstrzyga, co obowiązuje po 31.12.2026; okno korpusu 2026-04-01..2026-12-31 pokrywa się z okresem z ust. 1, nie jest datą wygaśnięcia przepisu.",
+      "officialText": [
+        "Art. 145m. 1. W okresie od dnia 1 kwietnia 2026 r. do dnia 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników udokumentowana tymi fakturami wystawionymi w danym miesiącu jest mniejsza lub równa 10 000 zł. 2. Podatnik, o którym mowa w ust. 1, traci prawo do wystawiania faktur elektronicznych oraz faktur w postaci papie- rowej począwszy od faktury, którą przekroczono wartość, o której mowa w ust. 1.",
+        "Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 w zakresie art. 299g § 2 i art. 299h § 2, art. 7 pkt 2 oraz art. 10, które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 3a) art. 17b, który wchodzi w życie z dniem 1 listopada 2025 r.; 3b) art. 1 pkt 12 w zakresie art. 106gba ust. 2–8 i pkt 25 w zakresie art. 106r pkt 7–9 oraz art. 17a, które wchodzą w życie z dniem 1 stycznia 2026 r.;"
+      ]
+    },
+    {
+      "id": "vat-145n-cash-register-invoices",
+      "title": "Ustawa o VAT art. 145n ust. 1 – faktury z kas rejestrujących (2026)",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 145n ust. 1",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 145n ust. 1–3 (cytat/parafraza). Ust. 1: w okresie od 1 lutego do 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać: 1) faktury elektroniczne lub faktury w postaci papierowej przy zastosowaniu kas rejestrujących; 2) paragony fiskalne uznane za faktury wystawione zgodnie z art. 106e ust. 5 pkt 3. Ust. 2: wartości sprzedaży dokumentowanej fakturami z ust. 1 pkt 1 nie wlicza się do łącznej wartości sprzedaży z art. 87 ust. 6e pkt 1 i 2. Ust. 3: do faktur i paragonów z ust. 1 nie stosuje się art. 106h ust. 1. Przepis dotyczy wyłącznie podatników obowiązanych do wystawiania faktur ustrukturyzowanych; ust. 4 i dalsze (ujmowanie w ewidencji) nie są tu omówione. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "ksef-obligation",
+        "transitional"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Wydzielone z dawnego wpisu vat-145l-145n-transitional.",
+      "officialText": [
+        "Art. 145n. 1. W okresie od dnia 1 lutego 2026 r. do dnia 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać: 1) faktury elektroniczne lub faktury w postaci papierowej przy zastosowaniu kas rejestrujących; 2) paragony fiskalne uznane za faktury wystawione zgodnie z art. 106e ust. 5 pkt 3. 2. Wartości sprzedaży dokumentowanej fakturami, o których mowa w ust. 1 pkt 1, nie wlicza się do łącznej wartości sprzedaży wraz z kwotą podatku, o której mowa w art. 87 ust. 6e pkt 1 i 2. 3. Do faktur i paragonów fiskalnych, o których mowa w ust. 1, nie stosuje się przepisu art. 106h ust. 1.",
+        "Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 w zakresie art. 299g § 2 i art. 299h § 2, art. 7 pkt 2 oraz art. 10, które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 3a) art. 17b, który wchodzi w życie z dniem 1 listopada 2025 r.; 3b) art. 1 pkt 12 w zakresie art. 106gba ust. 2–8 i pkt 25 w zakresie art. 106r pkt 7–9 oraz art. 17a, które wchodzą w życie z dniem 1 stycznia 2026 r.;"
+      ]
+    },
+    {
+      "id": "vat-106ni-ust4-no-criminal-proceedings",
+      "title": "Ustawa o VAT art. 106ni – kary pieniężne za naruszenie obowiązku KSeF",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106ni ust. 4",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 106ni ust. 4: w przypadku niedopełnienia przez podatnika obowiązku z art. 106ga ust. 1, art. 106nda ust. 2, art. 106nf ust. 4 lub art. 106nh ust. 2 nie wszczyna się postępowania w sprawach o przestępstwa skarbowe lub wykroczenia skarbowe. Przepis obowiązuje od 2026-02-01 (art. 23 ustawy zmieniającej). Wniosek z art. 23 pkt 4 ustawy zmieniającej (art. 106ni ust. 1–3 i 5–7 wchodzą w życie 2027-01-01): kary pieniężne z ust. 1 nie obowiązują w 2026 r. Wpis nie omawia ust. 1–3 i 5–7. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "ksef-penalty"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Ust. 4 nie jest objęty wyjątkiem art. 1 pkt 24 ustawy z 16.06.2023 (tylko ust. 1–3 i 5–7 od 2027-01-01), więc działa od 2026-02-01.",
+      "officialText": [
+        "4. W przypadku niedopełnienia przez podatnika obowiązku, o którym mowa w art. 106ga ust. 1, art. 106nda ust. 2, art. 106nf ust. 4 lub art. 106nh ust. 2, nie wszczyna się postępowania w sprawach o przestępstwa skarbowe lub wykroczenia skarbowe.",
+        "Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 w zakresie art. 299g § 2 i art. 299h § 2, art. 7 pkt 2 oraz art. 10, które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 3a) art. 17b, który wchodzi w życie z dniem 1 listopada 2025 r.; 3b) art. 1 pkt 12 w zakresie art. 106gba ust. 2–8 i pkt 25 w zakresie art. 106r pkt 7–9 oraz art. 17a, które wchodzą w życie z dniem 1 stycznia 2026 r.;",
+        "4) art. 1 pkt 24 w zakresie art. 106ni ust. 1–3 i 5–7 i pkt 30, które wchodzą w życie z dniem 1 stycznia 2027 r.”"
+      ]
+    },
+    {
+      "id": "vat-106ni-ksef-penalty",
+      "title": "Ustawa o VAT art. 106ni – kary pieniężne za naruszenie obowiązku KSeF",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 106ni ust. 1",
+      "effectiveFrom": "2027-01-01",
+      "effectiveUntil": "2027-12-31",
+      "excerpt": "Parafraza art. 106ni ust. 1 (obowiązuje od 2027-01-01; ust. 2, 3 i 5–7 nie są tu omówione). Jeżeli podatnik wbrew obowiązkowi: 1) nie wystawił faktury ustrukturyzowanej przy użyciu KSeF, 2) w okresie awarii (art. 106ne ust. 1 lub 3) albo niedostępności (art. 106ne ust. 4) albo w przypadku z art. 106nda ust. 1 wystawił fakturę niezgodnie z udostępnionym wzorem, 3) nie przesłał w wymaganym terminie do KSeF faktury z art. 106nda ust. 1, art. 106nf ust. 1 lub art. 106nh ust. 1 – naczelnik urzędu skarbowego nakłada w drodze decyzji karę pieniężną w wysokości do 100% kwoty podatku wykazanego na tej fakturze wystawionej poza KSeF, a dla faktury bez wykazanego podatku do 18,7% kwoty należności ogółem wykazanej na tej fakturze wystawionej poza KSeF. Daty wpisu (2027-01-01..2027-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "ksef-penalty"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Okno 2027 wynika z art. 1 pkt 24 ustawy z 16.06.2023 (ust. 1–3, 5–7 od 2027-01-01). Poza oknem 2026 – dla pytań z 2026 r. nie jest pobierany. Dla 2027 korpus nie ma pozostałych wpisów; zob. Dz. U. 2026 poz. 1270 (zmiany od 2027-01-01).",
+      "officialText": [
+        "Art. 106ni.22) 1.23) Jeżeli podatnik wbrew obowiązkowi: 1) nie wystawił faktury ustrukturyzowanej przy użyciu Krajowego Systemu e-Faktur, 2) w okresie trwania awarii, o której mowa w art. 106ne ust. 1 lub 3, albo niedostępności, o której mowa w art. 106ne ust. 4, albo w przypadku, o którym mowa w art. 106nda ust. 1, wystawił fakturę niezgodnie z udostępnionym wzorem, 3) nie przesłał w wymaganym terminie do Krajowego Systemu e-Faktur faktury, o której mowa w art. 106nda ust. 1, art. 106nf ust. 1 lub art. 106nh ust. 1 – naczelnik urzędu skarbowego nakłada, w drodze decyzji, na podatnika karę pieniężną w wysokości do 100 % kwoty podatku wykazanego na tej fakturze wystawionej poza Krajowym Systemem e-Faktur, a w przypadku faktury bez wykazanego podatku – karę pieniężną w wysokości do 18,7 % kwoty należności ogółem wykazanej na tej fakturze wystawionej poza Krajowym Systemem e-Faktur.",
+        "23) Wejdzie w życie z dniem 1 stycznia 2027 r.",
+        "4) art. 1 pkt 24 w zakresie art. 106ni ust. 1–3 i 5–7 i pkt 30, które wchodzą w życie z dniem 1 stycznia 2027 r.”"
+      ]
+    },
+    {
+      "id": "vat-108a-split-payment",
+      "title": "Ustawa o VAT art. 108a – mechanizm podzielonej płatności",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 108a ust. 1, 1a, 1b, 1d",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza art. 108a ust. 1, 1a, 1b, 1d i 1e; wpis nie omawia ust. 1c ani dalszych (komunikat przelewu, sankcje). Ust. 1: podatnicy, którzy otrzymali fakturę z wykazaną kwotą podatku, mogą przy dokonywaniu płatności kwoty należności wynikającej z tej faktury zastosować mechanizm podzielonej płatności (MPP). Ust. 1a: przy płatności za towary lub usługi z załącznika nr 15, udokumentowane fakturą, w której kwota należności ogółem przekracza 15 000 zł (lub równowartość w walucie obcej, przeliczana wg zasad dla podstawy opodatkowania), podatnicy są obowiązani zastosować MPP. Ust. 1b: podatnik obowiązany do wystawienia faktury z adnotacją z art. 106e ust. 1 pkt 18a jest obowiązany przyjąć płatność z zastosowaniem MPP. Ust. 1d: przy potrąceniu wierzytelności ust. 1a i 1b nie stosuje się w zakresie potrąconych kwot. Ust. 1e: ust. 1a i 1b nie stosuje się do płatności z faktury dokumentującej transakcje realizowane w wykonaniu umowy o partnerstwie publiczno-prywatnym, jeżeli podmiot, na rzecz którego dokonuje się płatności, na dzień dokonania dostawy był partnerem prywatnym, z którym podmiot publiczny zawarł umowę o partnerstwie publiczno-prywatnym, albo jednoosobową spółką partnera prywatnego lub spółką kapitałową, której jedynymi wspólnikami są partnerzy prywatni, z którą podmiot publiczny zawarł taką umowę (umowa z art. 7 ust. 1 ustawy o partnerstwie publiczno-prywatnym). Daty wpisu (2026-08-26..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "split-payment"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Załącznik nr 15 poza korpusem. Pozostałe wyłączenia (m.in. ust. 1e) i sankcje nie są pełne.",
+      "officialText": [
+        "Art. 108a. 1. Podatnicy, którzy otrzymali fakturę z wykazaną kwotą podatku, przy dokonywaniu płatności kwoty należności wynikającej z tej faktury mogą zastosować mechanizm podzielonej płatności. 1a. Przy dokonywaniu płatności za nabyte towary lub usługi wymienione w załączniku nr 15 do ustawy, udokumento- wane fakturą, w której kwota należności ogółem przekracza kwotę 15 000 zł lub jej równowartość wyrażoną w walucie obcej, podatnicy są obowiązani zastosować mechanizm podzielonej płatności. Do przeliczania na złote kwot wyrażonych w walucie obcej stosuje się zasady przeliczania kwot stosowane w celu określenia podstawy opodatkowania. 1b. Podatnik obowiązany do wystawienia faktury, o której mowa w art. 106e ust. 1 pkt 18a, jest obowiązany do przy- jęcia płatności kwoty należności wynikającej z tej faktury z zastosowaniem mechanizmu podzielonej płatności. 1c. Przepisy ust. 1–1b stosuje się odpowiednio do płatności, o których mowa w art. 19a ust. 8. W takim przypadku w komunikacie przelewu, o którym mowa w ust. 3, podatnik w miejsce informacji, o której mowa w ust. 3 pkt 3, wpisuje wyraz „zaliczka”. 1d. W przypadku dokonania potrącenia wierzytelności przepisów ust. 1a i 1b nie stosuje się w zakresie, w jakim kwoty należności są potrącane.",
+        "1e. Przepisów ust. 1a i 1b nie stosuje się w przypadku dokonywania płatności kwoty należności wynikającej z faktury dokumentującej transakcje realizowane w wykonaniu umowy o partnerstwie publiczno-prywatnym, o której mowa w art. 7 ust. 1 ustawy z dnia 19 grudnia 2008 r. o partnerstwie publiczno-prywatnym, jeżeli podmiot, na rzecz którego dokonywana jest płatność, na dzień dokonania dostawy był partnerem prywatnym, z którym podmiot publiczny zawarł umowę o partner- stwie publiczno-prywatnym, lub jednoosobową spółką partnera prywatnego albo spółką kapitałową, której jedynymi wspól- nikami są partnerzy prywatni, z którą podmiot publiczny zawarł umowę o partnerstwie publiczno-prywatnym.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-96-113-registration-exemption",
+      "title": "Ustawa o VAT art. 113 ust. 1–2 – zwolnienie podmiotowe (kwota 240 000 zł)",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 113 ust. 1–2",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 113. 1.29) Zwalnia się od podatku sprzedaż dokonywaną przez podatnika posiadającego siedzibę działalności gospodarczej na terytorium kraju, u którego wartość sprzedaży, z wyłączeniem podatku, nie przekroczyła w poprzednim ani bieżącym roku podatkowym kwoty 240 000 zł. 2. Do wartości sprzedaży, o której mowa w ust. 1, nie wlicza się: 1) wewnątrzwspólnotowej sprzedaży towarów na odległość, która nie podlega opodatkowaniu podatkiem na terytorium kraju; 1a) sprzedaży na odległość towarów importowanych, która nie podlega opodatkowaniu podatkiem na terytorium kraju; 2) odpłatnej dostawy towarów i odpłatnego świadczenia usług, zwolnionych od podatku na podstawie art. 43 ust. 1 lub przepisów wydanych na podstawie art. 82 ust. 3, z wyjątkiem: a) transakcji związanych z nieruchomościami, b) usług, o których mowa w art. 43 ust. 1 pkt 7, 12 i 38–41, c) usług ubezpieczeniowych i reasekuracyjnych – jeżeli czynności te nie mają charakteru transakcji pomocniczych; 3) odpłatnej dostawy towarów, które na podstawie przepisów o podatku dochodowym są zaliczane przez podatnika do środków trwałych oraz wartości niematerialnych i prawnych podlegających amortyzacji. 29) Ze zmianą wprowadzoną przez art. 1 ustawy z dnia 24 czerwca 2025 r. o zmianie ustawy o podatku od towarów i usług (Dz. U. poz. 896), która weszła w życie z dniem 1 stycznia 2026 r.",
+      "topics": [
+        "vat-status"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Cytat dosłowny art. 113 ust. 1–2 wraz z przypisem 29 (zmiana ustawą z 24.06.2025, Dz. U. poz. 896, w mocy od 1.01.2026). Utrata zwolnienia, rezygnacja i rozpoczęcie działalności w trakcie roku (ust. 4, 5, 9, 10) są w osobnym wpisie vat-113-loss-resignation-new-business. Wyłączeń z zakresu zwolnienia (art. 113 ust. 13: towary i usługi wyłączone) NIE przepisano – doradca musi pytać o rodzaj działalności. Id wpisu zachowano dla zgodności ze zbiorem ewaluacyjnym; obowiązek rejestracji jest we wpisie vat-96-registration-duty.",
+      "officialText": [
+        "Art. 113. 1.29) Zwalnia się od podatku sprzedaż dokonywaną przez podatnika posiadającego siedzibę działalności gospodar- czej na terytorium kraju, u którego wartość sprzedaży, z wyłączeniem podatku, nie przekroczyła w poprzednim ani bieżącym roku podatkowym kwoty 240 000 zł. 2. Do wartości sprzedaży, o której mowa w ust. 1, nie wlicza się: 1) wewnątrzwspólnotowej sprzedaży towarów na odległość, która nie podlega opodatkowaniu podatkiem na terytorium kraju; 1a) sprzedaży na odległość towarów importowanych, która nie podlega opodatkowaniu podatkiem na terytorium kraju; 2) odpłatnej dostawy towarów i odpłatnego świadczenia usług, zwolnionych od podatku na podstawie art. 43 ust. 1 lub przepisów wydanych na podstawie art. 82 ust. 3, z wyjątkiem: a) transakcji związanych z nieruchomościami, b) usług, o których mowa w art. 43 ust. 1 pkt 7, 12 i 38–41, c) usług ubezpieczeniowych i reasekuracyjnych – jeżeli czynności te nie mają charakteru transakcji pomocniczych; 3) odpłatnej dostawy towarów, które na podstawie przepisów o podatku dochodowym są zaliczane przez podatnika do środków trwałych oraz wartości niematerialnych i prawnych podlegających amortyzacji.",
+        "29) Ze zmianą wprowadzoną przez art. 1 ustawy z dnia 24 czerwca 2025 r. o zmianie ustawy o podatku od towarów i usług (Dz. U. poz. 896), która weszła w życie z dniem 1 stycznia 2026 r.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-96-registration-duty",
+      "title": "Ustawa o VAT art. 96 ust. 1–3 – obowiązek zgłoszenia rejestracyjnego",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 96 ust. 1–3",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 96. 1. Podmioty, o których mowa w art. 15 i art. 15a, są obowiązane przed dniem wykonania pierwszej czynności określonej w art. 5 złożyć naczelnikowi urzędu skarbowego zgłoszenie rejestracyjne, z zastrzeżeniem ust. 3. 1a. Dostawca nieposiadający siedziby działalności gospodarczej na terytorium kraju, dokonujący wewnątrzwspólnotowej sprzedaży towarów na odległość, które w momencie rozpoczęcia wysyłki lub transportu znajdują się na terytorium kraju, składa zgłoszenie rejestracyjne do naczelnika urzędu skarbowego przed dniem dokonania dostawy. 2. W przypadku osób fizycznych, o których mowa w art. 15 ust. 4 i 5, zgłoszenie rejestracyjne może być dokonane wyłącznie przez jedną z osób, na które będą wystawiane faktury przy zakupie towarów i usług i które będą wystawiały faktury przy sprzedaży produktów rolnych. 3. Podmioty wymienione w art. 15, u których sprzedaż jest zwolniona od podatku na podstawie art. 113 ust. 1 i 9 lub wykonujące wyłącznie czynności zwolnione od podatku na podstawie art. 43 ust. 1 lub przepisów wydanych na podstawie art. 82 ust. 3, mogą złożyć zgłoszenie rejestracyjne.",
+      "topics": [
+        "vat-status"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Cytat dosłowny ust. 1–3. Ust. 3a i dalsze (przedstawiciel podatkowy, grupa VAT) nie są cytowane. Zwolnienie podmiotowe z art. 113 jest w osobnych wpisach vat-96-113-registration-exemption i vat-113-loss-resignation-new-business. Stan prawny tekstu jednolitego 26.08.2026; okno korpusu nie jest datą wejścia w życie ani wygaśnięcia.",
+      "officialText": [
+        "Art. 96. 1. Podmioty, o których mowa w art. 15 i art. 15a, są obowiązane przed dniem wykonania pierwszej czynności określonej w art. 5 złożyć naczelnikowi urzędu skarbowego zgłoszenie rejestracyjne, z zastrzeżeniem ust. 3. 1a. Dostawca nieposiadający siedziby działalności gospodarczej na terytorium kraju, dokonujący wewnątrzwspólnoto- wej sprzedaży towarów na odległość, które w momencie rozpoczęcia wysyłki lub transportu znajdują się na terytorium kraju, składa zgłoszenie rejestracyjne do naczelnika urzędu skarbowego przed dniem dokonania dostawy. 2. W przypadku osób fizycznych, o których mowa w art. 15 ust. 4 i 5, zgłoszenie rejestracyjne może być dokonane wyłącznie przez jedną z osób, na które będą wystawiane faktury przy zakupie towarów i usług i które będą wystawiały faktury przy sprzedaży produktów rolnych. 3. Podmioty wymienione w art. 15, u których sprzedaż jest zwolniona od podatku na podstawie art. 113 ust. 1 i 9 lub wykonujące wyłącznie czynności zwolnione od podatku na podstawie art. 43 ust. 1 lub przepisów wydanych na podstawie art. 82 ust. 3, mogą złożyć zgłoszenie rejestracyjne.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-113-loss-resignation-new-business",
+      "title": "Ustawa o VAT art. 113 ust. 3–10 – rezygnacja ze zwolnienia, utrata zwolnienia, rozpoczęcie działalności w trakcie roku",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 113 ust. 3–10",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "3. (uchylony) 4. Podatnicy, o których mowa w ust. 1 i 9, mogą zrezygnować ze zwolnienia określonego w ust. 1 i 9 pod warunkiem zawiadomienia na piśmie o tym zamiarze naczelnika urzędu skarbowego przed początkiem miesiąca, w którym rezygnują ze zwolnienia, a w przypadku podatników rozpoczynających w trakcie roku podatkowego wykonywanie czynności określonych w art. 5, którzy chcą zrezygnować ze zwolnienia od pierwszej wykonanej czynności – przed dniem wykonania tej czynności. 5. Jeżeli wartość sprzedaży zwolnionej od podatku na podstawie ust. 1 przekroczy kwotę, o której mowa w ust. 1, zwolnienie traci moc począwszy od czynności, którą przekroczono tę kwotę. 6. (uchylony) 7. (uchylony) 8. (uchylony) 9. Zwalnia się od podatku sprzedaż dokonywaną przez podatnika posiadającego siedzibę działalności gospodarczej na terytorium kraju, rozpoczynającego w trakcie roku podatkowego wykonywanie czynności określonych w art. 5, jeżeli przewidywana przez niego wartość sprzedaży nie przekroczy, w proporcji do okresu prowadzonej działalności gospodarczej w roku podatkowym, kwoty określonej w ust. 1. 10. Jeżeli faktyczna wartość sprzedaży zwolnionej od podatku na podstawie ust. 9, w proporcji do okresu prowadzonej działalności gospodarczej, przekroczy w trakcie roku podatkowego kwotę określoną w ust. 1, zwolnienie traci moc począwszy od czynności, którą przekroczono tę kwotę.",
+      "topics": [
+        "vat-status"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Cytat dosłowny ust. 3–10 (ust. 3, 6–8 uchylone). Kwota z ust. 1 jest w wpisie vat-96-113-registration-exemption. Ust. 11–13 (w tym wyłączenia z art. 113 ust. 13) nie są cytowane. Stan prawny tekstu jednolitego 26.08.2026; okno korpusu nie jest datą wejścia w życie ani wygaśnięcia.",
+      "officialText": [
+        "3. (uchylony) 4. Podatnicy, o których mowa w ust. 1 i 9, mogą zrezygnować ze zwolnienia określonego w ust. 1 i 9 pod warunkiem zawiadomienia na piśmie o tym zamiarze naczelnika urzędu skarbowego przed początkiem miesiąca, w którym rezygnują ze zwolnienia, a w przypadku podatników rozpoczynających w trakcie roku podatkowego wykonywanie czynności określonych w art. 5, którzy chcą zrezygnować ze zwolnienia od pierwszej wykonanej czynności – przed dniem wykonania tej czynności. 5. Jeżeli wartość sprzedaży zwolnionej od podatku na podstawie ust. 1 przekroczy kwotę, o której mowa w ust. 1, zwol- nienie traci moc począwszy od czynności, którą przekroczono tę kwotę. 6. (uchylony) 7. (uchylony) 8. (uchylony) 9. Zwalnia się od podatku sprzedaż dokonywaną przez podatnika posiadającego siedzibę działalności gospodarczej na terytorium kraju, rozpoczynającego w trakcie roku podatkowego wykonywanie czynności określonych w art. 5, jeżeli prze- widywana przez niego wartość sprzedaży nie przekroczy, w proporcji do okresu prowadzonej działalności gospodarczej w roku podatkowym, kwoty określonej w ust. 1. 10. Jeżeli faktyczna wartość sprzedaży zwolnionej od podatku na podstawie ust. 9, w proporcji do okresu prowadzonej działalności gospodarczej, przekroczy w trakcie roku podatkowego kwotę określoną w ust. 1, zwolnienie traci moc począwszy od czynności, którą przekroczono tę kwotę.",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "vat-96b-taxpayer-list",
+      "title": "Ustawa o VAT art. 96b – wykaz podmiotów (biała lista) i status VAT",
+      "url": "https://eli.gov.pl/api/acts/DU/2026/1263/text/T/D20261263L.pdf",
+      "section": "art. 96b ust. 1–2 i ust. 3 pkt 1–2a",
+      "effectiveFrom": "2026-08-26",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Art. 96b. 1. Szef Krajowej Administracji Skarbowej prowadzi w postaci elektronicznej wykaz podmiotów: 1) w odniesieniu do których naczelnik urzędu skarbowego nie dokonał rejestracji albo które wykreślił z rejestru jako podatników VAT; 2) zarejestrowanych jako podatnicy VAT, w tym podmiotów, których rejestracja jako podatników VAT została przywrócona. 2. Wykaz jest udostępniany w Biuletynie Informacji Publicznej na stronie podmiotowej urzędu obsługującego ministra właściwego do spraw finansów publicznych w sposób umożliwiający sprawdzenie, w tym automatycznie, czy podmiot znajduje się w wykazie na wybrany dzień, przypadający niewcześniej niż w okresie 5 lat poprzedzających rok, w którym podmiot jest sprawdzany. Dane tego podmiotu są udostępniane według stanu na wybrany dzień, z wyjątkiem danych, o których mowa w ust. 3 pkt 1–3, które są udostępniane według stanu na dzień sprawdzenia. 3. Wykaz zawiera następujące dane podmiotów, o których mowa w ust. 1: 1) firmę (nazwę) lub imię i nazwisko; 2) numer, za pomocą którego podmiot został zidentyfikowany na potrzeby podatku, jeżeli taki numer został przyznany; 2a) status podmiotu: a) w odniesieniu do którego nie dokonano rejestracji albo który wykreślono z rejestru jako podatnika VAT, b) zarejestrowanego jako „podatnik VAT czynny” albo „podatnik VAT zwolniony”, w tym podmiotu, którego rejestracja została przywrócona;",
+      "topics": [
+        "vat-status"
+      ],
+      "authority": "Sejm RP / Dziennik Ustaw",
+      "legalInstrument": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (ustawa o VAT), tekst jednolity: obwieszczenie Marszałka Sejmu z 1 września 2026 r., Dz. U. 2026 poz. 1263, stan prawny na 2026-08-26",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Pełny tekst Dz. U. 2026 poz. 1263 pobrany z eli.gov.pl 2026-10-31; fragmenty officialText skopiowane dosłownie z tego dokumentu i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Cytat dosłowny ust. 1–2 oraz początek ust. 3 (pkt 1–2a; wyliczenie danych wykazu w ust. 3 trwa dalej, od pkt 3: REGON, KRS, adresy, rachunki bankowe itd., i nie jest cytowane). Skutki płatności na rachunek spoza wykazu (art. 117ba) NIE zostały przeczytane. Stan prawny tekstu jednolitego 26.08.2026; okno korpusu nie jest datą wejścia w życie ani wygaśnięcia.",
+      "officialText": [
+        "Art. 96b. 1. Szef Krajowej Administracji Skarbowej prowadzi w postaci elektronicznej wykaz podmiotów: 1) w odniesieniu do których naczelnik urzędu skarbowego nie dokonał rejestracji albo które wykreślił z rejestru jako podatników VAT; 2) zarejestrowanych jako podatnicy VAT, w tym podmiotów, których rejestracja jako podatników VAT została przy- wrócona. 2. Wykaz jest udostępniany w Biuletynie Informacji Publicznej na stronie podmiotowej urzędu obsługującego ministra właściwego do spraw finansów publicznych w sposób umożliwiający sprawdzenie, w tym automatycznie, czy podmiot znaj- duje się w wykazie na wybrany dzień, przypadający niewcześniej niż w okresie 5 lat poprzedzających rok, w którym podmiot jest sprawdzany. Dane tego podmiotu są udostępniane według stanu na wybrany dzień, z wyjątkiem danych, o których mowa w ust. 3 pkt 1–3, które są udostępniane według stanu na dzień sprawdzenia. 3. Wykaz zawiera następujące dane podmiotów, o których mowa w ust. 1: 1) firmę (nazwę) lub imię i nazwisko; 2) numer, za pomocą którego podmiot został zidentyfikowany na potrzeby podatku, jeżeli taki numer został przyznany; 2a) status podmiotu: a) w odniesieniu do którego nie dokonano rejestracji albo który wykreślono z rejestru jako podatnika VAT, b) zarejestrowanego jako „podatnik VAT czynny” albo „podatnik VAT zwolniony”, w tym podmiotu, którego reje- stracja została przywrócona;",
+        "ogłasza się w załączniku do niniejszego obwieszczenia jednolity tekst ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. z 2025 r. poz. 775), z uwzględnieniem stanu prawnego na dzień 26 sierpnia 2026 r."
+      ]
+    },
+    {
+      "id": "reg-1740-ksef-exclusions",
+      "title": "Rozporządzenie MFiG z 7.12.2025 – przypadki bez obowiązku wystawiania faktur ustrukturyzowanych",
+      "url": "https://api.sejm.gov.pl/eli/acts/DU/2025/1740/text.pdf",
+      "section": "§ 2–4 (Dz. U. 2025 poz. 1740)",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza § 2–4 rozporządzenia (wydanego na podstawie art. 106s ustawy o VAT). § 2 (lista wyczerpująca): obowiązku wystawiania faktur ustrukturyzowanych nie ma w przypadku: 1) usług przejazdu autostradą płatną, udokumentowanych fakturami o zakresie danych węższym niż w art. 106e (zgodnie z przepisami wydanymi na podstawie art. 106o), wystawianymi przez podatników VAT uprawnionych do świadczenia tych usług oraz przez podmioty działające w imieniu i na rzecz podatnika lub upoważnione przez niego osoby trzecie; 2) usług przewozu osób na dowolną odległość kolejami normalnotorowymi, taborem samochodowym, statkami pełnomorskimi, środkami transportu żeglugi śródlądowej i przybrzeżnej, promami, samolotami i śmigłowcami, udokumentowanych fakturami w formie biletu jednorazowego o zakresie danych węższym niż w art. 106e (zgodnie z przepisami wydanymi na podstawie art. 106o), wystawianymi jak w pkt 1; 3) usług kontroli i nadzoru ruchu lotniczego, za które pobiera się opłaty trasowe, udokumentowanych fakturami miesięcznymi wystawianymi przez CRCO EUROCONTROL w imieniu Polskiej Agencji Żeglugi Powietrznej; 4) usług zwolnionych na podstawie art. 43 ust. 1 pkt 7 i 37–41, udokumentowanych fakturami o węższym niż w art. 106e zakresie danych (zgodnie z przepisami wydanymi na podstawie art. 106o); 5) dostaw i usług udokumentowanych fakturami wystawianymi przez nabywcę (samofakturowanie, art. 106d ust. 1), jeżeli nabywca nie jest zidentyfikowany na potrzeby danej czynności numerem NIP; 6) jak w pkt 5, jeżeli numerem NIP nie jest zidentyfikowany podatnik, który upoważnił nabywcę do wystawiania faktur. § 3: mimo braku obowiązku z § 2 pkt 5 można wystawiać faktury ustrukturyzowane w WDT, w której nabywca wystawiający faktury jest zidentyfikowany w innym państwie członkowskim UE numerem z art. 106e ust. 1 pkt 24 lit. b. § 4: wejście w życie 1 lutego 2026 r.",
+      "topics": [
+        "ksef-obligation"
+      ],
+      "authority": "Minister Finansów i Gospodarki",
+      "legalInstrument": "Rozporządzenie z 7 grudnia 2025 r. w sprawie przypadków, w których nie ma obowiązku wystawiania faktur ustrukturyzowanych (Dz. U. 2025 poz. 1740), w mocy od 2026-02-01 (ELI API: status obowiązujący)",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Dokument pobrany z oficjalnego adresu URL 2026-10-31; fragmenty officialText skopiowane dosłownie i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Pełny tekst (2 strony) przeczytany z PDF. Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "officialText": [
+        "§ 2. Obowiązku wystawiania faktur ustrukturyzowanych nie ma w przypadku: 1) świadczenia usług przejazdu autostradą płatną, udokumentowanych fakturami zawierającymi zakres danych węższy niż określony w art. 106e ustawy z dnia 11 marca 2004 r. o podatku od towarów i usług, zwanej dalej „ustawą”, zgod- nie z przepisami wydanymi na podstawie art. 106o ustawy, wystawianymi przez podatników podatku od towarów i usług uprawnionych do świadczenia tych usług oraz przez podmioty działające w imieniu i na rzecz podatnika lub upoważnione przez niego osoby trzecie; 2) świadczenia usług przewozu osób na dowolną odległość: kolejami normalnotorowymi, taborem samochodowym, stat- kami pełnomorskimi, środkami transportu żeglugi śródlądowej i przybrzeżnej, promami, samolotami i śmigłowcami, udokumentowanych fakturami w formie biletu jednorazowego zawierającymi zakres danych węższy niż określony w art. 106e ustawy, zgodnie z przepisami wydanymi na podstawie art. 106o ustawy, wystawianymi przez podatników podatku od towarów i usług uprawnionych do świadczenia tych usług oraz przez podmioty działające w imieniu i na rzecz podatnika lub upoważnione przez niego osoby trzecie; 3) świadczenia usług w zakresie kontroli i nadzoru ruchu lotniczego, za które są pobierane opłaty trasowe, udokumento- wanych fakturami wystawianymi za okresy miesięczne przez Centralne Biuro Opłat Trasowych (CRCO) Europejskiej Organizacji do Spraw Bezpieczeństwa Żeglugi Powietrznej (EUROCONTROL) w imieniu Polskiej Agencji Żeglugi Powietrznej; 4) świadczenia usług zwolnionych od podatku od towarów i usług na podstawie art. 43 ust. 1 pkt 7 i 37–41 ustawy, udo- kumentowanych fakturami zawierającymi zakres danych węższy niż określony w art. 106e ustawy, zgodnie z przepi- sami wydanymi na podstawie art. 106o ustawy; 5) dostawy towarów i świadczenia usług, udokumentowanych fakturami wystawianymi przez nabywcę towarów lub usług zgodnie z art. 106d ust. 1 ustawy, jeżeli nabywca towarów lub usług nie jest zidentyfikowany na potrzeby danej czyn- ności za pomocą numeru identyfikacji podatkowej (NIP); 6) dostawy towarów i świadczenia usług, udokumentowanych fakturami wystawianymi przez nabywcę towarów lub usług zgodnie z art. 106d ust. 1 ustawy, jeżeli podatnik, który upoważnił nabywcę towarów lub usług do wystawiania faktur w jego imieniu i na jego rzecz, nie jest zidentyfikowany na potrzeby danej czynności za pomocą numeru identyfikacji podatkowej (NIP).",
+        "§ 3. Faktury ustrukturyzowane można wystawiać, mimo braku obowiązku ich wystawiania na podstawie § 2 pkt 5, w przypadku wewnątrzwspólnotowej dostawy towarów, w której nabywca wystawiający faktury zgodnie z art. 106d ust. 1 ustawy jest zidentyfikowany na potrzeby danej czynności w państwie członkowskim Unii Europejskiej innym niż Rzecz- pospolita Polska za pomocą numeru, o którym mowa w art. 106e ust. 1 pkt 24 lit. b ustawy. § 4. Rozporządzenie wchodzi w życie z dniem 1 lutego 2026 r."
+      ]
+    },
+    {
+      "id": "mf-ksef-below-10000",
+      "title": "Ministerstwo Finansów (KSeF) – Poniżej 10 000 zł (wyjaśnienia MF, nie przepis prawa)",
+      "url": "https://ksef.podatki.gov.pl/ponizej-10-000-zl/",
+      "section": "strona informacyjna MF, pytania 4, 9, 13 i 14 (bez numeru artykułu)",
+      "effectiveFrom": "2026-04-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "4. Czy podatnik, który wystawia faktury o łącznej wartości brutto nieprzekraczającej 10 tys. zł miesięcznie, może wystawiać je w formie papierowej, bez obowiązku korzystania z KSeF? Tak, do końca 2026 r. podatnik może wystawiać faktury poza KSeF (np. papierowo lub elektronicznie), jeśli w danym miesiącu łączna wartość sprzedaży z podatkiem z tych faktur nie przekracza 10 000 zł. Jeśli jednak wartość ta zostanie przekroczona, podatnik musi wystawiać faktury w KSeF – począwszy od faktury, która przekroczył limit. Zachęcamy jednak, aby już wcześniej przygotować swoją firmę do KSeF. Odsunięcie w czasie obowiązku wystawiania faktur w KSeF nie wpłynie na konieczność ich odbierania w systemie. 9. Czy do limitu 10 tys. zł, są wliczane tylko faktury, które obowiązkowo należy wystawiać w KSeF (B2B), czy wlicza się wszystkie wystawione faktury? Do limitu 10 tys. zł wlicza się jedynie faktury, które obowiązkowo należy wystawić w KSeF (tj. w stosunku do których nie istnieją żadne wyłączenia lub przepisy epizodyczne pozwalające na ich wystawienie poza KSeF). 13. Czyli jeśli w jednym miesiącu nie przekroczę 10.000 zł obrotu, to w tym miesiącu nie muszę wystawić faktur w KSeF? A jak w następnym przekroczę to już muszę? W kolejnym, jeśli nie przekroczę to znowu nie muszę, itd.? Jeśli w pierwszym miesiącu podatnik nie przekroczy 10 000 zł to nie wystawia faktur w KSeF. Jeśli w drugim miesiącu przekroczy limit, to wystawia już w KSeF tę fakturę, którą przekroczył limit oraz wszystkie kolejne faktury. Fakt nieprzekroczenia limitu w trzecim miesiącu pozostaje już bez znaczenia. 14. Sprzedaż ma miejsce 5 kwietnia 2026 r. Termin wystawienia faktury upływa 15 maja 2026 r. Fakturę na rzecz nabywcy (podatnika) wystawiono 7 maja 2026 r. Czy fakturę wlicza się do limitu 10 tys. zł za kwiecień czy za maj? Fakturę wlicza się do limitu 10 tys. zł zawsze zgodnie datą wystawienia, czyli w maju 2026 r.",
+      "topics": [
+        "ksef-limit-10000"
+      ],
+      "authority": "Ministerstwo Finansów / KAS",
+      "legalInstrument": "Oficjalna strona informacyjna KSeF; wyjaśnienie art. 145m ustawy o VAT (strona nie cytuje artykułu)",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Dokument pobrany z oficjalnego adresu URL 2026-10-31; fragmenty officialText skopiowane dosłownie i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Excerpt to dosłowne pytania i odpowiedzi nr 4, 9, 13, 14 ze strony MF (wyjaśnienia, nie przepis prawa; strona opublikowana 17.09.2025, zmodyfikowana 20.11.2025; w odpowiedzi 4 jest literówka źródła „która przekroczył”). Pytania 3 (daty etapów, w tym 1 kwietnia 2026 r.), 10 i 11 (kasy, faktury konsumenckie) są w officialText, ale nie w excerpt. Podstawa prawna (art. 145m ustawy o VAT) nie jest cytowana na stronie – zob. wpis vat-145m-ksef-limit-apr-dec-2026. Strona MF może się zmieniać bez zmiany prawa i nie ma numeru wersji. Okno 2026-04-01..2026-12-31 jest oknem korpusu.",
+      "officialText": [
+        "3. Od kiedy trzeba wystawiać faktury w KSeF? Obowiązek wystawiania faktur w KSeF wejdzie etapami: od 1 lutego 2026 r. dla firm, które w 2024 r. miały sprzedaż powyżej 200 mln zł (z VAT), od 1 kwietnia 2026 r. dla pozostałych. Dodatkowo do 31 grudnia 2026 r. można jeszcze wystawiać faktury poza KSeF (papierowe lub elektroniczne), jeśli w danym miesiącu suma sprzedaży z VAT na takich fakturach nie przekroczy 10 000 zł. To ułatwienie ma pomóc w sprawnym przejściu na nowy system. 4. Czy podatnik, który wystawia faktury o łącznej wartości brutto nieprzekraczającej 10 tys. zł miesięcznie, może wystawiać je w formie papierowej, bez obowiązku korzystania z KSeF? Tak, do końca 2026 r. podatnik może wystawiać faktury poza KSeF (np. papierowo lub elektronicznie), jeśli w danym miesiącu łączna wartość sprzedaży z podatkiem z tych faktur nie przekracza 10 000 zł. Jeśli jednak wartość ta zostanie przekroczona, podatnik musi wystawiać faktury w KSeF – począwszy od faktury, która przekroczył limit. Zachęcamy jednak, aby już wcześniej przygotować swoją firmę do KSeF. Odsunięcie w czasie obowiązku wystawiania faktur w KSeF nie wpłynie na konieczność ich odbierania w systemie.",
+        "9. Czy do limitu 10 tys. zł, są wliczane tylko faktury, które obowiązkowo należy wystawiać w KSeF (B2B), czy wlicza się wszystkie wystawione faktury? Do limitu 10 tys. zł wlicza się jedynie faktury, które obowiązkowo należy wystawić w KSeF (tj. w stosunku do których nie istnieją żadne wyłączenia lub przepisy epizodyczne pozwalające na ich wystawienie poza KSeF). 10. Czy do limitu 10 tys. zł, należy wliczać wartość faktur wystawionych przy użyciu kas rejestrujących oraz paragonów fiskalnych do 450 zł uznanych za faktury uproszczone? Nie, gdyż w tych przypadkach można wystawić faktury w postaci papierowej lub elektronicznej. Do limitu 10 tys. zł wlicza się jedynie faktury, które obowiązkowo należy wystawić w KSeF. Dlatego do wartości sprzedaży 10 tys. zł nie będzie wliczana ani wartość faktur wystawionych przy użyciu kas rejestrujących, ani wartość paragonów fiskalnych do 450 zł uznanych za faktury uproszczone. 11. Czy do limitu 10 tys. zł należy wliczać wartość sprzedaży na rzecz osób fizycznych nieprowadzących działalności gospodarczej, udokumentowaną tzw. fakturą konsumencką? Nie. Faktury konsumenckie nie są objęte obowiązkowym KSeF. Do limitu 10 000 zł wlicza się wyłącznie wartość tych faktur, w stosunku do których podatnik jest zobowiązany do ich wystawienia w KSeF.",
+        "13. Czyli jeśli w jednym miesiącu nie przekroczę 10.000 zł obrotu, to w tym miesiącu nie muszę wystawić faktur w KSeF? A jak w następnym przekroczę to już muszę? W kolejnym, jeśli nie przekroczę to znowu nie muszę, itd.? Jeśli w pierwszym miesiącu podatnik nie przekroczy 10 000 zł to nie wystawia faktur w KSeF. Jeśli w drugim miesiącu przekroczy limit, to wystawia już w KSeF tę fakturę, którą przekroczył limit oraz wszystkie kolejne faktury. Fakt nieprzekroczenia limitu w trzecim miesiącu pozostaje już bez znaczenia. 14. Sprzedaż ma miejsce 5 kwietnia 2026 r. Termin wystawienia faktury upływa 15 maja 2026 r. Fakturę na rzecz nabywcy (podatnika) wystawiono 7 maja 2026 r. Czy fakturę wlicza się do limitu 10 tys. zł za kwiecień czy za maj? Fakturę wlicza się do limitu 10 tys. zł zawsze zgodnie datą wystawienia, czyli w maju 2026 r."
+      ]
+    },
+    {
+      "id": "mf-ksef-scope-and-dates",
+      "title": "Ministerstwo Finansów (KSeF) – Zakres obowiązkowego KSeF: terminy i pierwsza grupa wyłączeń (wyjaśnienia MF, nie przepis prawa)",
+      "url": "https://ksef.podatki.gov.pl/informacje-ogolne-ksef-20/zakres-obowiazkowego-ksef/",
+      "section": "strona: zakres obowiązkowego KSeF (terminy i pierwsza grupa wyłączeń)",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Termin wdrożenia obowiązkowego KSeF Obowiązek wystawiania faktur w KSeF wystąpi od: 1 lutego 2026 r. dla podatników, u których wartość sprzedaży (wraz z kwotą podatku) przekroczyła w 2024 r. 200 mln zł, 1 kwietnia 2026 r. dla pozostałych podatników, chyba, że wartość sprzedaży dokumentowana fakturami za okresy miesięczne nie przekracza kwoty 10 000 zł (brutto), wówczas podatnicy tacy do końca 2026 r. nie mają obowiązku wystawiania faktur w KSeF. WAŻNE Otrzymywanie faktur przy użyciu KSeF będzie obowiązkowe już od 1 lutego 2026 r. […] 1. Pierwsza grupa wyłączeń z obowiązku wystawiania faktur w KSeF wynika ze statusu stron transakcji. Wyłączeniem objęte będzie wystawianie faktur: przez podatników, którzy nie posiadają siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium Polski, przez podatników, którzy nie posiadają siedziby działalności gospodarczej na terytorium kraju, ale posiadają stałe miejsce prowadzenia działalności gospodarczej na terytorium Polski, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub świadczeniu usług, dla których wystawiono fakturę, na rzecz osoby fizycznej nieprowadzącej działalności gospodarczej. WAŻNE Pomimo braku obowiązku, podatnicy mogą wystawiać wyżej wymienione faktury dobrowolnie w KSeF. Ministerstwo Finansów udostępniło objaśnienia podatkowe z 28 stycznia 2026 r. , dotyczące zasad ustalania stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju dla potrzeb wystawiania faktur przy użyciu Krajowego Systemu e-Faktur. Zapoznaj się z objaśnieniami dotyczącymi zasad ustalania stałego miejsca prowadzenia działalności",
+      "topics": [
+        "ksef-obligation",
+        "ksef-dates"
+      ],
+      "authority": "Ministerstwo Finansów / KAS",
+      "legalInstrument": "Oficjalne strony informacyjne KSeF; zob. też https://ksef.podatki.gov.pl/informacje-ogolne-ksef-20/podstawy-prawne-oraz-kluczowe-terminy/",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Dokument pobrany z oficjalnego adresu URL 2026-10-31; fragmenty officialText skopiowane dosłownie i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Strony MF są wewnętrznie niespójne co do statusu publikacji rozporządzenia (jedna: 'oczekuje na publikację', druga: poz. 1815) – w ELI API Dz. U. 2025 poz. 1815 istnieje, status obowiązujący, w mocy od 2026-02-01 (z wyjątkami). Treści rozporządzenia 1815 NIE przeczytano – nie cytować jej. Dziewiąte przejście: wpis podzielony na dwa; ten zawiera dosłowny tekst strony o terminach oraz pierwszą grupę wyłączeń wraz z notą WAŻNE o dobrowolnym wystawianiu. Druga i trzecia grupa: wpis mf-ksef-exclusion-groups-two-three. W HTML pierwsza grupa to lista 3 punktów (potwierdzone 2026-11-09); recenzent widzi tylko tekst płaski. […] oznacza pominięty tekst strony między akapitem o terminach a pierwszą grupą.",
+      "officialText": [
+        "Termin wdrożenia obowiązkowego KSeF Obowiązek wystawiania faktur w KSeF wystąpi od: 1 lutego 2026 r. dla podatników, u których wartość sprzedaży (wraz z kwotą podatku) przekroczyła w 2024 r. 200 mln zł, 1 kwietnia 2026 r. dla pozostałych podatników, chyba, że wartość sprzedaży dokumentowana fakturami za okresy miesięczne nie przekracza kwoty 10 000 zł (brutto), wówczas podatnicy tacy do końca 2026 r. nie mają obowiązku wystawiania faktur w KSeF. WAŻNE Otrzymywanie faktur przy użyciu KSeF będzie obowiązkowe już od 1 lutego 2026 r.",
+        "1. Pierwsza grupa wyłączeń z obowiązku wystawiania faktur w KSeF wynika ze statusu stron transakcji. Wyłączeniem objęte będzie wystawianie faktur: przez podatników, którzy nie posiadają siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium Polski, przez podatników, którzy nie posiadają siedziby działalności gospodarczej na terytorium kraju, ale posiadają stałe miejsce prowadzenia działalności gospodarczej na terytorium Polski, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub świadczeniu usług, dla których wystawiono fakturę, na rzecz osoby fizycznej nieprowadzącej działalności gospodarczej. WAŻNE Pomimo braku obowiązku, podatnicy mogą wystawiać wyżej wymienione faktury dobrowolnie w KSeF. Ministerstwo Finansów udostępniło objaśnienia podatkowe z 28 stycznia 2026 r. , dotyczące zasad ustalania stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju dla potrzeb wystawiania faktur przy użyciu Krajowego Systemu e-Faktur. Zapoznaj się z objaśnieniami dotyczącymi zasad ustalania stałego miejsca prowadzenia działalności"
+      ]
+    },
+    {
+      "id": "mf-ksef-exclusion-groups-two-three",
+      "title": "Ministerstwo Finansów (KSeF) – Zakres obowiązkowego KSeF: druga i trzecia grupa wyłączeń (wyjaśnienia MF, nie przepis prawa)",
+      "url": "https://ksef.podatki.gov.pl/informacje-ogolne-ksef-20/zakres-obowiazkowego-ksef/",
+      "section": "strona: zakres obowiązkowego KSeF (druga i trzecia grupa wyłączeń)",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "2. Drugą grupę stanowią wyłączenia dotyczące konkretnych rodzajów transakcji. Są to przypadki wystawiania faktur przez podatników korzystających z następujących procedur szczególnych tj. procedura OSS nieunijna, procedura importu IOSS, procedura świadczenia usług międzynarodowego okazjonalnego przewozu drogowego osób. W KSeF nie są wystawiane także faktury dokumentujące czynności dokonane przez podatnika korzystającego ze zwolnienia, o którym mowa w art. 113a ust.1 ustawy (procedura SME). WAŻNE W powyższych przypadkach nie jest możliwe dobrowolne wystawianie faktur dokumentujących ww. czynności w KSeF. […] 3. Trzecią grupę wyłączeń z KSeF stanowią czynności wymienione w rozporządzeniu wykonawczym, w tym między innymi",
+      "topics": [
+        "ksef-obligation",
+        "ksef-dates"
+      ],
+      "authority": "Ministerstwo Finansów / KAS",
+      "legalInstrument": "Oficjalne strony informacyjne KSeF; zob. też https://ksef.podatki.gov.pl/informacje-ogolne-ksef-20/podstawy-prawne-oraz-kluczowe-terminy/",
+      "excerptKind": "quote",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Dokument pobrany z oficjalnego adresu URL 2026-10-31; fragmenty officialText skopiowane dosłownie i sprawdzone skryptem kotwiczącym",
+      "confidence": "medium",
+      "drafterNotes": "Dziewiąte przejście: wydzielone z mf-ksef-scope-and-dates. Excerpt to dosłowny tekst strony: druga grupa wraz z notą WAŻNE (dobrowolne wystawianie niemożliwe) oraz zdanie otwierające trzecią grupę ('czynności wymienione w rozporządzeniu wykonawczym, w tym między innymi'); lista trzeciej grupy nie została pobrana i nie jest objęta wpisem. […] oznacza pominięty tekst strony. Zdanie o niewysyłaniu do KSeF faktur proforma, not itp. pominięto (nie jest w excerptcie). Nie cytować treści rozporządzenia 1815.",
+      "officialText": [
+        "2. Drugą grupę stanowią wyłączenia dotyczące konkretnych rodzajów transakcji. Są to przypadki wystawiania faktur przez podatników korzystających z następujących procedur szczególnych tj. procedura OSS nieunijna, procedura importu IOSS, procedura świadczenia usług międzynarodowego okazjonalnego przewozu drogowego osób. W KSeF nie są wystawiane także faktury dokumentujące czynności dokonane przez podatnika korzystającego ze zwolnienia, o którym mowa w art. 113a ust.1 ustawy (procedura SME). WAŻNE W powyższych przypadkach nie jest możliwe dobrowolne wystawianie faktur dokumentujących ww. czynności w KSeF.",
+        "3. Trzecią grupę wyłączeń z KSeF stanowią czynności wymienione w rozporządzeniu wykonawczym, w tym między innymi"
+      ]
+    },
+    {
+      "id": "mf-fa3-brochure-corrections",
+      "title": "Ministerstwo Finansów – Broszura informacyjna dotycząca struktury logicznej FA(3) (marzec 2026)",
+      "url": "https://ksef.podatki.gov.pl/media/jknpcymf/broszura-informacyjna-dotyczaca-struktury-logicznej-fa-3-04032026.pdf",
+      "section": "broszura MF o FA(3): zakres struktury; opis faktur korygujących (Podmiot2K, NrKSeFFaKorygowanej, wypełnianie różnicą)",
+      "effectiveFrom": "2026-02-01",
+      "effectiveUntil": "2026-12-31",
+      "excerpt": "Parafraza i cytaty z broszury MF. Struktura FA(3) służy od 1 lutego 2026 r. również do wystawiania faktur korygujących, gdy faktura pierwotna została wystawiona przed 1 lutego 2026 r. w strukturze FA(2) lub FA(1). „W przypadku wystawienia faktury korygującej wypełnia się wszystkie pola wg stanu po korekcie, a pola dotyczące podstaw opodatkowania, podatku oraz należności ogółem wypełnia się poprzez różnicę.” Jeśli faktura korygowana była wystawiona w KSeF, w polu NrKSeFFaKorygowanej należy podać jej numer KSeF (dotyczy też faktur z art. 106nda ust. 1 lub 16, 106nh ust. 1, 106nf ust. 1). „Korekcie nie podlegają błędne numery NIP identyfikujące nabywcę oraz dodatkowego nabywcę – wówczas wymagana jest korekta faktury do wartości zerowych.” Analogicznie dla błędnego NIP sprzedawcy (Podmiot1K). Daty wpisu (2026-02-01..2026-12-31) wyznaczają okno korpusu; nie są datą wejścia w życie ani wygaśnięcia przepisu.",
+      "topics": [
+        "correction",
+        "fa3"
+      ],
+      "authority": "Ministerstwo Finansów / KAS",
+      "legalInstrument": "Broszura informacyjna MF, Warszawa, marzec 2026 r. (plik z 04.03.2026), 173 strony",
+      "excerptKind": "paraphrase+quotes",
+      "verifiedAt": "2026-10-31",
+      "verificationMethod": "Dokument pobrany z oficjalnego adresu URL 2026-10-31; fragmenty officialText skopiowane dosłownie i sprawdzone skryptem kotwiczącym",
+      "confidence": "high",
+      "drafterNotes": "Broszura informacyjna MF, nie przepis; cytaty odnalezione w wydobytym tekście PDF (numery stron przybliżone wg ekstrakcji: P4, P68–P70). Broszura może być aktualizowana – sprawdzić wersję przed review.",
+      "officialText": [
+        "Oznacza to, że strukturę logiczną e-faktury w wersji FA(3) wykorzystuje się także do wystawienia (od 1 lutego 2026 r.): • faktur korygujących, w sytuacji gdy faktura pierwotna, której dotyczy faktura korygująca, została wystawiona przed 1 lutego 2026 r. przy użyciu struktury FA(2) lub FA(1),",
+        "W przypadku wystawienia faktury korygującej wypełnia się wszystkie pola wg stanu po korekcie, a pola dotyczące podstaw opodatkowania, podatku oraz należności ogółem wypełnia się poprzez różnicę.",
+        "Podmiot1K Element zawierający dane Podmiot1 ujęte na fakturze korygowanej [element opcjonalny] W przypadku korekty danych sprzedawcy, należy podać pełne dane sprzedawcy, występujące na fakturze korygowanej. Pole nie dotyczy przypadku korekty błędnego NIP występującego na fakturze pierwotnej. Wówczas wymagana jest korekta faktury do wartości zerowych. Podmiot2K Element zawierający dane nabywcy występującego jako Podmiot2 lub Podmiot3 (rola „4”), ujęte na fakturze korygowanej [element opcjonalny] W przypadku korekty danych nabywcy występującego jako Podmiot2 lub dodatkowego nabywcy występującego jako Podmiot3, należy podać pełne dane tego podmiotu występujące na fakturze korygowanej. Korekcie nie podlegają błędne numery NIP identyfikujące nabywcę oraz dodatkowego nabywcę - wówczas wymagana jest korekta faktury do wartości zerowych.",
+        "Uwaga! Jeżeli faktura korygowana była wystawiona w KSeF, wówczas dodatkowo, w polu NrKSeFFaKorygowanej, należy podać numer KSeF faktury korygowanej. Uwaga! Obowiązek podawania numeru KSeF faktury korygowanej dotyczy także faktur wystawionych zgodnie z art. 106nda ust. 1 lub ust. 16 ustawy, 106nh ust. 1 ustawy, art. 106nf ust. 1 ustawy."
+      ]
+    }
+  ]
+}

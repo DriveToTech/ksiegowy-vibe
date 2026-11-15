@@ -12,7 +12,7 @@ interface NavigationItem {
   href: string;
   label: string;
   mobileLabel?: string;
-  icon: 'overview' | 'outgoing' | 'incoming' | 'contractors' | 'compliance' | 'settings' | 'more';
+  icon: 'overview' | 'outgoing' | 'incoming' | 'contractors' | 'compliance' | 'settings' | 'more' | 'advisor';
   badge?: string;
   badgeTone?: 'muted' | 'warning';
 }
@@ -62,7 +62,9 @@ export function DashboardNavigation({ items, mobile = false, moreItems = [] }: D
           >
             <span className={cn('flex min-w-0 items-center gap-3', mobile ? 'flex-col justify-center gap-1' : 'justify-between')}>
               <span className="flex min-w-0 items-center gap-3">
-                {!mobile ? <AppIcon name={item.icon} className="h-4 w-4 shrink-0" /> : null}
+                {!mobile ? (item.icon === 'advisor'
+                  ? <span aria-hidden="true" className="size-4 shrink-0 rounded-[5px] bg-[image:var(--primary-gradient)]" />
+                  : <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />) : null}
                 <span className={mobile ? undefined : 'truncate'}>{mobile ? item.mobileLabel ?? item.label : item.label}</span>
               </span>
               {!mobile && item.badge ? (
@@ -118,7 +120,7 @@ export function DashboardNavigation({ items, mobile = false, moreItems = [] }: D
                         : 'border-transparent text-muted hover:bg-foreground/5 hover:text-foreground-secondary',
                     )}
                   >
-                    <AppIcon name={item.icon} className="h-5 w-5 shrink-0" />
+                    {item.icon === 'advisor' ? null : <AppIcon name={item.icon} className="h-5 w-5 shrink-0" />}
                     {item.label}
                   </Link>
                 );

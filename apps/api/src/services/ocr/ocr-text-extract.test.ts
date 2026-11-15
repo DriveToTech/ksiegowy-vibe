@@ -101,4 +101,19 @@ describe('extractTextWithTesseract()', () => {
     const temporaryFilePath = mockExecuteFile.mock.calls[0][1][0];
     expect(unlinkSpy).toHaveBeenCalledWith(temporaryFilePath);
   });
+
+  it('returns null when the Tesseract executable is not installed', async () => {
+    const unlinkSpy = vi.spyOn(fs, 'unlink');
+    const missingExecutableError = Object.assign(new Error('spawn tesseract ENOENT'), { code: 'ENOENT' });
+
+    mockExecuteFile.mockImplementationOnce((...argumentsList: unknown[]) => {
+      const callback = argumentsList.at(-1) as unknown as (error: Error, output: string, errorOutput: string) => void;
+      callback(missingExecutableError, '', '');
+    });
+
+    await expect(extractTextWithTesseract([Buffer.from('image')])).resolves.toBeNull();
+
+    const temporaryFilePath = mockExecuteFile.mock.calls[0][1][0];
+    expect(unlinkSpy).toHaveBeenCalledWith(temporaryFilePath);
+  });
 });

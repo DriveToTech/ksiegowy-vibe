@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getCompanyKsefSettings, getIncomingInvoices } from '../../../lib/api';
 import { requireAuthSession } from '../../../lib/auth';
 import { Button } from '../../../components/atoms/Button';
@@ -6,6 +7,7 @@ import { MetricCard } from '../../../components/molecules/MetricCard';
 import { PageHeader } from '../../../components/molecules/PageHeader';
 import { IncomingInvoicesTable } from '../../../components/organisms/IncomingInvoicesTable';
 import { t } from '../../../lib/translations';
+import { AdvisorInsightStrip } from '../../../components/advisor/AdvisorInsightStrip';
 import { UploadButton } from './UploadButton';
 import { KsefSyncButton } from './KsefSyncButton';
 
@@ -31,6 +33,10 @@ export default async function IncomingPage({
 
   const result = await getIncomingInvoices(companyId, activeEnvironment, { page: String(page) });
   const totalPages = Math.max(1, Math.ceil(result.total / result.limit));
+  if (page > totalPages) {
+    redirect(`/dashboard/incoming?page=${totalPages}`);
+  }
+
   const processingCount = result.data.filter((invoice) => invoice.status === 'OCR_PROCESSING').length;
   const confirmedCount = result.data.filter((invoice) => invoice.status === 'CONFIRMED').length;
 
@@ -57,6 +63,7 @@ export default async function IncomingPage({
           </>
         }
       />
+      <AdvisorInsightStrip companyId={companyId} environment={activeEnvironment} view="incoming" />
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard label={t.incoming.metrics.allLabel} value={String(result.total)} hint={t.incoming.metrics.allHint} />

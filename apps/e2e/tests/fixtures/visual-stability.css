@@ -1,0 +1,4 @@
+/* Applied to every visual capture. The server renders the rail JPK countdown with the real date and React does not
+   repair style attributes during hydration, so the progress fill is pinned to the value of the fixed test date. */
+[class*='h-[3px]'] > div { width: 68% !important; }
+nextjs-portal { display: none !important; }
