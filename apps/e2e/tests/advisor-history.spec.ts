@@ -28,7 +28,7 @@ async function openHistory(page: Page, behavior: { list: () => unknown[] | 'dela
     return route.fulfill({ status: 404, json: { code: 'NOT_FOUND' } });
   });
   await page.goto('/dashboard');
-  await page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }).click();
+  await page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true }).click();
   const panel = page.getByRole('complementary', { name: 'Doradca' });
   await panel.getByRole('button', { name: 'Historia rozmów' }).click();
   return { panel, deleted };

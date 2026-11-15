@@ -102,7 +102,7 @@ export async function openAdvisorFrom(page: Page, width: VisualWidth, path: stri
 }
 
 export const openAdvisor = (page: Page, width: VisualWidth) =>
-  openAdvisorFrom(page, width, '/dashboard', (current) => current.getByRole('button', { name: 'Otwórz doradcę' }).filter({ visible: true }).first());
+  openAdvisorFrom(page, width, '/dashboard', (current) => current.getByRole('button', { name: 'Doradca', exact: true }).filter({ visible: true }).first());
 
 export const openExplainOnInvoice = (page: Page, width: VisualWidth) =>
   openAdvisorFrom(page, width, '/dashboard/invoices/accepted-invoice-id', (current) => current.getByRole('button', { name: 'Wyjaśnij z doradcą' }));

@@ -1,5 +1,5 @@
 export const advisorText = {
-  title: 'Doradca', close: 'Zamknij doradcę', open: 'Otwórz doradcę', settings: 'Dostawcy i konfiguracja',
+  title: 'Doradca', close: 'Zamknij doradcę', open: 'Doradca', settings: 'Dostawcy i konfiguracja',
   subtitle: 'Wyjaśnienia oparte na dokumentach i źródłach',
   intro: 'Zapytaj o dokumenty firmy lub przepisy dla wybranego okresu. Sprawdź źródła przed podjęciem decyzji podatkowej.',
   question: 'Twoje pytanie', placeholder: 'Co wynika z dokumentów w tym miesiącu?', send: 'Zapytaj', cancel: 'Anuluj',

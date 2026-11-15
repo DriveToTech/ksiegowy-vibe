@@ -52,16 +52,13 @@ for (const mobileTheme of mobileThemes) {
       });
 
       expect(navigationSlots.count).toBe(5);
-      expect(navigationSlots.labels).toEqual(['Start', 'Zakupy', 'Otwórz doradcę', 'Sprzedaż', 'Więcej']);
+      expect(navigationSlots.labels).toEqual(['Start', 'Zakupy', 'Doradca', 'Sprzedaż', 'Więcej']);
       expect(navigationSlots.left).toBe(0);
       expect(navigationSlots.right).toBe(navigationSlots.viewportWidth);
       expect(new Set([navigationSlots.rowTops[0], navigationSlots.rowTops[1], navigationSlots.rowTops[3], navigationSlots.rowTops[4]]).size).toBe(1);
       // The advisor entry is a labeled tab in an equal-width slot, not an oversized FAB.
-      const [startWidth, purchasesWidth, advisorWidth, salesWidth, moreWidth] = navigationSlots.widths;
-      expect(Math.max(startWidth, purchasesWidth, salesWidth, moreWidth) - Math.min(startWidth, purchasesWidth, salesWidth, moreWidth)).toBeLessThanOrEqual(1);
-      // Known defect: AdvisorTrigger's px-1.5 adds 12px to its flex-1 slot; tighten to 1px once the trigger uses px-0.
-      expect(advisorWidth - startWidth).toBeLessThanOrEqual(12.5);
-      await expect(mobileNavigation.getByRole('button', { name: 'Otwórz doradcę' })).toHaveText('Doradca');
+      expect(Math.max(...navigationSlots.widths) - Math.min(...navigationSlots.widths)).toBeLessThanOrEqual(1);
+      await expect(mobileNavigation.getByRole('button', { name: 'Doradca', exact: true })).toHaveText('Doradca');
       expect(navigationSlots.dimensions.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
 
       await expect(mobileNavigation.getByRole('link', { name: 'Start' })).toHaveAttribute('aria-current', 'page');

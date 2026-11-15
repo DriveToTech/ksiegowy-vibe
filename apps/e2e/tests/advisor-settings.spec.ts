@@ -255,7 +255,7 @@ test.describe('provider connection', () => {
         await expect(settings.getByRole('button', { name: /Rozmowa w ChatGPT lub Claude/ })).toHaveAttribute('aria-pressed', 'true');
         await page.goto('/dashboard');
         const isDesktop = viewport.width >= 1280;
-        const trigger = isDesktop ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
+        const trigger = isDesktop ? page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true }) : page.locator('nav').getByRole('button', { name: 'Doradca', exact: true });
         await trigger.click();
         const panel = isDesktop ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
         const link = panel.getByRole('link', { name: 'Otwórz ustawienia Doradcy' });

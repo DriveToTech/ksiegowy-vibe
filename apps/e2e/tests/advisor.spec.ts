@@ -22,7 +22,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       return route.fulfill({ json: route.request().method() === 'POST' ? conversation : requests ? [conversation] : [] });
     });
     await page.goto('/dashboard');
-    const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
+    const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true }) : page.locator('nav').getByRole('button', { name: 'Doradca', exact: true });
     await trigger.click();
     const panel = viewport.width >= 1280 ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
     await expect(panel.getByRole('button', { name: 'Zapytaj', exact: true })).toBeVisible();
@@ -74,7 +74,7 @@ test('advisor settings offer in-app and external chat connection modes', async (
     return route.fulfill({ status: 404, json: { code: 'NOT_FOUND' } });
   });
   await page.goto('/dashboard/settings');
-  await page.getByRole('button', { name: 'Doradca', exact: true }).click();
+  await page.getByLabel('Sekcje').getByRole('button', { name: 'Doradca', exact: true }).click();
   const settings = page.locator('#settings-panel');
   await expect(settings.getByRole('button', { name: /Doradca w Księgowym Vibe/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(settings.getByRole('heading', { name: 'Gotowość' })).toBeVisible();
@@ -87,7 +87,7 @@ test('advisor settings offer in-app and external chat connection modes', async (
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 1440);
   await page.screenshot({ path: testInfo.outputPath('advisor-settings-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Doradca', exact: true })).toBeInViewport();
+  await expect(page.getByLabel('Sekcje').getByRole('button', { name: 'Doradca', exact: true })).toBeInViewport();
   await expect(settings.getByRole('button', { name: /Doradca w Księgowym Vibe/ })).toBeVisible();
   await expect(settings.getByRole('button', { name: /Rozmowa w ChatGPT lub Claude/ })).toBeVisible();
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
@@ -113,7 +113,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       return route.fulfill({ json: route.request().method() === 'POST' ? conversation : asked ? [conversation] : [] });
     });
     await page.goto('/dashboard');
-    const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
+    const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true }) : page.locator('nav').getByRole('button', { name: 'Doradca', exact: true });
     await trigger.click();
     const panel = viewport.width >= 1280 ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
     await panel.locator('textarea').fill('What is the weather tomorrow?');
@@ -201,7 +201,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         return route.fulfill({ status: 405, json: { code: 'UNEXPECTED_ADVISOR_REQUEST' } });
       });
       await page.goto('/dashboard');
-      const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
+      const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true }) : page.locator('nav').getByRole('button', { name: 'Doradca', exact: true });
       await trigger.click();
       const panel = viewport.width >= 1280 ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
       // The provider comes from the first saved connection or, for a stored conversation, from that conversation.
@@ -247,7 +247,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       expect(modelPosts).toEqual([]);
       await settingsLink.click();
       await expect(page).toHaveURL(/\/dashboard\/settings\?section=advisor$/);
-      await expect(page.getByRole('button', { name: 'Doradca', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByLabel('Sekcje').getByRole('button', { name: 'Doradca', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await expect(page.locator('#settings-panel').getByRole('button', { name: /Doradca w Księgowym Vibe/ })).toHaveAttribute('aria-pressed', 'true');
       expect(modelPosts).toEqual([]);
     });
@@ -273,7 +273,7 @@ test('advisor retains the denied conversation provider on history load and setti
     return route.fulfill({ status: 405, json: { code: 'UNEXPECTED_ADVISOR_REQUEST' } });
   });
   await page.goto('/dashboard');
-  const trigger = page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' });
+  const trigger = page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true });
   await trigger.click();
   const panel = page.getByRole('complementary', { name: 'Doradca' });
   await panel.getByRole('button', { name: 'Historia rozmów' }).click();
@@ -304,7 +304,7 @@ test('advisor shows the AI-review disclaimer on a tax answer replayed from histo
     return route.fulfill({ status: 405, json: { code: 'UNEXPECTED_ADVISOR_REQUEST' } });
   });
   await page.goto('/dashboard');
-  await page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' }).click();
+  await page.locator('nav').getByRole('button', { name: 'Doradca', exact: true }).click();
   const panel = page.getByRole('dialog', { name: 'Doradca' });
   await panel.getByRole('button', { name: 'Historia rozmów' }).click();
   await panel.getByRole('button', { name: /Tax history/ }).first().click();

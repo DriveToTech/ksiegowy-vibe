@@ -31,7 +31,7 @@ async function routeAdvisorApi(page: Page, failures: Array<{ status: number; cod
 async function askQuestion(page: Page) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/dashboard');
-  await page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }).click();
+  await page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true }).click();
   const panel = page.getByRole('complementary', { name: 'Doradca' });
   await panel.locator('textarea').fill(question);
   await panel.getByRole('button', { name: 'Zapytaj', exact: true }).click();

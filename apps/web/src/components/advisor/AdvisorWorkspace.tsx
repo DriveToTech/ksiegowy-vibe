@@ -73,7 +73,7 @@ export function AdvisorTrigger({ mobile = false, explain = false, briefing = fal
     : explain
     ? `inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control border border-[var(--nav-active-border)] bg-[image:var(--nav-active)] px-3.5 text-[13px] font-medium text-foreground ${focusRing}`
     : mobile
-      ? `inline-flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 text-[11.5px] font-semibold text-primary ${focusRing}`
+      ? `inline-flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0 text-[11.5px] font-semibold text-primary ${focusRing}`
       : `inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control border border-[var(--nav-active-border)] bg-[image:var(--nav-active)] px-3.5 text-[13px] font-medium text-foreground aria-expanded:border-primary aria-expanded:shadow-[inset_0_0_0_1px_var(--primary)] ${focusRing}`;
   return <button type="button" aria-label={briefing ? text.briefing : explain ? text.explain : text.open} aria-expanded={advisor.open} aria-controls="advisor-panel" aria-current={onAdvisorPage && !explain ? 'page' : undefined}
     onClick={() => advisor.show({ question: question ?? (explain ? text.explainQuestion : ''), period, contractorId, contractorName, briefing })} className={className}>

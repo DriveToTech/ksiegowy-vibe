@@ -44,7 +44,7 @@ function advisorPanel(page: Page, width: number) {
 }
 
 function advisorTrigger(page: Page, width: number) {
-  return width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
+  return width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Doradca', exact: true }) : page.locator('nav').getByRole('button', { name: 'Doradca', exact: true });
 }
 
 for (const viewport of viewports) {
