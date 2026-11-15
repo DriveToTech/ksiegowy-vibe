@@ -140,8 +140,8 @@ test.describe('invoice list filters', () => {
 
   test('month select puts month in the URL, filters rows and keeps the search', async ({ authenticatedPage: page }) => {
     await page.goto('/dashboard/invoices?q=DEMO');
-    await expect(page.getByLabel('Okres')).toHaveValue('');
-    await expect(page.getByLabel('Okres').locator('option').first()).toHaveText('Cały okres');
+    await expect(page.getByTestId('invoice-month')).toHaveValue('');
+    await expect(page.getByTestId('invoice-month').locator('option').first()).toHaveText('Cały okres');
 
     await page.getByTestId('invoice-month').selectOption(previousMonth);
 

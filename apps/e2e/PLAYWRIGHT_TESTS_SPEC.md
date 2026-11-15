@@ -102,7 +102,7 @@ Playwright starts both servers from `apps/e2e/playwright.config.ts`:
 
 | Test                                                   | Setup                                   | Assertion                                                                                           |
 | ------------------------------------------------------ | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| sidebar shows all navigation items                     | authenticated, navigate to `/dashboard` | links "Przegląd", "Faktury wychodzące", "Faktury przychodzące", "Kontrahenci", "Raporty & JPK", "Ustawienia" visible |
+| sidebar shows all navigation items                     | authenticated, navigate to `/dashboard` | links "Przegląd", "Doradca", "Faktury wychodzące", "Faktury przychodzące", "Kontrahenci", "Raporty & JPK", "Ustawienia" visible |
 | clicking Kontrahenci navigates to contractors page     | click nav link "Kontrahenci"            | URL becomes `/dashboard/contractors`                                                                |
 | clicking Faktury wychodzące navigates to invoices page | click nav link "Faktury wychodzące"     | URL becomes `/dashboard/invoices`                                                                   |
 | clicking Ustawienia navigates to settings page         | click nav link "Ustawienia"             | URL becomes `/dashboard/settings`                                                                   |
