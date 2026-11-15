@@ -2,7 +2,9 @@ import { Builder } from 'builder-pattern';
 import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import OpenAI from 'openai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdvisorError } from './advisor-contract.js';
 import { requestStructuredModelOutput } from './advisor-provider.js';
 import type { AdvisorEvaluationCase } from './advisor-source-evaluation.js';
 import { AdvisorSourceReviewConfigurationError, reviewAdvisorSourceCorpus } from './advisor-source-review.js';
@@ -19,7 +21,7 @@ const officialDocument = '<html><style>p {}</style><body><p>Art. 1 Faktura zawie
 const now = new Date('2026-10-15T00:00:00Z');
 const environment = {
   ADVISOR_REVIEW_MODELS: 'ANTHROPIC:claude-reviewer-1,OPENAI:gpt-reviewer-1',
-  ADVISOR_REVIEW_ANSWER_MODELS: 'OPENROUTER:vendor/answer-1',
+  ADVISOR_REVIEW_ANSWER_MODELS: 'OPENROUTER:vendor/answer-1', ADVISOR_REVIEW_CALL_DELAY_MILLISECONDS: '0',
   ADVISOR_REVIEW_ANTHROPIC_API_KEY: 'secret-anthropic', ADVISOR_REVIEW_OPENAI_API_KEY: 'secret-openai', ADVISOR_REVIEW_OPENROUTER_API_KEY: 'secret-openrouter',
 };
 
@@ -60,7 +62,18 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(officialDocument, { headers: { 'content-type': 'text/html; charset=utf-8' } })));
   stubModels();
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); vi.useRealTimers(); });
+
+/** Runs a review that sleeps between retries: advances the fake clock while real file I/O settles. */
+async function completeWithFakeTimers<Result>(pending: Promise<Result>): Promise<Result> {
+  let isSettled = false;
+  void pending.finally(() => { isSettled = true; }).catch(() => undefined);
+  while (!isSettled) {
+    await vi.advanceTimersByTimeAsync(1000);
+    await new Promise((resolve) => { setImmediate(resolve); });
+  }
+  return pending;
+}
 
 describe('reviewAdvisorSourceCorpus()', () => {
   it('writes a loader-valid AI-reviewed corpus and a passing report when review and evaluation pass', async () => {
@@ -134,28 +147,86 @@ describe('reviewAdvisorSourceCorpus()', () => {
   });
 
   it('retries a timed out model call once and counts both attempts', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
     const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildDeclineCase().build()] });
     const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
     const normalResponse = vi.mocked(requestStructuredModelOutput).getMockImplementation() as never as typeof requestStructuredModelOutput;
     vi.mocked(requestStructuredModelOutput).mockRejectedValueOnce(timeout);
     vi.mocked(requestStructuredModelOutput).mockImplementation(normalResponse);
 
-    const report = await reviewAdvisorSourceCorpus({ ...inputs, environment, now });
+    const report = await completeWithFakeTimers(reviewAdvisorSourceCorpus({ ...inputs, environment, now }));
 
     expect(report.failure).toBeUndefined();
     expect(report.passed).toBe(true);
     expect(report.callCount).toBe(3);
   });
 
-  it('fails after three attempts when every model call times out', async () => {
+  it('marks the source reviewFailed, not rejected, after six rate limited attempts and says so in the summary', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
     const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildAnswerCase().build()] });
-    vi.mocked(requestStructuredModelOutput).mockRejectedValue(Object.assign(new Error('This operation was aborted'), { name: 'TimeoutError' }));
+    vi.mocked(requestStructuredModelOutput).mockRejectedValue(OpenAI.APIError.generate(429, {}, 'Provider returned error', new Headers()));
+
+    const report = await completeWithFakeTimers(reviewAdvisorSourceCorpus({ ...inputs, environment, now }));
+
+    expect(report.passed).toBe(false);
+    expect(report.callCount).toBe(6);
+    expect(report.sources[0]).toMatchObject({ id: 'law', decision: 'reviewFailed', reason: 'Review by ai:ANTHROPIC/claude-reviewer-1 failed: 429 Provider returned error' });
+    expect(report.summary).toEqual({ approved: 0, rejected: 0, reviewFailed: 1 });
+    expect(report.failure).toBe('No source was approved');
+  });
+
+  it('waits for the Retry-After header before retrying a rate limited call', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildDeclineCase().build()] });
+    const normalResponse = vi.mocked(requestStructuredModelOutput).getMockImplementation() as never as typeof requestStructuredModelOutput;
+    vi.mocked(requestStructuredModelOutput).mockRejectedValueOnce(OpenAI.APIError.generate(429, {}, 'Provider returned error', new Headers({ 'retry-after': '45' })));
+    vi.mocked(requestStructuredModelOutput).mockImplementation(normalResponse);
+    const pending = reviewAdvisorSourceCorpus({ ...inputs, environment, now });
+
+    await vi.waitFor(() => expect(requestStructuredModelOutput).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(44_000);
+    expect(requestStructuredModelOutput).toHaveBeenCalledTimes(1);
+    const report = await completeWithFakeTimers(pending);
+
+    expect(report.passed).toBe(true);
+    expect(report.callCount).toBe(3);
+  });
+
+  it('retries an incomplete answer once with a higher token limit', async () => {
+    const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildDeclineCase().build()] });
+    const normalResponse = vi.mocked(requestStructuredModelOutput).getMockImplementation() as never as typeof requestStructuredModelOutput;
+    vi.mocked(requestStructuredModelOutput).mockRejectedValueOnce(new AdvisorError(502, 'INVALID_ANSWER', 'Provider returned an incomplete answer'));
+    vi.mocked(requestStructuredModelOutput).mockImplementation(normalResponse);
 
     const report = await reviewAdvisorSourceCorpus({ ...inputs, environment, now });
 
-    expect(report.passed).toBe(false);
-    expect(report.callCount).toBe(3);
-    expect(report.failure).toBe('This operation was aborted');
+    expect(report.passed).toBe(true);
+    expect(vi.mocked(requestStructuredModelOutput).mock.calls.map(([, request]) => request.maximumTokens).slice(0, 2)).toEqual([8000, 16_000]);
+  });
+
+  it('reuses approvals from a previous report with identical draft, document, reviewers and prompt, and reviews the rest', async () => {
+    const inputs = await prepareInputs({ sources: [buildDraftSource('law').build(), buildDraftSource('other').build()], cases: [buildDeclineCase().build()] });
+    stubModels({ review: (input, provider) => provider === 'OPENAI' && input.includes('"id":"other"') ? { ...approve, verdict: 'reject', issues: ['Too broad'] } : approve });
+    const firstReport = await reviewAdvisorSourceCorpus({ ...inputs, environment, now });
+    stubModels();
+    vi.mocked(requestStructuredModelOutput).mockClear();
+
+    const resumedReport = await reviewAdvisorSourceCorpus({ ...inputs, environment, now, resumeReportId: firstReport.reportId });
+
+    expect(resumedReport.sources.map((record) => [record.id, record.decision, record.reusedFromReportId])).toEqual([['law', 'approved', firstReport.reportId], ['other', 'approved', undefined]]);
+    const reviewCalls = vi.mocked(requestStructuredModelOutput).mock.calls.filter(([, request]) => request.schemaName === 'advisor_source_review');
+    expect(reviewCalls.map(([connection]) => connection.provider)).toEqual(['ANTHROPIC', 'OPENAI']);
+  });
+
+  it('records the unmet checks and issues as the rejection reason, and accepts an effectiveFrom before the official text start', async () => {
+    const inputs = await prepareInputs({ sources: [buildDraftSource('law').build()], cases: [buildAnswerCase().build()] });
+    stubModels({ review: () => ({ ...approve, verdict: 'reject', checks: { ...approve.checks, effectiveDatesSupported: 'fail' }, issues: ['Provision starts later than effectiveFrom'] }) });
+
+    const report = await reviewAdvisorSourceCorpus({ ...inputs, environment, now });
+
+    expect(report.sources[0]?.reason).toBe('Rejected by ai:ANTHROPIC/claude-reviewer-1: effectiveDatesSupported=fail; Provision starts later than effectiveFrom');
+    const reviewRequest = vi.mocked(requestStructuredModelOutput).mock.calls.find(([, request]) => request.schemaName === 'advisor_source_review')?.[1];
+    expect(reviewRequest?.instruction).toContain('fail it only when the official text shows the provision starts later than effectiveFrom or is not yet in force');
   });
 
   it.each([

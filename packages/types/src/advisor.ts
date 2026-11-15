@@ -27,6 +27,8 @@ export interface AdvisorCalculation {
   issuedGross: string;
   issuedVat: string;
   acceptedGross: string;
+  /** Gross of invoices rejected by KSeF and never accepted afterwards; not a tax figure. */
+  rejectedGross: string;
   invoiceCount: number;
 }
 
@@ -133,6 +135,18 @@ export interface AdvisorModelPreview {
 
 /** Returned by `model-preview` (HTTP 429 with `Retry-After`) when the per-user or per-company UTC-day cap is reached. */
 export type AdvisorModelPreviewLimitErrorCode = 'DAILY_LIMIT_REACHED';
+/** Upstream provider failures: INVALID_CREDENTIALS and QUOTA_EXCEEDED are 502 (fix configuration), UNAVAILABLE is 503 (retry, optional `Retry-After`). */
+/** Single answer deadline shared by the API route and the web timer. */
+export const advisorAnswerTimeoutSeconds = 60;
+/** Records question with records enabled, but nothing to analyse in the selected month or contractor scope (422). */
+export type AdvisorRecordsErrorCode = 'RECORDS_UNAVAILABLE';
+/** `replyToTurnId` does not point at a completed clarification in the same conversation (409). */
+export type AdvisorReplyErrorCode = 'INVALID_REPLY';
+export type AdvisorProviderErrorCode = 'PROVIDER_INVALID_CREDENTIALS' | 'PROVIDER_QUOTA_EXCEEDED' | 'PROVIDER_UNAVAILABLE' | 'PROVIDER_ERROR';
+/** Payload of the SSE `status` event; a heartbeat only, elapsed time is measured by the client. */
+export interface AdvisorStreamStatus { stage: 'preparing' | 'working' }
+/** Payload of the SSE `error` event; headers cannot be set mid-stream, so the retry delay travels here. */
+export interface AdvisorStreamError { code: string; message: string; retryAfterSeconds?: number }
 export type AdvisorOllamaErrorCode = 'OLLAMA_NOT_CONFIGURED' | 'OLLAMA_UNREACHABLE' | 'OLLAMA_NO_MODELS';
 
 export interface AdvisorConnectorSettings {
@@ -154,6 +168,8 @@ export interface AdvisorTurn {
   question: string;
   status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   answer: AdvisorAnswer | null;
+  /** Clarification turn this message answers, or null. */
+  replyToTurnId: string | null;
   createdAt: string;
 }
 

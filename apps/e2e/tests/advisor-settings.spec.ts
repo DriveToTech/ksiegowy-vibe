@@ -156,7 +156,7 @@ test.describe('provider connection', () => {
         const settings = page.locator('#settings-panel');
 
         await settings.getByRole('radio', { name: /Ollama/ }).check();
-        await expect(settings.getByText(/ADVISOR_OLLAMA_URL/)).toBeVisible();
+        await expect(settings.getByText('Operator nie skonfigurował jeszcze serwera Ollama ani dostępu do niego z serwera API.')).toBeVisible();
         await expect(settings.getByRole('button', { name: 'Zapisz model' })).toHaveCount(0);
         await expect(settings.getByRole('button', { name: 'Zapisz połączenie' })).toHaveCount(0);
         await expect(settings.locator('input[type="url"], input[type="password"]')).toHaveCount(0);
@@ -195,7 +195,7 @@ test.describe('provider connection', () => {
         await screenshotAdvisorSection(page, testInfo, `advisor-ollama-${viewport.width}`);
       });
 
-      test('policy gates explain each blocker separately, keep the test blocked and still save the connection', async ({ authenticatedPage: page }, testInfo) => {
+      test('policy gates explain each blocker separately and lock the form, save and test', async ({ authenticatedPage: page }, testInfo) => {
         const mock = createAdvisorMock({ allowedProviders: ['OPENAI'], operatorEnabled: false, connections: [{ provider: 'OPENROUTER', model: 'saved/model', hasCredential: true, testedAt: null }] });
         await routeAdvisorApi(page, mock);
         await page.goto('/dashboard/settings?section=advisor');
@@ -205,16 +205,16 @@ test.describe('provider connection', () => {
         await expect(readiness.getByText('Dostawca niedozwolony')).toBeVisible();
         await expect(readiness.getByText(/Administrator musi zezwolić na OpenRouter/)).toBeVisible();
         await expect(readiness.getByText('Wyłączony', { exact: true })).toBeVisible();
-        await expect(readiness.getByText(/operator musi ustawić ADVISOR_ENABLED=true/)).toBeVisible();
+        await expect(readiness.getByText(/Operator nie włączył jeszcze doradcy na serwerze/)).toBeVisible();
 
         const verification = settings.getByRole('region', { name: 'Sprawdzenie' });
         await expect(verification.getByRole('button', { name: 'Sprawdź połączenie (płatne żądanie)' })).toBeDisabled();
         await expect(verification.getByText('Test jest niedostępny, dopóki operator nie włączy doradcy na serwerze.')).toBeVisible();
 
-        await settings.getByLabel('Identyfikator modelu').fill('new/model');
-        await settings.getByRole('button', { name: 'Zapisz połączenie' }).click();
-        await expect(settings.getByText('Zapisano połączenie. Nie zostało jeszcze sprawdzone.')).toBeVisible();
-        expect(mock.savedBodies).toEqual([{ model: 'new/model' }]);
+        // The operator switch locks the whole form: nothing can be saved or tested until it is turned on.
+        await expect(settings.getByLabel('Identyfikator modelu')).toBeDisabled();
+        await expect(settings.getByRole('button', { name: 'Zapisz połączenie' })).toBeDisabled();
+        expect(mock.savedBodies).toEqual([]);
         expect(mock.testRequests).toBe(0);
         await expect(settings.getByText('Gotowe do pytań.')).toHaveCount(0);
         await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
@@ -371,7 +371,7 @@ test.describe('connectors', () => {
       await expect(row('ChatGPT', 'TEST').getByText('Aktywna', { exact: true })).toBeVisible();
       await expect(row('ChatGPT', 'TEST').getByText('Wygasa wkrótce')).toBeVisible();
       await expect(row('ChatGPT', 'TEST').getByText(/Ostatnie użycie:/)).toBeVisible();
-      await expect(row('Claude', 'TEST').getByText('Oczekuje na pierwsze użycie')).toBeVisible();
+      await expect(row('Claude', 'TEST').getByText('Bez autoryzowanego odczytu')).toBeVisible();
       await expect(row('Claude', 'TEST').getByText('Wygasa wkrótce')).toHaveCount(0);
       await expect(row('Claude', 'TEST').getByText(/Ostatnie użycie:/)).toHaveCount(0);
       await expect(row('ChatGPT', 'PRODUKCJA').getByText('Wygasła', { exact: true })).toBeVisible();
@@ -396,7 +396,8 @@ test.describe('connectors', () => {
       const consent = settings.getByRole('checkbox', { name: /Zezwalam ChatGPT/ });
       await expect(consent).not.toBeChecked();
       await expect(consent).toBeFocused();
-      await expect(settings.getByRole('button', { name: 'Zezwól na odczyt' })).toBeDisabled();
+      // With an earlier grant for this host and environment the submit button reads "Zezwól ponownie".
+      await expect(settings.getByRole('button', { name: 'Zezwól ponownie', disabled: true })).toBeVisible();
       expect(requests).toEqual([]);
     });
 
@@ -409,7 +410,7 @@ test.describe('connectors', () => {
       const restricted = await openExternalMode(page, viewport, { endpoint: 'https://api.example.com/advisor/mcp', clients: ['CHATGPT'], grants: [] }, ['CLAUDE']);
       await expect(restricted.getByRole('radio', { name: /Claude/ })).toBeDisabled();
       await expect(restricted.getByText('Niedostępny')).toBeVisible();
-      await expect(restricted.getByText('Niedozwolony')).toBeVisible();
+      await expect(restricted.getByText('Niedozwolony', { exact: true })).toBeVisible();
       await restricted.getByRole('checkbox', { name: /Zezwalam ChatGPT/ }).check();
       await expect(restricted.getByRole('button', { name: 'Zezwól na odczyt' })).toBeDisabled();
       await expect(restricted.getByText('Administrator firmy musi zezwolić na ChatGPT.')).toBeVisible();

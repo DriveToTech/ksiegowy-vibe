@@ -1,8 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { discoverAdvisorModels, generateAdvisorResponse, requireOllamaEndpoint } from './advisor-provider.js';
+import { buildAdvisorAnswerRequest, discoverAdvisorModels, generateAdvisorResponse, requireOllamaEndpoint } from './advisor-provider.js';
 
 beforeEach(() => { vi.stubEnv('ADVISOR_OLLAMA_ALLOW_INSECURE', 'true'); });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+describe('buildAdvisorAnswerRequest()', () => {
+  it('keeps legal source ids out of evidenceIds and separates clarification from missing sources', () => {
+    const { instruction } = buildAdvisorAnswerRequest();
+    expect(instruction).toContain('Put the id of a legalSources entry only in sourceIds, never in evidenceIds.');
+    expect(instruction).toContain('Use needs_clarification when the answer depends on facts the user can supply');
+  });
+
+  it('routes out-of-period and unclassified questions to insufficient_evidence and forbids shifting source deadlines', () => {
+    const { instruction } = buildAdvisorAnswerRequest();
+    expect(instruction).toContain('Use insufficient_evidence, not answered, when the supplied sources do not contain the rule the question needs');
+    expect(instruction).toContain('do not shift them for weekends or holidays unless a source says so');
+  });
+});
 
 describe('generateAdvisorResponse()', () => {
   it.each(['OPENAI', 'OPENROUTER', 'OLLAMA'] as const)('uses structured output and disables retries for %s', async (provider) => {
@@ -23,28 +37,54 @@ describe('generateAdvisorResponse()', () => {
     if (provider === 'OPENAI') expect(body.store).toBe(false);
   });
 
-  it.each([
+  describe.each([
     ['OPENAI', 'https://api.openai.com/v1/chat/completions'],
     ['OPENROUTER', 'https://openrouter.ai/api/v1/chat/completions'],
     ['ANTHROPIC', 'https://api.anthropic.com/v1/messages'],
     ['OLLAMA', 'http://localhost:11434/v1/chat/completions'],
-  ] as const)('reports upstream authentication, quota and unsupported-model failures on %s without retrying', async (provider, endpoint) => {
-    vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://localhost:11434/v1');
-    for (const [scenario, status, expectedStatus] of [
-      ['invalid credentials', 401, 502],
-      ['quota exceeded', 429, 429],
-      ['unsupported model', provider === 'OLLAMA' ? 404 : 400, 502],
-    ] as const) {
-      const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: scenario, type: 'invalid_request_error' } }), {
-        status, headers: { 'content-type': 'application/json' },
-      }));
+  ] as const)('upstream failures on %s', (provider, endpoint) => {
+    const quotaBody = provider === 'ANTHROPIC' ? { type: 'error', error: { type: 'billing_error', message: 'provider-secret-message' } }
+      : { error: { code: 'credit_balance_exhausted', type: 'insufficient_quota', message: 'provider-secret-message' } };
+    const rows = [
+      ['401 invalid credentials', 401, {}, { code: 'PROVIDER_INVALID_CREDENTIALS', statusCode: 502, upstreamStatus: 401, upstreamErrorType: 'other' }],
+      ['403 forbidden', 403, {}, { code: 'PROVIDER_INVALID_CREDENTIALS', statusCode: 502 }],
+      ['402 billing', 402, {}, { code: 'PROVIDER_QUOTA_EXCEEDED', statusCode: 502 }],
+      ['429 exhausted quota', 429, quotaBody, { code: 'PROVIDER_QUOTA_EXCEEDED', statusCode: 502, upstreamErrorType: provider === 'ANTHROPIC' ? 'billing_error' : 'insufficient_quota' }],
+      ['429 rate limit with Retry-After', 429, { error: { type: 'rate_limit_error', message: 'provider-secret-message' } }, { code: 'PROVIDER_UNAVAILABLE', statusCode: 503, retryAfterSeconds: 7 }],
+      ['503 overloaded', 503, {}, provider === 'OLLAMA' ? { code: 'OLLAMA_UNREACHABLE', statusCode: 502 } : { code: 'PROVIDER_UNAVAILABLE', statusCode: 503 }],
+      ['400 unsupported model', 400, {}, { code: 'PROVIDER_ERROR', statusCode: 502 }],
+    ] as const;
+
+    it.each(rows)('classifies %s without leaking the provider body or credential and without retrying', async (_scenario, status, body, expected) => {
+      vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://localhost:11434/v1');
+      const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...body, error: { message: 'provider-secret-message', ...('error' in body ? body.error : {}) } }), {
+        status, headers: { 'content-type': 'application/json', ...(status === 429 ? { 'retry-after': '7' } : {}) } }));
       vi.stubGlobal('fetch', request);
-      await expect(generateAdvisorResponse({ provider, model: 'unavailable-model', credential: 'private-key' }, 'Question', new AbortController().signal))
-        .rejects.toMatchObject(provider === 'ANTHROPIC'
-          ? { code: 'PROVIDER_ERROR', statusCode: expectedStatus }
-          : { status });
+      const failure = await generateAdvisorResponse({ provider, model: 'unavailable-model', credential: 'private-key' }, 'Question', new AbortController().signal).catch((error: unknown) => error);
+      expect(failure).toMatchObject(expected);
+      expect(JSON.stringify({ message: (failure as Error).message, failure })).not.toMatch(/private-key|provider-secret-message/);
       expect(request).toHaveBeenCalledTimes(1);
       expect(String(request.mock.calls[0]?.[0])).toBe(endpoint);
+    });
+
+    it('classifies a network failure and keeps route cancellation unclassified', async () => {
+      vi.stubEnv('ADVISOR_OLLAMA_URL', 'http://localhost:11434/v1');
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
+      await expect(generateAdvisorResponse({ provider, model: 'model', credential: 'private-key' }, 'Question', new AbortController().signal))
+        .rejects.toMatchObject(provider === 'OLLAMA' ? { code: 'OLLAMA_UNREACHABLE', statusCode: 502 } : { code: 'PROVIDER_UNAVAILABLE', statusCode: 503 });
+      const cancelled = new AbortController();
+      cancelled.abort();
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('aborted', 'AbortError')));
+      await expect(generateAdvisorResponse({ provider, model: 'model', credential: 'private-key' }, 'Question', cancelled.signal))
+        .rejects.not.toMatchObject({ code: expect.stringMatching(/^PROVIDER_/) });
+    });
+  });
+
+  it('clamps Retry-After to 1-60 seconds and ignores non-numeric values', async () => {
+    for (const [header, expected] of [['600', 60], ['0', 1], ['Wed, 21 Oct 2026 07:28:00 GMT', undefined]] as const) {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 429, headers: { 'retry-after': header } })));
+      await expect(generateAdvisorResponse({ provider: 'ANTHROPIC', model: 'model', credential: 'private-key' }, 'Question', new AbortController().signal))
+        .rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE', retryAfterSeconds: expected });
     }
   });
 
@@ -93,6 +133,15 @@ describe('discoverAdvisorModels()', () => {
     vi.stubEnv('ADVISOR_OLLAMA_URL', 'https://ollama.internal/v1');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'x'.repeat(1_100_000) }] }))));
     await expect(discoverAdvisorModels(ollama)).rejects.toMatchObject({ code: 'PROVIDER_ERROR', statusCode: 502 });
+  });
+
+  it('classifies model discovery failures without leaking the provider body', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: 'provider-secret-message' } }), { status: 401 })));
+    const failure = await discoverAdvisorModels({ provider: 'OPENAI', model: '', credential: 'private-key' }).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ code: 'PROVIDER_INVALID_CREDENTIALS', statusCode: 502 });
+    expect((failure as Error).message).not.toMatch(/private-key|provider-secret-message/);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
+    await expect(discoverAdvisorModels({ provider: 'ANTHROPIC', model: '', credential: 'private-key' })).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE', statusCode: 503 });
   });
 
   it('maps an unexpected upstream model list shape to a provider error', async () => {

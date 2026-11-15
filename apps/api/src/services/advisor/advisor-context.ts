@@ -45,9 +45,11 @@ export async function buildAdvisorContext(database: PrismaClient, companyId: str
   const period = { gte: start, lt: end };
   const invoiceWhere = { companyId, environment, issueDate: period };
   const issuedWhere = { ...issuedInvoiceFinancialScope(companyId, environment), issueDate: period };
-  const [issued, accepted, outgoing, incoming] = await Promise.all([
+  const [issued, accepted, rejected, outgoing, incoming] = await Promise.all([
     database.invoice.groupBy({ by: ['currency'], where: issuedWhere, _sum: { totalGross: true, totalVat: true }, _count: { _all: true } }),
     database.invoice.groupBy({ by: ['currency'], where: { ...issuedWhere, ksefStates: { some: { environment, status: 'ACCEPTED' } } }, _sum: { totalGross: true } }),
+    // Rejected in this environment and never accepted afterwards, so a resubmitted and accepted invoice is counted once, as accepted.
+    database.invoice.groupBy({ by: ['currency'], where: { ...issuedWhere, ksefStates: { some: { environment, status: 'REJECTED' }, none: { environment, status: 'ACCEPTED' } } }, _sum: { totalGross: true } }),
     !includeEvidence || scope.documentKind === 'incoming' ? Promise.resolve([]) : database.invoice.findMany({
       where: { ...invoiceWhere, ...(scope.documentId ? { id: scope.documentId } : {}) },
       orderBy: [{ issueDate: 'desc' }, { id: 'asc' }], take: 21,
@@ -66,6 +68,7 @@ export async function buildAdvisorContext(database: PrismaClient, companyId: str
   const calculations: AdvisorCalculation[] = issued.map((group) => ({ currency: group.currency,
     issuedGross: (group._sum.totalGross ?? zero).toFixed(2), issuedVat: (group._sum.totalVat ?? zero).toFixed(2),
     acceptedGross: (accepted.find((entry) => entry.currency === group.currency)?._sum.totalGross ?? zero).toFixed(2),
+    rejectedGross: (rejected.find((entry) => entry.currency === group.currency)?._sum.totalGross ?? zero).toFixed(2),
     invoiceCount: group._count._all,
   }));
   const evidence: AdvisorEvidence[] = [

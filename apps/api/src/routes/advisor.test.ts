@@ -8,6 +8,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
 import { loadAuthConfig } from '../lib/auth-config.js';
+import { encrypt } from '@ksiegowy/shared-utils';
+import { AdvisorError } from '../services/advisor/advisor-contract.js';
+import type * as AdvisorService from '../services/advisor/advisor.service.js';
+
+const { answerAdvisorQuestion } = vi.hoisted(() => ({ answerAdvisorQuestion: vi.fn() }));
+vi.mock('../services/advisor/advisor.service.js', async (importOriginal) => ({ ...await importOriginal<typeof AdvisorService>(), answerAdvisorQuestion }));
 
 describe('advisorRoutes()', () => {
   let application: FastifyInstance;
@@ -104,6 +110,11 @@ describe('advisorRoutes()', () => {
     const changed = await application.inject({ ...request, payload: { ...request.payload, question: 'Different question' } });
     expect(changed.statusCode).toBe(409);
     expect(changed.json()).toEqual({ code: 'REQUEST_CONFLICT', message: 'Request identifier was already used for different input' });
+    const differentReply = await application.inject({ ...request, payload: { ...request.payload, replyToTurnId: 'clh1234567890abcdefghijkl' } });
+    expect(differentReply.statusCode).toBe(409);
+    expect(differentReply.json()).toEqual({ code: 'REQUEST_CONFLICT', message: 'Request identifier was already used for different input' });
+    const malformedReply = await application.inject({ ...request, payload: { ...request.payload, replyToTurnId: 'not-a-cuid' } });
+    expect(malformedReply.statusCode).toBe(400);
   });
 
   describe('POST /connections/:provider/model-preview', () => {
@@ -247,6 +258,87 @@ describe('advisorRoutes()', () => {
       expect(settings.json().canManageConnections).toBe(false);
       vi.mocked(database.companyMembership.findUnique).mockResolvedValue(membershipWithRole('ACCOUNTANT') as never);
       expect((await application.inject(connectionRequest('PUT', 'OLLAMA'))).json()).toEqual({ saved: true });
+    });
+  });
+
+  it('streams a classified provider failure as an SSE error event without a provider message', async () => {
+    const scope = { questionKind: 'records', period: '2026-09', includeRecords: false };
+    const requestId = 'bb4d11b1-b939-49a7-95bb-800dd590b4f1';
+    const turn = { id: 'turn', conversationId: 'conversation', requestId, question: 'Question', scope, status: 'PENDING', answer: null, createdAt: new Date(), startedAt: null };
+    vi.mocked(database.advisorConversation.findFirst).mockResolvedValue({ id: 'conversation', provider: 'OPENAI', model: 'configured-model' } as never);
+    const transaction = Builder<PrismaClient>().$queryRaw(vi.fn().mockResolvedValue([]) as never)
+      .advisorTurn({ findUnique: vi.fn().mockResolvedValue(turn), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never).build();
+    database.$transaction = vi.fn().mockImplementation((operation: (connection: PrismaClient) => Promise<unknown>) => operation(transaction));
+    Object.assign(database, { advisorTurn: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) } });
+    answerAdvisorQuestion.mockRejectedValue(new AdvisorError(502, 'PROVIDER_QUOTA_EXCEEDED', 'Provider quota or billing limit reached', undefined, 429));
+    const response = await application.inject({ method: 'POST', url: '/companies/company/advisor/conversations/conversation/messages', cookies: { auth_token: token },
+      headers: { origin: 'http://localhost:3000', 'x-ksef-environment': 'TEST' }, payload: { requestId, question: 'Question', scope } });
+    expect(response.body).toContain('event: error\ndata: {"code":"PROVIDER_QUOTA_EXCEEDED","message":"Provider quota or billing limit reached"}');
+  });
+
+  it('streams the upstream retry delay in the SSE error event', async () => {
+    const scope = { questionKind: 'records', period: '2026-09', includeRecords: false };
+    const requestId = 'bb4d11b1-b939-49a7-95bb-800dd590b4f1';
+    const turn = { id: 'turn', conversationId: 'conversation', requestId, question: 'Question', scope, status: 'PENDING', answer: null, createdAt: new Date(), startedAt: null };
+    vi.mocked(database.advisorConversation.findFirst).mockResolvedValue({ id: 'conversation', provider: 'OPENAI', model: 'configured-model' } as never);
+    const transaction = Builder<PrismaClient>().$queryRaw(vi.fn().mockResolvedValue([]) as never)
+      .advisorTurn({ findUnique: vi.fn().mockResolvedValue(turn), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never).build();
+    database.$transaction = vi.fn().mockImplementation((operation: (connection: PrismaClient) => Promise<unknown>) => operation(transaction));
+    Object.assign(database, { advisorTurn: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) } });
+    const send = () => application.inject({ method: 'POST', url: '/companies/company/advisor/conversations/conversation/messages', cookies: { auth_token: token },
+      headers: { origin: 'http://localhost:3000', 'x-ksef-environment': 'TEST' }, payload: { requestId, question: 'Question', scope } });
+    answerAdvisorQuestion.mockRejectedValue(new AdvisorError(503, 'PROVIDER_UNAVAILABLE', 'Provider is temporarily unavailable', 7, 429));
+    expect((await send()).body).toContain('event: error\ndata: {"code":"PROVIDER_UNAVAILABLE","message":"Provider is temporarily unavailable","retryAfterSeconds":7}');
+    answerAdvisorQuestion.mockRejectedValue(new Error('database down'));
+    expect((await send()).body).toContain('event: error\ndata: {"code":"ADVISOR_ERROR","message":"Advisor generation failed"}');
+  });
+
+  it('rejects a reply to a turn that is not a clarification of this conversation before creating a turn', async () => {
+    vi.mocked(database.advisorConversation.findFirst).mockResolvedValue({ id: 'conversation', provider: 'OPENAI', model: 'configured-model' } as never);
+    const create = vi.fn();
+    const transaction = Builder<PrismaClient>().$queryRaw(vi.fn().mockResolvedValue([]) as never)
+      .advisorTurn({ findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null), create } as never).build();
+    database.$transaction = vi.fn().mockImplementation((operation: (connection: PrismaClient) => Promise<unknown>) => operation(transaction));
+    const response = await application.inject({ method: 'POST', url: '/companies/company/advisor/conversations/conversation/messages', cookies: { auth_token: token },
+      headers: { origin: 'http://localhost:3000', 'x-ksef-environment': 'TEST' },
+      payload: { requestId: 'bb4d11b1-b939-49a7-95bb-800dd590b4f1', question: 'Question', replyToTurnId: 'clh1234567890abcdefghijkl', scope: { questionKind: 'records', period: '2026-09', includeRecords: false } } });
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({ code: 'INVALID_REPLY', message: 'The reply target is not a clarification request in this conversation' });
+    expect(transaction.advisorTurn.findFirst).toHaveBeenCalledWith({ where: { id: 'clh1234567890abcdefghijkl', conversationId: 'conversation', status: 'COMPLETED' }, select: { question: true, answer: true } });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  describe('viewer access to model discovery', () => {
+    const viewerMembership = { id: 'membership', companyId: 'company', role: 'VIEWER', company: { advisorPolicy: { enabled: true, allowedProviders: ['OPENAI'], retentionDays: 30 } } };
+
+    it('denies a VIEWER model-preview before the daily limit is reserved, and denies GET models', async () => {
+      vi.mocked(database.companyMembership.findUnique).mockResolvedValue(viewerMembership as never);
+      const usage = { upsert: vi.fn(), aggregate: vi.fn(), update: vi.fn() };
+      Object.assign(database, { advisorModelPreviewUsage: usage });
+      const headers = { origin: 'http://localhost:3000' };
+      const preview = await application.inject({ method: 'POST', url: '/companies/company/advisor/connections/OPENAI/model-preview', cookies: { auth_token: token }, headers, payload: { credential: 'key' } });
+      expect(preview.statusCode).toBe(403);
+      expect(preview.json().code).toBe('CONNECTION_ROLE_REQUIRED');
+      expect(usage.upsert).not.toHaveBeenCalled();
+      const models = await application.inject({ method: 'GET', url: '/companies/company/advisor/connections/OPENAI/models', cookies: { auth_token: token } });
+      expect(models.json().code).toBe('CONNECTION_ROLE_REQUIRED');
+    });
+  });
+
+  describe('POST /connections/:provider/test', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('returns 502 PROVIDER_INVALID_CREDENTIALS when OpenAI rejects the key instead of a generic 500', async () => {
+      vi.stubEnv('ENCRYPTION_KEY', 'a'.repeat(64));
+      const encrypted = encrypt('private-key', 'a'.repeat(64));
+      Object.assign(database.advisorConnection, {
+        findUnique: vi.fn().mockResolvedValue({ id: 'connection', provider: 'OPENAI', model: 'configured-model', credentialEncrypted: encrypted.enc, credentialNonce: encrypted.iv }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }) });
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: 'provider-secret-message', code: 'invalid_api_key' } }), { status: 401 })));
+      const response = await application.inject({ method: 'POST', url: '/companies/company/advisor/connections/OPENAI/test', cookies: { auth_token: token }, headers: { origin: 'http://localhost:3000' } });
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toEqual({ code: 'PROVIDER_INVALID_CREDENTIALS', message: 'Provider rejected the credential' });
+      expect(database.advisorConnection.updateMany).toHaveBeenCalledTimes(1);
     });
   });
 });

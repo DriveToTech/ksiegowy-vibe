@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { getCompanyKsefSettings } from '../../lib/api';
 import { requireAuthSession } from '../../lib/auth';
 import { BrandImage } from '../../components/brand/BrandImage';

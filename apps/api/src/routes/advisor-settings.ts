@@ -82,6 +82,7 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
 
   server.get<{ Params: { companyId: string; provider: string } }>('/connections/:provider/models', async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
+    requireAdvisorConnectionManager(membership);
     const provider = advisorProviderSchema.parse(request.params.provider);
     requireAdvisorPolicy(membership, provider);
     const connection = await readAdvisorConnection(request, membership.id, provider);
@@ -92,6 +93,7 @@ export const advisorSettingsRoutes: FastifyPluginAsync = async (server) => {
   // Transient discovery before a connection exists: the submitted key is never stored or logged.
   server.post<{ Params: { companyId: string; provider: string } }>('/connections/:provider/model-preview', { bodyLimit: 8_000 }, async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
+    requireAdvisorConnectionManager(membership);
     const provider = advisorProviderSchema.parse(request.params.provider);
     const { credential } = z.object({ credential: z.string().trim().min(1).max(4096).optional() }).strict().parse(request.body ?? {});
     requireAdvisorPolicy(membership, provider);

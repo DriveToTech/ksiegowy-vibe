@@ -12,7 +12,7 @@ import { Banner } from '../../../components/molecules/Banner';
 import { cn } from '../../../lib/cn';
 import { formatMoney } from '../../../lib/format';
 import { t } from '../../../lib/translations';
-import { AdvisorTrigger } from '../../../components/advisor/AdvisorWorkspace';
+import { AdvisorExplainButton } from '../../../components/advisor/AdvisorExplainButton';
 import { AdvisorInsightStrip } from '../../../components/advisor/AdvisorInsightStrip';
 import { advisorText } from '../../../lib/advisor-translations';
 
@@ -342,7 +342,7 @@ function ContractorDetail({
         <label className="text-xs text-muted">Faktury wystawione do końca miesiąca
           <Input type="month" value={period} onChange={(event) => onPeriodChange(event.target.value)} />
         </label>
-        <AdvisorTrigger explain period={period} contractorId={contractor.id} contractorName={contractor.name} question={advisorText.contractorQuestion} />
+        <AdvisorExplainButton seed={{ period, contractorId: contractor.id, contractorName: contractor.name, reference: contractor.name, question: advisorText.contractorQuestion }} />
       </div>
 
       <div className={cn(PANEL_SHELL, 'gap-[10px]')}>

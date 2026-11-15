@@ -42,7 +42,7 @@ describe('advisorMcpRoutes()', () => {
       expect(JSON.parse(response.json().result.content[0].text)).toEqual({ companyId: 'company', environment: 'TEST', period: '2026-09', generatedAt: expect.any(String), facts: { calculations: [] } });
       expect(database.advisorConnectorGrant.updateMany).toHaveBeenCalledWith({ where: { id: 'grant', revokedAt: null, expiresAt: { gt: expect.any(Date) },
         OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: expect.any(Date) } }] }, data: { lastUsedAt: expect.any(Date) } });
-      expect(database.invoice.groupBy).toHaveBeenCalledTimes(2);
+      expect(database.invoice.groupBy).toHaveBeenCalledTimes(3);
       const taxSources = await application.inject({ ...call, payload: { ...call.payload, params: { ...call.payload.params, name: 'get_tax_sources' } } });
       expect(JSON.parse(taxSources.json().result.content[0].text).facts).toEqual({ sources: [], sourceVersion: 'unreviewed', sourceReviewMethod: 'ai', disclaimer: advisorTaxDisclaimer });
       expect(database.invoice.findMany).not.toHaveBeenCalled();
@@ -52,7 +52,7 @@ describe('advisorMcpRoutes()', () => {
       const revoked = await application.inject(call);
       expect(revoked.json().result).toEqual({ content: [{ type: 'text', text: '{"error":"CONNECTOR_CONSENT_REQUIRED"}' }], isError: true });
       expect(database.advisorConnectorGrant.updateMany).not.toHaveBeenCalled();
-      expect(database.invoice.groupBy).toHaveBeenCalledTimes(2);
+      expect(database.invoice.groupBy).toHaveBeenCalledTimes(3);
       vi.mocked(database.advisorConnectorGrant.findFirst).mockResolvedValue({ id: 'busy-grant' } as never);
       for (let attempt = 0; attempt < advisorConnectorCallsPerMinute; attempt += 1) reserveAdvisorConnectorCall('busy-grant');
       const limited = await application.inject(call);

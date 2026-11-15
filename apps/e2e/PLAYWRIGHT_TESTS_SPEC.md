@@ -145,4 +145,22 @@ docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/wor
 docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:'"
 ```
 
-These commands update or verify the three dashboard baselines. Do not compare snapshots with a floating Playwright version or a different container image. The recorded API verification result is 130 tests passing with a clean typecheck; this E2E setup uses synthetic data and does not claim live KSeF or applied database migrations.
+These commands update or verify the three dashboard baselines. Do not compare snapshots with a floating Playwright version or a different container image. Dashboard, invoice and advisor visuals pin the browser clock to 2026-10-15 because the rail JPK countdown ("Termin za 10 dni") is computed from the current date; the server renders it with the real date, so wait for hydration before capturing. If the run logs `Failed to download Sora from Google Fonts`, fallback fonts make every snapshot fail: rerun. The recorded API verification result is 130 tests passing with a clean typecheck; this E2E setup uses synthetic data and does not claim live KSeF or applied database migrations.
+
+### Advisor visuals
+
+`tests/advisor-visual.spec.ts` holds the advisor visual set (dock, drawer and sheet shells, conversation and error states, answers, composer states, blockers, history and delete dialog, the full page, Explain, insight strip, Mode A settings). Shared mocks and capture helpers live in `tests/fixtures/advisor-visual.ts` and `tests/fixtures/advisor-visual.css`.
+
+- Baselines are `tests/advisor-visual.spec.ts-snapshots/advisor-<name>-<theme>-<width>-chromium-linux.png` and exist only for the `chromium-linux` project; the default project skips every `visual:` test.
+- Determinism: `page.clock.setFixedTime` pins the instant to 2026-10-15 (month 2026-10), locale `pl-PL`, timezone `Europe/Warsaw`, theme from `localStorage`, `animations: 'disabled'` plus `transition: none` and the hidden Next dev badge through `stylePath`. All advisor API calls are `page.route` mocks.
+- Panel and element captures are used except `page-empty-briefing`, which is a full page. The mobile sheet is capped at 760px by the product, so tall answers at 390 are captured as the sheet scrolls (bottom of the answer).
+- Ports 3199 (mock API) and 3200 (web) must be free; the config never reuses a running server.
+
+Update or verify only the advisor baselines (same pinned image as above; replace the spec path and `--update-snapshots` as needed):
+
+```bash
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/advisor-visual.spec.ts --project=chromium-linux --grep 'visual:' --update-snapshots"
+docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/advisor-visual.spec.ts --project=chromium-linux --grep 'visual:'"
+```
+
+The container reinstalls `node_modules` with Linux binaries inside the mounted checkout. To keep a macOS checkout intact, run the commands from a copy made with `rsync -a --exclude node_modules --exclude .next --exclude .git ./ <copy>/` and copy the updated `*-snapshots` folder back. Run the verify command twice after updating: both runs must pass without diffs.

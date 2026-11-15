@@ -2,11 +2,11 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Builder } from 'builder-pattern';
 import { describe, expect, it } from 'vitest';
-import type { AdvisorAnswer, AdvisorConnectorSettings, AdvisorSettings } from '../../lib/advisor-api';
-import { AdvisorAnswerCard } from './AdvisorAnswerCard';
+import type { AdvisorConnectorSettings, AdvisorSettings } from '../../lib/advisor-api';
 import { AdvisorConnectors } from './AdvisorConnectors';
 import { AdvisorProviderConnection } from './AdvisorProviderConnection';
 import { AdvisorQuestionKindChoice } from './AdvisorQuestionKindChoice';
+import { AdvisorPolicyForm } from './AdvisorPolicyForm';
 import { AdvisorProviderChoice } from './AdvisorProviderChoice';
 import { AdvisorReadinessSummary } from './AdvisorReadinessSummary';
 
@@ -36,66 +36,14 @@ describe('AdvisorProviderChoice()', () => {
         { provider: 'ANTHROPIC', model: 'claude-model', hasCredential: true, testedAt: '2026-09-01T00:00:00.000Z' },
       ]).build();
     const markup = renderToStaticMarkup(createElement(AdvisorProviderChoice, {
-      settings, companyName: 'Example company', provider: 'OPENROUTER', onChange: () => undefined,
+      settings, provider: 'OPENROUTER', onChange: () => undefined,
     }));
     expect(markup).toMatch(/<input[^>]+checked=""[^>]+value="OPENROUTER"/);
     expect(markup).toContain('<details open=""');
     expect(markup).toContain('Brak serwera');
     expect(markup).toContain('Niedozwolony');
     expect(markup).toContain('Przetestowane');
-    expect(markup).toContain('Example company');
-  });
-});
-
-describe('AdvisorAnswerCard()', () => {
-  it('renders separate currency calculations, safe evidence links, reviewed sources and truncation notice', () => {
-    const answer = Builder<AdvisorAnswer>().status('answered').shortAnswer('Suma sprzedaży').explanation('Dokumenty z okresu')
-      .assumptions([]).questions([]).calculations([
-        { currency: 'PLN', issuedGross: '100.00', issuedVat: '18.70', acceptedGross: '100.00', invoiceCount: 1 },
-        { currency: 'EUR', issuedGross: '50.00', issuedVat: '9.35', acceptedGross: '0.00', invoiceCount: 1 },
-      ]).evidence([
-        { id: 'FV/1', kind: 'outgoing', title: 'FV/1', status: 'ISSUED', currency: 'PLN', gross: '100.00', vat: '18.70', updatedAt: '2026-09-01T00:00:00.000Z' },
-        { id: 'IN/1', kind: 'incoming', title: 'IN/1', status: 'PENDING', currency: 'EUR', gross: '50.00', vat: '9.35', updatedAt: '2026-09-01T00:00:00.000Z' },
-      ]).sources([{ id: 'source', title: 'VAT Act', url: 'https://example.org/law', section: '1', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31', reviewedAt: '2026-09-01', reviewExpiresAt: '2026-12-31', reviewedBy: 'ai:OPENAI/model-a+ai:ANTHROPIC/model-b', reviewMethod: 'ai', excerpt: 'Relevant section' }])
-      .provenance({ companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'model', generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: true, sourceVersion: 'v1', sourceReviewMethod: 'ai' }).build();
-    const markup = renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer }));
-    expect(markup).toContain('100.00 PLN');
-    expect(markup).toContain('50.00 EUR');
-    expect(markup).toContain('href="/dashboard/invoices/FV%2F1"');
-    expect(markup).toContain('href="/dashboard/incoming/IN%2F1"');
-    expect(markup).toContain('href="https://example.org/law" target="_blank" rel="noopener noreferrer"');
-    expect(markup).toContain('Lista dokumentów jest ograniczona');
-    expect(markup).toContain('Relevant section');
-    expect(markup).toContain('Sprawdzone przez AI · OPENAI/model-a + ANTHROPIC/model-b · 2026-09-01');
-  });
-  it('renders the server disclaimer as an always-visible note outside collapsible sections, and omits it when absent', () => {
-    const builder = () => Builder<AdvisorAnswer>().status('answered').shortAnswer('Odpowiedź').explanation('Wyjaśnienie').assumptions([]).questions([]).calculations([]).sources([]).evidence([])
-      .provenance({ companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'model', generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'v1', sourceReviewMethod: 'ai' });
-    const withDisclaimer = renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer: builder().disclaimer('Server disclaimer text').build() }));
-    expect(withDisclaimer).toMatch(/<p role="note"[^>]*>Server disclaimer text<\/p>/);
-    expect(withDisclaimer).not.toContain('<details');
-    expect(renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer: builder().build() }))).not.toContain('role="note"');
-  });
-  it('renders a selected contractor balance by currency with its accounting limitation and linked evidence', () => {
-    const answer = Builder<AdvisorAnswer>().status('answered').shortAnswer('Saldo do sprawdzenia')
-      .explanation('Porównaj wystawione faktury.').assumptions([]).questions([]).calculations([]).sources([])
-      .evidence([{ id: 'invoice/1', kind: 'outgoing', title: 'FV/2026/1', status: 'ISSUED',
-        currency: 'PLN', gross: '125.00', vat: '25.00', updatedAt: '2026-09-01T00:00:00.000Z' }])
-      .contractorBalance({ contractorId: 'selected', name: 'Example contractor', period: '2026-09',
-        balances: [{ currency: 'PLN', currentOutstanding: '100.00', recordedPayments: '25.00' },
-          { currency: 'EUR', currentOutstanding: '40.00', recordedPayments: '0.00' }] })
-      .provenance({ companyId: 'company', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'model',
-        generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none', sourceReviewMethod: 'not-applicable' }).build();
-
-    const markup = renderToStaticMarkup(createElement(AdvisorAnswerCard, { answer }));
-    expect(markup).toContain('Example contractor');
-    expect(markup).toContain('100.00 PLN');
-    expect(markup).toContain('40.00 EUR');
-    expect(markup).toContain('a nie stan historyczny');
-    expect(markup).toContain('Wpłaty zapisane na tych fakturach');
-    expect(markup).not.toContain('Zapłacono w tym roku');
-    expect(markup).toContain('href="/dashboard/invoices/invoice%2F1"');
-    expect(markup).not.toContain('/dashboard/invoices/new');
+    expect(markup).toContain('Inni dostawcy API (OpenAI API, Anthropic API)');
   });
 });
 
@@ -122,10 +70,22 @@ describe('AdvisorProviderConnection()', () => {
     const settings = Builder<AdvisorSettings>().canManageConnections(false).canManagePolicy(false).enabled(true).operatorEnabled(true).ollamaAvailable(false)
       .allowedProviders(['OPENAI']).connections([{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }]).build();
     const markup = renderToStaticMarkup(createElement(AdvisorProviderConnection, { companyId: 'company', settings, provider: 'OPENAI', onChanged: async () => undefined }));
-    expect(markup).toContain('Tylko administrator lub księgowy może zapisywać połączenia');
+    expect(markup).toContain('Twoja rola nie pozwala zapisać połączenia');
     expect(markup).toContain('<fieldset disabled=""');
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Zapisz połączenie<\/button>/);
     expect(markup).toMatch(/<button[^>]*class="[^"]*"[^>]*>Odłącz<\/button>/);
     expect(markup).not.toMatch(/<button[^>]*disabled=""[^>]*>Odłącz<\/button>/);
+  });
+});
+
+describe('AdvisorPolicyForm()', () => {
+  it('renders the company switch as its own row and disables provider and host choices while it is off', () => {
+    const settings = Builder<AdvisorSettings>().canManagePolicy(true).enabled(false).allowedProviders([]).allowedConnectors([]).retentionDays(30).build();
+    const markup = renderToStaticMarkup(createElement(AdvisorPolicyForm, { companyId: 'company', settings, onChanged: async () => undefined }));
+    expect(markup).toContain('role="switch"');
+    expect(markup).toContain('aria-checked="false"');
+    expect(markup.indexOf('Doradca dla tej firmy')).toBeLessThan(markup.indexOf('Dozwoleni dostawcy'));
+    expect(markup.match(/type="checkbox"[^>]*disabled=""/g)).toHaveLength(6);
   });
 });
 
@@ -136,7 +96,7 @@ describe('AdvisorConnectors()', () => {
       { client: 'CHATGPT', environment: 'PRODUCTION', status: 'EXPIRED', expiresAt: '2026-01-01T00:00:00.000Z', lastUsedAt: null, revokedAt: null },
     ]).build();
     const markup = renderToStaticMarkup(createElement(AdvisorConnectors, { companyId: 'company', companyName: 'Example', connectors, loadError: '', allowedClients: ['CHATGPT'], canManageConnections: false, onChanged: async () => undefined }));
-    expect(markup).toContain('id="advisor-grant-reason" class="text-sm text-muted">Tylko administrator lub księgowy');
+    expect(markup).toContain('id="advisor-grant-reason" class="text-xs text-muted">Tylko administrator lub księgowy');
     expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Zezwól na odczyt<\/button>/);
     expect(markup).not.toMatch(/<button[^>]*disabled=""[^>]*>Cofnij zgodę<\/button>/);
     expect(markup).toContain('Cofnij zgodę');

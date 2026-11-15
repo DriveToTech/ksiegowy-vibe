@@ -12,16 +12,23 @@ const screens = [
 // stable without hiding whole table cells behind a mask.
 async function pinVolatileDates(page: Page) {
   await page.evaluate(() => {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      node.textContent = (node.textContent ?? '')
-        .replace(/\d{1,2}[./-]\d{1,2}[./-]\d{4}/g, '01.01.2026')
-        .replace(/\d{4}-\d{2}-\d{2}/g, '2026-01-01')
-        .replace(/\b\d{2}:\d{2}\b/g, '12:00');
-    }
-    document.querySelectorAll<HTMLInputElement>('input[type="date"]').forEach((input) => {
-      input.value = '2026-01-01';
-    });
+    const pin = () => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const original = node.textContent ?? '';
+        const pinned = original
+          .replace(/\d{1,2}[./-]\d{1,2}[./-]\d{4}/g, '01.01.2026')
+          .replace(/\d{4}-\d{2}-\d{2}/g, '2026-01-01')
+          .replace(/\b\d{2}:\d{2}\b/g, '12:00');
+        if (pinned !== original) node.textContent = pinned;
+      }
+      document.querySelectorAll<HTMLInputElement>('input[type="date"]').forEach((input) => {
+        if (input.value !== '2026-01-01') input.value = '2026-01-01';
+      });
+    };
+    pin();
+    // Late client re-renders (list refetch) would restore real dates, so keep pinning until the screenshot.
+    new MutationObserver(pin).observe(document.body, { childList: true, subtree: true, characterData: true });
   });
 }
 
@@ -32,6 +39,8 @@ for (const screen of screens) {
         test.skip(testInfo.project.name !== 'chromium-linux');
         await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
         await page.addInitScript((selectedTheme) => localStorage.setItem('ksiegowy-theme', selectedTheme), theme);
+        // The JPK deadline countdown in the rail is relative to the run date.
+        await page.clock.setFixedTime('2026-10-15T10:00:00.000Z');
         await page.goto(screen.path);
         await expect(page.getByRole('heading', { name: screen.ready })).toBeVisible();
         if (screen.name === 'invoice-new') await expect(page.getByRole('status').filter({ hasText: 'sprawdzono' })).toBeVisible();

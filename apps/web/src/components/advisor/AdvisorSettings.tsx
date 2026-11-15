@@ -6,6 +6,7 @@ import { embeddedConnectionReadiness } from '../../lib/advisor-connection-status
 import { advisorText as text } from '../../lib/advisor-translations';
 import { cn } from '../../lib/cn';
 import { Button } from '../atoms/Button';
+import { Banner } from '../molecules/Banner';
 import { AdvisorConnectors } from './AdvisorConnectors';
 import { AdvisorPolicyForm } from './AdvisorPolicyForm';
 import { AdvisorProviderChoice } from './AdvisorProviderChoice';
@@ -41,44 +42,74 @@ export function AdvisorSettings({ companyId, companyName }: { companyId: string;
   const provider = chosenProvider ?? settings?.connections[0]?.provider ?? 'OPENROUTER';
   const readiness = settings ? embeddedConnectionReadiness(settings, provider) : null;
   const savedConnection = settings?.connections.find((entry) => entry.provider === provider);
+  const copy = text.settingsRedesign;
+  const providerLabel = text.providers[provider];
+  const viewer = settings ? !settings.canManageConnections : false;
+  const grants = connectors?.grants ?? [];
+  const currentGrants = grants.filter((grant) => grant.status === 'ACTIVE' || grant.status === 'WAITING');
+  const waitingGrants = grants.filter((grant) => grant.status === 'WAITING');
+  const expiredCount = grants.filter((grant) => grant.status === 'EXPIRED').length;
+  const revokedCount = grants.filter((grant) => grant.status === 'REVOKED').length;
+  const hasCurrentRead = currentGrants.some((grant) => grant.status === 'ACTIVE');
+
+  const embeddedStatus = !settings || !readiness ? null
+    : readiness.runtime === 'disabled' ? { tone: 'warn', label: copy.modeStatus.operatorOff }
+      : readiness.policy === 'disabled' ? { tone: 'warn', label: copy.modeStatus.companyOff }
+        : readiness.connection === 'tested' ? { tone: 'ok', label: copy.modeStatus.tested }
+          : readiness.connection === 'savedNotTested' ? { tone: 'warn', label: copy.modeStatus.savedUntested }
+            : { tone: 'none', label: copy.modeStatus.notConnected };
+  const externalStatus = !connectors ? null
+    : waitingGrants.length > 0 ? { tone: 'warn', label: copy.modeStatus.grantedNoRead }
+      : hasCurrentRead ? { tone: 'ok', label: text.readiness.grantsActive(currentGrants.length) }
+        : expiredCount + revokedCount > 0 ? { tone: 'none', label: copy.modeStatus.noAccess(expiredCount, revokedCount) }
+          : { tone: 'none', label: copy.modeStatus.notConnected };
+  const modeStatus = { embedded: embeddedStatus, external: externalStatus };
+
+  const policyAllowed = readiness?.policy === 'allowed';
   const embeddedRows: AdvisorReadinessRow[] | null = !settings || !readiness ? null : [
-    { label: text.readiness.policy, ...(readiness.policy === 'allowed' ? { chip: text.readiness.policyAllowed, tone: 'success' as const }
-      : { chip: readiness.policy === 'denied' ? text.readiness.providerDenied : text.readiness.policyOff, tone: 'warning' as const,
-        reason: readiness.policy === 'denied' ? text.readiness.providerDeniedDescription(text.providers[provider]) : text.readiness.policyDisabled }) },
-    { label: text.readiness.server, ...(readiness.runtime === 'enabled' ? { chip: text.readiness.serverEnabled, tone: 'success' as const }
+    { label: text.readiness.policy, ...(policyAllowed ? { chip: text.readiness.policyAllowed, tone: 'success' as const, reason: copy.readinessReasons.providerAllowed(providerLabel) }
+      : readiness.policy === 'denied' ? { chip: text.readiness.providerDenied, tone: 'warning' as const, reason: text.readiness.providerDeniedDescription(providerLabel) }
+        : { chip: text.readiness.policyOff, tone: 'draft' as const, reason: settings.canManagePolicy ? text.readiness.policyAdminHint : text.readiness.policyDisabled }) },
+    { label: text.readiness.server, ...(readiness.runtime === 'enabled' ? { chip: text.readiness.serverEnabled, tone: 'success' as const, reason: copy.readinessReasons.connectionConfigurable }
       : { chip: text.readiness.serverDisabled, tone: 'warning' as const, reason: text.operatorDisabled }) },
-    { label: text.readiness.connection, ...(readiness.connection === 'tested' ? { chip: text.readiness.tested, tone: 'success' as const }
-      : readiness.connection === 'savedNotTested' ? { chip: text.readiness.savedNotTested, tone: 'primary' as const }
-        : { chip: text.readiness.notConfigured, tone: 'draft' as const }),
-      ...(savedConnection ? { reason: `${text.providers[provider]} · ${savedConnection.model}` } : {}) },
+    { label: text.readiness.connection, ...(readiness.connection === 'tested' ? { chip: text.readiness.tested, tone: 'success' as const, reason: savedConnection?.testedAt ? new Date(savedConnection.testedAt).toLocaleString('pl-PL') : undefined }
+      : readiness.connection === 'savedNotTested' ? { chip: text.readiness.savedNotTested, tone: 'warning' as const, reason: copy.readinessReasons.testOptional }
+        : { chip: text.readiness.notConfigured, tone: 'draft' as const,
+          reason: viewer ? copy.readinessReasons.viewerRole : readiness.runtime === 'disabled' ? copy.readinessReasons.saveUnavailable : copy.readinessReasons.saveKeyBelow }) },
   ];
-  const externalRows: AdvisorReadinessRow[] | null = !connectors ? null : [
-    { label: text.readiness.connectorServer, ...(connectors.endpoint ? { chip: text.readiness.connectorAvailable, tone: 'success' as const }
+  const allowedHosts = settings?.enabled ? settings.allowedConnectors : [];
+  const externalRows: AdvisorReadinessRow[] | null = !connectors || !settings ? null : [
+    { label: text.readiness.policy, ...(allowedHosts.length > 0 ? { chip: text.readiness.policyAllowed, tone: 'success' as const } : { chip: settings.enabled ? text.readiness.providerDenied : text.readiness.policyOff, tone: 'draft' as const }),
+      reason: (['CHATGPT', 'CLAUDE'] as const).map((client) => copy.hostPolicyState(text.external.hosts[client], allowedHosts.includes(client))).join(' · ') },
+    { label: text.readiness.connectorServer, ...(connectors.endpoint ? { chip: copy.readinessReasons.connectorAddressSet, tone: 'success' as const, reason: copy.readinessReasons.connectorPublicHttps }
       : { chip: text.readiness.connectorUnavailable, tone: 'warning' as const, reason: text.external.unavailable }) },
-    { label: text.readiness.grants, chip: text.readiness.grantsActive(connectors.grants.filter((grant) => grant.status === 'ACTIVE' || grant.status === 'WAITING').length), tone: 'draft' },
+    { label: text.readiness.grants, ...(waitingGrants.length > 0 ? { chip: copy.readinessReasons.noReadYet, tone: 'warning' as const,
+      reason: waitingGrants.map((grant) => `${text.external.hosts[grant.client]} · ${text.external.environments[grant.environment]} · ${text.external.validUntil(new Date(grant.expiresAt).toLocaleDateString('pl-PL')).toLowerCase()}`).join(', ') }
+      : hasCurrentRead ? { chip: text.readiness.grantsActive(currentGrants.length), tone: 'success' as const }
+        : { chip: copy.readinessReasons.noAccess, tone: 'draft' as const, reason: expiredCount + revokedCount > 0 ? copy.expiredRevoked(expiredCount, revokedCount) : undefined }) },
   ];
 
-  return <section className="space-y-5 rounded-card border border-outline bg-surface-panel p-4">
-    <h2 className="text-lg font-semibold">{text.settings}</h2>
-    <div role="group" aria-label={text.settings} className="grid gap-3 md:grid-cols-2">
+  return <section className="space-y-4">
+    {settings?.canManagePolicy && <AdvisorPolicyForm companyId={companyId} settings={settings} onChanged={() => load()} />}
+    <div role="group" aria-label={copy.modeGroup} className="grid grid-cols-2 gap-2.5">
       {(['embedded', 'external'] as const).map((entry) => <button key={entry} type="button" aria-pressed={mode === entry} onClick={() => setMode(entry)}
-        className={cn('min-h-11 rounded-card border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-          mode === entry ? 'border-primary bg-surface-raised' : 'border-outline bg-surface-panel hover:bg-surface-raised')}>
-        <span className="block font-medium">{text.modes[entry]}</span>
-        <span className="mt-1 block text-sm text-muted">{text.modes[`${entry}Description`]}</span>
+        className={cn('flex min-h-16 flex-col gap-[3px] rounded-inset border px-3.5 py-[11px] text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+          mode === entry ? 'border-primary bg-[image:var(--nav-active)] shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-outline-strong bg-surface-panel hover:bg-surface-raised')}>
+        <strong className="text-[13.5px] font-semibold">{text.modes[entry]}</strong>
+        {modeStatus[entry] && <span className={cn('text-xs', modeStatus[entry].tone === 'warn' ? 'text-warning-ink' : modeStatus[entry].tone === 'ok' ? 'text-success-ink' : 'text-muted')}>{modeStatus[entry].label}</span>}
       </button>)}
     </div>
     {settingsError && <div className="space-y-2"><p role="alert" className="text-sm text-error-ink">{settingsError}</p><Button variant="secondary" onClick={() => void load()}>{text.readiness.retry}</Button></div>}
     {!settings && !settingsError && <p role="status">{text.readiness.loadingSettings}</p>}
-    {settings?.canManagePolicy && <AdvisorPolicyForm companyId={companyId} settings={settings} onChanged={() => load()} />}
-    {mode === 'embedded' && settings && <>
-      <AdvisorReadinessSummary rows={embeddedRows} />
-      <AdvisorProviderChoice settings={settings} companyName={companyName} provider={provider} onChange={setChosenProvider} />
+    {settings && <>
+      <AdvisorReadinessSummary rows={mode === 'embedded' ? embeddedRows : externalRows} />
+      {mode === 'embedded' && <p className="text-xs text-muted">{text.embedded.scope(companyName)}</p>}
+      {viewer && <Banner variant="accent" tone="warning" role="status">{copy.viewerBanner}</Banner>}
+    </>}
+    {mode === 'embedded' && settings && <div className="space-y-6">
+      <AdvisorProviderChoice settings={settings} provider={provider} onChange={setChosenProvider} />
       <AdvisorProviderConnection key={provider} companyId={companyId} settings={settings} provider={provider} onChanged={() => load()} />
-    </>}
-    {mode === 'external' && settings && <>
-      <AdvisorReadinessSummary rows={externalRows} />
-      <AdvisorConnectors companyId={companyId} companyName={companyName} connectors={connectors} loadError={connectorsError} allowedClients={settings.enabled ? settings.allowedConnectors : []} canManageConnections={settings.canManageConnections} onChanged={() => load()} />
-    </>}
+    </div>}
+    {mode === 'external' && settings && <AdvisorConnectors companyId={companyId} companyName={companyName} connectors={connectors} loadError={connectorsError} allowedClients={allowedHosts} canManageConnections={settings.canManageConnections} onChanged={() => load()} />}
   </section>;
 }

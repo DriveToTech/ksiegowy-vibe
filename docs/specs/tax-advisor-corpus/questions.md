@@ -17,32 +17,32 @@
 | Q09 | 2026-10 | Jak działa limit 10 000 zł w KSeF i co jeśli go przekroczę? | vat-145m-ksef-limit-apr-dec-2026, mf-ksef-below-10000 |
 | Q10 | 2026-10 | W październiku 2026 wystawiłem faktury na 9 000 zł brutto, a teraz chcę wystawić kolejną na 3 000 zł brutto dla firmy. Czy ta nowa faktura może być poza KSeF? | vat-145m-ksef-limit-apr-dec-2026 |
 | Q11 | 2026-12 | Co zmienia się w KSeF od 1 stycznia 2027 r.? | vat-145m-ksef-limit-apr-dec-2026, vat-106ni-ksef-penalty |
-| Q12 | 2026-10 | Czy fakturę dla konsumenta też muszę wystawić w KSeF? | vat-106ga-ksef-obligation, vat-106b-duty-to-issue |
+| Q12 | 2026-10 | Czy fakturę dla konsumenta też muszę wystawić w KSeF? | vat-106ga-ksef-obligation, vat-106b-invoice-on-request |
 | Q13 | 2026-10 | Którą datę uznaje się za datę wystawienia faktury w KSeF? | vat-106na-ksef-dates |
 | Q14 | 2026-10 | Kiedy kupujący jest uznany za odbiorcę faktury wystawionej w KSeF? | vat-106na-ksef-dates |
 | Q15 | 2026-10 | Co to jest tryb offline24 i w jakim terminie muszę wysłać taką fakturę do KSeF? | vat-106nda-offline24 |
 | Q16 | 2026-10 | KSeF ma awarię. Jak mam wystawić fakturę i kiedy ją wysłać? | vat-106ne-106nh-ksef-failure |
 | Q17 | 2026-10 | Jak poprawić błędną fakturę (zła kwota netto)? | vat-106j-corrections, mf-fa3-brochure-corrections |
 | Q18 | 2026-10 | Co powinna zawierać faktura korygująca? | vat-106j-corrections |
-| Q19 | 2026-10 | Wystawiłem fakturę z błędnym NIP nabywcy. Czy mogę wystawić notę korygującą? | vat-106k-credit-note-repealed, mf-fa3-brochure-corrections |
+| Q19 | 2026-10 | Wystawiłem fakturę z błędnym NIP nabywcy. Czy mogę wystawić notę korygującą? | vat-106j-corrections, mf-fa3-brochure-corrections |
 | Q20 | 2026-10 | Czy faktura dla kontrahenta z zagranicy (bez siedziby w Polsce) musi być w KSeF? | vat-106ga-ksef-obligation, vat-106gb-ksef-delivery |
 | Q21 | 2026-10 | Czy mogę wystawić uproszczoną fakturę, jeśli kwota to 300 zł brutto? | vat-106e-simplified-amounts |
 | Q22 | 2026-10 | Co to jest mechanizm podzielonej płatności i kiedy jest obowiązkowy? | vat-108a-split-payment, vat-106e-special-marks |
-| Q23 | 2026-10 | Faktura brutto 1 230 zł, stawka 23%. Ile wynosi kwota VAT i jak zaokrąglać? | vat-106e-simplified-amounts |
+| Q23 | 2026-10 | Faktura brutto 1 230 zł, stawka 23%. Ile wynosi kwota VAT i jak zaokrąglać? | vat-106e-tax-amount-calculation |
 | Q24 | 2026-10 | Jak sprawdzić, czy kontrahent jest czynnym podatnikiem VAT? | vat-96b-taxpayer-list |
-| Q25 | 2026-10 | Od jakiej sprzedaży muszę zarejestrować się jako podatnik VAT czynny, a od jakiej mogę korzystać ze zwolnienia? | vat-96-113-registration-exemption |
-| Q26 | 2026-10 | Czy faktura może być wystawiona papierowo, jeśli sprzedaję klientowi detalicznemu z kasy fiskalnej, a on prosi o fakturę? | vat-106b-duty-to-issue |
+| Q25 | 2026-10 | Od jakiej sprzedaży muszę zarejestrować się jako podatnik VAT czynny, a od jakiej mogę korzystać ze zwolnienia? | vat-96-113-registration-exemption, vat-96-registration-duty |
+| Q26 | 2026-10 | Czy faktura może być wystawiona papierowo, jeśli sprzedaję klientowi detalicznemu z kasy fiskalnej, a on prosi o fakturę? | vat-106b-invoice-on-request |
 
 ## Pytania wymagające doprecyzowania
 
 | ID | Okres | Pytanie | Wymagane źródła / dopytania / powód |
 |---|---|---|---|
-| Q27 | 2026-10 | Czy mogę odliczyć VAT z tej faktury? | czy zakup służy czynnościom opodatkowanym (cel biznesowy vs prywatny); czy firma jest czynnym podatnikiem VAT; rodzaj towaru/usługi (np. ograniczenia odliczenia); data otrzymania faktury/okres rozliczeniowy |
+| Q27 | 2026-10 | Czy mogę odliczyć VAT z tej faktury? | czy zakup służy czynnościom opodatkowanym (cel biznesowy vs prywatny); czy firma jest czynnym podatnikiem VAT |
 | Q28 | 2026-10 | Jaką stawkę VAT powinienem zastosować na tej usłudze? | dokładny rodzaj towaru/usługi i klasyfikacja (PKWiU/CN); miejsce świadczenia i status nabywcy; czy czynność jest zwolniona |
-| Q29 | 2026-10 | Czy muszę wystawić tę fakturę w KSeF? | czy nabywca to firma, konsument czy podmiot zagraniczny; czy sprzedawca ma siedzibę w Polsce / korzysta z procedur szczególnych / zwolnienia z art. 113a; łączna wartość faktur w miesiącu (limit 10 000 zł do końca 2026); data wystawienia faktury |
-| Q30 | 2026-10 | Kiedy powstaje obowiązek podatkowy z tej sprzedaży? | towar czy usługa i data wykonania/dostawy; czy usługa jest ciągła z terminami rozliczeń; czy była zaliczka; czy stosowana jest metoda kasowa lub przypadek z art. 19a ust. 5 |
-| Q31 | 2026-10 | Czy jestem zwolniony z VAT? | wartość sprzedaży bez podatku w poprzednim i bieżącym roku; rodzaj działalności (czynności wyłączone ze zwolnienia); siedziba działalności w Polsce; czy firma już jest zarejestrowana jako podatnik VAT czynny |
-| Q32 | 2026-10 | Faktura ma błędną kwotę. Jak ją poprawić? | czy faktura została wystawiona w KSeF i ma numer KSeF; co jest błędne (kwota, NIP, stawka, nazwa pozycji); czy nabywca już ją otrzymał / zaksięgował |
+| Q29 | 2026-10 | Czy muszę wystawić tę fakturę w KSeF? | czy nabywca to firma, konsument czy podmiot zagraniczny; łączna wartość faktur w miesiącu (limit 10 000 zł do końca 2026) |
+| Q30 | 2026-10 | Kiedy powstaje obowiązek podatkowy z tej sprzedaży? | towar czy usługa i data wykonania/dostawy; czy była zaliczka |
+| Q31 | 2026-10 | Czy jestem zwolniony z VAT? | wartość sprzedaży bez podatku w poprzednim i bieżącym roku; rodzaj działalności (czynności wyłączone ze zwolnienia) |
+| Q32 | 2026-10 | Faktura ma błąd. Jak ją poprawić? | czy faktura została wystawiona w KSeF i ma numer KSeF; co jest błędne (kwota, NIP, stawka, nazwa pozycji) |
 | Q33 | 2026-10 | Czy na tej fakturze powinienem dać adnotację o podzielonej płatności? | czy nabywca jest podatnikiem; czy towary/usługi są w załączniku nr 15 do ustawy; kwota należności ogółem (powyżej 15 000 zł?) |
 
 ## Pytania do odrzucenia (poza zakresem)

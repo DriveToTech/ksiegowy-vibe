@@ -8,7 +8,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     let submittedScope: unknown;
     const conversation = { id: 'conversation', title: 'Monthly records', provider: 'OPENAI', model: 'configured-model', createdAt: '2026-09-19T12:00:00.000Z' };
     const answer: AdvisorAnswer = { status: 'answered', shortAnswer: 'Recorded sales total', explanation: 'This is a record total, not tax due.', assumptions: [], questions: [], sources: [],
-      calculations: [{ currency: 'PLN', issuedGross: '123.00', issuedVat: '23.00', acceptedGross: '123.00', invoiceCount: 1 }],
+      calculations: [{ currency: 'PLN', issuedGross: '123.00', issuedVat: '23.00', acceptedGross: '123.00', rejectedGross: '0.00', invoiceCount: 1 }],
       evidence: [{ id: 'accepted-invoice-id', kind: 'outgoing', title: 'Invoice evidence', status: 'ISSUED', currency: 'PLN', gross: '123.00', vat: '23.00', updatedAt: '2026-09-19T12:00:00.000Z' }],
       provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model', generatedAt: '2026-09-19T12:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'unreviewed', sourceReviewMethod: 'not-applicable' } };
     await page.route('**/companies/test-company-id/advisor/**', async (route) => {
@@ -32,18 +32,16 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       await panel.screenshot({ path: testInfo.outputPath(`advisor-panel-empty-${theme}.png`) });
     }
     await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
-    await panel.getByRole('button', { name: 'Zmień' }).click();
-    await panel.locator('input[type="month"]').fill('2026-09');
-    await panel.getByRole('checkbox', { name: /Dołącz zestawienie/ }).check();
+    await panel.getByRole('checkbox', { name: /Dołącz dane firmy z/ }).check();
     await panel.locator('textarea').fill('Summarize these records');
     await panel.getByRole('button', { name: 'Zapytaj', exact: true }).click();
     await expect(panel.getByRole('heading', { name: answer.shortAnswer })).toBeVisible();
     expect(requests).toBe(1);
-    expect(submittedScope).toEqual({ questionKind: 'records', period: '2026-09', includeRecords: true });
-    await expect(panel.getByText('Wyliczenia', { exact: true })).toBeVisible();
-    await expect(panel.getByText('23.00 PLN', { exact: true })).toBeVisible();
+    expect(submittedScope).toEqual({ questionKind: 'records', period: new Date().toISOString().slice(0, 7), includeRecords: true });
+    await expect(panel.locator('dl > div').filter({ hasText: 'VAT na wystawionych' })).toContainText(/23,00\s*zł/);
+    await expect(panel.locator('dl > div').filter({ hasText: 'Odrzucone' })).toContainText(/0,00\s*zł/);
     await panel.getByText('Dokumenty źródłowe (1)', { exact: true }).click();
-    await expect(panel.getByRole('link', { name: /Invoice evidence/ })).toHaveAttribute('href', '/dashboard/invoices/accepted-invoice-id');
+    await expect(panel.getByRole('link', { name: /Invoice evidence 123,00/ })).toHaveAttribute('href', '/dashboard/invoices/accepted-invoice-id');
     if (viewport.width >= 1280) await expect(panel).toHaveCSS('width', '400px');
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
@@ -137,7 +135,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
 const blockedCases = [
   {
     name: 'operator overrides disabled company, denied provider and missing connection',
-    provider: 'OPENROUTER',
+    provider: 'OPENROUTER', providerName: 'OpenRouter', openConversation: false, canManageConnections: true,
     enabled: false, operatorEnabled: false, allowedProviders: [],
     connections: [],
     reason: 'Doradca jest wyłączony na serwerze.',
@@ -146,7 +144,7 @@ const blockedCases = [
   },
   {
     name: 'company overrides denied provider and missing connection',
-    provider: 'ANTHROPIC',
+    provider: 'OPENROUTER', providerName: 'OpenRouter', openConversation: false, canManageConnections: true,
     enabled: false, operatorEnabled: true, allowedProviders: [],
     connections: [],
     reason: 'Doradca jest wyłączony dla tej firmy.',
@@ -155,21 +153,30 @@ const blockedCases = [
   },
   {
     name: 'denied Anthropic overrides its missing connection',
-    provider: 'ANTHROPIC',
+    provider: 'ANTHROPIC', providerName: 'Anthropic API', openConversation: false, canManageConnections: true,
     enabled: true, operatorEnabled: true, allowedProviders: ['OPENAI'],
-    connections: [{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }],
+    connections: [{ provider: 'ANTHROPIC', model: 'saved-model', hasCredential: true, testedAt: null }],
     reason: 'Dostawca Anthropic API nie jest dozwolony w tej firmie.',
     owner: 'Może go dopuścić administrator firmy.',
     hint: 'Nie możesz wysłać pytania przez Anthropic API, dopóki administrator firmy nie zezwoli na tego dostawcę.',
   },
   {
     name: 'allowed Anthropic without its own connection despite another saved provider',
-    provider: 'ANTHROPIC',
+    provider: 'ANTHROPIC', providerName: 'Anthropic API', openConversation: true, canManageConnections: true,
     enabled: true, operatorEnabled: true, allowedProviders: ['OPENAI', 'ANTHROPIC'],
     connections: [{ provider: 'OPENAI', model: 'saved-model', hasCredential: true, testedAt: null }],
     reason: 'Nie masz jeszcze zapisanego połączenia z Anthropic API.',
     owner: 'Możesz je zapisać dla swojego konta w tej firmie.',
     hint: 'Nie możesz wysłać pytania przez Anthropic API, dopóki nie zapiszesz połączenia.',
+  },
+  {
+    name: 'viewer without a saved connection cannot save one',
+    provider: 'OPENROUTER', providerName: 'OpenRouter', openConversation: false, canManageConnections: false,
+    enabled: true, operatorEnabled: true, allowedProviders: ['OPENROUTER'],
+    connections: [],
+    reason: 'Twoja rola w tej firmie nie pozwala zapisać połączenia z dostawcą.',
+    owner: 'Rolę może zmienić administrator firmy. Wskazówki i dokumenty nadal możesz przeglądać.',
+    hint: 'Nie możesz wysłać pytania bez własnego połączenia z dostawcą.',
   },
 ] as const;
 
@@ -184,29 +191,34 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       await page.route('**/companies/test-company-id/advisor/**', async (route) => {
         const path = new URL(route.request().url()).pathname;
         if (path.endsWith('/settings')) return route.fulfill({ json: {
-          enabled: blocked.enabled, operatorEnabled: blocked.operatorEnabled, canManagePolicy: false, canManageConnections: true,
+          enabled: blocked.enabled, operatorEnabled: blocked.operatorEnabled, canManagePolicy: false, canManageConnections: blocked.canManageConnections,
           allowedProviders: blocked.allowedProviders, allowedConnectors: [], retentionDays: 30,
           ollamaAvailable: false, reviewedSourceCount: 0, connections: blocked.connections,
         } });
-        if (path.endsWith('/conversations')) return route.fulfill({ json: [] });
+        const stored = { id: 'anthropic-history', title: 'Anthropic history', provider: 'ANTHROPIC', model: 'claude-model', createdAt: '2026-09-19T12:00:00.000Z' };
+        if (path.endsWith('/conversations/anthropic-history')) return route.fulfill({ json: { ...stored, turns: [] } });
+        if (path.endsWith('/conversations')) return route.fulfill({ json: blocked.openConversation ? [stored] : [] });
         return route.fulfill({ status: 405, json: { code: 'UNEXPECTED_ADVISOR_REQUEST' } });
       });
       await page.goto('/dashboard');
       const trigger = viewport.width >= 1280 ? page.getByRole('banner').getByRole('button', { name: 'Otwórz doradcę' }) : page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' });
       await trigger.click();
       const panel = viewport.width >= 1280 ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
-      if (blocked.provider === 'ANTHROPIC') {
-        await panel.getByRole('button', { name: 'Zmień' }).click();
-        await panel.getByRole('combobox', { name: 'Dostawca' }).selectOption('ANTHROPIC');
+      // The provider comes from the first saved connection or, for a stored conversation, from that conversation.
+      if (blocked.openConversation) {
+        await panel.getByRole('button', { name: 'Historia rozmów' }).click();
+        await panel.getByRole('button', { name: /Anthropic history/ }).first().click();
       }
       const card = panel.locator('section[aria-labelledby="advisor-blocker-reason"]');
       await expect(card).toHaveCount(1);
       await expect(card.locator('#advisor-blocker-reason')).toHaveText(blocked.reason);
       await expect(card.getByText(blocked.owner, { exact: true })).toBeVisible();
       await expect(panel.locator('#advisor-blocker-hint')).toHaveText(blocked.hint);
-      await expect(panel.getByText(`Czytam: ${blocked.provider === 'ANTHROPIC' ? 'Anthropic API' : 'OpenRouter'} · TEST`, { exact: false })).toBeVisible();
+      await expect(panel.getByText(blocked.providerName, { exact: true })).toBeVisible();
       await expect(panel.getByRole('textbox', { name: 'Pytanie do Doradcy' })).toBeDisabled();
-      await expect(panel.getByRole('button', { name: 'Zapytaj', exact: true })).toBeDisabled();
+      await expect(panel.getByRole('button', { name: 'Zapytaj', exact: true })).toHaveAttribute('aria-disabled', 'true');
+      await expect(panel.getByRole('checkbox')).toHaveCount(0);
+      await expect(panel.getByLabel('Rodzaj pytania')).toHaveCount(0);
       const settingsLink = card.getByRole('link', { name: 'Otwórz ustawienia Doradcy' });
       await expect(settingsLink).toHaveAttribute('href', '/dashboard/settings?section=advisor');
       for (const theme of ['light', 'dark']) {
@@ -265,16 +277,14 @@ test('advisor retains the denied conversation provider on history load and setti
   await trigger.click();
   const panel = page.getByRole('complementary', { name: 'Doradca' });
   await panel.getByRole('button', { name: 'Historia rozmów' }).click();
-  await panel.getByLabel('Historia rozmów').selectOption(conversation.id);
+  await panel.getByRole('button', { name: /Anthropic history/ }).first().click();
   await expect(panel.locator('#advisor-blocker-reason')).toHaveText('Dostawca Anthropic API nie jest dozwolony w tej firmie.');
-  await expect(panel.getByText('Czytam: Anthropic API · TEST', { exact: false })).toBeVisible();
-  await panel.getByRole('button', { name: 'Zmień' }).click();
-  await expect(panel.getByRole('combobox', { name: 'Dostawca' })).toHaveValue('ANTHROPIC');
+  await expect(panel.getByText('Anthropic API', { exact: true })).toBeVisible();
   await expect(panel.getByRole('textbox', { name: 'Pytanie do Doradcy' })).toBeDisabled();
   await panel.getByRole('button', { name: 'Zamknij doradcę' }).click();
   await trigger.click();
   await expect(panel.locator('#advisor-blocker-reason')).toHaveText('Dostawca Anthropic API nie jest dozwolony w tej firmie.');
-  await expect(panel.getByRole('combobox', { name: 'Dostawca' })).toHaveValue('ANTHROPIC');
+  await expect(panel.getByText('Anthropic API', { exact: true })).toBeVisible();
   expect(modelPosts).toEqual([]);
 });
 
@@ -297,9 +307,9 @@ test('advisor shows the AI-review disclaimer on a tax answer replayed from histo
   await page.locator('nav').getByRole('button', { name: 'Otwórz doradcę' }).click();
   const panel = page.getByRole('dialog', { name: 'Doradca' });
   await panel.getByRole('button', { name: 'Historia rozmów' }).click();
-  await panel.getByLabel('Historia rozmów').selectOption(conversation.id);
-  await expect(panel.getByRole('note')).toHaveText(disclaimer);
-  await panel.getByText('Źródła przepisów', { exact: true }).click();
+  await panel.getByRole('button', { name: /Tax history/ }).first().click();
+  await expect(panel.getByRole('note')).toHaveText(`Wygenerowane przez AI${disclaimer}`);
+  await panel.getByText('Źródła przepisów (1)', { exact: true }).click();
   await expect(panel.getByText('Sprawdzone przez AI · OPENAI/model-a + ANTHROPIC/model-b · 2026-09-01')).toBeVisible();
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
 });

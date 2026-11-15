@@ -273,6 +273,8 @@ model AdvisorTurn {
   scope Json
   status AdvisorTurnStatus @default(PENDING)
   answer Json?
+  // Clarification turn this message answers. Plain column without a foreign key: turns cascade with their conversation.
+  replyToTurnId String?
   createdAt DateTime @default(now())
   startedAt DateTime?
   finishedAt DateTime?

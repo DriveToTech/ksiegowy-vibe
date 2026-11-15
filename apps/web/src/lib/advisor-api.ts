@@ -1,7 +1,7 @@
 import { API_BASE } from './api-base';
 import { clientFetch } from './api-client';
 import { advisorText } from './advisor-translations';
-import type { AdvisorAnswer, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorEnvironment, AdvisorModelPreview, AdvisorProvider, AdvisorScope, AdvisorSettings } from '../../../../packages/types/src/advisor';
+import type { AdvisorAnswer, AdvisorStreamError, AdvisorStreamStatus, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorConversationSummary, AdvisorEnvironment, AdvisorModelPreview, AdvisorProvider, AdvisorScope, AdvisorSettings } from '../../../../packages/types/src/advisor';
 export type { AdvisorAnswer, AdvisorEnvironment, AdvisorScope, AdvisorSettings, AdvisorProvider, AdvisorConversationSummary, AdvisorConversationDetail, AdvisorTurn, AdvisorConnectorClient, AdvisorConnectorSettings, AdvisorModelPreview, AdvisorConnectionSummary, AdvisorConnectorGrant, AdvisorConnectorGrantStatus, AdvisorInsight, AdvisorInsightView } from '../../../../packages/types/src/advisor';
 
 export function advisorRequest<Result>(companyId: string, path: string, options?: RequestInit): Promise<Result> {
@@ -53,6 +53,14 @@ export function revokeAdvisorConnector(companyId: string, client: AdvisorConnect
   return advisorRequest(companyId, `/connectors/${client}`, { method: 'DELETE', headers: { 'x-ksef-environment': environment } });
 }
 
+export function listAdvisorConversations(companyId: string, environment: AdvisorEnvironment, signal?: AbortSignal): Promise<AdvisorConversationSummary[]> {
+  return advisorRequest<AdvisorConversationSummary[]>(companyId, '/conversations', { headers: { 'x-ksef-environment': environment }, ...(signal ? { signal } : {}) });
+}
+
+export function deleteAdvisorConversation(companyId: string, environment: AdvisorEnvironment, conversationId: string): Promise<unknown> {
+  return advisorRequest(companyId, `/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE', headers: { 'x-ksef-environment': environment } });
+}
+
 export function advisorErrorCode(error: unknown): string {
   return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'ADVISOR_ERROR';
 }
@@ -62,7 +70,7 @@ export function advisorErrorMessage(error: unknown): string {
 }
 
 export async function streamAdvisorAnswer(companyId: string, environment: AdvisorEnvironment, conversationId: string,
-  input: { question: string; requestId: string; scope: AdvisorScope }, signal: AbortSignal, onProgress: () => void): Promise<AdvisorAnswer> {
+  input: { question: string; requestId: string; scope: AdvisorScope; replyToTurnId?: string }, signal: AbortSignal, onStatus: (status: AdvisorStreamStatus) => void): Promise<AdvisorAnswer> {
   const response = await fetch(`${API_BASE}/companies/${encodeURIComponent(companyId)}/advisor/conversations/${encodeURIComponent(conversationId)}/messages`, {
     method: 'POST', credentials: 'include', signal,
     headers: { 'Content-Type': 'application/json', 'x-ksef-environment': environment }, body: JSON.stringify(input),
@@ -92,9 +100,12 @@ export async function streamAdvisorAnswer(companyId: string, environment: Adviso
         const eventType = event.split(/\r?\n/).find((line) => line.startsWith('event:'))?.slice(6).trim();
         const data = event.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n');
         if (!data) continue;
-        if (eventType === 'error') throw JSON.parse(data);
+        if (eventType === 'error') {
+          const streamError = JSON.parse(data) as Partial<AdvisorStreamError>;
+          throw { code: streamError.code ?? 'ADVISOR_ERROR', message: streamError.message, ...(typeof streamError.retryAfterSeconds === 'number' && { retryAfterSeconds: streamError.retryAfterSeconds }) };
+        }
         if (eventType === 'answer') answer = JSON.parse(data) as AdvisorAnswer;
-        if (eventType === 'status') onProgress();
+        if (eventType === 'status') onStatus(JSON.parse(data) as AdvisorStreamStatus);
       }
       if (chunk.done) break;
     }

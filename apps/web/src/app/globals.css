@@ -30,6 +30,10 @@ html[data-theme='light'] {
   --primary-ink: #FFFFFF;
   --primary-soft: rgba(109, 58, 224, 0.14);
   --primary-soft-ink: #6D3AE0;
+  --primary-border: #D3C4F6;
+  --skeleton: rgba(20, 23, 49, 0.08);
+  --danger-fill: rgba(179, 36, 16, 0.12);
+  --danger-border: rgba(179, 36, 16, 0.32);
   --nav-active: linear-gradient(100deg, rgba(109, 58, 224, 0.16), rgba(46, 134, 200, 0.09));
   --nav-active-border: rgba(109, 58, 224, 0.30);
   --secondary-surface: rgba(20, 23, 49, 0.05);
@@ -44,6 +48,13 @@ html[data-theme='light'] {
   --neutral-status-ink: #454C73;
   --draft: #ECECEF;
   --draft-ink: rgba(20, 23, 49, 0.70);
+  --success-border: #B7D3C7;
+  --warning-border: #DCCBB3;
+  --error-border: #E7B9B3;
+  --button-secondary-border: rgba(20, 23, 49, 0.16);
+  --button-disabled: rgba(20, 23, 49, 0.04);
+  --button-disabled-border: rgba(20, 23, 49, 0.10);
+  --scrim: rgba(20, 23, 49, 0.72);
   --shadow-frame: 0 24px 64px rgba(20, 23, 49, 0.14);
 }
 
@@ -73,6 +84,10 @@ html[data-theme='dark'] {
   --primary-ink: #0C0D1C;
   --primary-soft: rgba(167, 139, 250, 0.14);
   --primary-soft-ink: #A78BFA;
+  --primary-border: rgba(167, 139, 250, 0.34);
+  --skeleton: rgba(236, 238, 247, 0.08);
+  --danger-fill: rgba(240, 122, 106, 0.12);
+  --danger-border: rgba(240, 122, 106, 0.32);
   --nav-active: linear-gradient(100deg, rgba(167, 139, 250, 0.24), rgba(94, 184, 240, 0.12));
   --nav-active-border: rgba(167, 139, 250, 0.34);
   --secondary-surface: rgba(236, 238, 247, 0.06);
@@ -87,6 +102,13 @@ html[data-theme='dark'] {
   --neutral-status-ink: #B6BCE0;
   --draft: #22253A;
   --draft-ink: rgba(236, 238, 247, 0.60);
+  --success-border: #264B4C;
+  --warning-border: #554638;
+  --error-border: #58343E;
+  --button-secondary-border: rgba(236, 238, 247, 0.12);
+  --button-disabled: rgba(236, 238, 247, 0.04);
+  --button-disabled-border: rgba(236, 238, 247, 0.08);
+  --scrim: rgba(8, 10, 20, 0.72);
   --shadow-frame: 0 30px 90px rgba(0, 0, 0, 0.6);
 }
 
@@ -113,6 +135,10 @@ html[data-theme='dark'] {
   --color-primary-soft: var(--primary-soft);
   --color-primary-ink: var(--primary-ink);
   --color-primary-soft-ink: var(--primary-soft-ink);
+  --color-primary-border: var(--primary-border);
+  --color-skeleton: var(--skeleton);
+  --color-danger-fill: var(--danger-fill);
+  --color-danger-border: var(--danger-border);
   --color-secondary-surface: var(--secondary-surface);
   --color-secondary-ink: var(--secondary-ink);
   --color-success: var(--success);
@@ -125,6 +151,13 @@ html[data-theme='dark'] {
   --color-neutral-status-ink: var(--neutral-status-ink);
   --color-draft: var(--draft);
   --color-draft-ink: var(--draft-ink);
+  --color-success-border: var(--success-border);
+  --color-warning-border: var(--warning-border);
+  --color-error-border: var(--error-border);
+  --color-button-secondary-border: var(--button-secondary-border);
+  --color-button-disabled: var(--button-disabled);
+  --color-button-disabled-border: var(--button-disabled-border);
+  --color-scrim: var(--scrim);
   --radius-chip: 6px;
   --radius-control: 9px;
   --radius-inset: 12px;

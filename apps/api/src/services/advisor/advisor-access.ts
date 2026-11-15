@@ -49,7 +49,7 @@ export async function reserveAdvisorProviderRequest(request: FastifyRequest, con
     where: { id: connectionId, OR: [{ lastRequestedAt: null }, { lastRequestedAt: { lt: new Date(now.getTime() - 10_000) } }] },
     data: { lastRequestedAt: now },
   });
-  if (!result.count) throw new AdvisorError(429, 'RATE_LIMITED', 'Please wait before starting another provider request');
+  if (!result.count) throw new AdvisorError(429, 'RATE_LIMITED', 'Please wait before starting another provider request', 10);
 }
 
 // ponytail: per-process throttle, move to a shared store if the API is scaled beyond one instance.

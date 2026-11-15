@@ -10,19 +10,18 @@ export interface AdvisorReadinessRow {
   reason?: string;
 }
 
-// `rows === null` renders a skeleton while the settings snapshot is loading.
+// Three rows, each with its own gate reason. `rows === null` renders a skeleton while the settings snapshot is loading.
+// The title stays in the DOM (screen readers and focus return target) but is not drawn, as in the A8 board.
 export function AdvisorReadinessSummary({ rows }: { rows: AdvisorReadinessRow[] | null }) {
-  return <section aria-labelledby={advisorReadinessTitleIdentifier} aria-busy={rows === null} className="space-y-2 rounded-card border border-outline bg-surface-panel p-4">
-    <h3 id="advisor-readiness-title" tabIndex={-1} className="font-medium">{text.readiness.title}</h3>
+  return <section aria-labelledby={advisorReadinessTitleIdentifier} aria-busy={rows === null} className="overflow-hidden rounded-inset bg-surface-raised">
+    <h3 id="advisor-readiness-title" tabIndex={-1} className="sr-only">{text.readiness.title}</h3>
     {rows === null
-      ? <div aria-hidden className="h-16 animate-pulse rounded-inset bg-surface-raised motion-reduce:animate-none" />
-      : <dl className="divide-y divide-outline">
-        {rows.map((row) => <div key={row.label} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-3 first:pt-1 last:pb-0">
-          <div className="min-w-0 flex-1 basis-48">
-            <dt className="text-sm font-medium">{row.label}</dt>
-            {row.reason && <dd className="text-sm text-muted">{row.reason}</dd>}
-          </div>
-          <dd><Badge variant="tag" tone={row.tone}>{row.chip}</Badge></dd>
+      ? <div aria-hidden className="h-[132px] animate-pulse bg-skeleton motion-reduce:animate-none" />
+      : <dl>
+        {rows.map((row) => <div key={row.label} className="grid min-h-11 grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 border-t border-outline px-3.5 py-2 first:border-t-0 sm:grid-cols-[150px_auto_1fr]">
+          <dt className="text-[12.5px] text-foreground-secondary">{row.label}</dt>
+          <dd className="justify-self-start"><Badge variant="tag" tone={row.tone}>{row.chip}</Badge></dd>
+          {row.reason && <dd className="col-span-full text-[12.5px] text-muted sm:col-span-1">{row.reason}</dd>}
         </div>)}
       </dl>}
   </section>;

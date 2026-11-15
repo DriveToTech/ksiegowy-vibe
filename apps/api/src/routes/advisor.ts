@@ -2,16 +2,19 @@ import { PassThrough } from 'node:stream';
 import type { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { advisorAnswerTimeoutSeconds, type AdvisorStreamError } from '@ksiegowy/types';
 import { requireExplicitKsefEnvironment } from '../lib/ksef-environment.js';
 import { advisorSettingsRoutes } from './advisor-settings.js';
 import { advisorConnectorRoutes } from './advisor-connectors.js';
 import { advisorInsightRoutes } from './advisor-insights.js';
 import { AdvisorError, advisorProviderSchema, advisorScopeSchema } from '../services/advisor/advisor-contract.js';
 import { requireAdvisorEnabled, requireAdvisorMembership, requireAdvisorOrigin, requireAdvisorPolicy, readAdvisorConnection } from '../services/advisor/advisor-access.js';
-import { answerAdvisorQuestion } from '../services/advisor/advisor.service.js';
+import { answerAdvisorQuestion, requireAdvisorReplyTarget } from '../services/advisor/advisor.service.js';
 
 interface ConversationParameters { companyId: string; conversationId: string }
-const messageSchema = z.object({ requestId: z.uuid(), question: z.string().trim().min(1).max(4000), scope: advisorScopeSchema }).strict();
+const messageSchema = z.object({ requestId: z.uuid(), question: z.string().trim().min(1).max(4000), scope: advisorScopeSchema, replyToTurnId: z.cuid().optional() }).strict();
+// Generation aborts at the answer timeout; a turn still PENDING a minute later has lost its worker.
+const stalePendingTurnMilliseconds = (advisorAnswerTimeoutSeconds + 60) * 1000;
 
 export const advisorRoutes: FastifyPluginAsync = async (server) => {
   const activeRequests = new Set<AbortController>();
@@ -27,6 +30,7 @@ export const advisorRoutes: FastifyPluginAsync = async (server) => {
     if (error instanceof z.ZodError) return reply.code(400).send({ code: 'INVALID_REQUEST', message: 'Invalid advisor request' });
     if (error instanceof AdvisorError) {
       if (error.retryAfterSeconds) reply.header('Retry-After', String(error.retryAfterSeconds));
+      if (error.code.startsWith('PROVIDER_')) request.log.warn({ operation: 'advisor', requestId: request.id, code: error.code, upstreamStatus: error.upstreamStatus, upstreamErrorType: error.upstreamErrorType }, 'Advisor provider failed');
       return reply.code(error.statusCode).send({ code: error.code, message: error.message });
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
@@ -67,10 +71,10 @@ export const advisorRoutes: FastifyPluginAsync = async (server) => {
     const environment = requireExplicitKsefEnvironment(request);
     const conversation = await server.prisma.advisorConversation.findFirst({ where: { id: request.params.conversationId, membershipId: membership.id, environment, expiresAt: { gt: new Date() } },
       select: { id: true, title: true, provider: true, model: true, createdAt: true,
-        turns: { orderBy: { createdAt: 'asc' }, take: 100, select: { id: true, question: true, status: true, answer: true, createdAt: true } } } });
+        turns: { orderBy: { createdAt: 'asc' }, take: 100, select: { id: true, question: true, status: true, answer: true, replyToTurnId: true, createdAt: true } } } });
     if (!conversation) throw new AdvisorError(404, 'CONVERSATION_NOT_FOUND', 'Conversation not found');
     return { ...conversation, turns: conversation.turns.map((turn) => ({ ...turn,
-      status: turn.status === 'PENDING' && turn.createdAt.getTime() < Date.now() - 120_000 ? 'FAILED' : turn.status })) };
+      status: turn.status === 'PENDING' && turn.createdAt.getTime() < Date.now() - stalePendingTurnMilliseconds ? 'FAILED' : turn.status })) };
   });
   server.delete<{ Params: ConversationParameters }>('/conversations/:conversationId', async (request) => {
     const membership = await requireAdvisorMembership(request, request.params.companyId);
@@ -91,21 +95,23 @@ export const advisorRoutes: FastifyPluginAsync = async (server) => {
       if (existing) {
         const storedScope = advisorScopeSchema.parse(existing.scope);
         if (existing.question !== body.question || Object.entries(body.scope).some(([key, value]) => storedScope[key as keyof typeof storedScope] !== value)
-          || Object.keys(storedScope).length !== Object.keys(body.scope).length) throw new AdvisorError(409, 'REQUEST_CONFLICT', 'Request identifier was already used for different input');
-        if (existing.status === 'PENDING' && existing.createdAt.getTime() < Date.now() - 120_000) {
+          || Object.keys(storedScope).length !== Object.keys(body.scope).length
+          || (existing.replyToTurnId ?? undefined) !== body.replyToTurnId) throw new AdvisorError(409, 'REQUEST_CONFLICT', 'Request identifier was already used for different input');
+        if (existing.status === 'PENDING' && existing.createdAt.getTime() < Date.now() - stalePendingTurnMilliseconds) {
           return transaction.advisorTurn.update({ where: { id: existing.id }, data: { status: 'FAILED', finishedAt: new Date() } });
         }
         return existing;
       }
+      if (body.replyToTurnId) await requireAdvisorReplyTarget(transaction, conversation.id, body.replyToTurnId);
       const memberScope = { conversation: { membershipId: membership.id } };
-      await transaction.advisorTurn.updateMany({ where: { ...memberScope, status: 'PENDING', createdAt: { lt: new Date(Date.now() - 120_000) } }, data: { status: 'FAILED', finishedAt: new Date() } });
+      await transaction.advisorTurn.updateMany({ where: { ...memberScope, status: 'PENDING', createdAt: { lt: new Date(Date.now() - stalePendingTurnMilliseconds) } }, data: { status: 'FAILED', finishedAt: new Date() } });
       const pending = await transaction.advisorTurn.count({ where: { ...memberScope, status: 'PENDING' } });
       const recent = await transaction.advisorTurn.count({ where: { ...memberScope, createdAt: { gt: new Date(Date.now() - 60_000) } } });
       const count = await transaction.advisorTurn.count({ where: { conversationId: conversation.id } });
       if (pending || recent >= 6 || count >= 100) throw new AdvisorError(429, 'RATE_LIMITED', 'Conversation or request limit reached');
-      return transaction.advisorTurn.create({ data: { conversationId: conversation.id, requestId: body.requestId, question: body.question, scope: { ...body.scope } } });
+      return transaction.advisorTurn.create({ data: { conversationId: conversation.id, requestId: body.requestId, question: body.question, scope: { ...body.scope }, replyToTurnId: body.replyToTurnId ?? null } });
     });
-    if (turn.status !== 'PENDING' || turn.createdAt.getTime() < Date.now() - 120_000) {
+    if (turn.status !== 'PENDING' || turn.createdAt.getTime() < Date.now() - stalePendingTurnMilliseconds) {
       return reply.send({ status: turn.status, answer: turn.answer });
     }
     // Atomically claim a pending turn so concurrent retries cannot call the provider twice.
@@ -113,7 +119,7 @@ export const advisorRoutes: FastifyPluginAsync = async (server) => {
     if (!generationClaim.count) throw new AdvisorError(409, 'REQUEST_IN_PROGRESS', 'This request is already running');
     const controller = new AbortController();
     activeRequests.add(controller);
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]);
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(advisorAnswerTimeoutSeconds * 1000)]);
     const stream = new PassThrough();
     const emit = (event: string, data: unknown) => { if (!stream.destroyed) stream.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
     reply.raw.on('close', () => controller.abort());
@@ -122,15 +128,21 @@ export const advisorRoutes: FastifyPluginAsync = async (server) => {
     const heartbeat = setInterval(() => emit('status', { stage: 'working' }), 10_000);
     request.log.info({ operation: 'advisor.answer', conversationId: conversation.id, requestId: request.id }, 'Advisor generation started');
     void answerAdvisorQuestion(request, { companyId: request.params.companyId, conversationId: conversation.id, turnId: turn.id,
-      scope: body.scope, question: body.question, signal }).then((answer) => {
+      scope: body.scope, question: body.question, replyToTurnId: body.replyToTurnId, signal }).then((answer) => {
       emit('answer', answer);
       request.log.info({ operation: 'advisor.answer', conversationId: conversation.id, requestId: request.id }, 'Advisor generation completed');
     }).catch(async (error: unknown) => {
       await server.prisma.advisorTurn.updateMany({ where: { id: turn.id, status: 'PENDING' },
         data: { status: controller.signal.aborted ? 'CANCELLED' : 'FAILED', finishedAt: new Date() } }).catch(() => undefined);
-      const code = error instanceof AdvisorError ? error.code : signal.aborted ? 'REQUEST_INTERRUPTED' : 'PROVIDER_ERROR';
-      request.log.error({ operation: 'advisor.answer', requestId: request.id, code }, 'Advisor generation failed');
-      emit('error', { code, message: error instanceof AdvisorError ? error.message : 'Advisor generation failed' });
+      // Cancel and the route deadline are interruptions; any other unclassified failure is internal (provider calls are classified at their source).
+      const code = signal.aborted ? 'REQUEST_INTERRUPTED' : error instanceof AdvisorError ? error.code : 'ADVISOR_ERROR';
+      const upstreamStatus = error instanceof AdvisorError ? error.upstreamStatus : undefined;
+      const upstreamErrorType = error instanceof AdvisorError ? error.upstreamErrorType : undefined;
+      request.log[code.startsWith('PROVIDER_') || code === 'OLLAMA_UNREACHABLE' ? 'warn' : 'error']({ operation: 'advisor.answer', provider: conversation.provider, model: conversation.model,
+        membershipId: membership.id, companyId: request.params.companyId, conversationId: conversation.id, requestId: request.id, code, upstreamStatus, upstreamErrorType }, 'Advisor generation failed');
+      const streamError: AdvisorStreamError = { code, message: signal.aborted ? 'Request interrupted' : error instanceof AdvisorError ? error.message : 'Advisor generation failed',
+        ...(!signal.aborted && error instanceof AdvisorError && error.retryAfterSeconds ? { retryAfterSeconds: error.retryAfterSeconds } : {}) };
+      emit('error', streamError);
     }).finally(() => { clearInterval(heartbeat); activeRequests.delete(controller); emit('done', {}); stream.end(); });
     return reply.send(stream);
   });

@@ -71,7 +71,7 @@ export default async function DashboardPage() {
         description={t.dashboard.pageDescription}
         actions={
           <>
-            <AdvisorTrigger question={advisorText.briefingQuestion} />
+            <AdvisorTrigger question={advisorText.briefingQuestion} briefing />
             <Button href="/dashboard/incoming" variant="secondary">{t.dashboard.goToIncoming}</Button>
             <Button href="/dashboard/invoices/new">{t.dashboard.createInvoice}</Button>
           </>

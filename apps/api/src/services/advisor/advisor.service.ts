@@ -1,5 +1,5 @@
 import type { FastifyRequest } from 'fastify';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { z } from 'zod';
 import type { AdvisorAnswer, AdvisorEnvironment, AdvisorProvider, AdvisorScope, AdvisorTaxSource } from '@ksiegowy/types';
 import { AdvisorError, advisorTaxDisclaimer, type advisorModelAnswerSchema } from './advisor-contract.js';
@@ -14,7 +14,7 @@ const declinedShortAnswer = 'To pytanie wykracza poza zakres doradcy: obsługuj�
 const declinedExplanation = 'Mogę wyjaśnić zasady wystawiania faktur, stawki VAT, korekty, terminy i KSeF oraz objaśnić ewidencję w aplikacji. W sprawach podatku dochodowego, ZUS, opinii prawnych i składania dokumentów skonsultuj się z księgowym, doradcą podatkowym lub radcą prawnym.';
 
 export async function answerAdvisorQuestion(request: FastifyRequest, options: {
-  companyId: string; conversationId: string; turnId: string; scope: AdvisorScope; question: string; signal: AbortSignal;
+  companyId: string; conversationId: string; turnId: string; scope: AdvisorScope; question: string; replyToTurnId?: string | undefined; signal: AbortSignal;
 }): Promise<AdvisorAnswer> {
   const { companyId, conversationId, scope, signal } = options;
   requireAdvisorEnabled();
@@ -48,23 +48,35 @@ function declineAdvisorQuestion(companyId: string, environment: AdvisorEnvironme
       recordsIncluded: false, evidenceTruncated: false, sourceVersion: 'not-applicable', sourceReviewMethod: 'not-applicable' } };
 }
 
+// A reply must target a completed clarification of the same conversation, which already belongs to the caller's membership and environment.
+export async function requireAdvisorReplyTarget(database: Pick<PrismaClient, 'advisorTurn'>, conversationId: string, replyToTurnId: string) {
+  const target = await database.advisorTurn.findFirst({ where: { id: replyToTurnId, conversationId, status: 'COMPLETED' }, select: { question: true, answer: true } });
+  const answer = target?.answer as { status?: string; questions?: string[] } | null | undefined;
+  if (!target || answer?.status !== 'needs_clarification') throw new AdvisorError(409, 'INVALID_REPLY', 'The reply target is not a clarification request in this conversation');
+  return { question: target.question, questions: answer.questions ?? [] };
+}
+
 async function generateAdvisorAnswer(request: FastifyRequest, options: {
-  companyId: string; conversationId: string; environment: AdvisorEnvironment; scope: AdvisorScope; question: string; signal: AbortSignal;
+  companyId: string; conversationId: string; environment: AdvisorEnvironment; scope: AdvisorScope; question: string; replyToTurnId?: string | undefined; signal: AbortSignal;
   connection: Awaited<ReturnType<typeof readAdvisorConnection>>;
 }): Promise<AdvisorAnswer> {
   const { companyId, conversationId, scope, signal, connection, environment } = options;
-  const [context, corpus, previousTurns] = await Promise.all([
+  const [context, corpus, previousTurns, clarification] = await Promise.all([
     buildAdvisorContext(request.server.prisma, companyId, environment, scope),
     loadAdvisorSources(),
     request.server.prisma.advisorTurn.findMany({ where: { conversationId, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 4, select: { question: true } }),
+    options.replyToTurnId ? requireAdvisorReplyTarget(request.server.prisma, conversationId, options.replyToTurnId) : Promise.resolve(undefined),
   ]);
+  if (scope.questionKind === 'records' && scope.includeRecords && !scope.documentId && !context.calculations.length && !context.evidence.length) {
+    throw new AdvisorError(422, 'RECORDS_UNAVAILABLE', 'No records exist for the selected period or contractor');
+  }
   const sources = selectAdvisorSources(corpus.sources, scope.period, new Date(), options.question);
   if (scope.questionKind === 'tax' && !sources.length) {
     throw new AdvisorError(422, 'TAX_SOURCES_UNAVAILABLE', 'No AI-reviewed tax sources cover this period. Ask about accounting records or consult your accountant.');
   }
   signal.throwIfAborted();
   await reserveAdvisorProviderRequest(request, connection.id);
-  const result = await generateAdvisorResponse(connection, composeAdvisorModelInput({ question: options.question, scope, context, sources,
+  const result = await generateAdvisorResponse(connection, composeAdvisorModelInput({ question: options.question, scope, context, sources, clarification,
     previousQuestions: scope.includeRecords ? previousTurns.reverse().map((turn) => turn.question) : [] }), signal);
   verifyAdvisorCitations(result, context.evidence, sources, scope.questionKind);
   const citedSources = sources.filter((source) => result.sourceIds.includes(source.id));
@@ -82,9 +94,11 @@ async function generateAdvisorAnswer(request: FastifyRequest, options: {
 
 const modelInputLimitations = ['No bank balance or payment-event history', 'No deduction entitlement or tax-return calculation', 'Formal corrections excluded from totals; cancellation amounts included', 'Contractor currentOutstanding and recordedPayments group currencies for invoices issued before the end of the selected month; paymentReceived is the current cumulative recorded amount on those invoices, not payments made during the period or a historical month-end snapshot', 'Evidence documents are a bounded sample; totals cover the selected scope'];
 
-export function composeAdvisorModelInput(options: { question: string; scope: AdvisorScope; previousQuestions: string[]; context: unknown; sources: AdvisorTaxSource[] }): string {
+export function composeAdvisorModelInput(options: { question: string; scope: AdvisorScope; previousQuestions: string[]; context: object; sources: AdvisorTaxSource[];
+  clarification?: { question: string; questions: string[] } | undefined }): string {
+  // The clarification repeats the model's own earlier text, so it travels inside the untrusted data envelope.
   return JSON.stringify({ question: options.question, scope: options.scope, previousQuestions: options.previousQuestions,
-    untrustedAccountingData: options.context, legalSources: options.sources, limitations: modelInputLimitations });
+    untrustedAccountingData: options.clarification ? { ...options.context, clarification: options.clarification } : options.context, legalSources: options.sources, limitations: modelInputLimitations });
 }
 
 export function verifyAdvisorCitations(result: z.infer<typeof advisorModelAnswerSchema>, evidence: { id: string }[], sources: { id: string }[], questionKind: AdvisorScope['questionKind']): void {

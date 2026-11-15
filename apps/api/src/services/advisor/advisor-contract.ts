@@ -47,7 +47,7 @@ export const advisorModelAnswerSchema = z.object({
 });
 
 export class AdvisorError extends Error {
-  constructor(public readonly statusCode: number, public readonly code: string, message: string, public readonly retryAfterSeconds?: number) {
+  constructor(public readonly statusCode: number, public readonly code: string, message: string, public readonly retryAfterSeconds?: number, public readonly upstreamStatus?: number, public readonly upstreamErrorType?: string) {
     super(message);
     this.name = 'AdvisorError';
   }

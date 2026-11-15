@@ -1,7 +1,7 @@
 import { Builder } from 'builder-pattern';
 import { describe, expect, it } from 'vitest';
 import type { AdvisorConnectionSummary, AdvisorSettings } from './advisor-api';
-import { embeddedConnectionReadiness } from './advisor-connection-status';
+import { advisorConversationBlocker, embeddedConnectionReadiness } from './advisor-connection-status';
 
 describe('embeddedConnectionReadiness()', () => {
   it('reports a disabled company policy', () => {
@@ -50,5 +50,24 @@ describe('embeddedConnectionReadiness()', () => {
     const settings = Builder<AdvisorSettings>().enabled(true).operatorEnabled(true).allowedProviders(['OLLAMA']).connections([]).ollamaAvailable(false).build();
 
     expect(embeddedConnectionReadiness(settings, 'OLLAMA')).toMatchObject({ connection: 'notConfigured', ollamaConfigured: false });
+  });
+});
+
+describe('advisorConversationBlocker()', () => {
+  const base = () => Builder<AdvisorSettings>().enabled(true).operatorEnabled(true).allowedProviders(['OPENAI']).canManageConnections(true).connections([]);
+
+  it('applies precedence operator, company, provider, viewer, connection', () => {
+    expect(advisorConversationBlocker(base().operatorEnabled(false).enabled(false).build(), 'OPENAI').blocker).toBe('operator');
+    expect(advisorConversationBlocker(base().enabled(false).allowedProviders([]).build(), 'OPENAI').blocker).toBe('company');
+    expect(advisorConversationBlocker(base().canManageConnections(false).build(), 'OPENROUTER').blocker).toBe('provider');
+    expect(advisorConversationBlocker(base().canManageConnections(false).build(), 'OPENAI').blocker).toBe('viewer');
+    expect(advisorConversationBlocker(base().build(), 'OPENAI').blocker).toBe('connection');
+  });
+
+  it('lets a viewer with an existing connection chat and flags an untested one', () => {
+    const connection = Builder<AdvisorConnectionSummary>().provider('OPENAI').testedAt(null).build();
+    const settings = base().canManageConnections(false).connections([connection]).build();
+
+    expect(advisorConversationBlocker(settings, 'OPENAI')).toEqual({ blocker: null, untested: true });
   });
 });

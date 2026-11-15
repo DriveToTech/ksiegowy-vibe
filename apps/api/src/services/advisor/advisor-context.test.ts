@@ -8,13 +8,14 @@ describe('buildAdvisorContext()', () => {
     const groups = vi.fn().mockResolvedValueOnce([
       { currency: 'PLN', _sum: { totalGross: new Prisma.Decimal('123.45'), totalVat: new Prisma.Decimal('23.45') }, _count: { _all: 2 } },
       { currency: 'EUR', _sum: { totalGross: new Prisma.Decimal('-20'), totalVat: new Prisma.Decimal('-4') }, _count: { _all: 1 } },
-    ]).mockResolvedValueOnce([{ currency: 'PLN', _sum: { totalGross: new Prisma.Decimal('100') } }]);
+    ]).mockResolvedValueOnce([{ currency: 'PLN', _sum: { totalGross: new Prisma.Decimal('100') } }])
+      .mockResolvedValueOnce([{ currency: 'EUR', _sum: { totalGross: new Prisma.Decimal('-20') } }]);
     const database = Builder<PrismaClient>().invoice({ groupBy: groups, findMany: vi.fn().mockResolvedValue([]) } as never)
       .incomingInvoice({ findMany: vi.fn().mockResolvedValue([]) } as never).build();
     const result = await buildAdvisorContext(database, 'company', 'TEST', { period: '2026-09', questionKind: 'records', includeRecords: true });
     expect(result).toEqual({ evidence: [], evidenceTruncated: false, calculations: [
-      { currency: 'PLN', issuedGross: '123.45', issuedVat: '23.45', acceptedGross: '100.00', invoiceCount: 2 },
-      { currency: 'EUR', issuedGross: '-20.00', issuedVat: '-4.00', acceptedGross: '0.00', invoiceCount: 1 },
+      { currency: 'PLN', issuedGross: '123.45', issuedVat: '23.45', acceptedGross: '100.00', rejectedGross: '0.00', invoiceCount: 2 },
+      { currency: 'EUR', issuedGross: '-20.00', issuedVat: '-4.00', acceptedGross: '0.00', rejectedGross: '-20.00', invoiceCount: 1 },
     ] });
     expect(groups).toHaveBeenNthCalledWith(1, { by: ['currency'], where: { companyId: 'company', environment: 'TEST', status: 'ISSUED',
       OR: [{ correctionMode: null }, { correctionMode: { not: 'FORMAL' } }], issueDate: { gte: new Date('2026-09-01'), lt: new Date('2026-10-01') } },
@@ -34,6 +35,10 @@ describe('buildAdvisorContext()', () => {
     expect(groups).toHaveBeenNthCalledWith(2, { by: ['currency'], where: { companyId: 'company', environment: 'PRODUCTION',
       status: 'ISSUED', OR: [{ correctionMode: null }, { correctionMode: { not: 'FORMAL' } }], issueDate: period,
       ksefStates: { some: { environment: 'PRODUCTION', status: 'ACCEPTED' } } }, _sum: { totalGross: true } });
+    // Rejected counts only when never accepted in the same environment, so a resubmitted and accepted invoice is accepted only.
+    expect(groups).toHaveBeenNthCalledWith(3, { by: ['currency'], where: { companyId: 'company', environment: 'PRODUCTION',
+      status: 'ISSUED', OR: [{ correctionMode: null }, { correctionMode: { not: 'FORMAL' } }], issueDate: period,
+      ksefStates: { some: { environment: 'PRODUCTION', status: 'REJECTED' }, none: { environment: 'PRODUCTION', status: 'ACCEPTED' } } }, _sum: { totalGross: true } });
     expect(outgoing).toHaveBeenCalledWith({ where: { companyId: 'company', environment: 'PRODUCTION', issueDate: period },
       orderBy: [{ issueDate: 'desc' }, { id: 'asc' }], take: 21,
       select: { id: true, invoiceNumber: true, status: true, currency: true, totalGross: true, totalVat: true, updatedAt: true } });
@@ -45,7 +50,7 @@ describe('buildAdvisorContext()', () => {
   it('does not infer payment balances from partially paid invoices or unconfirmed incoming documents', async () => {
     const groups = vi.fn().mockResolvedValueOnce([
       { currency: 'PLN', _sum: { totalGross: new Prisma.Decimal('150.00'), totalVat: new Prisma.Decimal('28.05') }, _count: { _all: 2 } },
-    ]).mockResolvedValueOnce([{ currency: 'PLN', _sum: { totalGross: new Prisma.Decimal('100.00') } }]);
+    ]).mockResolvedValueOnce([{ currency: 'PLN', _sum: { totalGross: new Prisma.Decimal('100.00') } }]).mockResolvedValueOnce([]);
     const database = Builder<PrismaClient>().invoice({ groupBy: groups, findMany: vi.fn().mockResolvedValue([
       { id: 'partial', invoiceNumber: 'FV/1', status: 'ISSUED', currency: 'PLN', totalGross: new Prisma.Decimal('100'),
         totalVat: new Prisma.Decimal('18.70'), paymentReceived: new Prisma.Decimal('40'), updatedAt: new Date('2026-02-14T12:00:00Z') },
@@ -54,7 +59,7 @@ describe('buildAdvisorContext()', () => {
         totalVat: new Prisma.Decimal('9.35'), updatedAt: new Date('2026-02-14T13:00:00Z') },
     ]) } as never).build();
     expect(await buildAdvisorContext(database, 'company', 'TEST', { period: '2026-02', questionKind: 'records', includeRecords: true })).toEqual({
-      calculations: [{ currency: 'PLN', issuedGross: '150.00', issuedVat: '28.05', acceptedGross: '100.00', invoiceCount: 2 }],
+      calculations: [{ currency: 'PLN', issuedGross: '150.00', issuedVat: '28.05', acceptedGross: '100.00', rejectedGross: '0.00', invoiceCount: 2 }],
       evidence: [
         { id: 'partial', kind: 'outgoing', title: 'FV/1', status: 'ISSUED', currency: 'PLN', gross: '100.00', vat: '18.70', updatedAt: '2026-02-14T12:00:00.000Z' },
         { id: 'incoming', kind: 'incoming', title: 'IN/1', status: 'PENDING', currency: 'PLN', gross: '50.00', vat: '9.35', updatedAt: '2026-02-14T13:00:00.000Z' },

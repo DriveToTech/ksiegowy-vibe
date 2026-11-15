@@ -12,7 +12,7 @@ const projects = [
     ? [
         {
           name: 'chromium-linux',
-          testMatch: /(dashboard|invoices-visual)\.spec\.ts/,
+          testMatch: /(dashboard|invoices-visual|advisor-visual)\.spec\.ts/,
           use: { ...devices['Desktop Chrome'] },
         },
       ]

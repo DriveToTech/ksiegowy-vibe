@@ -51,42 +51,50 @@ for (const viewport of viewports) {
   test(`tax question kind follows reviewed source coverage of the selected period at ${viewport.width}px`, async ({ authenticatedPage: page }) => {
     await page.setViewportSize(viewport);
     const requests = await routeAdvisorApi(page, { taxCoveredPeriods: ['2026-10'] });
-    await page.goto('/dashboard');
-    await advisorTrigger(page, viewport.width).click();
-    const panel = advisorPanel(page, viewport.width);
-    await panel.getByRole('button', { name: 'Zmień' }).click();
-    const kind = panel.getByLabel('Rodzaj pytania');
+    await page.goto('/dashboard/advisor');
+    const kind = page.getByLabel('Rodzaj pytania');
     const taxOption = kind.locator('option[value="tax"]');
-    const reason = panel.locator('#advisor-tax-unavailable');
-    const note = panel.locator('#advisor-tax-note');
-    const textarea = panel.locator('textarea');
+    const note = page.locator('#advisor-tax-note');
+    const textarea = page.locator('#advisor-question');
+    const unavailable = 'Brak sprawdzonych przez AI źródeł podatkowych dla tego okresu.';
+    // The first month is chosen in the briefing card; later changes go through the context row's "Zmień" fields.
+    const prepare = async (month: string) => {
+      await page.getByLabel('Miesiąc').fill(month);
+      await page.getByRole('button', { name: 'Przygotuj pytanie' }).click();
+    };
+    const changePeriod = async (month: string) => {
+      await page.getByRole('button', { name: 'Zmień', exact: true }).click();
+      await page.getByLabel('Okres').fill(month);
+    };
 
-    await panel.locator('input[type="month"]').fill('2026-10');
+    // Retry until hydrated: the first click can land before React attaches handlers.
+    await expect(async () => {
+      await prepare('2026-10');
+      await expect(page.getByRole('radio', { name: 'Dołącz dokumenty z 2026-10' })).toBeVisible({ timeout: 1000 });
+    }).toPass();
     await expect(taxOption).toHaveJSProperty('disabled', false);
-    await expect(reason).toHaveCount(0);
+    await expect(note).not.toContainText(unavailable);
     await kind.selectOption('tax');
 
     // Uncovered period: tax is disabled, the reason is announced and the selection falls back to records.
-    await panel.locator('input[type="month"]').fill('2026-09');
+    await changePeriod('2026-09');
     await expect(taxOption).toHaveJSProperty('disabled', true);
-    await expect(reason).toBeVisible();
-    await expect(kind).toHaveAttribute('aria-describedby', 'advisor-tax-unavailable');
     await expect(kind).toHaveValue('records');
-    await expect(note).toBeVisible();
+    await expect(kind).toHaveAttribute('aria-describedby', 'advisor-tax-note');
     await expect(textarea).toHaveAttribute('aria-describedby', 'advisor-tax-note');
-    await expect(note).toContainText('Zmieniono rodzaj pytania na „Dokumenty firmy”.');
-    await expect(panel.getByText('Brak sprawdzonych przez AI źródeł podatkowych. Dostępne są wyjaśnienia dokumentów')).toHaveCount(0);
+    await expect(note).toContainText(unavailable);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
 
+    // Briefing needs company data; this question goes without it, so the scope stays records without records.
+    await page.getByRole('radio', { name: 'Zapytaj bez danych firmy' }).click();
     await textarea.fill('Summarize these records');
-    await panel.getByRole('button', { name: 'Zapytaj', exact: true }).click();
-    await expect(panel.getByRole('heading', { name: 'Answer for test-company-id' })).toBeVisible();
+    await page.getByRole('button', { name: 'Zapytaj', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Answer for test-company-id' })).toBeVisible();
     expect(requests.messageScopes).toEqual([{ questionKind: 'records', period: '2026-09', includeRecords: false }]);
-    await expect(note).toBeVisible();
-    await expect(note).not.toContainText('Zmieniono rodzaj pytania');
+    await expect(note).toContainText(unavailable);
 
-    await panel.locator('input[type="month"]').fill('2026-10');
-    await expect(note).toHaveCount(0);
+    await changePeriod('2026-10');
+    await expect(note).toBeEmpty();
     await expect(textarea).not.toHaveAttribute('aria-describedby');
   });
 }
@@ -124,12 +132,11 @@ for (const viewport of viewports) {
     await page.goto('/dashboard/invoices/accepted-invoice-id');
     await page.getByRole('button', { name: 'Wyjaśnij z doradcą' }).click();
     const panel = advisorPanel(page, viewport.width);
-    await panel.getByRole('button', { name: 'Zmień' }).click();
-    await panel.getByRole('checkbox', { name: /Dołącz zestawienie/ }).check();
+    await panel.getByRole('radio', { name: /Dołącz ten dokument/ }).click();
     await panel.getByRole('button', { name: 'Zapytaj', exact: true }).click();
     await expect(panel.getByRole('heading', { name: 'Answer for test-company-id' })).toBeVisible();
     await panel.getByText('Dokumenty źródłowe (1)', { exact: true }).click();
-    await expect(panel.getByRole('link', { name: /FV\/1/ })).toHaveAttribute('href', '/dashboard/invoices/evidence-1');
+    await expect(panel.getByRole('link', { name: /^FV\/1 123,00/ })).toHaveAttribute('href', '/dashboard/invoices/evidence-1');
     // Everything the advisor offers to act on is an anchor to an existing screen; no extra action buttons exist.
     await expect(panel.getByRole('button', { name: /zapisz|wystaw|zatwierdź|odrzuć|popraw/i })).toHaveCount(0);
     expect(requests.writes.sort()).toEqual([`POST /companies/test-company-id/advisor/conversations`, `POST /companies/test-company-id/advisor/conversations/conversation/messages`].sort());

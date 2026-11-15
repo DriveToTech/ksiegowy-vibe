@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { getDashboardSummary } from '../../lib/api';
 import type { AuthSession } from '../../lib/auth';
+import { advisorText } from '../../lib/advisor-translations';
 import { t } from '../../lib/translations';
 import { AppHeader } from './AppHeader';
 import { DashboardNavigation } from './DashboardNavigation';
@@ -9,6 +10,7 @@ import { AdvisorWorkspace, AdvisorPanel, AdvisorTrigger } from '../advisor/Advis
 
 const navigationItems = [
   { href: '/dashboard', label: t.nav.overview, mobileLabel: t.nav.mobileOverview, icon: 'overview' as const },
+  { href: '/dashboard/advisor', label: advisorText.title, icon: 'advisor' as const },
   { href: '/dashboard/invoices', label: t.nav.outgoingInvoices, mobileLabel: t.nav.mobileOutgoingInvoices, icon: 'outgoing' as const },
   { href: '/dashboard/incoming', label: t.nav.incomingInvoices, mobileLabel: t.nav.mobileIncomingInvoices, icon: 'incoming' as const },
   { href: '/dashboard/contractors', label: t.nav.contractors, mobileLabel: t.nav.mobileContractors, icon: 'contractors' as const },
@@ -16,8 +18,9 @@ const navigationItems = [
   { href: '/dashboard/settings', label: t.nav.settings, mobileLabel: t.nav.settings, icon: 'settings' as const },
 ];
 
-const mobileNavigationItems = [navigationItems[0], navigationItems[2]];
-const mobileOutgoingNavigationItems = [navigationItems[1]];
+const navigationItemFor = (href: string) => navigationItems.find((item) => item.href === href)!;
+const mobileNavigationItems = [navigationItemFor('/dashboard'), navigationItemFor('/dashboard/incoming')];
+const mobileOutgoingNavigationItems = [navigationItemFor('/dashboard/invoices')];
 const mobileMoreNavigationItems = [
   { href: '/dashboard/contractors', label: t.nav.mobileContractors, icon: 'contractors' as const },
   { href: '/dashboard/compliance', label: t.nav.mobileCompliance, icon: 'compliance' as const },

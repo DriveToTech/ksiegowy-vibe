@@ -12,6 +12,9 @@ interface NativeDialogProps {
   bottomSheet?: boolean;
   // Bottom-sheet look: 26px top radius and a grabber, on phones only (`mobile`) or at every width (`always`).
   sheet?: 'mobile' | 'always';
+  // `side` docks the dialog to the right edge (400px, full height); `bare` renders children without padding or visible title.
+  placement?: 'center' | 'side';
+  layout?: 'padded' | 'bare';
   children: ReactNode;
   onClose: () => void;
 }
@@ -24,6 +27,8 @@ export function NativeDialog({
   className,
   bottomSheet = false,
   sheet,
+  placement = 'center',
+  layout = 'padded',
   children,
   onClose,
 }: NativeDialogProps) {
@@ -44,7 +49,7 @@ export function NativeDialog({
         dialog.showModal();
       }
 
-      const cancelControl = dialog.querySelector<HTMLElement>('[data-dialog-cancel]');
+      const cancelControl = dialog.querySelector<HTMLElement>('[data-dialog-initial-focus]:not(:disabled)') ?? dialog.querySelector<HTMLElement>('[data-dialog-cancel]');
       const firstControl = cancelControl ?? dialog.querySelector<HTMLElement>(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
       );
@@ -101,8 +106,10 @@ export function NativeDialog({
       aria-modal="true"
       tabIndex={-1}
       className={cn(
-        'm-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card border border-outline-strong bg-surface-panel p-0 text-foreground',
-        '[&::backdrop]:bg-[rgba(8,10,20,0.72)]',
+        placement === 'side'
+          ? 'mb-0 ml-auto mr-0 mt-0 h-dvh max-h-none w-full max-w-[400px] overflow-hidden rounded-l-[20px] rounded-r-none border border-r-0 border-outline-strong bg-surface-panel p-0 text-foreground'
+          : 'm-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card border border-outline-strong bg-surface-panel p-0 text-foreground',
+        '[&::backdrop]:bg-scrim',
         sheet === 'mobile' && 'max-sm:mb-0 max-sm:mt-auto max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:rounded-t-[26px]',
         sheet === 'always' && 'mb-0 mt-auto w-full rounded-b-none rounded-t-[26px]',
         className,
@@ -115,6 +122,13 @@ export function NativeDialog({
         if (event.target === event.currentTarget) onClose();
       }}
     >
+    {layout === 'bare' ? (
+      <>
+        {sheet && <div aria-hidden="true" className={cn('mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-outline-control', sheet === 'mobile' && 'sm:hidden')} />}
+        <h2 id={titleId} className="sr-only">{title}</h2>
+        {children}
+      </>
+    ) : (
         <div className={cn(
           'space-y-5 p-5 sm:p-6',
           (bottomSheet || sheet) && 'pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
@@ -126,6 +140,7 @@ export function NativeDialog({
         </div>
         {children}
       </div>
+    )}
     </dialog>
   );
 }

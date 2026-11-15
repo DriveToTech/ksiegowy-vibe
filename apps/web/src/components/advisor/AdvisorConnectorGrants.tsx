@@ -43,37 +43,40 @@ export function AdvisorConnectorGrants({ companyId, grants, canRegrant, onRegran
 
   if (grants.length === 0) return <p className="text-sm text-muted">{text.external.grantsEmpty}</p>;
 
+  const columns = text.settingsRedesign.grantsColumns;
   return <>
-    <ul className="space-y-3">
-      {grants.map((grant) => {
-        const hostName = text.external.hosts[grant.client];
-        const isGranted = grant.status === 'WAITING' || grant.status === 'ACTIVE';
-        const expiresSoon = isGranted && new Date(grant.expiresAt).getTime() - now <= expiresSoonMilliseconds;
-        return <li key={`${grant.client}:${grant.environment}`} className="grid gap-3 rounded-inset border border-outline bg-surface-raised p-4 md:grid-cols-[1fr_auto] md:items-center">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">{hostName}</span>
-              <InvoiceEnvironmentChip environment={grant.environment} />
-              <Badge variant="tag" tone={statusTone[grant.status]}>{text.external.grantStatus[grant.status]}</Badge>
+    <div className="overflow-hidden rounded-inset border border-outline">
+      <div aria-hidden="true" className="hidden grid-cols-[110px_110px_1fr_150px_auto] gap-2.5 bg-surface-raised px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted md:grid">
+        <span>{columns.host}</span><span>{columns.environment}</span><span>{columns.status}</span><span>{columns.validity}</span><span className="w-24" />
+      </div>
+      <ul>
+        {grants.map((grant) => {
+          const hostName = text.external.hosts[grant.client];
+          const isGranted = grant.status === 'WAITING' || grant.status === 'ACTIVE';
+          const expiresSoon = isGranted && new Date(grant.expiresAt).getTime() - now <= expiresSoonMilliseconds;
+          const validity = isGranted ? text.external.validUntil(new Date(grant.expiresAt).toLocaleDateString('pl-PL'))
+            : grant.status === 'EXPIRED' ? text.external.expiredOn(new Date(grant.expiresAt).toLocaleDateString('pl-PL'))
+              : grant.revokedAt ? text.external.revokedOn(new Date(grant.revokedAt).toLocaleDateString('pl-PL')) : '';
+          return <li key={`${grant.client}:${grant.environment}`} className="grid min-h-[52px] items-center gap-x-2.5 gap-y-1 border-t border-outline px-3.5 py-2 text-[13px] first:border-t-0 md:grid-cols-[110px_110px_1fr_150px_auto]">
+            <span className="flex flex-wrap items-center gap-2 md:contents">
+              <strong className="font-medium">{hostName}</strong>
+              <span><InvoiceEnvironmentChip environment={grant.environment} /></span>
+            </span>
+            <span className="flex flex-wrap items-center gap-2">
+              <Badge variant="tag" tone={statusTone[grant.status]}>{grant.status === 'WAITING' ? text.settingsRedesign.withoutAuthorizedRead : text.external.grantStatus[grant.status]}</Badge>
               {expiresSoon && <Badge variant="tag" tone="warning">{text.external.expiresSoon}</Badge>}
-            </div>
-            <p className="text-sm text-muted">
-              {isGranted && text.external.validUntil(new Date(grant.expiresAt).toLocaleDateString('pl-PL'))}
-              {grant.status === 'EXPIRED' && text.external.expiredOn(new Date(grant.expiresAt).toLocaleDateString('pl-PL'))}
-              {grant.status === 'REVOKED' && grant.revokedAt && text.external.revokedOn(new Date(grant.revokedAt).toLocaleDateString('pl-PL'))}
-            </p>
-            {grant.lastUsedAt && <p className="text-sm text-muted">{text.external.lastUsed(new Date(grant.lastUsedAt).toLocaleString('pl-PL'))}</p>}
-            {grant.status === 'WAITING' && <p className="text-sm text-muted">{text.external.waitingHelp(hostName)}</p>}
-            {(grant.status === 'EXPIRED' || grant.status === 'REVOKED') && <p className="text-sm text-muted">{text.external.recovery}</p>}
-          </div>
-          <div className="flex flex-col gap-2 md:flex-row">
-            {canRegrant && expiresSoon && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.extend}</Button>}
-            {isGranted && <Button variant="danger" onClick={() => { setError(''); setRevokeTarget(grant); }}>{text.external.revoke}</Button>}
-            {canRegrant && !isGranted && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.grantAgain}</Button>}
-          </div>
-        </li>;
-      })}
-    </ul>
+            </span>
+            <span className="text-xs text-muted">{validity}{grant.lastUsedAt && <><br />{text.external.lastUsed(new Date(grant.lastUsedAt).toLocaleString('pl-PL'))}</>}</span>
+            <span className="flex flex-col gap-2 md:flex-row">
+              {canRegrant && expiresSoon && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.extend}</Button>}
+              {isGranted && <Button variant="danger" onClick={() => { setError(''); setRevokeTarget(grant); }}>{text.external.revoke}</Button>}
+              {canRegrant && !isGranted && <Button variant="secondary" onClick={() => onRegrant(grant.client, grant.environment)}>{text.external.grantAgain}</Button>}
+            </span>
+          </li>;
+        })}
+      </ul>
+    </div>
+    {grants.some((grant) => grant.status === 'EXPIRED' || grant.status === 'REVOKED') && <p className="text-xs text-muted">{text.settingsRedesign.grantsRetention}</p>}
     <NativeDialog sheet="mobile" open={revokeTarget !== null} title={revokeTarget ? text.external.revokeTitle(text.external.hosts[revokeTarget.client]) : ''}
       description={revokeTarget ? text.external.revokeBody(text.external.hosts[revokeTarget.client]) : ''} onClose={() => { if (!revoking) setRevokeTarget(null); }}>
       {error && <p role="alert" className="text-sm text-error-ink">{error}</p>}

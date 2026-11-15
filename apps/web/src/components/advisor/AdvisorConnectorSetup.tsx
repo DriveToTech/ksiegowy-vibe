@@ -6,6 +6,7 @@ import { advisorText as text } from '../../lib/advisor-translations';
 import { Badge } from '../atoms/Badge';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
+import { AdvisorNote } from './AdvisorSettingsControls';
 import { Surface } from '../atoms/Surface';
 import { FormField } from '../molecules/FormField';
 import { AdvisorStepEyebrow } from './AdvisorStepEyebrow';
@@ -20,8 +21,8 @@ function VerificationBadge({ verification }: { verification: Verification }) {
 }
 
 // Step 3: the public connector address and the per-host steps. No client ID or callback URL is shown; those are operator configuration.
-export function AdvisorConnectorSetup({ host, endpoint, headingReference }: {
-  host: AdvisorConnectorClient; endpoint: string; headingReference: RefObject<HTMLHeadingElement | null>;
+export function AdvisorConnectorSetup({ host, endpoint, headingReference, waitingForRead }: {
+  host: AdvisorConnectorClient; endpoint: string; headingReference: RefObject<HTMLHeadingElement | null>; waitingForRead: boolean;
 }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const hostName = text.external.hosts[host];
@@ -43,7 +44,7 @@ export function AdvisorConnectorSetup({ host, endpoint, headingReference }: {
   }
 
   return <section aria-labelledby="advisor-connector-setup-title" className="space-y-4">
-    <h3 id="advisor-connector-setup-title" ref={headingReference} tabIndex={-1} className="font-medium"><AdvisorStepEyebrow step={3} />{text.external.stepAddConnector(hostName)}</h3>
+    <h3 id="advisor-connector-setup-title" ref={headingReference} tabIndex={-1} className="flex items-center text-sm font-semibold"><AdvisorStepEyebrow step={3} />{text.external.stepAddConnector(hostName)}</h3>
     <div className="flex flex-col gap-2 md:flex-row md:items-end">
       <FormField label={text.external.connectorAddress} className="md:flex-1">
         <Input id={addressFieldId} readOnly value={endpoint} className="break-all font-mono" onFocus={(event) => event.target.select()} />
@@ -53,6 +54,10 @@ export function AdvisorConnectorSetup({ host, endpoint, headingReference }: {
     <p role="status" className={copyState === 'idle' ? 'sr-only' : 'text-sm text-muted'}>
       {copyState === 'copied' ? text.external.copiedAnnouncement : copyState === 'failed' ? text.external.copyFallback : ''}
     </p>
+    {waitingForRead && <AdvisorNote tone="primary">
+      <strong>{text.settingsRedesign.waitingNotice}</strong> {text.settingsRedesign.waitingNoticeBody}
+      <ol className="mt-1.5 list-decimal space-y-1 pl-5">{text.settingsRedesign.waitingChecklist.map((entry) => <li key={entry}>{entry}</li>)}</ol>
+    </AdvisorNote>}
     <Surface tone="inset" className="space-y-3 p-4">
       <ol className="list-decimal space-y-2 pl-5 text-sm">
         {text.external.hostSteps[host].map((step) => <li key={step.text}>{step.text} <VerificationBadge verification={step.verification} /></li>)}

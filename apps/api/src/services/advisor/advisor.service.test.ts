@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { answerAdvisorQuestion } from './advisor.service.js';
+import { answerAdvisorQuestion, composeAdvisorModelInput, requireAdvisorReplyTarget } from './advisor.service.js';
 import { generateAdvisorResponse } from './advisor-provider.js';
 import { advisorTaxDisclaimer } from './advisor-contract.js';
 import { hashAdvisorSourceReview } from './advisor-sources.js';
@@ -86,6 +86,70 @@ describe('answerAdvisorQuestion()', () => {
       scope: { questionKind: 'records', period: '2026-09', includeRecords: false }, signal: new AbortController().signal });
     expect(recordsAnswer).not.toHaveProperty('disclaimer');
     expect(recordsAnswer.provenance.sourceReviewMethod).toBe('not-applicable');
+  });
+
+  describe('records without data', () => {
+    const arrange = () => {
+      vi.stubEnv('ADVISOR_ENABLED', 'true'); vi.stubEnv('ADVISOR_TAX_SOURCES_PATH', '');
+      const connection = { id: 'connection', provider: 'OPENAI', model: 'configured-model', credentialEncrypted: null, credentialNonce: null };
+      const database = Builder<PrismaClient>()
+        .companyMembership({ findUnique: vi.fn().mockResolvedValue({ id: 'membership', company: { advisorPolicy: { enabled: true, allowedProviders: ['OPENAI'] } } }) } as never)
+        .advisorConversation({ findFirst: vi.fn().mockResolvedValue({ id: 'conversation', provider: 'OPENAI', model: 'configured-model', environment: 'TEST' }) } as never)
+        .advisorConnection({ findUnique: vi.fn().mockResolvedValue(connection), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never)
+        .advisorTurn({ findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 1 }) } as never)
+        .invoice({ groupBy: vi.fn().mockResolvedValue([]), findMany: vi.fn().mockResolvedValue([]) } as never)
+        .incomingInvoice({ findMany: vi.fn().mockResolvedValue([]) } as never).build();
+      const request = Builder<FastifyRequest>().server(Builder<FastifyInstance>().prisma(database).build()).user({ sub: 'user' } as never).accessJwtVerify(vi.fn().mockResolvedValue({ sub: 'user' }) as never).build();
+      return { database, request };
+    };
+    const options = { companyId: 'company', conversationId: 'conversation', turnId: 'turn', question: 'Podsumuj fakturę', signal: new AbortController().signal };
+
+    it('fails a records question over an empty month before reserving or calling the provider', async () => {
+      const { database, request } = arrange();
+      await expect(answerAdvisorQuestion(request, { ...options, scope: { questionKind: 'records', period: '2026-09', includeRecords: true } }))
+        .rejects.toMatchObject({ code: 'RECORDS_UNAVAILABLE', statusCode: 422 });
+      expect(database.advisorConnection.updateMany).not.toHaveBeenCalled();
+      expect(generateAdvisorResponse).not.toHaveBeenCalled();
+    });
+
+    it('still calls the provider for a tax question over an empty month', async () => {
+      const { request } = arrange();
+      const unsigned = { id: 'rates', title: 'Rates', url: 'https://eli.gov.pl/act', section: 'art. 41', effectiveFrom: '2026-01-01', effectiveUntil: '2026-12-31',
+        reviewedAt: '2020-01-01', reviewExpiresAt: '2999-01-01', reviewedBy: 'ai:ANTHROPIC/claude-model+ai:OPENAI/gpt-model', reviewMethod: 'ai' as const,
+        reviewReportId: '0b9a5e0e-7a0c-4d5b-8f1e-3c2d1a4b5c6d', excerpt: 'Excerpt' };
+      const directory = await mkdtemp(join(tmpdir(), 'advisor-service-'));
+      await writeFile(join(directory, 'sources.json'), JSON.stringify([{ ...unsigned, reviewHash: hashAdvisorSourceReview(unsigned) }]));
+      vi.stubEnv('ADVISOR_TAX_SOURCES_PATH', join(directory, 'sources.json'));
+      vi.mocked(generateAdvisorResponse).mockResolvedValue({ status: 'answered', shortAnswer: 'Answer', explanation: '', assumptions: [], questions: [], evidenceIds: [], sourceIds: ['rates'], containsTaxGuidance: true });
+      const answer = await answerAdvisorQuestion(request, { ...options, question: 'Jaka jest stawka VAT?', scope: { questionKind: 'tax', period: '2026-09', includeRecords: true } });
+      expect(answer.status).toBe('answered');
+      expect(generateAdvisorResponse).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('requireAdvisorReplyTarget()', () => {
+    const arrange = (turn: unknown) => Builder<PrismaClient>().advisorTurn({ findFirst: vi.fn().mockResolvedValue(turn) } as never).build();
+
+    it('returns the original question and clarification questions of a completed clarification', async () => {
+      const database = arrange({ question: 'Original question', answer: { status: 'needs_clarification', questions: ['Which month?'] } });
+      await expect(requireAdvisorReplyTarget(database, 'conversation', 'turn')).resolves.toEqual({ question: 'Original question', questions: ['Which month?'] });
+      expect(database.advisorTurn.findFirst).toHaveBeenCalledWith({ where: { id: 'turn', conversationId: 'conversation', status: 'COMPLETED' }, select: { question: true, answer: true } });
+    });
+
+    it('rejects a missing target and a target that is not a clarification with INVALID_REPLY', async () => {
+      await expect(requireAdvisorReplyTarget(arrange(null), 'conversation', 'turn')).rejects.toMatchObject({ code: 'INVALID_REPLY', statusCode: 409 });
+      await expect(requireAdvisorReplyTarget(arrange({ question: 'Q', answer: { status: 'answered', questions: [] } }), 'conversation', 'turn')).rejects.toMatchObject({ code: 'INVALID_REPLY', statusCode: 409 });
+    });
+  });
+
+  describe('composeAdvisorModelInput()', () => {
+    it('keeps the clarification inside the untrusted data envelope and the original question with a reply without records', () => {
+      const input = JSON.parse(composeAdvisorModelInput({ question: 'September', scope: { questionKind: 'records', period: '2026-09', includeRecords: false },
+        previousQuestions: [], context: { calculations: [], evidence: [], evidenceTruncated: false }, sources: [],
+        clarification: { question: 'Original question', questions: ['Which month?'] } })) as Record<string, unknown>;
+      expect(input['untrustedAccountingData']).toEqual({ calculations: [], evidence: [], evidenceTruncated: false, clarification: { question: 'Original question', questions: ['Which month?'] } });
+      expect(input).not.toHaveProperty('clarification');
+    });
   });
 
   describe('rejected generations', () => {

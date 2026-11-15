@@ -1,11 +1,10 @@
 import { test, expect } from './fixtures/auth';
 
 for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
-  test(`contractor Explain carries selected scope and insight dismissal survives navigation at ${viewport.width}px`, async ({ authenticatedPage: page }) => {
+  test(`contractor insight dismissal is per contractor and environment and survives navigation at ${viewport.width}px`, async ({ authenticatedPage: page }) => {
     await page.setViewportSize(viewport);
     const dismissals = new Set<string>();
     const reads: string[] = [];
-    let submittedScope: unknown;
     let otherWrites = 0;
     const insight = (key: string, title: string, invoiceId: string) => ({
       key, version: 1, title, description: 'Sprawdź dokument źródłowy.',
@@ -35,21 +34,6 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         retentionDays: 30, ollamaAvailable: false, reviewedSourceCount: 0,
         connections: [{ provider: 'OPENAI', model: 'configured-model', hasCredential: true, testedAt: null }],
       } });
-      if (path.endsWith('/messages')) {
-        submittedScope = request.postDataJSON().scope;
-        return route.fulfill({ contentType: 'text/event-stream', body: `event: answer\ndata: ${JSON.stringify({
-          status: 'answered', shortAnswer: 'Saldo wyjaśnione', explanation: 'Według wystawionych faktur.', assumptions: [], questions: [], sources: [], calculations: [],
-          contractorBalance: { contractorId: 'test-contractor-second-id', name: 'Juniper Fictional Works LLC', period: '2026-09',
-            balances: [{ currency: 'PLN', currentOutstanding: '300.00', recordedPayments: '100.00' }] },
-          evidence: [{ id: 'invoice-1', kind: 'outgoing', title: 'FV/1', status: 'ISSUED', currency: 'PLN', gross: '400.00', vat: '75.00', updatedAt: '2026-09-01T00:00:00.000Z' }],
-          provenance: { companyId: 'test-company-id', environment: 'TEST', period: '2026-09', provider: 'OPENAI', model: 'configured-model',
-            generatedAt: '2026-09-01T00:00:00.000Z', recordsIncluded: true, evidenceTruncated: false, sourceVersion: 'none', sourceReviewMethod: 'not-applicable' },
-        })}\n\nevent: done\ndata: {}\n\n` });
-      }
-      if (path.endsWith('/conversations') && request.method() === 'POST') return route.fulfill({ json: {
-        id: 'conversation', title: 'Contractor', provider: 'OPENAI', model: 'configured-model', createdAt: '2026-09-01T00:00:00.000Z',
-      } });
-      if (path.endsWith('/conversations')) return route.fulfill({ json: [] });
       if (request.method() !== 'GET') otherWrites++;
       return route.fulfill({ status: 404, json: { code: 'NOT_FOUND' } });
     });
@@ -57,26 +41,21 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const first = page.getByRole('complementary', { name: 'Wskazówka doradcy' });
     await expect(first).toContainText('Saldo test-contractor-id');
     await expect(first.getByRole('link', { name: /FV\/test-contractor-id/ })).toHaveAttribute('href', '/dashboard/invoices/test-contractor-id');
-    await first.getByRole('button', { name: 'Odrzuć wskazówkę' }).click();
+    // Hiding starts an undo window; the dismissal is sent only when the window closes or the strip unmounts.
+    await first.getByRole('button', { name: 'Ukryj wskazówkę' }).click();
     await expect(first).toHaveCount(0);
+    await expect(page.getByRole('status').filter({ hasText: 'Ukryto wskazówkę „Saldo test-contractor-id”.' })).toBeVisible();
+    expect(dismissals.size).toBe(0);
+    await page.getByRole('button', { name: 'Cofnij' }).click();
+    await expect(first).toContainText('Saldo test-contractor-id');
+    expect(dismissals.size).toBe(0);
+    await first.getByRole('button', { name: 'Ukryj wskazówkę' }).click();
+    await expect.poll(() => dismissals.size, { timeout: 15_000 }).toBe(1);
     await page.goto('/dashboard/contractors');
     await expect(page.getByRole('complementary', { name: 'Wskazówka doradcy' })).toHaveCount(0);
     if (viewport.width < 1280) await page.getByRole('button', { name: /Juniper Fictional Works LLC/ }).click();
     else await page.getByRole('button', { name: 'Juniper Fictional Works LLC' }).click();
     await expect(page.getByRole('complementary', { name: 'Wskazówka doradcy' })).toContainText('Saldo test-contractor-second-id');
-    await page.locator('input[type="month"]').filter({ visible: true }).first().fill('2026-09');
-    await page.getByRole('button', { name: 'Wyjaśnij z doradcą' }).click();
-    const panel = viewport.width >= 1280 ? page.getByRole('complementary', { name: 'Doradca' }) : page.getByRole('dialog', { name: 'Doradca' });
-    await expect(panel).toContainText('Juniper Fictional Works LLC · faktury wystawione do końca 2026-09');
-    await panel.getByRole('button', { name: 'Zmień' }).click();
-    await panel.getByRole('checkbox', { name: /Dołącz zestawienie/ }).check();
-    await panel.getByRole('button', { name: 'Zapytaj', exact: true }).click();
-    await expect(panel).toContainText('300.00 PLN');
-    await expect(panel).toContainText('Wpłaty zapisane na tych fakturach');
-    await expect(panel).toContainText('nie stan historyczny');
-    expect(submittedScope).toEqual({ questionKind: 'records', period: '2026-09', includeRecords: true, contractorId: 'test-contractor-second-id' });
-    await panel.getByText('Dokumenty źródłowe (1)').click();
-    await expect(panel.getByRole('link', { name: /FV\/1/ })).toHaveAttribute('href', '/dashboard/invoices/invoice-1');
     expect(reads).toContain('contractors:test-contractor-id:TEST');
     expect(reads).toContain('contractors:test-contractor-second-id:TEST');
     expect(otherWrites).toBe(0);
@@ -103,7 +82,7 @@ test('dashboard, invoices and incoming show at most one evidenced strip with no 
     const strips = page.getByRole('complementary', { name: 'Wskazówka doradcy' });
     await expect(strips).toHaveCount(1);
     await expect(strips.getByRole('link', { name: /FV\/1/ })).toHaveAttribute('href', `/dashboard/${view === 'incoming' ? 'incoming' : 'invoices'}/evidence-1`);
-    await expect(strips.getByRole('button', { name: 'Odrzuć wskazówkę' })).toBeVisible();
+    await expect(strips.getByRole('button', { name: 'Ukryj wskazówkę' })).toBeVisible();
   }
   for (const view of ['dashboard', 'invoices', 'incoming']) expect(requestedViews).toContain(view);
 });

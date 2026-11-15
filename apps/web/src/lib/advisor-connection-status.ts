@@ -24,3 +24,17 @@ export function embeddedConnectionReadiness(settings: AdvisorSettings, provider:
     readyForQuestions: canDiscover && connection === 'tested',
   };
 }
+
+export type AdvisorConversationBlocker = 'operator' | 'company' | 'provider' | 'viewer' | 'connection';
+
+/** Precedence: operator, company, provider, viewer (cannot save a connection, so none will appear), connection. */
+export function advisorConversationBlocker(settings: AdvisorSettings, provider: AdvisorProvider): { blocker: AdvisorConversationBlocker | null; untested: boolean } {
+  const saved = settings.connections.find((entry) => entry.provider === provider);
+  const blocker = !settings.operatorEnabled ? 'operator'
+    : !settings.enabled ? 'company'
+    : !settings.allowedProviders.includes(provider) ? 'provider'
+    : !saved && !settings.canManageConnections ? 'viewer'
+    : !saved ? 'connection'
+    : null;
+  return { blocker, untested: blocker === null && !saved?.testedAt };
+}

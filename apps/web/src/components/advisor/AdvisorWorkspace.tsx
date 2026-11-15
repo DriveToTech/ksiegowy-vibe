@@ -4,15 +4,19 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { usePathname } from 'next/navigation';
 import type { AdvisorEnvironment } from '../../lib/advisor-api';
 import { advisorText as text } from '../../lib/advisor-translations';
-import { Button } from '../atoms/Button';
 import { NativeDialog } from '../atoms/NativeDialog';
-import { AdvisorConversation } from './AdvisorConversation';
+import type { AdvisorPlacement } from './AdvisorPanelHeader';
+import { AdvisorHistory } from './AdvisorHistory';
+import { AdvisorConversation, type AdvisorConversationSeed } from './AdvisorConversation';
 
 interface AdvisorState {
   companyId: string; environment: AdvisorEnvironment; open: boolean;
-  seed: { question: string; documentId?: string; documentKind?: 'outgoing' | 'incoming'; contractorId?: string; contractorName?: string; period?: string; revision: number };
-  show: (question?: string, period?: string, contractorId?: string, contractorName?: string) => void; close: () => void;
+  seed: AdvisorConversationSeed;
+  /** True while the conversation waits for an answer; Explain buttons use it to explain why they are paused. */
+  requestInFlight: boolean; setRequestInFlight: (inFlight: boolean) => void;
+  show: (request?: AdvisorShowRequest) => void; close: () => void;
 }
+export type AdvisorShowRequest = Partial<Omit<AdvisorConversationSeed, 'revision'>>;
 const AdvisorContext = createContext<AdvisorState | null>(null);
 
 export function AdvisorWorkspace({ companyId, environment, children }: { companyId: string | null; environment: AdvisorEnvironment | null; children: ReactNode }) {
@@ -25,12 +29,14 @@ function ActiveAdvisorWorkspace({ companyId, environment, children }: { companyI
   const [open, setOpen] = useState(false);
   const [previousPath, setPreviousPath] = useState(pathname);
   const [seed, setSeed] = useState<AdvisorState['seed']>({ question: '', revision: 0 });
+  const [requestInFlight, setRequestInFlight] = useState(false);
   const focusedBeforeOpen = useRef<HTMLElement | null>(null);
-  const show = (question = '', period?: string, contractorId?: string, contractorName?: string) => {
+  const show = ({ question = '', period, contractorId, contractorName, reference, briefing }: AdvisorShowRequest = {}) => {
+    if (pathname === '/dashboard/advisor') { document.getElementById('advisor-question')?.focus(); return; }
     focusedBeforeOpen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const documentMatch = pathname.match(/^\/dashboard\/(invoices|incoming)\/([^/]+)$/);
     setSeed((previous) => ({ question, revision: previous.revision + 1, ...(period ? { period } : {}),
-      ...(contractorId ? { contractorId, contractorName } : {}),
+      ...(contractorId ? { contractorId, contractorName } : {}), ...(reference ? { reference } : {}), ...(briefing ? { briefing } : {}),
       ...(documentMatch && documentMatch[2] !== 'new' ? { documentId: decodeURIComponent(documentMatch[2]), documentKind: documentMatch[1] === 'invoices' ? 'outgoing' as const : 'incoming' as const } : {}) }));
     setOpen(true);
   };
@@ -40,51 +46,70 @@ function ActiveAdvisorWorkspace({ companyId, environment, children }: { companyI
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
         event.preventDefault();
         if (open) close(); else show();
-      } else if (event.key === 'Escape' && open) close();
+      // A nested dialog (delete confirmation) is still open while its own Escape is handled natively; leave the panel open.
+      } else if (event.key === 'Escape' && open && !event.defaultPrevented && !document.querySelector('dialog[open]:not(#advisor-panel)')) close();
     };
     window.addEventListener('keydown', keyboard);
     return () => window.removeEventListener('keydown', keyboard);
   });
   if (previousPath !== pathname) { setPreviousPath(pathname); setOpen(false); }
-  return <AdvisorContext.Provider value={{ companyId, environment, open, seed, show, close }}>{children}</AdvisorContext.Provider>;
+  return <AdvisorContext.Provider value={{ companyId, environment, open, seed, requestInFlight, setRequestInFlight, show, close }}>{children}</AdvisorContext.Provider>;
 }
 
-export function AdvisorTrigger({ mobile = false, explain = false, period, question, contractorId, contractorName }: {
-  mobile?: boolean; explain?: boolean; period?: string; question?: string; contractorId?: string; contractorName?: string;
+export const useAdvisorWorkspace = () => useContext(AdvisorContext);
+
+export const advisorMark = (size: string) => <span aria-hidden="true" className={`inline-block shrink-0 bg-[image:var(--primary-gradient)] ${size}`} />;
+
+export function AdvisorTrigger({ mobile = false, explain = false, briefing = false, period, question, contractorId, contractorName }: {
+  mobile?: boolean; explain?: boolean; briefing?: boolean; period?: string; question?: string; contractorId?: string; contractorName?: string;
 }) {
   const advisor = useContext(AdvisorContext);
+  const pathname = usePathname();
   if (!advisor) return null;
-  return <button type="button" aria-label={explain ? text.explain : text.open} aria-expanded={advisor.open} onClick={() => advisor.show(question ?? (explain ? text.explainQuestion : ''), period, contractorId, contractorName)}
-    className={mobile ? 'flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] bg-[image:var(--primary-gradient)] text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' : 'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control border border-primary/30 bg-surface-raised px-3 text-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'}>
-    <span aria-hidden="true">✦</span>{!mobile && <span>{explain ? text.explain : text.title}</span>}
+  const onAdvisorPage = pathname === '/dashboard/advisor';
+  const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+  const className = briefing
+    ? 'inline-flex h-10 shrink-0 items-center rounded-control bg-secondary-surface px-[17px] text-sm font-medium text-secondary-ink transition hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-ink'
+    : explain
+    ? `inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control border border-[var(--nav-active-border)] bg-[image:var(--nav-active)] px-3.5 text-[13px] font-medium text-foreground ${focusRing}`
+    : mobile
+      ? `inline-flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 text-[11.5px] font-semibold text-primary ${focusRing}`
+      : `inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control border border-[var(--nav-active-border)] bg-[image:var(--nav-active)] px-3.5 text-[13px] font-medium text-foreground aria-expanded:border-primary aria-expanded:shadow-[inset_0_0_0_1px_var(--primary)] ${focusRing}`;
+  return <button type="button" aria-label={briefing ? text.briefing : explain ? text.explain : text.open} aria-expanded={advisor.open} aria-controls="advisor-panel" aria-current={onAdvisorPage && !explain ? 'page' : undefined}
+    onClick={() => advisor.show({ question: question ?? (explain ? text.explainQuestion : ''), period, contractorId, contractorName, briefing })} className={className}>
+    {!briefing && advisorMark(mobile ? 'size-[18px] rounded-md' : 'size-[13px] rounded-[4px]')}
+    <span>{briefing ? text.briefing : explain ? text.explain : text.title}</span>
+    {!mobile && !explain && !briefing && <kbd aria-hidden="true" className="font-mono text-[11px] font-normal text-muted">⌘J</kbd>}
   </button>;
 }
 
 export function AdvisorPanel() {
   const advisor = useContext(AdvisorContext);
-  const [wide, setWide] = useState(false);
-  const closeButton = useRef<HTMLDivElement>(null);
-  useEffect(() => { const query = window.matchMedia('(min-width: 1280px)'); const update = () => setWide(query.matches); update(); query.addEventListener('change', update); return () => query.removeEventListener('change', update); }, []);
-  useEffect(() => { if (advisor?.open && wide) closeButton.current?.querySelector('button')?.focus(); }, [advisor?.open, wide]);
-  if (!advisor) return null;
-  const actions = <div ref={closeButton} className="flex shrink-0 items-center justify-end gap-1">
-    <Button variant="ghost" href="/dashboard/advisor" aria-label={text.fullPage} title={text.fullPage} className="!size-11 !p-0 text-xl"><span aria-hidden="true">↗</span></Button>
-    <Button variant="ghost" onClick={advisor.close} data-dialog-cancel aria-label={text.close} title={text.close} className="!size-11 !p-0 text-2xl"><span aria-hidden="true">×</span></Button>
-  </div>;
-  const conversation = <AdvisorConversation companyId={advisor.companyId} environment={advisor.environment} active={advisor.open} seed={advisor.seed} />;
-  if (wide) return <aside data-advisor-docked={advisor.open ? '' : undefined} hidden={!advisor.open} aria-label={text.title} className={`min-h-0 flex-col border-l border-outline-strong bg-surface-panel ${advisor.open ? 'flex' : '!hidden'}`}>
-    <header className="flex min-h-[60px] shrink-0 items-center justify-between border-b border-outline px-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <span aria-hidden="true" className="size-[26px] shrink-0 rounded-[8px] bg-[image:var(--primary-gradient)]" />
-        <h2 className="text-lg font-semibold leading-tight">{text.title}</h2>
-      </div>
-      {actions}
-    </header>
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{conversation}</div>
+  const pathname = usePathname();
+  const [placement, setPlacement] = useState<AdvisorPlacement>('sheet');
+  useEffect(() => {
+    const dockQuery = window.matchMedia('(min-width: 1280px)');
+    const drawerQuery = window.matchMedia('(min-width: 768px)');
+    const update = () => setPlacement(dockQuery.matches ? 'dock' : drawerQuery.matches ? 'drawer' : 'sheet');
+    update();
+    dockQuery.addEventListener('change', update);
+    drawerQuery.addEventListener('change', update);
+    return () => { dockQuery.removeEventListener('change', update); drawerQuery.removeEventListener('change', update); };
+  }, []);
+  useEffect(() => { if (advisor?.open && placement === 'dock') document.getElementById('advisor-close')?.focus(); }, [advisor?.open, placement]);
+  // The full page owns the single advisor DOM (one #advisor-question); the dock never mounts there.
+  if (!advisor || pathname === '/dashboard/advisor') return null;
+  const isSheet = placement === 'sheet';
+  const conversation = <AdvisorConversation companyId={advisor.companyId} environment={advisor.environment} active={advisor.open} seed={advisor.seed}
+    variant={placement} onClose={advisor.close} onRequestInFlightChange={advisor.setRequestInFlight} HistoryView={AdvisorHistory} />;
+  if (placement === 'dock') return <aside id="advisor-panel" data-advisor-docked={advisor.open ? '' : undefined} hidden={!advisor.open} aria-label={text.title} className={`min-h-0 flex-col border-l border-outline-strong bg-surface-panel ${advisor.open ? 'flex' : '!hidden'}`}>
+    {conversation}
   </aside>;
-  return <NativeDialog open={advisor.open} title={text.title} sheet="always" onClose={advisor.close}
-    className="h-[90dvh] max-h-[760px] max-w-xl overflow-hidden [&>div]:!flex [&>div]:!h-full [&>div]:!min-h-0 [&>div]:!flex-col [&>div]:!gap-0 [&>div]:!p-0 [&>div>*]:!mb-0 [&>div>div:nth-child(1)]:!mt-2.5 [&>div>div:nth-child(1)]:shrink-0 [&>div>div:nth-child(2)]:!flex [&>div>div:nth-child(2)]:min-h-14 [&>div>div:nth-child(2)]:shrink-0 [&>div>div:nth-child(2)]:items-center [&>div>div:nth-child(2)]:border-b [&>div>div:nth-child(2)]:border-outline [&>div>div:nth-child(2)]:pl-4 [&>div>div:nth-child(2)]:pr-28 [&>div>div:nth-child(2)>h2]:!text-base">
-    <div className="absolute right-3 top-4">{actions}</div>
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{conversation}</div>
+  return <NativeDialog id="advisor-panel" open={advisor.open} title={text.title} layout="bare" onClose={advisor.close}
+    {...(isSheet ? { sheet: 'always' as const } : { placement: 'side' as const })}
+    className={isSheet
+      ? 'h-[min(90dvh,760px)] !max-w-none overflow-hidden open:flex open:flex-col'
+      : 'open:flex open:flex-col'}>
+    {conversation}
   </NativeDialog>;
 }
