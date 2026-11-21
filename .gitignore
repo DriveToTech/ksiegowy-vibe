@@ -12,6 +12,7 @@ docs/redesign/
 dist/
 .turbo/
 .next/
+.next-visual/
 coverage/
 *.tsbuildinfo
 

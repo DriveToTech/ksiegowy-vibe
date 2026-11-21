@@ -102,7 +102,7 @@ Playwright starts both servers from `apps/e2e/playwright.config.ts`:
 
 | Test                                                   | Setup                                   | Assertion                                                                                           |
 | ------------------------------------------------------ | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| sidebar shows all navigation items                     | authenticated, navigate to `/dashboard` | links "Przegląd", "Faktury wychodzące", "Faktury przychodzące", "Kontrahenci", "Raporty & JPK", "Ustawienia" visible |
+| sidebar shows all navigation items                     | authenticated, navigate to `/dashboard` | links "Przegląd", "Doradca", "Faktury wychodzące", "Faktury przychodzące", "Kontrahenci", "Raporty & JPK", "Ustawienia" visible |
 | clicking Kontrahenci navigates to contractors page     | click nav link "Kontrahenci"            | URL becomes `/dashboard/contractors`                                                                |
 | clicking Faktury wychodzące navigates to invoices page | click nav link "Faktury wychodzące"     | URL becomes `/dashboard/invoices`                                                                   |
 | clicking Ustawienia navigates to settings page         | click nav link "Ustawienia"             | URL becomes `/dashboard/settings`                                                                   |
@@ -138,11 +138,25 @@ pnpm --filter @ksiegowy/e2e report
 
 ## Visual Regression
 
-Visual tests run only when `VISUAL_REGRESSION=true`, which enables the `chromium-linux` project in addition to the default project. Use the pinned Playwright `1.59.1` dependency and matching container image:
+Visual tests run only when `VISUAL_REGRESSION=true`, which enables the `chromium-linux` project in addition to the default project. Use the single documented command, which runs the pinned Playwright `1.59.1` container image (`mcr.microsoft.com/playwright:v1.59.1-noble`) with the repository bind-mounted:
 
 ```bash
-docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:' --update-snapshots"
-docker run --rm --ipc=host --env CI=true -e VISUAL_REGRESSION=true -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.59.1-noble bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @ksiegowy/e2e exec playwright test tests/dashboard.spec.ts --project=chromium-linux --grep 'visual:'"
+pnpm --filter @ksiegowy/e2e visual                                              # verify all visual specs
+pnpm --filter @ksiegowy/e2e visual -- --update tests/advisor-visual.spec.ts     # regenerate one spec
 ```
 
-These commands update or verify the three dashboard baselines. Do not compare snapshots with a floating Playwright version or a different container image. The recorded API verification result is 130 tests passing with a clean typecheck; this E2E setup uses synthetic data and does not claim live KSeF or applied database migrations.
+`apps/e2e/scripts/run-visual-regression.sh` runs three workers by default (`E2E_WORKERS` overrides it). In visual mode the web server is a production build (`next build` then `next start`, output in `apps/web/.next-visual`) instead of `next dev`, so no route is compiled during a test and the dev error badge never appears in screenshots. Linux `node_modules`, the pnpm store and the build live in named Docker volumes (`ksiegowy-visual-*`), so host macOS files are never overwritten and later runs skip the install. Remove them with `docker volume rm`, never `docker volume prune`. Timing for the full visual set (58 tests): about 8 minutes with the old rsync copy, reinstall and `next dev` flow; about 2 minutes now, stable across repeated runs with three workers.
+
+The command covers the dashboard, invoice and advisor baselines. Do not compare snapshots with a floating Playwright version or a different container image. Dashboard, invoice and advisor visuals pin the browser clock to 2026-10-15 because the rail JPK countdown ("Termin za 10 dni") is computed from the current date; the server renders it with the real date, so wait for hydration before capturing. If the run logs `Failed to download Sora from Google Fonts`, fallback fonts make every snapshot fail: rerun. The recorded API verification result is 130 tests passing with a clean typecheck; this E2E setup uses synthetic data and does not claim live KSeF or applied database migrations.
+
+### Advisor visuals
+
+`tests/advisor-visual.spec.ts` holds the advisor visual set (dock, drawer and sheet shells, conversation and error states, answers, composer states, blockers, history and delete dialog, the full page, Explain, insight strip, Mode A settings). Shared mocks and capture helpers live in `tests/fixtures/advisor-visual.ts` and `tests/fixtures/advisor-visual.css`.
+
+- Baselines are `tests/advisor-visual.spec.ts-snapshots/advisor-<name>-<theme>-<width>-chromium-linux.png` and exist only for the `chromium-linux` project; the default project skips every `visual:` test.
+- Determinism: `page.clock.setFixedTime` pins the instant to 2026-10-15 (month 2026-10), locale `pl-PL`, timezone `Europe/Warsaw`, theme from `localStorage`, `animations: 'disabled'` plus `transition: none` and the hidden Next dev badge and pinned JPK progress fill through `stylePath`. All advisor API calls are `page.route` mocks.
+- Panel and element captures are used except `page-empty-briefing`, which is a full page. The mobile sheet is capped at 760px by the product, so tall answers at 390 are captured as the sheet scrolls (bottom of the answer).
+- Ports 3199 (mock API) and 3200 (web) must be free; the config never reuses a running server.
+
+Run the verify command twice after updating: both runs must pass without diffs. `tests/fixtures/visual-stability.css` (applied to every capture through the config) pins the rail JPK progress fill to the value for the fixed test date, because the server renders it with the real date and hydration does not repair style attributes.
+

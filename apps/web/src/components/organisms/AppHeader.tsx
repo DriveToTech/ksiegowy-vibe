@@ -11,6 +11,7 @@ import { CompanySwitcher } from '../CompanySwitcher';
 import { KsefEnvironmentBadge } from '../KsefEnvironmentBadge';
 import { SessionActions } from './SessionActions';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { AdvisorTrigger } from '../advisor/AdvisorWorkspace';
 
 interface AppHeaderProps {
   user: AuthenticatedUser | null;
@@ -72,13 +73,8 @@ export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironm
                 <KsefEnvironmentBadge environment={activeKsefEnvironment} />
               </div>
             ) : null}
-            <div className="hidden min-w-0 flex-1 lg:flex">
-              <div className="flex h-[34px] w-full max-w-[300px] items-center justify-between rounded-control border border-outline bg-secondary-surface px-3 text-[13px] text-muted">
-                <span className="truncate">{t.header.searchPlaceholder}</span>
-                <span className="font-mono text-[11px] text-muted">⌘K</span>
-              </div>
-            </div>
             <div data-app-header-theme-session className="flex min-w-0 items-center justify-end gap-2 max-[374px]:gap-1 lg:ml-auto lg:gap-3">
+              <span className="hidden lg:contents"><AdvisorTrigger /></span>
               <ThemeSwitcher />
               <details ref={profileMenuReference} className="relative">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-control px-2 transition hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
@@ -95,7 +91,7 @@ export function AppHeader({ user, companies, activeCompanyId, activeKsefEnvironm
                     </span>
                   )}
                 </summary>
-                <div className="absolute right-0 top-[calc(100%+8px)] z-50 min-w-56 rounded-card border border-outline bg-surface-panel p-2 shadow-frame">
+                <div className="absolute right-0 top-[calc(100%+8px)] z-50 min-w-56 rounded-card border border-outline bg-surface-panel p-2">
                   <div className="border-b border-outline px-3 py-2">
                     <p className="truncate text-sm font-medium text-foreground">{user.name ?? user.email}</p>
                     <p className="truncate text-xs text-muted">{user.email}</p>

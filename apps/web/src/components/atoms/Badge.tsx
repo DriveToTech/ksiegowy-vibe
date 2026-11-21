@@ -15,13 +15,16 @@ const toneClasses: Record<BadgeTone, string> = {
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode;
   tone?: BadgeTone;
+  // `tag` is the compact uppercase status tag used by the advisor; `default` keeps the touch-sized chip.
+  variant?: 'default' | 'tag';
 }
 
-export function Badge({ children, className, tone = 'draft', ...props }: BadgeProps) {
+export function Badge({ children, className, tone = 'draft', variant = 'default', ...props }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex min-h-7 items-center whitespace-nowrap rounded-chip px-3 font-mono text-[10px] tracking-[0.08em]',
+        'inline-flex items-center whitespace-nowrap rounded-chip font-mono text-[10px] uppercase tracking-[0.08em]',
+        variant === 'tag' ? 'px-2 py-1' : 'min-h-7 px-3',
         toneClasses[tone],
         className,
       )}

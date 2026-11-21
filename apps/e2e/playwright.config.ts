@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isCI = !!process.env.CI;
+const isVisualRegression = process.env.VISUAL_REGRESSION === 'true';
 const e2eAppPort = 3200;
 const e2eApiPort = 3199;
 const projects = [
@@ -8,11 +9,11 @@ const projects = [
     name: 'chromium',
     use: { ...devices['Desktop Chrome'] },
   },
-  ...(process.env.VISUAL_REGRESSION === 'true'
+  ...(isVisualRegression
     ? [
         {
           name: 'chromium-linux',
-          testMatch: /dashboard\.spec\.ts/,
+          testMatch: /(dashboard|invoices-visual|advisor-visual)\.spec\.ts/,
           use: { ...devices['Desktop Chrome'] },
         },
       ]
@@ -27,8 +28,9 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: 1,
+  workers: Number(process.env.E2E_WORKERS ?? 1),
   reporter: isCI ? [['html', { open: 'never' }], ['github']] : [['html', { open: 'on-failure' }]],
+  expect: { toHaveScreenshot: { stylePath: './tests/fixtures/visual-stability.css' } },
   use: {
     baseURL: `http://localhost:${e2eAppPort}`,
     trace: 'on-first-retry',
@@ -45,14 +47,17 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
-      // Use `next dev` in e2e so browser-side NEXT_PUBLIC_* env values are compiled with
-      // the mock API URL for this test run. `next start` would serve a previously built bundle
-      // where NEXT_PUBLIC_API_URL may still point at the default backend, breaking client mutations.
-      command: `pnpm --filter @ksiegowy/web exec next dev --webpack -p ${e2eAppPort}`,
+      // Functional runs use `next dev` so browser-side NEXT_PUBLIC_* values are compiled with the mock API URL.
+      // Visual runs use a production build with the same env: no on-demand compilation, no dev error overlay
+      // in screenshots, and the build is reused by every worker.
+      command: isVisualRegression
+        ? `pnpm --filter @ksiegowy/web exec next build --webpack && pnpm --filter @ksiegowy/web exec next start -p ${e2eAppPort}`
+        : `pnpm --filter @ksiegowy/web exec next dev --webpack -p ${e2eAppPort}`,
       url: `http://localhost:${e2eAppPort}`,
       reuseExistingServer: false,
-      timeout: 120_000,
+      timeout: isVisualRegression ? 300_000 : 120_000,
       env: {
+        NEXT_DIST_DIR: isVisualRegression ? '.next-visual' : '.next',
         API_URL: `http://localhost:${e2eApiPort}`,
         NEXT_PUBLIC_API_URL: `http://localhost:${e2eApiPort}`,
       },

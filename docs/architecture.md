@@ -312,3 +312,19 @@ flowchart LR
     FA3 --> UTILS
     PDF --> TYPES
 ```
+
+## Contextual advisor
+
+The advisor runs inside the existing Fastify API and Next.js shell. It adds authenticated read-only context assembly, provider transports, validated answer persistence and an optional MCP resource endpoint. No additional microservice is required. An external maintained OAuth issuer is needed for ChatGPT/Claude connectors; browser sign-in remains the existing Google OAuth flow. See [advisor contracts and deployment](specs/tax-advisor.md).
+
+```mermaid
+flowchart LR
+  Web[Next.js advisor panel or page] --> API[Fastify authenticated advisor routes]
+  API --> Database[(Memberships, invoices, private history)]
+  API --> Provider[Chosen API provider or Ollama]
+  Corpus[Reviewed source file] --> API
+  Host[ChatGPT or Claude] --> MCP[Fastify read-only MCP]
+  Issuer[External OAuth issuer] --> Host
+  MCP --> Database
+  Corpus --> MCP
+```

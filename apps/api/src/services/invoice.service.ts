@@ -3,6 +3,7 @@ import { calculateInvoiceTotals } from '@ksiegowy/fa3-xml';
 import type { InvoiceData, InvoiceLineInput, InvoiceParty, VatRate } from '@ksiegowy/types';
 import { generateInvoicePdf } from '@ksiegowy/pdf-templates';
 import { buildFa3Xml, validateFa3XmlAgainstXsd } from '@ksiegowy/fa3-xml';
+import { isValidNip } from '@ksiegowy/shared-utils';
 import crypto from 'node:crypto';
 import { readAndVerifyStoredFile } from './storage/local-fs.js';
 
@@ -474,6 +475,8 @@ export const issueInvoice = async (
     }
     if (invoice.lines.length === 0) throw new Error('Invoice must have at least one line item');
     if (!invoice.contractor) throw new Error('Invoice must have a contractor before issuing');
+    // Trust boundary: legacy or imported Polish contractors may carry a NIP that fails the checksum; foreign tax ids have no NIP checksum.
+    if (invoice.contractor.countryCode === 'PL' && invoice.contractor.nip && !isValidNip(invoice.contractor.nip)) throw new Error('Invalid buyer NIP');
 
     const isKor = invoice.invoiceType === 'KOR';
     if (isKor && !invoice.correctedInvoiceId) throw new Error('KOR invoice is missing correctedInvoiceId');

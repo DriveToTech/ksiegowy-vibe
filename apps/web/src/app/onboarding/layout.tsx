@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { getCompanyKsefSettings } from '../../lib/api';
 import { requireAuthSession } from '../../lib/auth';
 import { BrandImage } from '../../components/brand/BrandImage';
@@ -17,12 +16,6 @@ export default async function OnboardingLayout({ children }: Readonly<{ children
         .then((settings) => settings.credentials.some((credential) => credential.hasToken))
         .catch(() => false)
     : false;
-
-  // Reverse guard: a user who already has a company and a working KSeF credential
-  // is done — step 4 (invite) is optional, so this is the completion signal.
-  if (company && hasKsefToken) {
-    redirect('/dashboard');
-  }
 
   const completed = new Set<'company' | 'ksef'>();
   if (company) completed.add('company');

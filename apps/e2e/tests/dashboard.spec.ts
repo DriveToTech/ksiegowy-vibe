@@ -280,6 +280,8 @@ test('visual: dashboard light desktop', async ({ authenticatedPage: page }, test
   test.skip(testInfo.project.name !== 'chromium-linux');
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.addInitScript(() => localStorage.removeItem('ksiegowy-theme'));
+  // The JPK deadline countdown in the rail is relative to the run date.
+  await page.clock.setFixedTime('2026-10-15T10:00:00.000Z');
   await page.goto('/dashboard');
 
   await expect(page).toHaveScreenshot('dashboard-light-desktop.png', { animations: 'disabled', fullPage: true });
@@ -289,6 +291,8 @@ test('visual: dashboard dark desktop', async ({ authenticatedPage: page }, testI
   test.skip(testInfo.project.name !== 'chromium-linux');
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.addInitScript(() => localStorage.setItem('ksiegowy-theme', 'dark'));
+  // The JPK deadline countdown in the rail is relative to the run date.
+  await page.clock.setFixedTime('2026-10-15T10:00:00.000Z');
   await page.goto('/dashboard');
 
   await expect(page).toHaveScreenshot('dashboard-dark-desktop.png', { animations: 'disabled', fullPage: true });
@@ -298,6 +302,8 @@ test('visual: dashboard light mobile', async ({ authenticatedPage: page }, testI
   test.skip(testInfo.project.name !== 'chromium-linux');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.removeItem('ksiegowy-theme'));
+  // The JPK deadline countdown in the rail is relative to the run date.
+  await page.clock.setFixedTime('2026-10-15T10:00:00.000Z');
   await page.goto('/dashboard');
 
   await expect(page).toHaveScreenshot('dashboard-light-mobile.png', { animations: 'disabled', fullPage: true });

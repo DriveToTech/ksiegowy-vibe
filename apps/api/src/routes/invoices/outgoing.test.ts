@@ -469,3 +469,95 @@ describe('PUT /companies/:companyId/invoices/:id', () => {
     await app.close();
   });
 });
+
+describe('GET /companies/:companyId/invoices', () => {
+  const requestList = async (query: string, aggregateSum: { toFixed: (digits: number) => string } | null) => {
+    const invoiceCount = vi.fn(async () => 0);
+    const invoiceFindMany = vi.fn(async () => []);
+    const invoiceAggregate = vi.fn(async () => ({ _sum: { totalGross: aggregateSum } }));
+    const prisma = {
+      invoice: { count: invoiceCount, findMany: invoiceFindMany, aggregate: invoiceAggregate },
+      company: { findUnique: vi.fn(async () => ({ ksefEnv: 'TEST' })) },
+    } as unknown as PrismaClient;
+    const app = await buildApp({ logger: false, prismaClient: prisma, authConfig });
+    const authToken = signAccessToken(app, {
+      sub: 'user-1', email: 'test@example.com', name: 'Test User', companies: [{ id: 'company-1', role: 'ADMIN' }],
+    });
+    const response = await app.inject({
+      method: 'GET',
+      url: `/companies/company-1/invoices?${query}`,
+      headers: { 'x-ksef-environment': 'TEST' },
+      cookies: { auth_token: authToken },
+    });
+    await app.close();
+    return { response, invoiceCount, invoiceAggregate };
+  };
+
+  it('keeps the not_submitted OR and the search OR side by side under AND', async () => {
+    const { response, invoiceCount } = await requestList('ksefStatus=not_submitted&search=Acme%20123', null);
+
+    expect(response.statusCode).toBe(200);
+    expect(invoiceCount).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        environment: 'TEST',
+        AND: [
+          {
+            OR: [
+              { ksefStates: { none: { environment: 'TEST' } } },
+              { ksefStates: { some: { environment: 'TEST', status: 'NOT_SENT' } } },
+            ],
+          },
+          {
+            OR: [
+              { invoiceNumber: { contains: 'Acme 123', mode: 'insensitive' } },
+              { contractor: { name: { contains: 'Acme 123', mode: 'insensitive' } } },
+              { contractor: { nip: { startsWith: '123' } } },
+              { ksefStates: { some: { environment: 'TEST', ksefReference: { contains: 'Acme 123' } } } },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it('filters issueMonth to the UTC month range and omits the NIP clause for digitless search and escapes LIKE wildcards', async () => {
+    const { invoiceCount } = await requestList('issueMonth=2026-12&search=%25_', null);
+
+    expect(invoiceCount).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        environment: 'TEST',
+        AND: [
+          {},
+          {
+            OR: [
+              { invoiceNumber: { contains: '\\%\\_', mode: 'insensitive' } },
+              { contractor: { name: { contains: '\\%\\_', mode: 'insensitive' } } },
+              { ksefStates: { some: { environment: 'TEST', ksefReference: { contains: '\\%\\_' } } } },
+            ],
+          },
+          { issueDate: { gte: new Date('2026-12-01T00:00:00.000Z'), lt: new Date('2027-01-01T00:00:00.000Z') } },
+        ],
+      },
+    });
+  });
+
+  it('returns totalGross as a decimal string aggregated over the filtered set', async () => {
+    const { response, invoiceAggregate } = await requestList('issueMonth=2026-05', { toFixed: () => '1230.50' });
+
+    expect(response.json()).toEqual({ data: [], total: 0, page: 1, limit: 20, totalGross: '1230.50' });
+    expect(invoiceAggregate).toHaveBeenCalledWith({
+      where: expect.objectContaining({ companyId: 'company-1' }),
+      _sum: { totalGross: true },
+    });
+  });
+
+  it('returns 0.00 totalGross for an empty set and rejects an invalid issueMonth', async () => {
+    const empty = await requestList('page=1', null);
+    const invalid = await requestList('issueMonth=2026-13', null);
+
+    expect(empty.response.json()).toMatchObject({ totalGross: '0.00' });
+    expect(invalid.response.statusCode).toBe(400);
+  });
+});

@@ -181,7 +181,7 @@ Multi-stage build. Includes system-level OCR and PDF rendering dependencies.
 ```
 Stage 1 — deps
   Base: node:24-trixie-slim
-  Installs: Poppler, Tesseract OCR (Polish pack), libxml2-utils
+  Installs: Poppler, Tesseract OCR (Polish pack, optional), libxml2-utils
   Installs: pnpm, Node.js workspace dependencies through the configured build proxy
 
 Stage 2 — builder
@@ -199,7 +199,7 @@ Stage 4 — runner
   Base: node:24-alpine
   Copies: built artefacts plus root, API, and PDF-template production
   node_modules containing the generated Prisma client and Puppeteer
-  Installs: Alpine Chromium, Poppler, Tesseract OCR (Polish pack), libxml2-utils
+  Installs: Alpine Chromium, Poppler, Tesseract OCR (Polish pack, optional), libxml2-utils
   Runs as: node (UID 1000)
   Working directory: /app/apps/api
   Cmd: node dist/main.js
@@ -213,6 +213,22 @@ Key system dependencies in the final image:
 | `tesseract-ocr` + `tesseract-ocr-data-pol` | Local Polish-language OCR |
 | `libxml2-utils` | XSD validation of FA(3) XML |
 | `chromium` | Headless browser for PDF generation |
+
+Tesseract is controlled by the `INSTALL_TESSERACT` build argument (default
+`true`). Docker Compose passes it from `API_INSTALL_TESSERACT`:
+
+```bash
+API_INSTALL_TESSERACT=false docker compose build api
+# or without Compose
+docker build --build-arg INSTALL_TESSERACT=false -f apps/api/Dockerfile .
+```
+
+Without Tesseract the API still starts. Invoice OCR uses the native PDF text
+layer first and, when the `tesseract` executable is missing, falls back to the
+OpenRouter vision LLM, so `OPENROUTER_API_KEY` becomes required for scanned
+PDFs and image uploads. The saving is small (an estimated tens of MB, mostly
+language data; many image libraries are shared with Chromium), while Chromium
+and its libraries remain the dominant share of the image (hundreds of MB).
 
 ### Web — `apps/web/Dockerfile`
 
@@ -417,6 +433,8 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 | `GDRIVE_REDIRECT_URI` | — | Google Drive backup OAuth2 redirect/callback URL |
 | `RESEND_API_KEY` | — | Email delivery (invoice PDFs) |
 | `GUS_API_KEY` | — | GUS API key for NIP/company lookup |
+| `REGISTRY_DAILY_CALL_LIMIT` | `80` | Max MF white-list calls per UTC day (cache misses only) made by `GET /companies/lookup` |
+| `REGISTRY_USER_DAILY_CALL_LIMIT` | `20` | Max MF white-list calls per user per UTC day (cache misses only); breach returns 429 `REGISTRY_USER_DAILY_LIMIT` |
 | `STORAGE_BASE_PATH` | `./storage` | Absolute path to the file storage directory |
 | `ICLOUD_BACKUP_PATH` | — | iCloud backup directory path (macOS only) |
 | `ICLOUD_RCLONE_REMOTE` | — | rclone remote name used for iCloud backup on Linux/VPS |
@@ -446,6 +464,35 @@ Copy `.env.example` to `.env` and fill in the values before starting.
 For Google Drive backup OAuth setup, configure the `GDRIVE_*` variables using the dedicated [Google Drive Backup Setup](./google-drive-backup-setup.md) guide.
 
 ---
+
+## NIP lookup and the MF white-list quota
+
+`GET /companies/lookup?nip=` calls `https://wl-api.mf.gov.pl/api/search/nip/{nip}` (a "search" call).
+
+Quota check, against the official page [gov.pl/web/kas/api-wykazu-podatnikow-vat](https://www.gov.pl/web/kas/api-wykazu-podatnikow-vat): "Przy wykorzystaniu metody search możesz złożyć 100 zapytań dziennie o maksymalnie 30 podmiotów jednocześnie." The page also says that exceeding a limit may block access until 0:00, covering both methods and the public website search. **Confirmed:** 100 search queries per day. **Not confirmed:** that the quota is counted per IP (the page does not say so). We assume it is, because all tenants share one egress IP, and we treat it as a shared pool. Each lookup sends one NIP, so it costs one query.
+
+```mermaid
+flowchart TD
+  A[GET /companies/lookup] --> B{User under 10 lookups per 60s?}
+  B -- no --> X[429 RATE_LIMITED + Retry-After]
+  B -- yes --> V{NIP checksum valid?}
+  V -- no --> Z[400 Invalid NIP, no quota spent]
+  V -- yes --> C{NIP cached for this UTC day?}
+  C -- yes, 200 or 404 --> R[Return cached result, original checkedAt]
+  C -- no --> F{Same NIP already in flight?}
+  F -- yes --> J[Join the in-flight call, no extra quota]
+  F -- no --> U{User calls today < REGISTRY_USER_DAILY_CALL_LIMIT?}
+  U -- no --> W[429 REGISTRY_USER_DAILY_LIMIT + Retry-After to UTC midnight]
+  U -- yes --> D{MF calls today < REGISTRY_DAILY_CALL_LIMIT?}
+  D -- no --> Y[429 REGISTRY_DAILY_LIMIT + Retry-After to UTC midnight]
+  D -- yes --> E[Call MF with 5s timeout, cache 200 or 404, errors not cached]
+```
+
+- Cache: per NIP, per UTC day, in memory, max 2000 entries (oldest evicted), cleared on day change.
+- Response adds `checkedAt` (time of the real MF call, kept on a cache hit) and `requestId` (MF `result.requestId` or `null`). Nothing is stored on `Contractor`.
+- Logs carry only `operation`, `userId` and `outcome`, never the NIP.
+- Every outbound call (MF and the two GUS calls) has a 5 second timeout. Upstream failures return 502 with the fixed message `Company registry unavailable`; the upstream text is only logged.
+- Per-process ceiling: the per-minute window, the per-user and shared daily caps, the cache and the in-flight map live in process memory. The effective limits are the configured limits multiplied by the number of API instances, and every counter resets on restart. Run more than one API instance only after moving them to a shared store (for example `@fastify/rate-limit` with Redis). The per-minute check also sweeps the whole window map on each call, which is fine until thousands of concurrent users.
 
 ## Data Persistence
 
@@ -602,3 +649,13 @@ This slice keeps backup scheduling flows separate intentionally:
 - [ ] Ensure backup remote uses encryption-at-rest and private access controls
 - [ ] Put a reverse proxy (nginx / Caddy) in front of `:3000` and `:3001` with TLS
 - [ ] Do not expose PostgreSQL port `:5432` publicly
+
+## Optional advisor deployment
+
+Step-by-step procedure: [Advisor Rollout Runbook](./advisor-rollout-runbook.md).
+
+Apply all four advisor migrations (`20260919080000_tax_advisor` through `20261002100000_advisor_insight_dismissal`) before setting API `ADVISOR_ENABLED=true`. The existing `ENCRYPTION_KEY` encrypts user-entered advisor credentials; OCR's `OPENROUTER_API_KEY` is not reused. `.env.example` lists the advisor variables. API Compose already consumes `.env`; mount any `ADVISOR_TAX_SOURCES_PATH` file read-only and keep `ADVISOR_OLLAMA_URL` on operator-controlled infrastructure.
+
+Reverse proxies must preserve streaming for `/companies/*/advisor/conversations/*/messages` (SSE, no buffering, timeout greater than 60 seconds). For subscription connectors, forward `/advisor/mcp` and `/.well-known/oauth-protected-resource/advisor/mcp` under the same public API prefix. Configure HTTPS, external OAuth issuer/JWKS/client IDs, exact callbacks, S256 PKCE and immutable user mapping following [the connector runbook](specs/tax-advisor.md#chatgpt-and-claude-subscription-connectors). Do not expose an unauthenticated invoice connector.
+
+Rollout gates include a disposable-database migration/retention check, approved live requests for enabled providers, both real host integrations and reviewed tax evidence. The feature is disabled by default. Disabling it stops advisor processing and connector reads without changing accounting routes. Existing encrypted data requires the existing backup/key controls.

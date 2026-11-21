@@ -8,6 +8,9 @@ import { InvoicesTable } from '../../components/organisms/InvoicesTable';
 import { t } from '../../lib/translations';
 import { formatMoney } from '../../lib/format';
 import { requireAuthSession } from '../../lib/auth';
+import { AdvisorTrigger } from '../../components/advisor/AdvisorWorkspace';
+import { AdvisorInsightStrip } from '../../components/advisor/AdvisorInsightStrip';
+import { advisorText } from '../../lib/advisor-translations';
 
 const kpiCells = [
   { key: 'accepted' as const, dot: 'bg-success-ink', labelKey: 'accepted', hintKey: 'acceptedHint' },
@@ -68,11 +71,13 @@ export default async function DashboardPage() {
         description={t.dashboard.pageDescription}
         actions={
           <>
+            <AdvisorTrigger question={advisorText.briefingQuestion} briefing />
             <Button href="/dashboard/incoming" variant="secondary">{t.dashboard.goToIncoming}</Button>
             <Button href="/dashboard/invoices/new">{t.dashboard.createInvoice}</Button>
           </>
         }
       />
+      <AdvisorInsightStrip companyId={companyId} environment={activeEnvironment} view="dashboard" />
 
       <div className="overflow-hidden rounded-card border border-outline bg-surface-panel">
         <div className="flex items-center justify-between border-b border-outline px-5 py-3.5">
@@ -120,7 +125,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex gap-6 border-t border-outline pt-3">
             <ChartStat label={t.dashboard.chart.monthGross} value={formatMoney(summary.currentMonth.gross)} />
-            <ChartStat label={t.dashboard.chart.vatPayable} value={formatMoney(summary.currentMonth.vat)} />
+            <ChartStat label={t.dashboard.chart.acceptedInvoiceVat} value={formatMoney(summary.currentMonth.vat)} />
             <ChartStat label={t.dashboard.metrics.invoicesThisMonthLabel} value={String(summary.currentMonth.invoiceCount)} />
           </div>
         </div>

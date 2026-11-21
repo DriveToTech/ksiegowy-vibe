@@ -4,7 +4,7 @@
 export function formatMoney(value: string | number): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return '—';
-  return num.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' });
+  return num.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN', useGrouping: 'always' });
 }
 
 /**
@@ -30,4 +30,13 @@ export function formatDate(value: string | undefined | null): string {
   const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
   const yyyy = d.getUTCFullYear();
   return `${dd}.${mm}.${yyyy}`;
+}
+
+/**
+ * Format an ISO timestamp in the viewer's time zone as dd.MM.yyyy, HH:mm
+ */
+export function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return value;
+  return date.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
 }

@@ -48,7 +48,7 @@ export default async function DashboardContractorsPage() {
         actions={canEdit ? <Button href="/dashboard/contractors/new">{t.contractors.addButton}</Button> : null}
       />
 
-      <ContractorList contractors={contractors} canEdit={canEdit} companyId={companyId} activeEnvironment={activeEnvironment} />
+      <ContractorList key={`${companyId}:${activeEnvironment}`} contractors={contractors} canEdit={canEdit} companyId={companyId} activeEnvironment={activeEnvironment} />
     </div>
   );
 }

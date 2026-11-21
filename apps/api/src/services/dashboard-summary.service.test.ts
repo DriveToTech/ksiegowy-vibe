@@ -103,5 +103,10 @@ describe('buildDashboardSummary()', () => {
     expect(incomingCount).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ companyId: 'company-1', environment: 'TEST' }),
     }));
+    expect(findMany).toHaveBeenCalledWith({ where: { companyId: 'company-1', environment: 'TEST', status: 'ISSUED', currency: 'PLN',
+      OR: [{ correctionMode: null }, { correctionMode: { not: 'FORMAL' } }],
+      issueDate: { gte: new Date('2026-04-01'), lt: new Date('2026-10-01') },
+      ksefStates: { some: { environment: 'TEST', status: 'ACCEPTED' } } },
+      select: { issueDate: true, totalGross: true, totalVat: true } });
   });
 });

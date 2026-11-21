@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getInvoice, getContractors, getServiceTemplates, getContractorServiceRates } from '../../../../../lib/api';
 import type { ContractorServiceRate } from '../../../../../lib/api';
 import { Button } from '../../../../../components/atoms/Button';
@@ -5,7 +6,9 @@ import { ErrorState } from '../../../../../components/molecules/ErrorState';
 import { PageHeader } from '../../../../../components/molecules/PageHeader';
 import { requireAuthSession } from '../../../../../lib/auth';
 import { t } from '../../../../../lib/translations';
-import EditInvoiceForm from './EditInvoiceForm';
+import InvoiceDraftForm from '../../InvoiceDraftForm';
+import { emptyLine } from '../../../../../lib/invoice-line-calculation';
+import type { VatRate } from '../../../../../lib/api-types';
 
 export default async function EditInvoicePage({
   params,
@@ -56,15 +59,41 @@ export default async function EditInvoicePage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow={t.newInvoice.editPageEyebrow}
-        title={t.newInvoice.editPageTitle}
-        description={t.newInvoice.editPageDescription}
-      />
-        <EditInvoiceForm
-          companyId={companyId}
-          activeEnvironment={activeEnvironment}
-        invoice={invoice}
+      <div>
+        <Link
+          href={`/dashboard/invoices/${invoice.id}`}
+          className="hidden min-h-11 items-center text-[13px] text-muted transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:inline-flex"
+        >
+          {invoice.invoiceNumber ? t.newInvoice.backToInvoiceLink(invoice.invoiceNumber) : t.newInvoice.backToInvoiceButton}
+        </Link>
+        <PageHeader
+          eyebrow={t.newInvoice.editPageEyebrow}
+          title={t.newInvoice.editPageTitle}
+          description={t.newInvoice.editPageDescription}
+        />
+      </div>
+      <InvoiceDraftForm
+        companyId={companyId}
+        activeEnvironment={activeEnvironment}
+        invoiceId={invoice.id}
+        initialDraft={{
+          contractorId: invoice.contractorId ?? contractors[0]?.id ?? '',
+          issueDate: invoice.issueDate,
+          saleDate: invoice.saleDate ?? '',
+          paymentDueDate: invoice.paymentDueDate ?? '',
+          paymentMethod: invoice.paymentMethod === 'CASH' ? 'CASH' : 'BANK_TRANSFER',
+          lines:
+            invoice.lines.length > 0
+              ? invoice.lines.map((line) => ({
+                  name: line.name,
+                  quantity: line.quantity,
+                  unit: line.unit ?? 'szt.',
+                  unitNetPrice: line.unitNetPrice,
+                  vatRate: line.vatRate as VatRate,
+                }))
+              : [emptyLine()],
+          notes: invoice.notes ?? '',
+        }}
         contractors={contractors}
         serviceTemplates={serviceTemplates}
         contractorRates={allRates}

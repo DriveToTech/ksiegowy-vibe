@@ -99,7 +99,7 @@ export const mobileMoreDestinations = [
 ] as const;
 ```
 
-The first two slots are `Start` and `Zakupy`, the center slot is a disabled 52px AI tax assistant control with a 16px radius, the fourth slot is `Sprzedaż`, and the fifth is `Więcej`. The four route/action slots use centered 11.5px labels; the active label uses the primary-strong color. The `Więcej` button opens a bottom sheet containing contractors, reports, and settings. The sheet uses dialog semantics, has an accessible name, traps focus while open, closes with Escape and backdrop activation, and restores focus to `Więcej`. Each interactive slot is at least 44px high, and the active route is also conveyed with `aria-current="page"`.
+The first two slots are `Start` and `Zakupy`, the center slot opens the configured tax-advisor sheet, the fourth slot is `Sprzedaż`, and the fifth is `Więcej`. Earlier baseline designs depicted a disabled assistant placeholder; the current shell uses `AdvisorTrigger` and availability is governed by the advisor's company/operator settings. The four route/action slots use centered 11.5px labels; the active label uses the primary-strong color. The `Więcej` button opens a bottom sheet containing contractors, reports, and settings. The sheet uses dialog semantics, has an accessible name, traps focus while open, closes with Escape and backdrop activation, and restores focus to `Więcej`. Each interactive slot is at least 44px high, and the active route is also conveyed with `aria-current="page"`.
 
 The navigation region reserves `90px + env(safe-area-inset-bottom)`. Main content receives matching bottom padding so no control can be covered.
 

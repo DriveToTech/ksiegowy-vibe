@@ -16,7 +16,7 @@ import type {
   IncomingInvoiceSummary,
   Invite,
   InvoiceDetail,
-  InvoiceSummary,
+  InvoiceListResponse,
   Member,
   ServiceTemplate,
 } from './api-types';
@@ -142,7 +142,7 @@ export async function getInvoices(
   companyId: string,
   environment: KsefEnvironment,
   params?: Record<string, string>,
-): Promise<{ data: InvoiceSummary[]; total: number; page: number; limit: number }> {
+): Promise<InvoiceListResponse> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch(`/companies/${companyId}/invoices${qs}`, {
     headers: { [KSEF_ENVIRONMENT_HEADER_NAME]: environment },

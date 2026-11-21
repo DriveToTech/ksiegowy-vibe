@@ -1,3 +1,4 @@
+import { AdvisorExplainButton } from '../../../../components/advisor/AdvisorExplainButton';
 import Link from 'next/link';
 import { getCompanyKsefSettings, getInvoice } from '../../../../lib/api';
 import { Button } from '../../../../components/atoms/Button';
@@ -83,9 +84,12 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link href="/dashboard/invoices" className="inline-flex min-h-11 items-center text-sm font-medium text-muted transition hover:text-foreground">
-        {t.invoiceDetail.backToInvoices}
-      </Link>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <Link href="/dashboard/invoices" className="inline-flex min-h-11 items-center text-sm font-medium text-muted transition hover:text-foreground">
+          {t.invoiceDetail.backToInvoices}
+        </Link>
+        <AdvisorExplainButton seed={{ period: invoice.issueDate.slice(0, 7), reference: invoice.invoiceNumber ?? t.invoiceDetail.draftTitle }} />
+      </div>
 
       {invoice.invoiceType === 'KOR' && invoice.correctedInvoice && (
         <Banner tone="warning" className="flex flex-wrap items-center gap-3">

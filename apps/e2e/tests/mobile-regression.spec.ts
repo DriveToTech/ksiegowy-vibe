@@ -48,19 +48,17 @@ for (const mobileTheme of mobileThemes) {
             const bounds = slot.getBoundingClientRect();
             return { width: bounds.width, height: bounds.height };
           }),
-          centerControl: (() => {
-            const bounds = slots[2].getBoundingClientRect();
-            return { width: bounds.width, height: bounds.height };
-          })(),
         };
       });
 
       expect(navigationSlots.count).toBe(5);
-      expect(navigationSlots.labels).toEqual(['Start', 'Zakupy', 'Asystent podatkowy AI — wkrótce', 'Sprzedaż', 'Więcej']);
+      expect(navigationSlots.labels).toEqual(['Start', 'Zakupy', 'Doradca', 'Sprzedaż', 'Więcej']);
       expect(navigationSlots.left).toBe(0);
       expect(navigationSlots.right).toBe(navigationSlots.viewportWidth);
       expect(new Set([navigationSlots.rowTops[0], navigationSlots.rowTops[1], navigationSlots.rowTops[3], navigationSlots.rowTops[4]]).size).toBe(1);
-      expect(navigationSlots.centerControl).toEqual({ width: 52, height: 52 });
+      // The advisor entry is a labeled tab in an equal-width slot, not an oversized FAB.
+      expect(Math.max(...navigationSlots.widths) - Math.min(...navigationSlots.widths)).toBeLessThanOrEqual(1);
+      await expect(mobileNavigation.getByRole('button', { name: 'Doradca', exact: true })).toHaveText('Doradca');
       expect(navigationSlots.dimensions.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
 
       await expect(mobileNavigation.getByRole('link', { name: 'Start' })).toHaveAttribute('aria-current', 'page');
@@ -244,7 +242,7 @@ test.describe('mobile responsive route flows', () => {
 
     await page.goto('/dashboard/invoices/new');
     await expect(page.getByRole('heading', { name: 'Nowa faktura' })).toBeVisible();
-    await expect(page.getByLabel('Kontrahent', { exact: false })).toBeVisible();
+    await expect(page.getByLabel('Nabywca', { exact: true })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       viewportWidth: document.documentElement.clientWidth,
       documentScrollWidth: document.documentElement.scrollWidth,

@@ -2,12 +2,15 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { getDashboardSummary } from '../../lib/api';
 import type { AuthSession } from '../../lib/auth';
+import { advisorText } from '../../lib/advisor-translations';
 import { t } from '../../lib/translations';
 import { AppHeader } from './AppHeader';
 import { DashboardNavigation } from './DashboardNavigation';
+import { AdvisorWorkspace, AdvisorPanel, AdvisorTrigger } from '../advisor/AdvisorWorkspace';
 
 const navigationItems = [
   { href: '/dashboard', label: t.nav.overview, mobileLabel: t.nav.mobileOverview, icon: 'overview' as const },
+  { href: '/dashboard/advisor', label: advisorText.title, icon: 'advisor' as const },
   { href: '/dashboard/invoices', label: t.nav.outgoingInvoices, mobileLabel: t.nav.mobileOutgoingInvoices, icon: 'outgoing' as const },
   { href: '/dashboard/incoming', label: t.nav.incomingInvoices, mobileLabel: t.nav.mobileIncomingInvoices, icon: 'incoming' as const },
   { href: '/dashboard/contractors', label: t.nav.contractors, mobileLabel: t.nav.mobileContractors, icon: 'contractors' as const },
@@ -15,8 +18,9 @@ const navigationItems = [
   { href: '/dashboard/settings', label: t.nav.settings, mobileLabel: t.nav.settings, icon: 'settings' as const },
 ];
 
-const mobileNavigationItems = [navigationItems[0], navigationItems[2]];
-const mobileOutgoingNavigationItems = [navigationItems[1]];
+const navigationItemFor = (href: string) => navigationItems.find((item) => item.href === href)!;
+const mobileNavigationItems = [navigationItemFor('/dashboard'), navigationItemFor('/dashboard/incoming')];
+const mobileOutgoingNavigationItems = [navigationItemFor('/dashboard/invoices')];
 const mobileMoreNavigationItems = [
   { href: '/dashboard/contractors', label: t.nav.mobileContractors, icon: 'contractors' as const },
   { href: '/dashboard/compliance', label: t.nav.mobileCompliance, icon: 'compliance' as const },
@@ -75,6 +79,7 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
   const jpk = jpkDeadlineWidget(new Date());
 
   return (
+    <AdvisorWorkspace companyId={session.activeCompanyId} environment={session.activeKsefEnvironment}>
     <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground lg:p-6">
       <div className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col lg:overflow-hidden lg:rounded-frame lg:border lg:border-outline lg:shadow-frame lg:bg-background">
         <AppHeader
@@ -84,8 +89,8 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
           activeKsefEnvironment={session.activeKsefEnvironment}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[226px_1fr] lg:overflow-hidden">
-          <aside className="hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-[22px] lg:overflow-y-auto lg:border-r lg:border-outline lg:bg-chrome lg:p-[18px_14px]">
+        <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[226px_minmax(0,1fr)] xl:has-[[data-advisor-docked]]:grid-cols-[226px_minmax(0,1fr)_400px] lg:has-[[data-invoice-focus-layout]]:grid-cols-[minmax(0,1fr)] xl:has-[[data-invoice-focus-layout]]:has-[[data-advisor-docked]]:grid-cols-[minmax(0,1fr)_400px] lg:[&:has([data-invoice-focus-layout])>[data-dashboard-rail]]:hidden lg:overflow-hidden">
+          <aside data-dashboard-rail className="hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-[22px] lg:overflow-y-auto lg:border-r lg:border-outline lg:bg-chrome lg:p-[18px_14px]">
             <nav aria-label="Nawigacja dashboardu" className="flex flex-col gap-0.5">
               <DashboardNavigation items={items} />
             </nav>
@@ -116,6 +121,7 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
           <main id="dashboard-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto p-4 pb-[calc(90px+env(safe-area-inset-bottom))] sm:p-6 lg:p-[22px_26px_26px] lg:pb-[26px]">
             {children}
           </main>
+          <AdvisorPanel />
         </div>
 
         <div className="h-[calc(90px+env(safe-area-inset-bottom))] shrink-0 bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -124,19 +130,12 @@ export async function DashboardShell({ children, session }: DashboardShellProps)
             className="box-border flex h-[90px] w-full items-center border-t border-outline bg-chrome px-[18px] pt-3 pb-6"
           >
             <DashboardNavigation items={mobileNavigationItems} mobile />
-            <button
-              type="button"
-              disabled
-              aria-label="Asystent podatkowy AI — wkrótce"
-              title="Asystent podatkowy AI — wkrótce"
-              className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] bg-[image:var(--primary-gradient)] disabled:cursor-not-allowed disabled:opacity-100"
-            >
-              <span aria-hidden="true" className="h-5 w-5 rounded-[6px] bg-[rgba(12,13,28,0.85)]" />
-            </button>
+            <AdvisorTrigger mobile />
             <DashboardNavigation items={mobileOutgoingNavigationItems} mobile moreItems={mobileMoreNavigationItems} />
           </nav>
         </div>
       </div>
     </div>
+    </AdvisorWorkspace>
   );
 }
