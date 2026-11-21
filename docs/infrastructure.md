@@ -399,11 +399,9 @@ The `test-unit` job refreshes Ubuntu package metadata before installing
 
 The E2E web server disables the Next.js development indicator so framework controls do not affect application focus-order assertions. Responsive dashboard checks only evaluate a mid-scroll position when the synthetic fixture has scrollable content.
 
-### `deploy.yml` — Deployment
+### Release ownership
 
-Triggered automatically after a successful CI run on `main`.
-
-> **Non-authoritative status:** `deploy.yml` is not the production release path. Keep GitHub deployment disabled/non-authoritative for real releases. The supported public-repo release boundary is local image publication only, documented in [Local Private Registry Image Publishing](#local-private-registry-image-publishing).
+Public CI validates the application and its container builds. For operator-led publication, use [Local Private Registry Image Publishing](#local-private-registry-image-publishing). For automated releases, the private operations repository selects the upstream revision and owns image publication, promotion, and rollout.
 
 ---
 
