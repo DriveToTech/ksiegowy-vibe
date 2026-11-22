@@ -9,6 +9,7 @@ allowBuilds:
   prisma: true
   puppeteer: false
 overrides:
+  '@fastify/multipart>@fastify/busboy': 3.2.6
   baseline-browser-mapping: 2.11.0
   browserslist: 4.29.0
   'brace-expansion@1': 1.1.18
@@ -17,10 +18,13 @@ overrides:
   deepmerge-ts: 8.0.2
   defu: 6.1.7
   effect: 3.22.2
+  'express@5>body-parser': 2.4.0
   'fast-uri@3': 3.1.8
   js-yaml: 4.3.2
-  'nanoid@3': 3.3.18
+  'nanoid@3': 3.3.20
   piscina: 4.9.3
-  postcss: 8.5.28
+  postcss: 8.5.33
   'qs@6': 6.16.0
+  'simple-oauth2>joi': 17.13.9
+  source-map-js: 1.2.4
   vite: 7.3.5
