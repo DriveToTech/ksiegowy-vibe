@@ -144,7 +144,7 @@ pnpm audit --audit-level=high
 docker build -t ksiegowy-vibepl-api:security -f apps/api/Dockerfile .
 docker build -t ksiegowy-vibepl-web:security -f apps/web/Dockerfile .
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  -v trivy-cache:/root/.cache aquasec/trivy:0.74.0 image \
+  -v trivy-cache:/root/.cache aquasec/trivy:0.76.2 image \
   --scanners vuln --severity HIGH,CRITICAL ksiegowy-vibepl-api:security
 ```
 
@@ -160,6 +160,8 @@ The API production-dependency stage runs `prisma generate` on Alpine so the
 generated client and musl query engine stay in the same dependency tree used
 by the runner. The runner also preserves the PDF-template workspace's
 production dependencies for Puppeteer-based PDF generation.
+The [November 2026 dependency remediation](docs/specs/security-vulnerability-remediation.md#november-2026-homelab-release-dependency-remediation) records patched versions and verification for the blocked Homelab revision.
+
 Promotion requires scanning both final images with a current Trivy database and
 recording their immutable image digests. Current scan evidence and any release
 blockers are maintained in [the security remediation specification](docs/specs/security-vulnerability-remediation.md).
