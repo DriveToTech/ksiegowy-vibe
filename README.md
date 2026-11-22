@@ -901,7 +901,7 @@ Before release:
 
 ## Deployment
 
-The application is designed for self-hosted deployment. The public repository intentionally stops at **generic OCI image publication** from your workstation or deployment host. Environment-specific promotion and rollout steps should live in a private operations repository.
+The application is designed for self-hosted deployment. The public repository intentionally stops at **generic OCI image publication** from your workstation or deployment host. GitHub Actions runs CI and builds images for verification. A private operations repository can pull a validated upstream revision and handle image publication, promotion, and rollout.
 
 ### Publish production images to a private registry
 
